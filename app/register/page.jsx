@@ -106,32 +106,6 @@ const CheckCircle = ({ met }) => (
 );
 
 const ROLES = ["Student", "Lecturer", "Rather not say"];
-async function handleSignUp() {
-  const [loading, setLoading] = useState(false);
-
-  setLoading(true);
-  setError("");
-
-  const res = await fetch("/api/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      email: form.email,
-      username: form.username,
-      password: form.password,
-      role,
-    }),
-  });
-
-  const data = await res.json();
-  setLoading(false);
-
-  if (res.ok) {
-    router.push("/"); // redirect to login
-  } else {
-    setError(data.error);
-  }
-}
 
 export default function Slide2NotesRegister() {
   const router = useRouter();
@@ -149,6 +123,30 @@ export default function Slide2NotesRegister() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  async function handleSignUp() {
+    setLoading(true);
+    setError("");
+
+    const res = await fetch("/api/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: form.email,
+        username: form.username,
+        password: form.password,
+        role,
+      }),
+    });
+
+    const data = await res.json();
+    setLoading(false);
+
+    if (res.ok) {
+      router.push("/"); // redirect to login
+    } else {
+      setError(data.error);
+    }
+  }
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
