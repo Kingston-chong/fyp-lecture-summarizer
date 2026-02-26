@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 const GoogleIcon = () => (
   <svg
@@ -112,6 +113,7 @@ const ChevronDown = () => (
 );
 
 export default function Slide2NotesLogin() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -589,7 +591,7 @@ export default function Slide2NotesLogin() {
               <Link href="/register" className="footer-link cta">
                 New? Register an account
               </Link>
-              <button className="footer-link">Forgot password?</button>
+              <button className="footer-link" onClick={() => router.push("/reset-password")}>Forgot password?</button>
             </div>
           </div>
         </main>
