@@ -1,46 +1,44 @@
-import { prisma } from '@/lib/prisma'
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import crypto from "crypto";
 
 export async function POST(req) {
-  try {
-    const { email, otp } = await req.json()
+  const { email, otp } = await req.json();
 
-    if (!email || !otp) {
-      return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
-    }
+  const record = await prisma.passwordReset.findUnique({ where: { email } });
 
-    const record = await prisma.passwordReset.findUnique({
-      where: { email },
-    })
-
-    if (!record) {
-      return NextResponse.json({ error: 'No OTP request found' }, { status: 404 })
-    }
-
-    if (record.used) {
-      return NextResponse.json({ error: 'OTP already used' }, { status: 400 })
-    }
-
-    if (record.expiresAt < new Date()) {
-      return NextResponse.json({ error: 'OTP expired' }, { status: 400 })
-    }
-
-    // If you hashed OTP:
-    // const isValid = await bcrypt.compare(otp, record.otp)
-    // if (!isValid) ...
-
-    if (record.otp !== otp) {
-      return NextResponse.json({ error: 'Invalid OTP' }, { status: 400 })
-    }
-
-    await prisma.passwordReset.update({
-      where: { email },
-      data: { used: true },
-    })
-
-    return NextResponse.json({ success: true })
-  } catch (err) {
-    console.error(err)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+  if (!record) {
+    return NextResponse.json(
+      { error: "No OTP request found for this email." },
+      { status: 400 }
+    );
   }
+  if (record.used) {
+    return NextResponse.json(
+      { error: "This OTP has already been used." },
+      { status: 400 }
+    );
+  }
+  if (new Date() > record.expiresAt) {
+    return NextResponse.json(
+      { error: "OTP has expired. Please request a new one." },
+      { status: 400 }
+    );
+  }
+  if (record.otp !== otp) {
+    return NextResponse.json(
+      { error: "Invalid OTP. Please try again." },
+      { status: 400 }
+    );
+  }
+
+  const token = crypto.randomBytes(32).toString("hex");
+  const tokenExpiry = new Date(Date.now() + 15 * 60 * 1000);
+
+  await prisma.passwordReset.update({
+    where: { email },
+    data: { token, tokenExpiry },
+  });
+
+  return NextResponse.json({ success: true, token });
 }
