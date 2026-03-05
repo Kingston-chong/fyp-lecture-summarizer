@@ -9,13 +9,16 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@prisma/adapter-mariadb": "^7.4.1",
     "@prisma/client": "^6.19.2",
+    "@vercel/blob": "^2.3.1",
     "bcryptjs": "^3.0.3",
     "mysql2": "^3.18.0",
     "next": "16.1.6",
     "next-auth": "^4.24.13",
     "nodemailer": "^7.0.13",
+    "openai": "^6.25.0",
     "prisma": "^6.19.2",
     "react": "19.2.3",
     "react-dom": "19.2.3"

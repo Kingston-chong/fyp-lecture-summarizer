@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -61,22 +62,6 @@ const EyeIcon = () => (
   >
     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
     <circle cx="12" cy="12" r="3" />
-  </svg>
-);
-
-const SlidesIcon = () => (
-  <svg
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="2" y="3" width="20" height="14" rx="2" />
-    <path d="M8 21h8M12 17v4" />
   </svg>
 );
 
@@ -499,9 +484,13 @@ export default function Slide2NotesLogin() {
         {/* NAVBAR */}
         <nav className="navbar">
           <div className="navbar-logo">
-            <div className="logo-badge">
-              <SlidesIcon />
-            </div>
+            <Image
+              src="/icon.png"
+              alt="Slide2Notes logo"
+              width={34}
+              height={34}
+              priority
+            />
             <span className="logo-text">Slide2Notes</span>
           </div>
           <button className="navbar-user-btn">

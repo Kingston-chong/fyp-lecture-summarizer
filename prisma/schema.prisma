@@ -41,3 +41,37 @@ model PasswordReset {
   tokenExpiry DateTime?
   createdAt   DateTime  @default(now())
 }
+
+model Document {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  name      String
+  url       String   // Vercel Blob URL
+  type      String   // PDF, PPTX etc.
+  size      Int      // bytes
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  summaries SummaryDocument[]
+}
+
+model Summary {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  title       String   // auto-generated from first doc name
+  model       String   // chatgpt / deepseek / gemini
+  summarizeFor String  // lecturer / student
+  prompt      String?  // additional prompt
+  output      String   @db.LongText
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+  documents   SummaryDocument[]
+}
+
+// Links summaries to which documents were used
+model SummaryDocument {
+  summaryId  Int
+  documentId Int
+  summary    Summary  @relation(fields: [summaryId], references: [id])
+  document   Document @relation(fields: [documentId], references: [id])
+  @@id([summaryId, documentId])
+}
