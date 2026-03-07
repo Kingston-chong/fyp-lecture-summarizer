@@ -29,6 +29,8 @@ model User {
   passwordHash String
   role         String
   createdAt    DateTime @default(now())
+  documents    Document[]
+  summaries    Summary[]
 }
 
 model PasswordReset {

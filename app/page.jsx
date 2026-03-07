@@ -104,6 +104,41 @@ export default function Slide2NotesLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passFocused, setPassFocused] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSignIn() {
+    if (!email || !password) {
+      setError("Please enter both email and password.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError("");
+
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Invalid email or password.");
+        return;
+      }
+
+      // On successful login, redirect to dashboard
+      router.push("/dashboard");
+    } catch (err) {
+      console.error(err);
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <>
@@ -401,6 +436,13 @@ export default function Slide2NotesLogin() {
         .btn-signin:hover::after { opacity: 1; }
         .btn-signin:active { transform: translateY(0); }
 
+        .error-text {
+          margin-top: 10px;
+          font-size: 12px;
+          color: #f87171;
+          text-align: center;
+        }
+
         /* OR */
         .or-row {
           display: flex;
@@ -560,7 +602,15 @@ export default function Slide2NotesLogin() {
               </div>
             </div>
 
-            <button className="btn-signin">Sign In</button>
+            <button
+              className="btn-signin"
+              onClick={handleSignIn}
+              disabled={loading}
+            >
+              {loading ? "Signing in..." : "Sign In"}
+            </button>
+
+            {error && <p className="error-text">{error}</p>}
 
             <div className="or-row">
               <div className="or-line" />
