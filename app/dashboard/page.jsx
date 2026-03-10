@@ -61,12 +61,50 @@ const CopyIcon = () => (
   </svg>
 );
 
-const MODELS = [
-  { id: "chatgpt", label: "ChatGPT", sub: "GPT-4o" },
-  { id: "deepseek", label: "DeepSeek", sub: "V3" },
-  { id: "gemini", label: "Gemini", sub: "1.5 Pro" },
+// Provider = which API (ChatGPT / DeepSeek / Gemini). Variant = exact model (e.g. gpt-4o, gemini-2.0-flash).
+const MODEL_PROVIDERS = [
+  {
+    id: "chatgpt",
+    label: "ChatGPT",
+    variants: [
+      { id: "gpt-4o", label: "GPT-4o" },
+      { id: "gpt-4o-mini", label: "GPT-4o mini" },
+      { id: "gpt-4", label: "GPT-4" },
+    ],
+  },
+  {
+    id: "deepseek",
+    label: "DeepSeek",
+    variants: [
+      { id: "deepseek-chat", label: "DeepSeek Chat (V3)" },
+    ],
+  },
+  {
+    id: "gemini",
+    label: "Gemini",
+    variants: [
+      { id: "gemini-2.0-flash", label: "2.0 Flash" },
+      { id: "gemini-1.5-flash", label: "1.5 Flash" },
+      { id: "gemini-1.5-pro", label: "1.5 Pro" },
+      { id: "gemini-2.5-flash", label: "2.5 Flash" },
+    ],
+  },
 ];
 const ACCEPTED = ".pdf,.pptx,.ppt,.docx,.doc,.txt,.xlsx,.xls,.csv,.md";
+
+function getDefaultVariant(providerId) {
+  const p = MODEL_PROVIDERS.find((m) => m.id === providerId);
+  return p?.variants?.[0]?.id ?? "gpt-4o";
+}
+
+function modelDisplayName(saved) {
+  if (!saved) return "";
+  const [providerId, variantId] = saved.split(":");
+  const prov = MODEL_PROVIDERS.find((m) => m.id === providerId);
+  if (!variantId) return prov?.label ?? saved;
+  const variant = prov?.variants?.find((v) => v.id === variantId);
+  return variant ? `${prov?.label ?? providerId} · ${variant.label}` : saved;
+}
 
 function timeAgo(date) {
   const diff = Date.now() - new Date(date).getTime();
@@ -95,13 +133,19 @@ export default function Dashboard() {
   const [selectedFiles, setSelectedFiles]   = useState([]);  // {name, type, size, id?, file?, fromPrev?}
   const [prompt, setPrompt]                 = useState("");
   const [summarizeFor, setSummarizeFor]     = useState("lecturer");
-  const [model, setModel]                   = useState("chatgpt");
+  const [model, setModel]                   = useState("chatgpt");           // provider: chatgpt | deepseek | gemini
+  const [modelVariant, setModelVariant]     = useState("gpt-4o");            // exact model id for API
   const [modelOpen, setModelOpen]           = useState(false);
+  const [variantOpen, setVariantOpen]       = useState(false);
   const [dragging, setDragging]             = useState(false);
   const [loading, setLoading]               = useState(false);  // summarizing
   const [uploading, setUploading]           = useState(false);  // uploading files
   const [summaryOutput, setSummaryOutput]   = useState(null);   // latest result
   const [copied, setCopied]                 = useState(false);
+  const [sidebarWidth, setSidebarWidth]     = useState(220);
+  const [rightPanelWidth, setRightPanelWidth] = useState(272);
+  const [splitterDragging, setSplitterDragging] = useState(false);
+  const [activeSplitter, setActiveSplitter] = useState(null); // "sidebar" | "right" | null
 
   // Sidebar data (from APIs)
   const [history, setHistory]               = useState([]);
@@ -112,7 +156,10 @@ export default function Dashboard() {
   const [sidebarSection, setSidebarSection] = useState({ history: true, prev: true });
 
   const [error, setError] = useState("");
+  const [useExistingDialog, setUseExistingDialog] = useState(null); // { names: string[] } when files already on server
+  const [removingDocId, setRemovingDocId] = useState(null); // id of document being removed from server
   const fileInputRef = useRef();
+  const splitterRef = useRef(null); // { type: "sidebar" | "right", startX, startSidebar, startRight }
 
   // ── Auth guard ─────────────────────────────────────────
   useEffect(() => {
@@ -147,6 +194,61 @@ export default function Dashboard() {
     }
   }, [status]);
 
+  // Keep modelVariant in sync with provider (e.g. after switching provider)
+  useEffect(() => {
+    const prov = MODEL_PROVIDERS.find((m) => m.id === model);
+    const variantIds = prov?.variants?.map((v) => v.id) ?? [];
+    if (variantIds.length && !variantIds.includes(modelVariant)) {
+      setModelVariant(getDefaultVariant(model));
+    }
+  }, [model]);
+
+  // Draggable splitters (sidebar width and right panel width)
+  useEffect(() => {
+    function onMove(e) {
+      const drag = splitterRef.current;
+      if (!drag) return;
+      const dx = e.clientX - drag.startX;
+      if (drag.type === "sidebar") {
+        const next = drag.startSidebar + dx;
+        setSidebarWidth(Math.max(200, Math.min(480, next)));
+      }
+      if (drag.type === "right") {
+        // dragging the divider left should increase right panel width (dx negative)
+        const next = drag.startRight - dx;
+        setRightPanelWidth(Math.max(240, Math.min(520, next)));
+      }
+    }
+    function onUp() {
+      if (!splitterRef.current) return;
+      splitterRef.current = null;
+      setSplitterDragging(false);
+      setActiveSplitter(null);
+      document.body.style.cursor = "";
+    }
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  function startDrag(type) {
+    return (e) => {
+      splitterRef.current = {
+        type,
+        startX: e.clientX,
+        startSidebar: sidebarWidth,
+        startRight: rightPanelWidth,
+      };
+      setSplitterDragging(true);
+      setActiveSplitter(type);
+      document.body.style.cursor = "col-resize";
+    };
+  }
+
   // ── File helpers ───────────────────────────────────────
   function getExt(name) { return name.split(".").pop().toUpperCase(); }
 
@@ -180,8 +282,9 @@ export default function Dashboard() {
   }
 
   // ── Upload files to Vercel Blob via API ────────────────
-  async function uploadNewFiles() {
-    const newFiles = selectedFiles.filter(f => !f.fromPrev && f.file);
+  async function uploadNewFiles(files) {
+    const list = files ?? selectedFiles;
+    const newFiles = list.filter(f => !f.fromPrev && f.file);
     if (newFiles.length === 0) return [];
 
     setUploading(true);
@@ -194,34 +297,50 @@ export default function Dashboard() {
 
     if (!res.ok) throw new Error(data.error || "Upload failed");
 
-    // Refresh prev uploads sidebar
     fetchPrevUploads();
-
-    return data.documents; // [{id, name, type, ...}]
+    return data.documents; // [{id, name, type, size, ...}]
   }
 
-  // ── Summarize ──────────────────────────────────────────
-  async function handleSummarize() {
-    if (!selectedFiles.length) return;
+  // ── Upload + summarize (used by handleSummarize and by "use existing" dialog)
+  async function doUploadAndSummarize(filesOverride = null) {
+    const files = filesOverride !== null ? filesOverride : selectedFiles;
+    if (!files.length) return;
+
     setError("");
     setLoading(true);
     setSummaryOutput(null);
 
     try {
-      // 1. Upload any new (non-prev) files first
       let uploadedDocs = [];
       try {
-        uploadedDocs = await uploadNewFiles();
+        uploadedDocs = await uploadNewFiles(files);
       } catch (err) {
         setError("File upload failed: " + err.message);
         setLoading(false);
         return;
       }
 
-      // 2. Collect all document IDs
-      // - prev files already have an ID
-      // - newly uploaded files get IDs from upload response
-      const prevIds = selectedFiles.filter(f => f.fromPrev && f.id).map(f => f.id);
+      // Merge newly uploaded docs into state so retry won't re-upload (prevents duplicates)
+      if (uploadedDocs.length > 0 && filesOverride === null) {
+        setSelectedFiles(prev => prev.map(f => {
+          if (f.fromPrev || !f.file) return f;
+          const doc = uploadedDocs.find(d => d.name === f.name);
+          if (!doc) return f;
+          return { id: doc.id, name: doc.name, type: doc.type, size: formatBytes(doc.size), fromPrev: true };
+        }));
+      }
+      if (filesOverride !== null && uploadedDocs.length > 0) {
+        // When called with override (e.g. after "Use existing"), we already replaced some entries; merge upload results into override list
+        const merged = files.map(f => {
+          if (f.fromPrev && f.id) return f;
+          const doc = uploadedDocs.find(d => d.name === f.name);
+          if (doc) return { id: doc.id, name: doc.name, type: doc.type, size: formatBytes(doc.size), fromPrev: true };
+          return f;
+        });
+        setSelectedFiles(merged);
+      }
+
+      const prevIds = files.filter(f => f.fromPrev && f.id).map(f => f.id);
       const newIds  = uploadedDocs.map(d => d.id);
       const documentIds = [...prevIds, ...newIds];
 
@@ -231,24 +350,70 @@ export default function Dashboard() {
         return;
       }
 
-      // 3. Call summarize API
       const res = await fetch("/api/summarize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentIds, model, summarizeFor, prompt }),
+        body: JSON.stringify({ documentIds, model, modelVariant, summarizeFor, prompt }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Summarization failed");
 
-      // 4. Show output and refresh history
       setSummaryOutput(data.summary);
       fetchHistory();
-
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  // ── Summarize: show "use existing?" dialog if some selected files already on server ─────────────────────────────────────────
+  async function handleSummarize() {
+    if (!selectedFiles.length) return;
+
+    const newFiles = selectedFiles.filter(f => !f.fromPrev && f.file);
+    const alreadyOnServer = newFiles.filter(f => prevUploads.some(d => d.name === f.name));
+
+    if (alreadyOnServer.length > 0) {
+      setUseExistingDialog({ names: alreadyOnServer.map(f => f.name) });
+      return;
+    }
+
+    await doUploadAndSummarize();
+  }
+
+  function handleUseExistingConfirm(useExisting) {
+    const dialog = useExistingDialog;
+    setUseExistingDialog(null);
+    if (!dialog) return;
+
+    if (useExisting) {
+      const resolved = selectedFiles.map(f => {
+        if (!dialog.names.includes(f.name)) return f;
+        const doc = prevUploads.find(d => d.name === f.name);
+        if (!doc) return f;
+        return { id: doc.id, name: doc.name, type: doc.type, size: formatBytes(doc.size), fromPrev: true };
+      });
+      setSelectedFiles(resolved);
+      doUploadAndSummarize(resolved);
+    } else {
+      doUploadAndSummarize();
+    }
+  }
+
+  async function handleRemoveDocument(doc) {
+    if (removingDocId != null) return;
+    setRemovingDocId(doc.id);
+    try {
+      const res = await fetch(`/api/documents/${doc.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to remove");
+      setSelectedFiles(prev => prev.filter(f => f.id !== doc.id && f.name !== doc.name));
+      fetchPrevUploads();
+    } catch (e) {
+      setError("Could not remove document: " + (e?.message ?? "Unknown error"));
+    } finally {
+      setRemovingDocId(null);
     }
   }
 
@@ -259,7 +424,13 @@ export default function Dashboard() {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const selectedModel = MODELS.find(m => m.id === model);
+  const selectedProvider = MODEL_PROVIDERS.find((m) => m.id === model);
+  const variants = selectedProvider?.variants ?? [];
+  const selectedVariant = variants.find((v) => v.id === modelVariant) ?? variants[0];
+  const setModelAndVariant = (providerId) => {
+    setModel(providerId);
+    setModelVariant(getDefaultVariant(providerId));
+  };
 
   if (status === "loading") return (
     <div style={{ minHeight: "100vh", background: "#0e0e12", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -276,6 +447,7 @@ export default function Dashboard() {
         body { background: #0e0e12; }
 
         .app { min-height: 100vh; background: #0e0e12; font-family: 'Sora', sans-serif; display: flex; flex-direction: column; }
+        .no-select { user-select: none; }
         .blob1 { position: fixed; top: -10%; right: -5%; width: 500px; height: 500px; background: radial-gradient(circle, rgba(99,102,241,0.13) 0%, transparent 65%); pointer-events: none; z-index: 0; }
         .blob2 { position: fixed; bottom: -10%; left: 10%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(20,184,166,0.08) 0%, transparent 65%); pointer-events: none; z-index: 0; }
 
@@ -295,9 +467,14 @@ export default function Dashboard() {
         .body { display: flex; flex: 1; position: relative; z-index: 5; height: calc(100vh - 98px); overflow: hidden; }
 
         /* SIDEBAR */
-        .sidebar { width: 220px; flex-shrink: 0; background: rgba(16,16,22,0.85); border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; overflow-y: auto; }
+        .sidebar { flex-shrink: 0; background: rgba(16,16,22,0.85); border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; overflow-y: auto; }
         .sidebar::-webkit-scrollbar { width: 3px; }
         .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
+
+        .splitter-v { width: 8px; flex-shrink: 0; cursor: col-resize; background: transparent; position: relative; z-index: 10; }
+        .splitter-v::after { content: ''; position: absolute; top: 10px; bottom: 10px; left: 3px; width: 2px; border-radius: 999px; background: rgba(255,255,255,0.06); }
+        .splitter-v:hover::after { background: rgba(99,102,241,0.35); }
+        .splitter-v.active::after { background: rgba(99,102,241,0.55); }
 
         .sidebar-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 6px; cursor: pointer; user-select: none; }
         .sidebar-title { font-size: 10.5px; font-weight: 600; color: rgba(255,255,255,0.25); letter-spacing: 0.1em; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
@@ -312,12 +489,17 @@ export default function Dashboard() {
         .history-meta { font-size: 10.5px; color: rgba(255,255,255,0.22); margin-top: 2px; }
         .history-file-chip { display: flex; align-items: center; gap: 5px; padding: 3px 16px 3px 28px; font-size: 10.5px; color: rgba(255,255,255,0.22); }
 
-        .prev-item { display: flex; align-items: center; gap: 8px; padding: 6px 16px; cursor: pointer; transition: background 0.15s; }
+        .prev-item { display: flex; align-items: center; gap: 6px; padding: 6px 16px; transition: background 0.15s; }
         .prev-item:hover { background: rgba(255,255,255,0.03); }
+        .prev-item-main { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; cursor: pointer; }
+        .prev-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+        .prev-remove { width: 22px; height: 22px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.08); background: rgba(248,113,113,0.08); color: #f87171; font-size: 14px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+        .prev-remove:hover:not(:disabled) { background: rgba(248,113,113,0.2); border-color: rgba(248,113,113,0.3); }
+        .prev-remove:disabled { opacity: 0.6; cursor: not-allowed; }
         .prev-info { flex: 1; min-width: 0; }
         .prev-name { font-size: 11.5px; font-weight: 500; color: #a8a8c0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .prev-meta { font-size: 10px; color: rgba(255,255,255,0.2); margin-top: 1px; }
-        .prev-add { width: 20px; height: 20px; border-radius: 5px; background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.2); display: flex; align-items: center; justify-content: center; color: #a5b4fc; font-size: 13px; flex-shrink: 0; transition: all 0.15s; }
+        .prev-add { width: 20px; height: 20px; border-radius: 5px; background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.2); display: flex; align-items: center; justify-content: center; color: #a5b4fc; font-size: 13px; flex-shrink: 0; cursor: pointer; transition: all 0.15s; }
         .prev-item:hover .prev-add { background: rgba(99,102,241,0.25); }
         .prev-add.added { background: rgba(52,211,153,0.12); border-color: rgba(52,211,153,0.3); color: #34d399; }
 
@@ -326,11 +508,22 @@ export default function Dashboard() {
         .mini-spinner { width: 12px; height: 12px; border: 1.5px solid rgba(255,255,255,0.15); border-top-color: #6366f1; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
 
         /* MAIN */
-        .main { flex: 1; display: grid; grid-template-columns: 1fr 1fr 272px; gap: 14px; padding: 16px; overflow-y: auto; align-content: start; }
+        .main { flex: 1; display: grid; gap: 14px; padding: 16px; overflow-y: auto; align-content: start; }
         .main::-webkit-scrollbar { width: 3px; }
         .main::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
 
-        .panel { background: rgba(20,20,30,0.85); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 18px; backdrop-filter: blur(12px); display: flex; flex-direction: column; gap: 12px; }
+        .panel {
+          background: rgba(20,20,30,0.85);
+          border: 1px solid rgba(255,255,255,0.07);
+          border-radius: 16px;
+          padding: 18px;
+          backdrop-filter: blur(12px);
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          min-height: 220px;
+          overflow: auto;
+        }
         .panel-title { font-family: 'Fraunces', serif; font-size: 14.5px; font-weight: 600; color: #ddddf0; }
         .panel-sub { font-size: 11px; color: rgba(255,255,255,0.28); margin-top: -6px; }
 
@@ -361,7 +554,7 @@ export default function Dashboard() {
         .prompt-count { font-size: 10.5px; color: rgba(255,255,255,0.18); }
 
         /* OUTPUT PANEL */
-        .output-area { flex: 1; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 14px; overflow-y: auto; max-height: 300px; }
+        .output-area { flex: 1; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 14px; overflow-y: auto; }
         .output-area::-webkit-scrollbar { width: 3px; }
         .output-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
         .output-text { font-size: 12.5px; font-weight: 300; color: #c8c8e0; line-height: 1.75; white-space: pre-wrap; }
@@ -417,9 +610,21 @@ export default function Dashboard() {
         .badge-lecturer { background: rgba(99,102,241,0.15); color: #a5b4fc; }
         .badge-student { background: rgba(52,211,153,0.12); color: #6ee7b7; }
         .badge-model { background: rgba(251,146,60,0.12); color: #fdba74; margin-left: 4px; }
+
+        /* Use-existing modal */
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
+        .modal-box { background: rgba(22,22,32,0.98); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 24px; max-width: 400px; width: 100%; box-shadow: 0 24px 48px rgba(0,0,0,0.5); }
+        .modal-title { font-size: 15px; font-weight: 600; color: #e0e0f0; margin-bottom: 8px; }
+        .modal-desc { font-size: 12.5px; color: rgba(255,255,255,0.5); margin-bottom: 18px; line-height: 1.5; }
+        .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+        .modal-btn { height: 38px; padding: 0 18px; border-radius: 9px; font-family: 'Sora', sans-serif; font-size: 12.5px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+        .modal-btn.secondary { border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); color: #b0b0cc; }
+        .modal-btn.secondary:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); }
+        .modal-btn.primary { border: none; background: linear-gradient(135deg, #5f60f0 0%, #8b5cf6 100%); color: white; }
+        .modal-btn.primary:hover { filter: brightness(1.08); }
       `}</style>
 
-      <div className="app">
+      <div className={`app ${splitterDragging ? "no-select" : ""}`}>
         <div className="blob1" /><div className="blob2" />
 
         {/* NAVBAR */}
@@ -447,7 +652,7 @@ export default function Dashboard() {
         <div className="body">
 
           {/* ── SIDEBAR ── */}
-          <aside className="sidebar">
+          <aside className="sidebar" style={{ width: sidebarWidth }}>
 
             {/* History */}
             <div className="sidebar-header" onClick={() => setSidebarSection(s => ({ ...s, history: !s.history }))}>
@@ -469,7 +674,7 @@ export default function Dashboard() {
                       setSummaryOutput(h); // show this summary in output panel
                     }}
                   >
-                    <div className="history-name">{h.title}</div>
+                    <div className="history-name" title={h.title}>{h.title}</div>
                     <div className="history-meta">
                       {h.files.length} file{h.files.length !== 1 ? "s" : ""} · {timeAgo(h.createdAt)}
                     </div>
@@ -477,7 +682,7 @@ export default function Dashboard() {
                   {expandedHistory === h.id && h.files.map(f => (
                     <div className="history-file-chip" key={f.id}>
                       <FileIcon type={f.type} />
-                      {f.name}
+                      <span title={f.name} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
                     </div>
                   ))}
                 </div>
@@ -499,22 +704,48 @@ export default function Dashboard() {
                 <div className="sidebar-empty">No uploads yet</div>
               ) : prevUploads.map(doc => {
                 const isAdded = selectedFiles.some(f => f.name === doc.name);
+                const isRemoving = removingDocId === doc.id;
                 return (
-                  <div className="prev-item" key={doc.id} onClick={() => addPrevFile(doc)}>
-                    <FileIcon type={doc.type} />
-                    <div className="prev-info">
-                      <div className="prev-name">{doc.name}</div>
-                      <div className="prev-meta">{formatBytes(doc.size)} · {timeAgo(doc.createdAt)}</div>
+                  <div className="prev-item" key={doc.id}>
+                    <div className="prev-item-main" onClick={() => addPrevFile(doc)}>
+                      <FileIcon type={doc.type} />
+                      <div className="prev-info">
+                        <div className="prev-name" title={doc.name}>{doc.name}</div>
+                        <div className="prev-meta">{formatBytes(doc.size)} · {timeAgo(doc.createdAt)}</div>
+                      </div>
                     </div>
-                    <div className={`prev-add ${isAdded ? "added" : ""}`}>{isAdded ? "✓" : "+"}</div>
+                    <div className="prev-actions">
+                      <button
+                        type="button"
+                        className="prev-remove"
+                        title="Remove from server"
+                        disabled={isRemoving}
+                        onClick={(e) => { e.stopPropagation(); handleRemoveDocument(doc); }}
+                      >
+                        {isRemoving ? <span className="mini-spinner" /> : "×"}
+                      </button>
+                      <div className={`prev-add ${isAdded ? "added" : ""}`} onClick={() => addPrevFile(doc)}>{isAdded ? "✓" : "+"}</div>
+                    </div>
                   </div>
                 );
               })
             )}
           </aside>
 
+          <div
+            className={`splitter-v ${activeSplitter === "sidebar" ? "active" : ""}`}
+            onMouseDown={startDrag("sidebar")}
+            role="separator"
+            aria-label="Resize sidebar"
+          />
+
           {/* ── MAIN GRID ── */}
-          <main className="main">
+          <main
+            className="main"
+            style={{
+              gridTemplateColumns: `minmax(320px, 1fr) minmax(320px, 1fr) 8px ${rightPanelWidth}px`,
+            }}
+          >
 
             {/* Panel 1 — Files */}
             <div className="panel"
@@ -546,7 +777,7 @@ export default function Dashboard() {
                     <div className="file-item" key={f.name}>
                       <FileIcon type={f.type} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="file-name">{f.name}</div>
+                        <div className="file-name" title={f.name}>{f.name}</div>
                         <div className="file-size">
                           {f.size}
                           {f.fromPrev && <span className="file-prev-tag"> · prev upload</span>}
@@ -577,7 +808,7 @@ export default function Dashboard() {
                         <span className={`status-badge ${summaryOutput.summarizeFor === "lecturer" ? "badge-lecturer" : "badge-student"}`}>
                           {summaryOutput.summarizeFor}
                         </span>
-                        <span className="status-badge badge-model">{summaryOutput.model}</span>
+                        <span className="status-badge badge-model">{modelDisplayName(summaryOutput.model)}</span>
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 6 }}>
@@ -608,6 +839,13 @@ export default function Dashboard() {
               )}
             </div>
 
+            <div
+              className={`splitter-v ${activeSplitter === "right" ? "active" : ""}`}
+              onMouseDown={startDrag("right")}
+              role="separator"
+              aria-label="Resize right panel"
+            />
+
             {/* Panel 3 — Controls */}
             <div className="panel" style={{ minHeight: 340 }}>
               <button className="upload-btn" onClick={() => fileInputRef.current?.click()}>
@@ -633,28 +871,48 @@ export default function Dashboard() {
               </div>
 
               <div>
-                <div className="model-label">Model</div>
+                <div className="model-label">Provider</div>
                 <div className="model-wrap">
                   <button className={`model-btn ${modelOpen ? "open" : ""}`}
-                    onClick={() => setModelOpen(v => !v)}
+                    onClick={() => { setModelOpen((v) => !v); setVariantOpen(false); }}
                     onBlur={() => setTimeout(() => setModelOpen(false), 150)}>
                     <div className="model-left">
                       <div className="model-dot" />
-                      <span>{selectedModel.label}</span>
-                      <span className="model-sub">{selectedModel.sub}</span>
+                      <span>{selectedProvider?.label ?? model}</span>
                     </div>
                     <ChevronDown />
                   </button>
                   {modelOpen && (
                     <div className="model-menu">
-                      {MODELS.map(m => (
+                      {MODEL_PROVIDERS.map((m) => (
                         <div key={m.id} className={`model-opt ${model === m.id ? "on" : ""}`}
-                          onMouseDown={() => { setModel(m.id); setModelOpen(false); }}>
-                          <div>
-                            <div className="model-opt-name">{m.label}</div>
-                            <div className="model-opt-sub">{m.sub}</div>
-                          </div>
+                          onMouseDown={() => { setModelAndVariant(m.id); setModelOpen(false); }}>
+                          <div className="model-opt-name">{m.label}</div>
                           {model === m.id && <span className="model-check">✓</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div>
+                <div className="model-label">Model version</div>
+                <div className="model-wrap">
+                  <button className={`model-btn ${variantOpen ? "open" : ""}`}
+                    onClick={() => { setVariantOpen((v) => !v); setModelOpen(false); }}
+                    onBlur={() => setTimeout(() => setVariantOpen(false), 150)}>
+                    <div className="model-left">
+                      <span>{selectedVariant?.label ?? modelVariant}</span>
+                    </div>
+                    <ChevronDown />
+                  </button>
+                  {variantOpen && variants.length > 0 && (
+                    <div className="model-menu">
+                      {variants.map((v) => (
+                        <div key={v.id} className={`model-opt ${modelVariant === v.id ? "on" : ""}`}
+                          onMouseDown={() => { setModelVariant(v.id); setVariantOpen(false); }}>
+                          <div className="model-opt-name">{v.label}</div>
+                          {modelVariant === v.id && <span className="model-check">✓</span>}
                         </div>
                       ))}
                     </div>
@@ -678,6 +936,26 @@ export default function Dashboard() {
           </main>
         </div>
       </div>
+
+      {useExistingDialog && (
+        <div className="modal-backdrop" onClick={() => setUseExistingDialog(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-title">Files already on server</div>
+            <div className="modal-desc">
+              {useExistingDialog.names.length} file{useExistingDialog.names.length !== 1 ? "s" : ""} with the same name
+              {useExistingDialog.names.length === 1 ? " is" : " are"} already uploaded. Use existing uploads to avoid duplicates?
+            </div>
+            <div className="modal-btns">
+              <button className="modal-btn secondary" onClick={() => handleUseExistingConfirm(false)}>
+                Upload again
+              </button>
+              <button className="modal-btn primary" onClick={() => handleUseExistingConfirm(true)}>
+                Use existing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

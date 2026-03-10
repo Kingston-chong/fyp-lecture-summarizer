@@ -79,14 +79,19 @@ async function extractText(url, type) {
 }
 
 // ── AI call ───────────────────────────────────────────────
+// Models used:
+// - ChatGPT: gpt-4o (OpenAI; paid after free credits). For more free usage use gpt-4o-mini.
+// - DeepSeek: deepseek-chat (free tier at platform.deepseek.com).
+// - Gemini: tries Flash models first (free tier at aistudio.google.com). Override with GEMINI_MODEL in .env.
 
-async function callAI(model, systemPrompt, documentText) {
+async function callAI(model, modelVariant, systemPrompt, documentText) {
   const fullPrompt = `${systemPrompt}\n\n---\n\nDocument Content:\n${documentText.slice(0, 12000)}`; // limit tokens
 
   if (model === "chatgpt") {
+    const openaiModel = modelVariant || process.env.OPENAI_MODEL || "gpt-4o";
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const res = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: openaiModel,
       messages: [{ role: "user", content: fullPrompt }],
       max_tokens: 2000,
     });
@@ -94,12 +99,13 @@ async function callAI(model, systemPrompt, documentText) {
   }
 
   if (model === "deepseek") {
+    const deepseekModel = modelVariant || "deepseek-chat";
     const deepseek = new OpenAI({
       apiKey: process.env.DEEPSEEK_API_KEY,
       baseURL: "https://api.deepseek.com",
     });
     const res = await deepseek.chat.completions.create({
-      model: "deepseek-chat",
+      model: deepseekModel,
       messages: [{ role: "user", content: fullPrompt }],
       max_tokens: 2000,
     });
@@ -113,14 +119,16 @@ async function callAI(model, systemPrompt, documentText) {
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-    const modelCandidates = [
-      process.env.GEMINI_MODEL, // allow overriding without code changes
-      "gemini-flash-latest",
-      "gemini-2.5-flash",
-      "gemini-2.0-flash",
-      "gemini-1.5-flash",
-      "gemini-1.5-pro",
-    ].filter(Boolean);
+    const modelCandidates = modelVariant
+      ? [modelVariant]
+      : [
+          process.env.GEMINI_MODEL,
+          "gemini-2.0-flash",
+          "gemini-1.5-flash",
+          "gemini-2.5-flash",
+          "gemini-flash-latest",
+          "gemini-1.5-pro",
+        ].filter(Boolean);
 
     const seen = new Set();
     const uniqueCandidates = modelCandidates.filter((m) => {
@@ -138,7 +146,6 @@ async function callAI(model, systemPrompt, documentText) {
       } catch (err) {
         lastErr = err;
         const msg = String(err?.message || err);
-        // If the model is not available for this API key/version, try the next candidate.
         if (msg.includes("404") || msg.toLowerCase().includes("not found")) {
           continue;
         }
@@ -147,9 +154,7 @@ async function callAI(model, systemPrompt, documentText) {
     }
 
     throw new Error(
-      `Gemini model unavailable. Set GEMINI_MODEL to one your key can access. Last error: ${String(
-        lastErr?.message || lastErr
-      )}`
+      `Gemini model unavailable. Last error: ${String(lastErr?.message || lastErr)}`
     );
   }
 
@@ -169,7 +174,7 @@ export async function POST(req) {
       where: { email: session.user.email },
     });
 
-    const { documentIds, model, summarizeFor, prompt } = await req.json();
+    const { documentIds, model, modelVariant, summarizeFor, prompt } = await req.json();
 
     if (!documentIds || documentIds.length === 0) {
       return NextResponse.json({ error: "No documents selected" }, { status: 400 });
@@ -201,16 +206,17 @@ Format your response in clean markdown with clear sections.`;
       combinedText += text;
     }
 
-    // Call AI
-    const output = await callAI(model, systemPrompt, combinedText);
+    // Call AI (model = provider, modelVariant = exact model id)
+    const output = await callAI(model, modelVariant || null, systemPrompt, combinedText);
 
-    // Save summary to database
+    // Save summary to database (store "provider:variant" for display in history)
     const title = documents[0].name.replace(/\.[^/.]+$/, ""); // filename without ext
+    const modelForDb = modelVariant ? `${model}:${modelVariant}` : model;
     const summary = await prisma.summary.create({
       data: {
         userId: user.id,
         title,
-        model,
+        model: modelForDb,
         summarizeFor,
         prompt: prompt || null,
         output,

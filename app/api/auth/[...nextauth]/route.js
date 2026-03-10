@@ -1,11 +1,55 @@
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import CredentialsProvider from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
 // const prisma = new PrismaClient();
 
 export const authOptions = {
   providers: [
+    CredentialsProvider({
+      name: "Email and password",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error("Email and password are required");
+        }
+
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email },
+        });
+
+        if (!user) {
+          throw new Error(
+            "No account found for this email. If you signed up with Google, please use the 'Continue with Google' button."
+          );
+        }
+
+        if (user.passwordHash === "google-oauth") {
+          throw new Error(
+            "This account is linked to Google sign-in. Please use the 'Continue with Google' button or reset your password first."
+          );
+        }
+
+        const valid = await bcrypt.compare(
+          credentials.password,
+          user.passwordHash
+        );
+        if (!valid) {
+          throw new Error("Incorrect password.");
+        }
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.username,
+        };
+      },
+    }),
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,

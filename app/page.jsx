@@ -117,21 +117,19 @@ export default function Slide2NotesLogin() {
       setLoading(true);
       setError("");
 
-      const res = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+      const result = await signIn("credentials", {
+        redirect: false,
+        email,
+        password,
+        callbackUrl: "/dashboard",
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "Invalid email or password.");
+      if (result?.error) {
+        setError(result.error);
         return;
       }
 
-      // On successful login, redirect to dashboard
-      router.push("/dashboard");
+      router.push(result?.url || "/dashboard");
     } catch (err) {
       console.error(err);
       setError("Something went wrong. Please try again.");
