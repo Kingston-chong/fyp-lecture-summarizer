@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 const GoogleIcon = () => (
   <svg
@@ -99,6 +100,7 @@ const ChevronDown = () => (
 
 export default function Slide2NotesLogin() {
   const router = useRouter();
+  const { status } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -106,6 +108,13 @@ export default function Slide2NotesLogin() {
   const [passFocused, setPassFocused] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // If already authenticated, never stay on the login page
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace("/dashboard");
+    }
+  }, [status, router]);
 
   async function handleSignIn() {
     if (!email || !password) {

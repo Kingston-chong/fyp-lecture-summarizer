@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { markdownToHtml } from "@/lib/markdown";
 
 // ── Icons ──────────────────────────────────────────────────
 const SlidesIcon = () => (
@@ -360,6 +361,8 @@ export default function Dashboard() {
       if (!res.ok) throw new Error(data.error || "Summarization failed");
 
       setSummaryOutput(data.summary);
+      // Use the dedicated summary page for display
+      if (data?.summary?.id != null) router.push(`/summary/${data.summary.id}`);
       fetchHistory();
     } catch (err) {
       setError(err.message);
@@ -446,7 +449,7 @@ export default function Dashboard() {
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: #0e0e12; }
 
-        .app { min-height: 100vh; background: #0e0e12; font-family: 'Sora', sans-serif; display: flex; flex-direction: column; }
+        .app { height: 100%; background: #0e0e12; font-family: 'Sora', sans-serif; display: flex; flex-direction: column; }
         .no-select { user-select: none; }
         .blob1 { position: fixed; top: -10%; right: -5%; width: 500px; height: 500px; background: radial-gradient(circle, rgba(99,102,241,0.13) 0%, transparent 65%); pointer-events: none; z-index: 0; }
         .blob2 { position: fixed; bottom: -10%; left: 10%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(20,184,166,0.08) 0%, transparent 65%); pointer-events: none; z-index: 0; }
@@ -464,7 +467,7 @@ export default function Dashboard() {
         .subnav-item { display: flex; align-items: center; gap: 4px; padding: 0 14px; height: 40px; font-size: 12px; color: #52526e; cursor: pointer; border: none; background: none; font-family: 'Sora', sans-serif; transition: color 0.2s; }
         .subnav-item:hover { color: #9090b8; }
 
-        .body { display: flex; flex: 1; position: relative; z-index: 5; height: calc(100vh - 98px); overflow: hidden; }
+        .body { display: flex; flex: 1; position: relative; z-index: 5; height: 100%; overflow: hidden; }
 
         /* SIDEBAR */
         .sidebar { flex-shrink: 0; background: rgba(16,16,22,0.85); border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; overflow-y: auto; }
@@ -525,7 +528,7 @@ export default function Dashboard() {
           overflow: auto;
         }
         .panel-title { font-family: 'Fraunces', serif; font-size: 14.5px; font-weight: 600; color: #ddddf0; }
-        .panel-sub { font-size: 11px; color: rgba(255,255,255,0.28); margin-top: -6px; }
+        .panel-sub { font-size: 11px; color: rgba(255,255,255,0.28); margin-top: 8px; }
 
         .drop-zone { border: 1.5px dashed rgba(99,102,241,0.22); border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; background: rgba(99,102,241,0.02); }
         .drop-zone:hover, .drop-zone.dragging { border-color: rgba(99,102,241,0.5); background: rgba(99,102,241,0.07); }
@@ -565,8 +568,8 @@ export default function Dashboard() {
         .copy-btn.copied { border-color: rgba(52,211,153,0.3); color: #34d399; background: rgba(52,211,153,0.08); }
 
         /* RIGHT PANEL */
-        .upload-btn { width: 100%; height: 38px; border-radius: 9px; border: 1.5px dashed rgba(99,102,241,0.3); background: rgba(99,102,241,0.05); font-family: 'Sora', sans-serif; font-size: 12.5px; font-weight: 500; color: #a5b4fc; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; transition: all 0.2s; }
-        .upload-btn:hover { border-color: rgba(99,102,241,0.55); background: rgba(99,102,241,0.1); }
+        .upload-btn { width: 100%; height: 38px; border-radius: 9px; border: 1.5px solid rgba(34,197,94,0.35); background: linear-gradient(135deg, rgba(34,197,94,0.16), rgba(16,185,129,0.10)); font-family: 'Sora', sans-serif; font-size: 12.5px; font-weight: 600; color: #86efac; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; transition: all 0.2s; box-shadow: 0 6px 18px rgba(16,185,129,0.12); }
+        .upload-btn:hover { border-color: rgba(34,197,94,0.65); background: linear-gradient(135deg, rgba(34,197,94,0.22), rgba(16,185,129,0.14)); box-shadow: 0 10px 26px rgba(16,185,129,0.2); transform: translateY(-1px); }
         .upload-hint { font-size: 10.5px; color: rgba(255,255,255,0.2); text-align: center; }
 
         .radio-label { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.3); letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 6px; }
@@ -586,8 +589,9 @@ export default function Dashboard() {
         .model-left { display: flex; align-items: center; gap: 8px; }
         .model-dot { width: 7px; height: 7px; border-radius: 50%; background: linear-gradient(135deg, #6366f1, #8b5cf6); }
         .model-sub { font-size: 10.5px; color: rgba(255,255,255,0.28); font-weight: 300; }
-        .model-menu { position: absolute; top: calc(100% + 5px); left: 0; right: 0; background: rgba(22,22,32,0.98); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 4px; z-index: 50; box-shadow: 0 16px 36px rgba(0,0,0,0.5); animation: menuIn 0.14s ease; }
-        @keyframes menuIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        /* Drop-up menu so it doesn't cover the action buttons below */
+        .model-menu { position: absolute; bottom: calc(100% + 6px); left: 0; right: 0; background: rgba(22,22,32,0.98); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 4px; z-index: 80; box-shadow: 0 16px 36px rgba(0,0,0,0.5); animation: menuInUp 0.14s ease; }
+        @keyframes menuInUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         .model-opt { padding: 8px 10px; border-radius: 7px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: background 0.14s; }
         .model-opt:hover { background: rgba(99,102,241,0.1); }
         .model-opt.on { background: rgba(99,102,241,0.16); }
@@ -625,30 +629,6 @@ export default function Dashboard() {
       `}</style>
 
       <div className={`app ${splitterDragging ? "no-select" : ""}`}>
-        <div className="blob1" /><div className="blob2" />
-
-        {/* NAVBAR */}
-        <nav className="navbar">
-          <div className="navbar-logo">
-            <div className="logo-badge"><SlidesIcon /></div>
-            <span className="logo-text">Slide2Notes</span>
-          </div>
-          <div className="navbar-right">
-            {session?.user?.name && (
-              <span className="navbar-user-info">Hi, {session.user.name.split(" ")[0]}</span>
-            )}
-            <button className="navbar-btn" onClick={() => { import("next-auth/react").then(m => m.signOut({ callbackUrl: "/" })); }}>
-              <LogoutIcon /> Sign out
-            </button>
-          </div>
-        </nav>
-
-        {/* SUBNAV */}
-        <div className="subnav">
-          <button className="subnav-item">Text 1 <ChevronDown /></button>
-          <button className="subnav-item">Text 2 <ChevronDown /></button>
-        </div>
-
         <div className="body">
 
           {/* ── SIDEBAR ── */}
@@ -671,7 +651,8 @@ export default function Dashboard() {
                     className={`history-item ${expandedHistory === h.id ? "active" : ""}`}
                     onClick={() => {
                       setExpandedHistory(expandedHistory === h.id ? null : h.id);
-                      setSummaryOutput(h); // show this summary in output panel
+                      // Use the dedicated summary page for display
+                      router.push(`/summary/${h.id}`);
                     }}
                   >
                     <div className="history-name" title={h.title}>{h.title}</div>
@@ -749,26 +730,10 @@ export default function Dashboard() {
 
             {/* Panel 1 — Files */}
             <div className="panel"
-              onDragOver={e => { e.preventDefault(); setDragging(true); }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={e => { e.preventDefault(); setDragging(false); addLocalFiles(e.dataTransfer.files); }}
             >
               <div>
                 <div className="panel-title">Uploaded / Selected Files</div>
                 <div className="panel-sub">{selectedFiles.length} document{selectedFiles.length !== 1 ? "s" : ""} selected</div>
-              </div>
-
-              <div className={`drop-zone ${dragging ? "dragging" : ""}`} onClick={() => fileInputRef.current?.click()}>
-                <UploadIcon />
-                <div className="drop-zone-text">Drop files or <span className="drop-zone-link">browse</span></div>
-                <input ref={fileInputRef} type="file" multiple accept={ACCEPTED} style={{ display: "none" }}
-                  onChange={e => { addLocalFiles(e.target.files); e.target.value = ""; }} />
-              </div>
-
-              <div className="formats-row">
-                {["PDF","PPTX","DOCX","TXT","XLSX","CSV","MD"].map(f => (
-                  <span key={f} className="fmt-chip">{f}</span>
-                ))}
               </div>
 
               {selectedFiles.length > 0 ? (
@@ -792,7 +757,7 @@ export default function Dashboard() {
                 <div className="empty-state">
                   <FileIcon type="PDF" />
                   <span>No files selected</span>
-                  <span>Upload above or pick from sidebar</span>
+                  <span>Use the upload button on the right, or pick from sidebar</span>
                 </div>
               )}
             </div>
@@ -819,7 +784,12 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <div className="output-area">
-                    <div className="output-text">{summaryOutput.output}</div>
+                    <div
+                      className="output-text"
+                      dangerouslySetInnerHTML={{
+                        __html: markdownToHtml(summaryOutput.output),
+                      }}
+                    />
                   </div>
                 </>
               ) : (
@@ -851,6 +821,17 @@ export default function Dashboard() {
               <button className="upload-btn" onClick={() => fileInputRef.current?.click()}>
                 <UploadIcon /> Upload Documents
               </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept={ACCEPTED}
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  addLocalFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
               <div className="upload-hint">(or select from sidebar)</div>
 
               <div>
