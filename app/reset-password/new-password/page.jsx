@@ -9,6 +9,7 @@ import {
   LockIcon,
   SlidesIcon,
   UserCircleIcon,
+  CheckCircle,
 } from "../../components/icons";
 
 export default function NewPassword() {
@@ -157,8 +158,8 @@ export default function NewPassword() {
         </nav>
 
         <div className="subnav">
-          <button className="subnav-item">Text 1 <ChevronDown /></button>
-          <button className="subnav-item">Text 2 <ChevronDown /></button>
+          <button className="subnav-item">Text 1 <ChevronDownIcon /></button>
+          <button className="subnav-item">Text 2 <ChevronDownIcon /></button>
         </div>
 
         <main className="main">

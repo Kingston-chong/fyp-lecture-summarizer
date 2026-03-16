@@ -1,6 +1,21 @@
 // Centralized SVG icon components for the app
 // Keep these small and re-usable; extend as needed.
 
+export const CheckCircle = ({ met }) => (
+  <svg
+    width="13"
+    height="13"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="12" r="10" />
+    {met && <polyline points="9 12 11 14 15 10" />}
+  </svg>
+);
 export const LogoIcon = () => (
   <svg
     width="18"

@@ -2,57 +2,15 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-
-const SlidesIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="3" width="20" height="14" rx="2"/>
-    <path d="M8 21h8M12 17v4"/>
-  </svg>
-);
-
-const UserCircleIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/>
-    <circle cx="12" cy="10" r="3"/>
-    <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/>
-  </svg>
-);
-
-const ChevronDown = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="6 9 12 15 18 9"/>
-  </svg>
-);
-
-const LockIcon = () => (
-  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-  </svg>
-);
-
-const EyeOffIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-    <line x1="1" y1="1" x2="23" y2="23"/>
-  </svg>
-);
-
-const EyeIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-    <circle cx="12" cy="12" r="3"/>
-  </svg>
-);
-
-const CheckCircle = ({ met }) => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
-    style={{ color: met ? "#34d399" : "rgba(255,255,255,0.2)", transition: "color 0.25s", flexShrink: 0 }}>
-    <circle cx="12" cy="12" r="10"/>
-    {met && <polyline points="9 12 11 14 15 10"/>}
-  </svg>
-);
+import {
+  CheckCircle,
+  LogoIcon,
+  UserCircleIcon,
+  ChevronDownIcon,
+  LockIcon,
+  EyeIcon,
+  EyeOffIcon,
+} from "../../components/icons";
 
 export default function NewPassword() {
   const router = useRouter();
@@ -69,23 +27,35 @@ export default function NewPassword() {
   useEffect(() => {
     const savedToken = sessionStorage.getItem("resetToken");
     const savedEmail = sessionStorage.getItem("resetEmail");
-    if (!savedToken || !savedEmail) { router.push("/reset-password"); return; }
+    if (!savedToken || !savedEmail) {
+      router.push("/reset-password");
+      return;
+    }
     setToken(savedToken);
     setEmail(savedEmail);
   }, []);
 
-  const rules = useMemo(() => ({
-    length: password.length >= 8,
-    symbol: /[^a-zA-Z0-9]/.test(password),
-    alpha: /[a-zA-Z]/.test(password),
-  }), [password]);
+  const rules = useMemo(
+    () => ({
+      length: password.length >= 8,
+      symbol: /[^a-zA-Z0-9]/.test(password),
+      alpha: /[a-zA-Z]/.test(password),
+    }),
+    [password],
+  );
 
   const allValid = rules.length && rules.symbol && rules.alpha;
   const passwordMatch = password && confirm && password === confirm;
 
   async function handleReset() {
-    if (!allValid) { setError("Password does not meet requirements."); return; }
-    if (!passwordMatch) { setError("Passwords do not match."); return; }
+    if (!allValid) {
+      setError("Password does not meet requirements.");
+      return;
+    }
+    if (!passwordMatch) {
+      setError("Passwords do not match.");
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -113,9 +83,10 @@ export default function NewPassword() {
     }
   }
 
-  if (success) return (
-    <>
-      <style>{`
+  if (success)
+    return (
+      <>
+        <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: #0e0e12; }
@@ -127,19 +98,28 @@ export default function NewPassword() {
         .success-title { font-family: 'Fraunces', serif; font-size: 26px; font-weight: 600; color: #eeeef8; margin-bottom: 10px; }
         .success-desc { font-size: 13.5px; color: rgba(255,255,255,0.4); }
       `}</style>
-      <div className="s2n">
-        <div className="success-card">
-          <div className="success-icon">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
+        <div className="s2n">
+          <div className="success-card">
+            <div className="success-icon">
+              <svg
+                width="36"
+                height="36"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#34d399"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <h1 className="success-title">Password Reset!</h1>
+            <p className="success-desc">Redirecting you to login...</p>
           </div>
-          <h1 className="success-title">Password Reset!</h1>
-          <p className="success-desc">Redirecting you to login...</p>
         </div>
-      </div>
-    </>
-  );
+      </>
+    );
 
   return (
     <>
@@ -189,28 +169,41 @@ export default function NewPassword() {
       `}</style>
 
       <div className="s2n">
-        <div className="blob1" /><div className="blob2" />
+        <div className="blob1" />
+        <div className="blob2" />
 
         <nav className="navbar">
           <div className="navbar-logo">
-            <div className="logo-badge"><SlidesIcon /></div>
+            <div className="logo-badge">
+              <SlidesIcon />
+            </div>
             <span className="logo-text">Slide2Notes</span>
           </div>
-          <button className="navbar-user-btn"><UserCircleIcon /></button>
+          <button className="navbar-user-btn">
+            <UserCircleIcon />
+          </button>
         </nav>
 
         <div className="subnav">
-          <button className="subnav-item">Text 1 <ChevronDown /></button>
-          <button className="subnav-item">Text 2 <ChevronDown /></button>
+          <button className="subnav-item">
+            Text 1 <ChevronDownIcon />
+          </button>
+          <button className="subnav-item">
+            Text 2 <ChevronDownIcon />
+          </button>
         </div>
 
         <main className="main">
           <div className="card">
             <div className="card-glow" />
 
-            <div className="icon-wrap"><LockIcon /></div>
+            <div className="icon-wrap">
+              <LockIcon />
+            </div>
             <h1 className="card-title">New Password</h1>
-            <p className="card-desc">Choose a strong new password for your account.</p>
+            <p className="card-desc">
+              Choose a strong new password for your account.
+            </p>
 
             <div className="field-group">
               <label className="field-label">New Password</label>
@@ -220,9 +213,12 @@ export default function NewPassword() {
                   type={showPass ? "text" : "password"}
                   placeholder="Enter new password"
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
-                <button className="field-toggle" onClick={() => setShowPass(v => !v)}>
+                <button
+                  className="field-toggle"
+                  onClick={() => setShowPass((v) => !v)}
+                >
                   {showPass ? <EyeIcon /> : <EyeOffIcon />}
                 </button>
               </div>
@@ -236,7 +232,9 @@ export default function NewPassword() {
               ].map(({ met, label }) => (
                 <div className="rule-row" key={label}>
                   <CheckCircle met={met} />
-                  <span className={`rule-text ${met ? "met" : "unmet"}`}>{label}</span>
+                  <span className={`rule-text ${met ? "met" : "unmet"}`}>
+                    {label}
+                  </span>
                 </div>
               ))}
             </div>
@@ -249,9 +247,12 @@ export default function NewPassword() {
                   type={showConfirm ? "text" : "password"}
                   placeholder="Repeat new password"
                   value={confirm}
-                  onChange={e => setConfirm(e.target.value)}
+                  onChange={(e) => setConfirm(e.target.value)}
                 />
-                <button className="field-toggle" onClick={() => setShowConfirm(v => !v)}>
+                <button
+                  className="field-toggle"
+                  onClick={() => setShowConfirm((v) => !v)}
+                >
                   {showConfirm ? <EyeIcon /> : <EyeOffIcon />}
                 </button>
               </div>
@@ -259,7 +260,11 @@ export default function NewPassword() {
 
             {error && <div className="error-msg">{error}</div>}
 
-            <button className="btn-reset" onClick={handleReset} disabled={loading || !allValid || !passwordMatch}>
+            <button
+              className="btn-reset"
+              onClick={handleReset}
+              disabled={loading || !allValid || !passwordMatch}
+            >
               {loading && <span className="spinner" />}
               {loading ? "Resetting..." : "Reset Password"}
             </button>

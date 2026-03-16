@@ -245,10 +245,10 @@ export default function Slide2NotesRegister() {
         {/* SUBNAV */}
         <div className="subnav">
           <button className="subnav-item">
-            Text 1 <ChevronDown />
+            Text 1 <ChevronDownIcon />
           </button>
           <button className="subnav-item">
-            Text 2 <ChevronDown />
+            Text 2 <ChevronDownIcon />
           </button>
         </div>
 
