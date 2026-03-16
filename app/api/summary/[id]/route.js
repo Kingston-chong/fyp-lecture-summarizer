@@ -90,3 +90,27 @@ export async function PATCH(req, ctx) {
     return NextResponse.json({ error: "Failed to update summary" }, { status: 500 });
   }
 }
+
+export async function DELETE(_req, ctx) {
+  try {
+    const user = await getUserFromSession();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const id = await getIdFromParams(ctx.params);
+
+    const deleted = await prisma.summary.deleteMany({
+      where: { id, userId: user.id },
+    });
+
+    if (deleted.count === 0) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: "Failed to delete summary" }, { status: 500 });
+  }
+}

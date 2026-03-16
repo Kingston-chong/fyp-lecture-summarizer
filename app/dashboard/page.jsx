@@ -4,63 +4,15 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { markdownToHtml } from "@/lib/markdown";
-
-// ── Icons ──────────────────────────────────────────────────
-const SlidesIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
-  </svg>
-);
-const UserCircleIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/>
-  </svg>
-);
-const ChevronDown = ({ size = 11 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="6 9 12 15 18 9"/>
-  </svg>
-);
-const UploadIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-  </svg>
-);
-const FileIcon = ({ type }) => {
-  const colors = { PDF: "#f87171", PPTX: "#fb923c", PPT: "#fb923c", DOCX: "#60a5fa", DOC: "#60a5fa", TXT: "#a3e635", MD: "#a3e635", XLSX: "#34d399", XLS: "#34d399", CSV: "#34d399", default: "#c084fc" };
-  const c = colors[type?.toUpperCase()] || colors.default;
-  return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-    </svg>
-  );
-};
-const CloseIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-  </svg>
-);
-const SparkleIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z"/>
-    <path d="M19 3l.75 2.25L22 6l-2.25.75L19 9l-.75-2.25L16 6l2.25-.75z"/>
-  </svg>
-);
-const HistoryIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.96"/>
-  </svg>
-);
-const LogoutIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-  </svg>
-);
-const CopyIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-  </svg>
-);
+import {
+  ChevronDownIcon,
+  CopyIcon,
+  FileIcon,
+  HistoryIcon,
+  SparkleIcon,
+  UploadIcon,
+  CloseIcon,
+} from "../components/icons";
 
 // Provider = which API (ChatGPT / DeepSeek / Gemini). Variant = exact model (e.g. gpt-4o, gemini-2.0-flash).
 const MODEL_PROVIDERS = [
@@ -131,6 +83,7 @@ export default function Dashboard() {
   const router = useRouter();
 
   // State
+  const [sidebarOpen, setSidebarOpen]         = useState(false);
   const [selectedFiles, setSelectedFiles]   = useState([]);  // {name, type, size, id?, file?, fromPrev?}
   const [prompt, setPrompt]                 = useState("");
   const [summarizeFor, setSummarizeFor]     = useState("lecturer");
@@ -568,9 +521,27 @@ export default function Dashboard() {
         .copy-btn.copied { border-color: rgba(52,211,153,0.3); color: #34d399; background: rgba(52,211,153,0.08); }
 
         /* RIGHT PANEL */
-        .upload-btn { width: 100%; height: 38px; border-radius: 9px; border: 1.5px solid rgba(34,197,94,0.35); background: linear-gradient(135deg, rgba(34,197,94,0.16), rgba(16,185,129,0.10)); font-family: 'Sora', sans-serif; font-size: 12.5px; font-weight: 600; color: #86efac; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; transition: all 0.2s; box-shadow: 0 6px 18px rgba(16,185,129,0.12); }
+        .upload-btn {
+          width: 100%;
+          height: 38px;
+          border-radius: 9px;
+          border: 1.5px solid rgba(34,197,94,0.35);
+          background: linear-gradient(135deg, rgba(34,197,94,0.16), rgba(16,185,129,0.10));
+          font-family: 'Sora', sans-serif;
+          font-size: 12.5px;
+          font-weight: 600;
+          color: #86efac;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+          transition: all 0.2s;
+          box-shadow: 0 6px 18px rgba(16,185,129,0.12);
+          margin-bottom: 8px;
+        }
         .upload-btn:hover { border-color: rgba(34,197,94,0.65); background: linear-gradient(135deg, rgba(34,197,94,0.22), rgba(16,185,129,0.14)); box-shadow: 0 10px 26px rgba(16,185,129,0.2); transform: translateY(-1px); }
-        .upload-hint { font-size: 10.5px; color: rgba(255,255,255,0.2); text-align: center; }
+        .upload-hint { font-size: 10.5px; color: rgba(255,255,255,0.2); text-align: center; margin-bottom: 10px; }
 
         .radio-label { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.3); letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 6px; }
         .radio-option { display: flex; align-items: flex-start; gap: 9px; cursor: pointer; padding: 8px 10px; border-radius: 9px; border: 1px solid transparent; transition: all 0.2s; }
@@ -626,10 +597,115 @@ export default function Dashboard() {
         .modal-btn.secondary:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); }
         .modal-btn.primary { border: none; background: linear-gradient(135deg, #5f60f0 0%, #8b5cf6 100%); color: white; }
         .modal-btn.primary:hover { filter: brightness(1.08); }
+
+        /* ── Mobile layout ───────────────────────────────────────────────── */
+        @media (max-width: 900px) {
+          .app {
+            height: auto;
+            min-height: 100vh;
+          }
+
+          .body {
+            flex-direction: column;
+            height: auto;
+            overflow-y: auto;
+          }
+
+          .sidebar {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: 260px !important;
+            max-width: 80vw;
+            transform: translateX(-100%);
+            transition: transform 0.22s ease-out, box-shadow 0.22s ease-out;
+            box-shadow: 0 0 0 rgba(0,0,0,0);
+            z-index: 50;
+          }
+          .app--sidebar-open .sidebar {
+            transform: translateX(0);
+            box-shadow: 0 18px 40px rgba(0,0,0,0.7);
+          }
+
+          .splitter-v {
+            display: none;
+          }
+
+          .main {
+            display: flex;
+            flex-direction: column;
+            padding: 12px;
+            overflow-y: visible;
+            flex: none;
+          }
+
+          .panel {
+            min-height: auto;
+            max-height: none;
+            overflow: visible;
+          }
+
+          .file-list {
+            max-height: none;
+            overflow-y: visible;
+          }
+
+          .output-area {
+            max-height: none;
+            overflow-y: visible;
+          }
+
+          .sidebar-toggle {
+            display: flex;
+          }
+        }
+
+        /* Sidebar toggle button (mobile only by default) */
+        .sidebar-toggle {
+          position: fixed;
+          bottom: 16px;
+          left: 16px;
+          z-index: 60;
+          height: 34px;
+          padding: 0 12px;
+          border-radius: 999px;
+          border: 1px solid rgba(255,255,255,0.14);
+          background: rgba(15,15,25,0.9);
+          color: rgba(255,255,255,0.78);
+          font-family: 'Sora', sans-serif;
+          font-size: 12px;
+          display: none;
+          align-items: center;
+          gap: 6px;
+          cursor: pointer;
+          backdrop-filter: blur(12px);
+        }
+        .sidebar-toggle span {
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.09em;
+          color: rgba(255,255,255,0.55);
+        }
+        .sidebar-toggle-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 999px;
+          background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        }
       `}</style>
 
-      <div className={`app ${splitterDragging ? "no-select" : ""}`}>
+      <div className={`app ${splitterDragging ? "no-select" : ""} ${sidebarOpen ? "app--sidebar-open" : ""}`}>
         <div className="body">
+
+          <button
+            type="button"
+            className="sidebar-toggle"
+            onClick={() => setSidebarOpen((v) => !v)}
+          >
+            <div className="sidebar-toggle-dot" />
+            <span>{sidebarOpen ? "Hide panel" : "Show panel"}</span>
+          </button>
 
           {/* ── SIDEBAR ── */}
           <aside className="sidebar" style={{ width: sidebarWidth }}>
@@ -637,7 +713,7 @@ export default function Dashboard() {
             {/* History */}
             <div className="sidebar-header" onClick={() => setSidebarSection(s => ({ ...s, history: !s.history }))}>
               <span className="sidebar-title"><HistoryIcon /> History</span>
-              <span className={`sidebar-chev ${sidebarSection.history ? "open" : ""}`}><ChevronDown /></span>
+              <span className={`sidebar-chev ${sidebarSection.history ? "open" : ""}`}><ChevronDownIcon /></span>
             </div>
 
             {sidebarSection.history && (
@@ -675,7 +751,7 @@ export default function Dashboard() {
             {/* Previous Uploads */}
             <div className="sidebar-header" onClick={() => setSidebarSection(s => ({ ...s, prev: !s.prev }))}>
               <span className="sidebar-title"><UploadIcon /> Previous Uploaded</span>
-              <span className={`sidebar-chev ${sidebarSection.prev ? "open" : ""}`}><ChevronDown /></span>
+              <span className={`sidebar-chev ${sidebarSection.prev ? "open" : ""}`}><ChevronDownIcon /></span>
             </div>
 
             {sidebarSection.prev && (
@@ -861,7 +937,7 @@ export default function Dashboard() {
                       <div className="model-dot" />
                       <span>{selectedProvider?.label ?? model}</span>
                     </div>
-                    <ChevronDown />
+                    <ChevronDownIcon />
                   </button>
                   {modelOpen && (
                     <div className="model-menu">
@@ -885,7 +961,7 @@ export default function Dashboard() {
                     <div className="model-left">
                       <span>{selectedVariant?.label ?? modelVariant}</span>
                     </div>
-                    <ChevronDown />
+                    <ChevronDownIcon />
                   </button>
                   {variantOpen && variants.length > 0 && (
                     <div className="model-menu">

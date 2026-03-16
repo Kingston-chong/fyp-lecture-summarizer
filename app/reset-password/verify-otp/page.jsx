@@ -2,34 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-
-const SlidesIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="3" width="20" height="14" rx="2"/>
-    <path d="M8 21h8M12 17v4"/>
-  </svg>
-);
-
-const UserCircleIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/>
-    <circle cx="12" cy="10" r="3"/>
-    <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/>
-  </svg>
-);
-
-const ChevronDown = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="6 9 12 15 18 9"/>
-  </svg>
-);
-
-const ShieldIcon = () => (
-  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-    <polyline points="9 12 11 14 15 10"/>
-  </svg>
-);
+import {
+  ChevronDownIcon,
+  ShieldIcon,
+  SlidesIcon,
+  UserCircleIcon,
+} from "../../components/icons";
 
 export default function VerifyOTP() {
   const router = useRouter();
@@ -183,8 +161,8 @@ export default function VerifyOTP() {
         </nav>
 
         <div className="subnav">
-          <button className="subnav-item">Text 1 <ChevronDown /></button>
-          <button className="subnav-item">Text 2 <ChevronDown /></button>
+          <button className="subnav-item">Text 1 <ChevronDownIcon /></button>
+          <button className="subnav-item">Text 2 <ChevronDownIcon /></button>
         </div>
 
         <main className="main">

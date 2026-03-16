@@ -3,54 +3,7 @@
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import AppSidebar from "./AppSidebar";
-
-const LogoIcon = () => (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="2" y="3" width="20" height="14" rx="2" />
-    <path d="M8 21h8M12 17v4" />
-  </svg>
-);
-
-const ChevronDown = ({ size = 11 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <polyline points="6 9 12 15 18 9" />
-  </svg>
-);
-
-const LogoutIcon = () => (
-  <svg
-    width="15"
-    height="15"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-    <polyline points="16 17 21 12 16 7" />
-    <line x1="21" y1="12" x2="9" y2="12" />
-  </svg>
-);
+import { ChevronDownIcon, LogoIcon, LogoutIcon } from "./icons";
 
 export default function AppShell({
   children,
@@ -98,6 +51,21 @@ export default function AppShell({
 
         .shell-content { position: relative; z-index: 5; height: calc(100vh - var(--chrome-h)); display: flex; overflow: hidden; }
         .shell-main { flex: 1; min-width: 0; height: 100%; }
+
+        /* Mobile: allow full-page scrolling for dashboard-style layouts */
+        @media (max-width: 900px) {
+          .shell {
+            overflow: auto;
+          }
+          .shell-content {
+            height: auto;
+            min-height: calc(100vh - var(--chrome-h));
+            overflow: visible;
+          }
+          .shell-main {
+            height: auto;
+          }
+        }
       `}</style>
 
       <div className="shell">
@@ -131,10 +99,10 @@ export default function AppShell({
 
         <div className="shell-subnav">
           <button className="shell-subitem" type="button">
-            Text 1 <ChevronDown />
+            Text 1 <ChevronDownIcon />
           </button>
           <button className="shell-subitem" type="button">
-            Text 2 <ChevronDown />
+            Text 2 <ChevronDownIcon />
           </button>
         </div>
 
