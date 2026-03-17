@@ -159,6 +159,21 @@ const UserIco = () => (
     <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
   </svg>
 );
+const CopyIco = ({ size = 12 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="9" y="9" width="13" height="13" rx="2" />
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+  </svg>
+);
 const Spinner = ({ size = 14, color = "white" }) => (
   <div
     style={{
@@ -280,6 +295,8 @@ export default function SummaryView() {
   const [extraSources, setExtraSources] = useState([]);
   const [headings, setHeadings] = useState([]);
   const [summaryHtml, setSummaryHtml] = useState("");
+  const [copiedId, setCopiedId] = useState(null);
+  const [summaryCopied, setSummaryCopied] = useState(false);
 
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
@@ -375,6 +392,24 @@ export default function SummaryView() {
     window.addEventListener("s2n-jump-to-heading", handler);
     return () => window.removeEventListener("s2n-jump-to-heading", handler);
   }, []);
+
+  function handleCopySummary() {
+    const text = summary?.output?.trim();
+    if (!text) return;
+    navigator.clipboard?.writeText(text).then(() => {
+      setSummaryCopied(true);
+      setTimeout(() => setSummaryCopied(false), 2000);
+    });
+  }
+
+  function handleCopyMessage(m) {
+    const text = (m?.content || "").trim();
+    if (!text) return;
+    navigator.clipboard?.writeText(text).then(() => {
+      setCopiedId(m.id);
+      setTimeout(() => setCopiedId(null), 1800);
+    });
+  }
 
   async function sendMessage(text) {
     const msg = (text ?? inputVal).trim();
@@ -558,7 +593,7 @@ export default function SummaryView() {
       .card   { flex: 1; min-height: 0; display: flex; flex-direction: column; background: rgba(18,18,28,.88); border: 1px solid rgba(255,255,255,.07); border-radius: 18px; backdrop-filter: blur(14px); overflow: hidden; animation: fadeUp .4s ease both; animation-delay: .05s; }
 
       /* ── summary pane ── */
-      .sum-pane  { flex: 0 0 auto; max-height: 44%; display: flex; flex-direction: column; border-bottom: 1px solid rgba(255,255,255,.06); }
+      .sum-pane  { flex: 1 1 auto; max-height: none; display: flex; flex-direction: column; border-bottom: 1px solid rgba(255,255,255,.06); min-height: 0; }
       .sum-head  { display: flex; align-items: flex-start; justify-content: space-between; padding: 16px 20px 10px; flex-shrink: 0; gap: 12px; }
       .sum-left  { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
       .sum-title { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600; color: #ddddf5; letter-spacing: -.01em; }
@@ -568,6 +603,16 @@ export default function SummaryView() {
       .tag-lec   { background: rgba(99,102,241,.14); color: #a5b4fc; border: 1px solid rgba(99,102,241,.2); }
       .tag-stu   { background: rgba(52,211,153,.12); color: #6ee7b7; border: 1px solid rgba(52,211,153,.2); }
       .sum-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+      .sum-copy-btn {
+        height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid rgba(255,255,255,.08);
+        background: rgba(255,255,255,.04); color: rgba(255,255,255,.5); font-family: 'Sora',sans-serif;
+        font-size: 11px; display: flex; align-items: center; gap: 5px; cursor: pointer;
+        transition: all .18s; align-self: flex-end;
+      }
+      .sum-copy-btn:hover:not(:disabled) { border-color: rgba(255,255,255,.15); color: rgba(255,255,255,.8); background: rgba(255,255,255,.06); }
+      .sum-copy-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+      .sum-copy-btn.copied { border-color: rgba(52,211,153,.3); color: #6ee7b7; background: rgba(52,211,153,.1); }
+      .sum-copy-txt { font-weight: 600; }
       .sum-date  { font-size: 10.5px; color: rgba(255,255,255,.25); font-style: italic; white-space: nowrap; }
       .sum-files { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
       .fchip     { display: flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 5px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.07); font-size: 10px; color: rgba(255,255,255,.3); }
@@ -575,32 +620,66 @@ export default function SummaryView() {
       .sum-body  { overflow-y: auto; padding: 0 20px 14px; flex: 1; }
       .sum-body::-webkit-scrollbar { width: 3px; }
       .sum-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,.07); border-radius: 4px; }
-      .sum-text  { font-size: 12.5px; font-weight: 300; color: #b8b8d4; line-height: 1.82; }
+      .sum-text  { font-size: 13.5px; font-weight: 400; color: #c8c8e0; line-height: 1.8; font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+      .sum-text h1 { font-size: 1.5em; font-weight: 700; color: #e8e8f5; margin: 0 0 14px; line-height: 1.35; letter-spacing: -0.01em; }
+      .sum-text h2 { font-size: 1.22em; font-weight: 600; color: #ddddf0; margin: 20px 0 10px; line-height: 1.4; }
+      .sum-text h3 { font-size: 1.08em; font-weight: 600; color: #d0d0e8; margin: 16px 0 8px; line-height: 1.45; }
+      .sum-text h4, .sum-text h5, .sum-text h6 { font-size: 1em; font-weight: 600; color: #c8c8e0; margin: 12px 0 6px; }
+      .sum-text ol, .sum-text ul { margin: 12px 0 14px 22px; padding-left: 8px; }
+      .sum-text ol { list-style: decimal; }
+      .sum-text ul { list-style-type: disc; }
+      .sum-text ul ul { list-style-type: disc; }
+      .sum-text ol li, .sum-text ul li { margin: 6px 0; }
+      .sum-text table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 12.5px; }
+      .sum-text th, .sum-text td { border: 1px solid rgba(255,255,255,0.14); padding: 10px 14px; text-align: left; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
+      .sum-text th { background: rgba(255,255,255,0.08); font-weight: 600; color: #e0e0f0; }
+      .sum-text td { color: #b8b8d4; line-height: 1.6; }
 
       /* ── chat pane ── */
-      .chat-pane { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+      .chat-pane { flex: 0 0 210px; min-height: 0; display: flex; flex-direction: column; }
 
       .chat-msgs { flex: 1; overflow-y: auto; padding: 12px 20px; display: flex; flex-direction: column; gap: 10px; }
       .chat-msgs::-webkit-scrollbar { width: 3px; }
       .chat-msgs::-webkit-scrollbar-thumb { background: rgba(255,255,255,.07); border-radius: 4px; }
 
-      .chat-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; color: rgba(255,255,255,.18); font-size: 12px; }
+      .chat-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: rgba(255,255,255,.18); font-size: 11px; }
 
       .m-row     { display: flex; gap: 8px; align-items: flex-start; animation: msgIn .22s ease; }
       .m-row.user{ flex-direction: row-reverse; }
       .m-ava     { width: 27px; height: 27px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
       .m-ava.ai  { background: rgba(99,102,241,.18); color: #a5b4fc; border: 1px solid rgba(99,102,241,.18); }
       .m-ava.user{ background: rgba(52,211,153,.14); color: #6ee7b7; border: 1px solid rgba(52,211,153,.18); }
-      .m-bub     { max-width: 74%; padding: 9px 13px; border-radius: 12px; font-size: 12.5px; font-weight: 300; line-height: 1.68; }
+      .m-bub-wrap { position: relative; max-width: 74%; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+      .m-bub     { width: 100%; padding: 9px 13px; border-radius: 12px; font-size: 12.5px; font-weight: 300; line-height: 1.68; }
       .m-bub.ai  { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.07); color: #c4c4dc; border-top-left-radius: 3px; }
       .m-bub.user{ background: rgba(99,102,241,.18); border: 1px solid rgba(99,102,241,.25); color: #ddddf8; border-top-right-radius: 3px; }
       .m-bub.err { background: rgba(248,113,113,.08); border-color: rgba(248,113,113,.2); color: #fca5a5; }
+      .m-copy {
+        width: 26px; height: 26px; border-radius: 6px; border: 1px solid rgba(255,255,255,.08);
+        background: rgba(255,255,255,.04); color: rgba(255,255,255,.5); display: flex;
+        align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+        transition: all .18s;
+      }
+      .m-copy:hover { background: rgba(255,255,255,.08); color: #a5b4fc; border-color: rgba(99,102,241,.3); }
+      .m-copy.copied { background: rgba(52,211,153,.12); border-color: rgba(52,211,153,.3); color: #6ee7b7; }
+      .m-copy-txt { font-size: 10px; font-weight: 600; }
 
-      /* markdown-ish rendering */
-      .md p { margin: 0 0 10px; }
-      .md p:last-child { margin-bottom: 0; }
-      .md ul { margin: 8px 0 8px 18px; padding: 0; }
-      .md li { margin: 4px 0; }
+      /* markdown-ish rendering (summary + chat) */
+      .md p, .sum-text p { margin: 0 0 12px; }
+      .md p:last-child, .sum-text p:last-child { margin-bottom: 0; }
+      .md ul, .md ol { margin: 12px 0 14px 22px; padding-left: 8px; }
+      .md ol { list-style: decimal; }
+      .md ul { list-style-type: disc; }
+      .md ul ul { list-style-type: disc; }
+      .md li { margin: 6px 0; }
+      .md h1, .md h2, .md h3, .md h4, .md h5, .md h6 { font-weight: 600; margin: 12px 0 6px; }
+      .md h1 { font-size: 1.25em; }
+      .md h2 { font-size: 1.12em; }
+      .md h3 { font-size: 1.06em; }
+      .md table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
+      .md th, .md td { border: 1px solid rgba(255,255,255,0.14); padding: 8px 12px; text-align: left; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
+      .md th { background: rgba(255,255,255,0.08); font-weight: 600; color: #e0e0f0; }
+      .md td { line-height: 1.6; }
       .md code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.95em; background: rgba(255,255,255,.06); padding: 1px 5px; border-radius: 6px; }
       .md pre { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); padding: 10px 12px; border-radius: 10px; overflow: auto; margin: 10px 0; }
       .md pre code { background: transparent; padding: 0; }
@@ -616,7 +695,7 @@ export default function SummaryView() {
       .sug:hover{ border-color: rgba(99,102,241,.4); color: #a5b4fc; background: rgba(99,102,241,.07); }
 
       /* ── input row ── */
-      .inp-row  { display: flex; align-items: center; gap: 7px; padding: 10px 14px; border-top: 1px solid rgba(255,255,255,.06); flex-shrink: 0; }
+      .inp-row  { display: flex; align-items: center; gap: 7px; padding: 8px 12px; border-top: 1px solid rgba(255,255,255,.06); flex-shrink: 0; }
       .inp      { flex: 1; height: 40px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 0 14px; font-family: 'Sora',sans-serif; font-size: 12.5px; font-weight: 300; color: #cccce0; outline: none; transition: border-color .2s, box-shadow .2s; }
       .inp::placeholder { color: rgba(255,255,255,.2); font-style: italic; }
       .inp:focus{ border-color: rgba(99,102,241,.4); box-shadow: 0 0 0 3px rgba(99,102,241,.08); }
@@ -688,6 +767,20 @@ export default function SummaryView() {
                       </div>
                     </div>
                     <div className="sum-right">
+                      <button
+                        type="button"
+                        className={`sum-copy-btn ${summaryCopied ? "copied" : ""}`}
+                        title={summaryCopied ? "Copied!" : "Copy summary"}
+                        onClick={handleCopySummary}
+                        disabled={summaryLoading || !summary?.output}
+                        aria-label="Copy summary"
+                      >
+                        {summaryCopied ? (
+                          <span className="sum-copy-txt">Copied</span>
+                        ) : (
+                          <CopyIco size={12} />
+                        )}
+                      </button>
                       <div className="sum-date">
                         {summary
                           ? `generated by ${summary.model} on ${fmtDate(summary.createdAt)}`
@@ -739,12 +832,29 @@ export default function SummaryView() {
                           <div className={`m-ava ${m.role}`}>
                             {m.role === "ai" ? <BotIco /> : <UserIco />}
                           </div>
-                          <div
-                            className={`m-bub ${m.role} ${m.error ? "err" : ""} md`}
-                            dangerouslySetInnerHTML={{
-                              __html: markdownToHtml(m.content),
-                            }}
-                          />
+                          <div className="m-bub-wrap">
+                            <div
+                              className={`m-bub ${m.role} ${m.error ? "err" : ""} md`}
+                              dangerouslySetInnerHTML={{
+                                __html: markdownToHtml(m.content),
+                              }}
+                            />
+                            {m.role === "ai" && (m.content || "").trim() && (
+                              <button
+                                type="button"
+                                className={`m-copy ${copiedId === m.id ? "copied" : ""}`}
+                                title={copiedId === m.id ? "Copied!" : "Copy"}
+                                onClick={() => handleCopyMessage(m)}
+                                aria-label="Copy message"
+                              >
+                                {copiedId === m.id ? (
+                                  <span className="m-copy-txt">Copied</span>
+                                ) : (
+                                  <CopyIco size={12} />
+                                )}
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))
                     )}

@@ -12,14 +12,31 @@ export async function GET(req) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+    const userEmail = session?.user?.email;
+    if (!userEmail) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const user = await prisma.user.findUnique({
+      where: { email: userEmail },
+      select: { id: true },
+    });
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const summaries = await prisma.summary.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        model: true,
+        summarizeFor: true,
+        output: true,
+        createdAt: true,
         documents: {
-          include: { document: true }, // include document details
+          select: {
+            document: {
+              select: { id: true, name: true, type: true },
+            },
+          },
         },
       },
     });

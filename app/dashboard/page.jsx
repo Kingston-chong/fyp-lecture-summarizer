@@ -513,7 +513,18 @@ export default function Dashboard() {
         .output-area { flex: 1; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 14px; overflow-y: auto; }
         .output-area::-webkit-scrollbar { width: 3px; }
         .output-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
-        .output-text { font-size: 12.5px; font-weight: 300; color: #c8c8e0; line-height: 1.75; white-space: pre-wrap; }
+        .output-text { font-size: 13.5px; font-weight: 400; color: #c8c8e0; line-height: 1.8; font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        .output-text h1 { font-size: 1.5em; font-weight: 700; color: #e8e8f5; margin: 0 0 14px; line-height: 1.35; }
+        .output-text h2 { font-size: 1.22em; font-weight: 600; color: #ddddf0; margin: 20px 0 10px; }
+        .output-text h3 { font-size: 1.08em; font-weight: 600; color: #d0d0e8; margin: 16px 0 8px; }
+        .output-text ol, .output-text ul { margin: 12px 0 14px 22px; padding-left: 8px; }
+        .output-text ul { list-style-type: disc; }
+        .output-text ul ul { list-style-type: disc; }
+        .output-text ol li, .output-text ul li { margin: 6px 0; }
+        .output-text table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 12.5px; }
+        .output-text th, .output-text td { border: 1px solid rgba(255,255,255,0.14); padding: 10px 14px; text-align: left; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
+        .output-text th { background: rgba(255,255,255,0.08); font-weight: 600; color: #e0e0f0; }
+        .output-text td { color: #b8b8d4; line-height: 1.6; }
         .output-placeholder { font-size: 12px; color: rgba(255,255,255,0.16); font-style: italic; }
         .output-header { display: flex; align-items: center; justify-content: space-between; }
         .copy-btn { height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); font-family: 'Sora', sans-serif; font-size: 11px; color: rgba(255,255,255,0.4); cursor: pointer; display: flex; align-items: center; gap: 5px; transition: all 0.2s; }

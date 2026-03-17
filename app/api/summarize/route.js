@@ -9,11 +9,35 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { extractText as unpdfExtractText, getDocumentProxy } from "unpdf";
 import mammoth from "mammoth";
 
+const MAX_MODEL_INPUT_CHARS = Number.parseInt(
+  process.env.SUMMARY_MAX_INPUT_CHARS || "12000",
+  10
+);
+const EXTRACT_CONCURRENCY = Math.max(
+  1,
+  Number.parseInt(process.env.SUMMARY_EXTRACT_CONCURRENCY || "2", 10) || 2
+);
+
+const openaiClient =
+  process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+
+const deepseekClient =
+  process.env.DEEPSEEK_API_KEY
+    ? new OpenAI({
+        apiKey: process.env.DEEPSEEK_API_KEY,
+        baseURL: "https://api.deepseek.com",
+      })
+    : null;
+
+const geminiClient =
+  process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
+
 // ── Text extraction ───────────────────────────────────────
 
 async function fetchBlobBuffer(url) {
   // Private Vercel Blob URLs require the SDK's get() with auth (plain fetch returns HTML/403)
-  const result = await get(url, { access: "private", useCache: false });
+  // allow Vercel Blob to cache where possible; large docs are expensive to refetch
+  const result = await get(url, { access: "private", useCache: true });
   if (!result || result.statusCode !== 200 || !result.stream) {
     throw new Error("Failed to fetch blob");
   }
@@ -78,6 +102,31 @@ async function extractText(url, type) {
   }
 }
 
+function createLimiter(concurrency) {
+  let active = 0;
+  const queue = [];
+
+  const next = () => {
+    if (active >= concurrency) return;
+    const job = queue.shift();
+    if (!job) return;
+    active++;
+    Promise.resolve()
+      .then(job.fn)
+      .then(job.resolve, job.reject)
+      .finally(() => {
+        active--;
+        next();
+      });
+  };
+
+  return (fn) =>
+    new Promise((resolve, reject) => {
+      queue.push({ fn, resolve, reject });
+      next();
+    });
+}
+
 // ── AI call ───────────────────────────────────────────────
 // Models used:
 // - ChatGPT: gpt-4o (OpenAI; paid after free credits). For more free usage use gpt-4o-mini.
@@ -85,12 +134,13 @@ async function extractText(url, type) {
 // - Gemini: tries Flash models first (free tier at aistudio.google.com). Override with GEMINI_MODEL in .env.
 
 async function callAI(model, modelVariant, systemPrompt, documentText) {
-  const fullPrompt = `${systemPrompt}\n\n---\n\nDocument Content:\n${documentText.slice(0, 12000)}`; // limit tokens
+  const clipped = (documentText || "").slice(0, MAX_MODEL_INPUT_CHARS);
+  const fullPrompt = `${systemPrompt}\n\n---\n\nDocument Content:\n${clipped}`;
 
   if (model === "chatgpt") {
     const openaiModel = modelVariant || process.env.OPENAI_MODEL || "gpt-4o";
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const res = await openai.chat.completions.create({
+    if (!openaiClient) throw new Error("OPENAI_API_KEY is not set");
+    const res = await openaiClient.chat.completions.create({
       model: openaiModel,
       messages: [{ role: "user", content: fullPrompt }],
       max_tokens: 2000,
@@ -100,11 +150,8 @@ async function callAI(model, modelVariant, systemPrompt, documentText) {
 
   if (model === "deepseek") {
     const deepseekModel = modelVariant || "deepseek-chat";
-    const deepseek = new OpenAI({
-      apiKey: process.env.DEEPSEEK_API_KEY,
-      baseURL: "https://api.deepseek.com",
-    });
-    const res = await deepseek.chat.completions.create({
+    if (!deepseekClient) throw new Error("DEEPSEEK_API_KEY is not set");
+    const res = await deepseekClient.chat.completions.create({
       model: deepseekModel,
       messages: [{ role: "user", content: fullPrompt }],
       max_tokens: 2000,
@@ -113,11 +160,7 @@ async function callAI(model, modelVariant, systemPrompt, documentText) {
   }
 
   if (model === "gemini") {
-    if (!process.env.GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not set");
-    }
-
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    if (!geminiClient) throw new Error("GEMINI_API_KEY is not set");
 
     const modelCandidates = modelVariant
       ? [modelVariant]
@@ -140,7 +183,7 @@ async function callAI(model, modelVariant, systemPrompt, documentText) {
     let lastErr;
     for (const modelName of uniqueCandidates) {
       try {
-        const geminiModel = genAI.getGenerativeModel({ model: modelName });
+        const geminiModel = geminiClient.getGenerativeModel({ model: modelName });
         const res = await geminiModel.generateContent(fullPrompt);
         return res.response.text();
       } catch (err) {
@@ -170,9 +213,18 @@ export async function POST(req) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const userEmail = session?.user?.email;
+    if (!userEmail) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { email: userEmail },
+      select: { id: true },
     });
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const { documentIds, model, modelVariant, summarizeFor, prompt } = await req.json();
 
@@ -183,6 +235,7 @@ export async function POST(req) {
     // Fetch documents from DB
     const documents = await prisma.document.findMany({
       where: { id: { in: documentIds }, userId: user.id },
+      select: { id: true, name: true, url: true, type: true },
     });
 
     if (documents.length === 0) {
@@ -198,12 +251,22 @@ ${summarizeFor === "lecturer"
 ${prompt ? `\nAdditional instructions: ${prompt}` : ""}
 Format your response in clean markdown with clear sections.`;
 
-    // Extract text from all documents and combine
+    // Extract text with limited concurrency, and stop early once we have enough characters
+    const limit = createLimiter(EXTRACT_CONCURRENCY);
+    const extracted = await Promise.all(
+      documents.map((doc) =>
+        limit(async () => {
+          const text = await extractText(doc.url, doc.type);
+          return { doc, text: text || "" };
+        })
+      )
+    );
+
     let combinedText = "";
-    for (const doc of documents) {
+    for (const { doc, text } of extracted) {
+      if (combinedText.length >= MAX_MODEL_INPUT_CHARS) break;
       combinedText += `\n\n=== ${doc.name} ===\n`;
-      const text = await extractText(doc.url, doc.type);
-      combinedText += text;
+      combinedText += text.slice(0, Math.max(0, MAX_MODEL_INPUT_CHARS - combinedText.length));
     }
 
     // Call AI (model = provider, modelVariant = exact model id)

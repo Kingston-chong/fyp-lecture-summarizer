@@ -46,6 +46,9 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
   const [sections, setSections] = useState([]);
   const [sectionsOpen, setSectionsOpen] = useState(true);
   const [menuOpenId, setMenuOpenId] = useState(null);
+  const [renameModal, setRenameModal] = useState(null); // { summary, value }
+  const [deleteModal, setDeleteModal] = useState(null); // { summary }
+  const [toast, setToast] = useState(null); // { message } for share feedback
 
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -101,22 +104,29 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
     }
   }
 
-  async function handleRenameSummary(summary) {
-    const current = summary.title || "";
-    // simple prompt-based rename for now
-    const next = window.prompt("Rename summary", current);
-    if (!next || next.trim() === "" || next.trim() === current.trim()) return;
+  function openRenameModal(summary) {
+    setMenuOpenId(null);
+    setRenameModal({ summary, value: summary.title || "" });
+  }
+
+  async function submitRename() {
+    if (!renameModal) return;
+    const { summary } = renameModal;
+    const next = renameModal.value?.trim() || "";
+    const current = (summary.title || "").trim();
+    if (!next || next === current) {
+      setRenameModal(null);
+      return;
+    }
+    setRenameModal(null);
     setRenamingId(summary.id);
     try {
       const res = await fetch(`/api/summary/${summary.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: next.trim() }),
+        body: JSON.stringify({ title: next }),
       });
-      if (!res.ok) {
-        return;
-      }
-      await fetchHistory();
+      if (res.ok) await fetchHistory();
     } finally {
       setRenamingId(null);
     }
@@ -124,19 +134,21 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
 
   async function handleDeleteSummary(summary) {
     if (!summary?.id) return;
-    const confirmDelete = window.confirm("Delete this summary permanently?");
-    if (!confirmDelete) return;
-    setRenamingId(summary.id);
+    setMenuOpenId(null);
+    setDeleteModal({ summary });
+  }
+
+  async function confirmDelete() {
+    const s = deleteModal?.summary;
+    setDeleteModal(null);
+    if (!s?.id) return;
+    setRenamingId(s.id);
     try {
-      const res = await fetch(`/api/summary/${summary.id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        return;
+      const res = await fetch(`/api/summary/${s.id}`, { method: "DELETE" });
+      if (res.ok) {
+        await fetchHistory();
+        router.push("/dashboard");
       }
-      await fetchHistory();
-      // After delete, send user back to dashboard (safe default)
-      router.push("/dashboard");
     } finally {
       setRenamingId(null);
     }
@@ -148,28 +160,24 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
     if (navigator.share) {
       navigator
         .share({ title: summary.title || "Slide2Notes summary", url })
-        .catch(() => {
-          // fall back silently if user cancels
-        });
+        .catch(() => {});
       return;
     }
     if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(url).then(
-        () => {
-          // simple, non-intrusive feedback
-          // eslint-disable-next-line no-alert
-          alert("Link copied to clipboard.");
-        },
-        () => {
-          // eslint-disable-next-line no-alert
-          alert(url);
-        },
-      );
+      navigator.clipboard
+        .writeText(url)
+        .then(() => setToast({ message: "Link copied to clipboard." }))
+        .catch(() => setToast({ message: url }));
       return;
     }
-    // eslint-disable-next-line no-alert
-    alert(url);
+    setToast({ message: url });
   }
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2800);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   return (
     <>
@@ -240,16 +248,35 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
         .as-rm:hover:not(:disabled) { background: rgba(248,113,113,0.2); border-color: rgba(248,113,113,0.3); }
         .as-rm:disabled { opacity: 0.6; cursor: not-allowed; }
 
-        .as-sec-menu { padding: 4px 16px 10px; }
+        .as-sec-menu {
+          padding: 8px 12px 14px;
+          background: rgba(255,255,255,0.02);
+          border-radius: 10px;
+          margin: 0 12px 8px;
+          border: 1px solid rgba(255,255,255,0.04);
+        }
         .as-sec-item {
-          font-size: 11px;
-          color: rgba(255,255,255,0.62);
-          padding: 3px 0;
+          font-size: 11.5px;
+          color: rgba(255,255,255,0.7);
+          padding: 6px 10px;
+          margin: 2px 0;
           cursor: pointer;
           display: block;
-          border-radius: 4px;
+          width: 100%;
+          text-align: left;
+          border: none;
+          background: transparent;
+          border-radius: 6px;
+          font-family: 'Sora', sans-serif;
+          line-height: 1.4;
+          transition: background 0.15s, color 0.15s;
         }
-        .as-sec-item:hover { background: rgba(255,255,255,0.06); }
+        .as-sec-item:hover { background: rgba(99,102,241,0.1); color: #a5b4fc; }
+        .as-sec-item.lv1 { padding-left: 10px; font-weight: 500; }
+        .as-sec-item.lv2 { padding-left: 22px; font-size: 11px; color: rgba(255,255,255,0.58); }
+        .as-sec-item.lv3 { padding-left: 32px; font-size: 10.5px; color: rgba(255,255,255,0.5); }
+        .as-sec-bullet { display: inline-block; margin-right: 7px; color: rgba(99,102,241,0.65); font-size: 7px; vertical-align: middle; flex-shrink: 0; }
+        .as-sec-bullet-sm { font-size: 10px; color: rgba(255,255,255,0.35); }
         .as-sec-label {
           font-size: 10px;
           font-weight: 600;
@@ -304,6 +331,47 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
         .as-menu-btn.danger .as-menu-ico {
           color: #f87171;
         }
+
+        .as-modal-backdrop {
+          position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+          backdrop-filter: blur(4px); z-index: 100;
+          display: flex; align-items: center; justify-content: center; padding: 16px;
+        }
+        .as-modal-box {
+          background: rgba(22,22,32,0.98); border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 14px; padding: 24px; max-width: 400px; width: 100%;
+          box-shadow: 0 24px 48px rgba(0,0,0,0.5);
+        }
+        .as-modal-title { font-size: 15px; font-weight: 600; color: #e0e0f0; margin-bottom: 8px; }
+        .as-modal-desc { font-size: 12.5px; color: rgba(255,255,255,0.5); margin-bottom: 14px; line-height: 1.5; }
+        .as-modal-input {
+          width: 100%; padding: 10px 12px; margin-bottom: 18px; border-radius: 9px;
+          border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04);
+          font-family: 'Sora', sans-serif; font-size: 13px; color: #e0e0f0;
+          outline: none; transition: border-color 0.2s;
+        }
+        .as-modal-input:focus { border-color: rgba(99,102,241,0.5); }
+        .as-modal-input::placeholder { color: rgba(255,255,255,0.25); }
+        .as-modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+        .as-modal-btn {
+          height: 38px; padding: 0 18px; border-radius: 9px; font-family: 'Sora', sans-serif;
+          font-size: 12.5px; font-weight: 500; cursor: pointer; transition: all 0.2s;
+        }
+        .as-modal-btn.sec { border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); color: #b0b0cc; }
+        .as-modal-btn.sec:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); }
+        .as-modal-btn.primary { border: none; background: linear-gradient(135deg, #5f60f0 0%, #8b5cf6 100%); color: white; }
+        .as-modal-btn.primary:hover { filter: brightness(1.08); }
+        .as-modal-btn.danger { border: none; background: rgba(248,113,113,0.25); color: #fca5a5; }
+        .as-modal-btn.danger:hover { background: rgba(248,113,113,0.4); }
+
+        .as-toast {
+          position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+          padding: 10px 18px; border-radius: 10px; font-size: 12.5px;
+          background: rgba(22,22,32,0.95); border: 1px solid rgba(255,255,255,0.12);
+          color: #e0e0f0; z-index: 200; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+          animation: asToastIn 0.2s ease;
+        }
+        @keyframes asToastIn { from { opacity: 0; transform: translateX(-50%) translateY(8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
       `}</style>
 
       <aside className="as-side" aria-label="Sidebar">
@@ -361,7 +429,7 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
                         className="as-menu-btn"
                         onClick={() => {
                           setMenuOpenId(null);
-                          handleRenameSummary(h);
+                          openRenameModal(h);
                         }}
                       >
                         <span className="as-menu-ico"><EditIcon size={16} /></span>
@@ -424,7 +492,7 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
                   <button
                     key={h.id}
                     type="button"
-                    className="as-sec-item"
+                    className={`as-sec-item lv${h.level}`}
                     onClick={() => {
                       if (typeof window !== "undefined") {
                         window.dispatchEvent(
@@ -436,7 +504,13 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
                     }}
                     title={h.text}
                   >
-                    {h.level === 1 ? "" : h.level === 2 ? "• " : "‣ "}
+                    {h.level === 1 ? (
+                      <span className="as-sec-bullet" aria-hidden>●</span>
+                    ) : h.level === 2 ? (
+                      <span className="as-sec-bullet" aria-hidden>○</span>
+                    ) : (
+                      <span className="as-sec-bullet as-sec-bullet-sm" aria-hidden>–</span>
+                    )}
                     {h.text}
                   </button>
                 ))}
@@ -497,6 +571,46 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
           </>
         )}
       </aside>
+
+      {renameModal && (
+        <div className="as-modal-backdrop" onClick={() => setRenameModal(null)}>
+          <div className="as-modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="as-modal-title">Rename summary</div>
+            <input
+              type="text"
+              className="as-modal-input"
+              value={renameModal.value}
+              onChange={(e) => setRenameModal((p) => ({ ...p, value: e.target.value }))}
+              onKeyDown={(e) => e.key === "Enter" && submitRename()}
+              placeholder="Summary title"
+              autoFocus
+            />
+            <div className="as-modal-btns">
+              <button type="button" className="as-modal-btn sec" onClick={() => setRenameModal(null)}>Cancel</button>
+              <button type="button" className="as-modal-btn primary" onClick={submitRename}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteModal && (
+        <div className="as-modal-backdrop" onClick={() => setDeleteModal(null)}>
+          <div className="as-modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="as-modal-title">Delete summary</div>
+            <div className="as-modal-desc">Delete this summary permanently? This cannot be undone.</div>
+            <div className="as-modal-btns">
+              <button type="button" className="as-modal-btn sec" onClick={() => setDeleteModal(null)}>Cancel</button>
+              <button type="button" className="as-modal-btn danger" onClick={confirmDelete}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="as-toast" role="status">
+          {toast.message}
+        </div>
+      )}
     </>
   );
 }
