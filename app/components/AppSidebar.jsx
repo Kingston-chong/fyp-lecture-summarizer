@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ChevronDownIcon,
@@ -31,6 +31,110 @@ function formatBytes(bytes) {
   return (bytes / 1024 / 1024).toFixed(1) + " MB";
 }
 
+/**
+ * Nested outline tree: each heading’s children are deeper-level headings until
+ * a sibling or ancestor sibling appears (standard markdown outline).
+ */
+function buildHeadingTree(headings) {
+  if (!headings?.length) return [];
+  const roots = [];
+  const stack = [];
+  for (const h of headings) {
+    const node = { ...h, children: [] };
+    while (stack.length > 0 && stack[stack.length - 1].level >= h.level) {
+      stack.pop();
+    }
+    if (stack.length === 0) {
+      roots.push(node);
+    } else {
+      stack[stack.length - 1].children.push(node);
+    }
+    stack.push(node);
+  }
+  return roots;
+}
+
+function SectionTreeBranch({
+  node,
+  depth,
+  isFolded,
+  onToggleFold,
+}) {
+  const hasChildren = node.children.length > 0;
+  const folded = isFolded(node.id);
+  return (
+    <div className="as-sec-node">
+      <div className="as-sec-main-row">
+        {hasChildren ? (
+          <button
+            type="button"
+            className={`as-sec-twist ${folded ? "folded" : ""}`}
+            aria-label={
+              folded ? "Expand subsections" : "Collapse subsections"
+            }
+            aria-expanded={!folded}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFold(node.id);
+            }}
+          >
+            <ChevronDownIcon size={11} />
+          </button>
+        ) : (
+          <span className="as-sec-twist-spacer" aria-hidden />
+        )}
+        <button
+          type="button"
+          className={`as-sec-item lv${node.level} as-sec-main-btn`}
+          onClick={() => jumpToHeading(node.id)}
+          title={node.text}
+        >
+          <SectionBullet level={node.level} />
+          <span className="as-sec-main-txt">{node.text}</span>
+        </button>
+      </div>
+      {hasChildren && !folded && (
+        <div className="as-sec-children">
+          {node.children.map((ch) => (
+            <SectionTreeBranch
+              key={ch.id}
+              node={ch}
+              depth={depth + 1}
+              isFolded={isFolded}
+              onToggleFold={onToggleFold}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function jumpToHeading(id) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent("s2n-jump-to-heading", { detail: id }),
+  );
+}
+
+function SectionBullet({ level }) {
+  if (level === 1) {
+    return (
+      <span className="as-sec-bullet" aria-hidden>
+        ●
+      </span>
+    );
+  }
+  if (level === 2) {
+    return (
+      <span className="as-sec-bullet" aria-hidden>
+        ○
+      </span>
+    );
+  }
+  return null;
+}
+
 export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
   const router = useRouter();
   const [historyOpen, setHistoryOpen] = useState(true);
@@ -45,6 +149,8 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
   const [renamingId, setRenamingId] = useState(null);
   const [sections, setSections] = useState([]);
   const [sectionsOpen, setSectionsOpen] = useState(true);
+  /** heading id -> true when subsections are folded */
+  const [foldedSectionGroups, setFoldedSectionGroups] = useState({});
   const [menuOpenId, setMenuOpenId] = useState(null);
   const [renameModal, setRenameModal] = useState(null); // { summary, value }
   const [deleteModal, setDeleteModal] = useState(null); // { summary }
@@ -81,6 +187,20 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
     fetchPrevUploads();
   }, [fetchHistory, fetchPrevUploads]);
 
+  const sectionTree = useMemo(
+    () => buildHeadingTree(sections),
+    [sections],
+  );
+
+  const sectionSig = useMemo(
+    () => sections.map((s) => s.id).join("|"),
+    [sections],
+  );
+
+  useEffect(() => {
+    setFoldedSectionGroups({});
+  }, [sectionSig]);
+
   // Listen for headings from the summary view
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -91,6 +211,17 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
     window.addEventListener("s2n-summary-headings", handler);
     return () => window.removeEventListener("s2n-summary-headings", handler);
   }, []);
+
+  function toggleSectionGroupFold(mainId) {
+    setFoldedSectionGroups((prev) => ({
+      ...prev,
+      [mainId]: !prev[mainId],
+    }));
+  }
+
+  function sectionGroupIsFolded(mainId) {
+    return foldedSectionGroups[mainId] === true;
+  }
 
   async function handleRemoveDocument(doc) {
     if (removingDocId != null) return;
@@ -186,7 +317,7 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
           width: ${width}px;
           height: 100%;
           flex-shrink: 0;
-          background: rgba(16,16,22,0.85);
+          background: rgb(16, 16, 22);
           border-right: 1px solid rgba(255,255,255,0.05);
           display: flex;
           flex-direction: column;
@@ -249,17 +380,59 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
         .as-rm:disabled { opacity: 0.6; cursor: not-allowed; }
 
         .as-sec-menu {
-          padding: 8px 12px 14px;
+          padding: 7px 10px 10px;
           background: rgba(255,255,255,0.02);
           border-radius: 10px;
-          margin: 0 12px 8px;
+          margin: 0 12px 7px;
           border: 1px solid rgba(255,255,255,0.04);
+        }
+        .as-sec-node { margin: 1px 0; }
+        .as-sec-children {
+          margin-top: 2px;
+          margin-left: 4px;
+          padding: 0 0 0 16px;
+          border-left: 1px solid rgba(255,255,255,0.07);
+        }
+        .as-sec-main-row {
+          display: flex;
+          align-items: stretch;
+          gap: 0;
+          width: 100%;
+          min-height: 30px;
+        }
+        .as-sec-twist {
+          flex-shrink: 0;
+          width: 21px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: none;
+          background: transparent;
+          color: rgba(255,255,255,0.38);
+          cursor: pointer;
+          border-radius: 6px 0 0 6px;
+          padding: 0;
+          transition: background 0.15s, color 0.15s;
+        }
+        .as-sec-twist:hover {
+          background: rgba(255,255,255,0.06);
+          color: rgba(255,255,255,0.72);
+        }
+        .as-sec-twist svg {
+          transition: transform 0.2s ease;
+        }
+        .as-sec-twist.folded svg {
+          transform: rotate(-90deg);
+        }
+        .as-sec-twist-spacer {
+          width: 21px;
+          flex-shrink: 0;
         }
         .as-sec-item {
           font-size: 11.5px;
           color: rgba(255,255,255,0.7);
-          padding: 6px 10px;
-          margin: 2px 0;
+          padding: 4px 8px;
+          margin: 0;
           cursor: pointer;
           display: block;
           width: 100%;
@@ -268,15 +441,28 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
           background: transparent;
           border-radius: 6px;
           font-family: 'Sora', sans-serif;
-          line-height: 1.4;
+          line-height: 1.38;
           transition: background 0.15s, color 0.15s;
         }
+        .as-sec-item.as-sec-main-btn {
+          display: flex;
+          align-items: center;
+          flex: 1;
+          min-width: 0;
+          width: auto;
+          margin: 0;
+        }
+        .as-sec-main-txt {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          min-width: 0;
+        }
         .as-sec-item:hover { background: rgba(99,102,241,0.1); color: #a5b4fc; }
-        .as-sec-item.lv1 { padding-left: 10px; font-weight: 500; }
-        .as-sec-item.lv2 { padding-left: 22px; font-size: 11px; color: rgba(255,255,255,0.58); }
-        .as-sec-item.lv3 { padding-left: 32px; font-size: 10.5px; color: rgba(255,255,255,0.5); }
-        .as-sec-bullet { display: inline-block; margin-right: 7px; color: rgba(99,102,241,0.65); font-size: 7px; vertical-align: middle; flex-shrink: 0; }
-        .as-sec-bullet-sm { font-size: 10px; color: rgba(255,255,255,0.35); }
+        .as-sec-item.lv1 { padding-left: 6px; font-weight: 500; }
+        .as-sec-item.lv2 { padding-left: 6px; font-size: 11px; color: rgba(255,255,255,0.58); }
+        .as-sec-item.lv3 { padding-left: 6px; font-size: 10.5px; color: rgba(255,255,255,0.5); }
+        .as-sec-bullet { display: inline-block; margin-right: 6px; color: rgba(99,102,241,0.65); font-size: 7px; vertical-align: middle; flex-shrink: 0; }
         .as-sec-label {
           font-size: 10px;
           font-weight: 600;
@@ -488,31 +674,14 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
             </div>
             {sectionsOpen && (
               <div className="as-sec-menu">
-                {sections.map((h) => (
-                  <button
-                    key={h.id}
-                    type="button"
-                    className={`as-sec-item lv${h.level}`}
-                    onClick={() => {
-                      if (typeof window !== "undefined") {
-                        window.dispatchEvent(
-                          new CustomEvent("s2n-jump-to-heading", {
-                            detail: h.id,
-                          }),
-                        );
-                      }
-                    }}
-                    title={h.text}
-                  >
-                    {h.level === 1 ? (
-                      <span className="as-sec-bullet" aria-hidden>●</span>
-                    ) : h.level === 2 ? (
-                      <span className="as-sec-bullet" aria-hidden>○</span>
-                    ) : (
-                      <span className="as-sec-bullet as-sec-bullet-sm" aria-hidden>–</span>
-                    )}
-                    {h.text}
-                  </button>
+                {sectionTree.map((node) => (
+                  <SectionTreeBranch
+                    key={node.id}
+                    node={node}
+                    depth={0}
+                    isFolded={sectionGroupIsFolded}
+                    onToggleFold={toggleSectionGroupFold}
+                  />
                 ))}
               </div>
             )}
