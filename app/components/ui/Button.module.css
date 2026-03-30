@@ -1,0 +1,85 @@
+.btn {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.04);
+  font-family: "Sora", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.18s;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.82);
+  transform: translateY(-1px);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.quiz:hover {
+  border-color: rgba(251, 191, 36, 0.35);
+  color: #fde68a;
+  background: rgba(251, 191, 36, 0.07);
+}
+
+.pdf:hover {
+  border-color: rgba(248, 113, 113, 0.35);
+  color: #fca5a5;
+  background: rgba(248, 113, 113, 0.07);
+}
+
+.slides {
+  background: linear-gradient(135deg, #5258ee, #8b5cf6);
+  border: none;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.32);
+}
+
+/* Keep gradient on hover — base .btn:hover would otherwise replace it with a flat fill */
+.slides:hover {
+  background: linear-gradient(135deg, #5258ee, #8b5cf6);
+  color: #fff;
+  border: none;
+  box-shadow: 0 6px 22px rgba(99, 102, 241, 0.5);
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+
+html[data-theme="light"] .btn {
+  color: rgba(0, 0, 0, 0.55);
+  border-color: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+html[data-theme="light"] .btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.15);
+  color: rgba(0, 0, 0, 0.85);
+}
+
+html[data-theme="light"] .slides {
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.25);
+}
+
+/* Override generic light .btn:hover so Slides keeps purple gradient + glow */
+html[data-theme="light"] .btn.slides:hover {
+  background: linear-gradient(135deg, #5258ee, #8b5cf6);
+  color: #fff;
+  border: none;
+  box-shadow: 0 6px 22px rgba(99, 102, 241, 0.45);
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}

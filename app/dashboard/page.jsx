@@ -389,7 +389,7 @@ export default function Dashboard() {
   };
 
   if (status === "loading") return (
-    <div style={{ minHeight: "100vh", background: "#0e0e12", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div style={{ minHeight: "100vh", background: "var(--app-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ width: 32, height: 32, border: "3px solid rgba(99,102,241,0.3)", borderTopColor: "#6366f1", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
@@ -400,30 +400,30 @@ export default function Dashboard() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: #0e0e12; }
+        body { background: var(--app-bg); }
 
-        .app { height: 100%; background: #0e0e12; font-family: 'Sora', sans-serif; display: flex; flex-direction: column; }
+        .app { height: 100%; background: var(--app-bg); font-family: 'Sora', sans-serif; display: flex; flex-direction: column; }
         .no-select { user-select: none; }
-        .blob1 { position: fixed; top: -10%; right: -5%; width: 500px; height: 500px; background: radial-gradient(circle, rgba(99,102,241,0.13) 0%, transparent 65%); pointer-events: none; z-index: 0; }
-        .blob2 { position: fixed; bottom: -10%; left: 10%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(20,184,166,0.08) 0%, transparent 65%); pointer-events: none; z-index: 0; }
+        .blob1 { position: fixed; top: -10%; right: -5%; width: 500px; height: 500px; background: var(--app-blob-1); pointer-events: none; z-index: 0; }
+        .blob2 { position: fixed; bottom: -10%; left: 10%; width: 400px; height: 400px; background: var(--app-blob-2); pointer-events: none; z-index: 0; }
 
-        .navbar { position: relative; z-index: 20; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; height: 58px; background: rgba(14,14,18,0.9); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,0.055); flex-shrink: 0; }
+        .navbar { position: relative; z-index: 20; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; height: 58px; background: var(--app-nav-bg); backdrop-filter: blur(16px); border-bottom: 1px solid var(--app-border); flex-shrink: 0; }
         .navbar-logo { display: flex; align-items: center; gap: 9px; }
         .logo-badge { width: 32px; height: 32px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 4px 12px rgba(99,102,241,0.4); }
-        .logo-text { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600; background: linear-gradient(90deg, #e8e8f0, #a5b4fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .logo-text { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600; background: var(--app-brand-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
         .navbar-right { display: flex; align-items: center; gap: 10px; }
-        .navbar-user-info { font-size: 12px; color: rgba(255,255,255,0.35); }
-        .navbar-btn { height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); display: flex; align-items: center; gap: 6px; cursor: pointer; font-family: 'Sora', sans-serif; font-size: 12px; color: rgba(255,255,255,0.4); transition: all 0.2s; }
-        .navbar-btn:hover { border-color: rgba(255,255,255,0.15); color: rgba(255,255,255,0.7); }
+        .navbar-user-info { font-size: 12px; color: var(--app-greet); }
+        .navbar-btn { height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--app-btn-border); background: var(--app-btn-bg); display: flex; align-items: center; gap: 6px; cursor: pointer; font-family: 'Sora', sans-serif; font-size: 12px; color: var(--app-btn-text); transition: all 0.2s; }
+        .navbar-btn:hover { border-color: var(--app-btn-hover-border); color: var(--app-btn-hover-text); }
 
-        .subnav { position: relative; z-index: 20; display: flex; align-items: center; justify-content: flex-end; padding: 0 28px; height: 40px; background: rgba(16,16,22,0.8); backdrop-filter: blur(8px); border-bottom: 1px solid rgba(255,255,255,0.035); flex-shrink: 0; }
-        .subnav-item { display: flex; align-items: center; gap: 4px; padding: 0 14px; height: 40px; font-size: 12px; color: #52526e; cursor: pointer; border: none; background: none; font-family: 'Sora', sans-serif; transition: color 0.2s; }
-        .subnav-item:hover { color: #9090b8; }
+        .subnav { position: relative; z-index: 20; display: flex; align-items: center; justify-content: flex-end; padding: 0 28px; height: 40px; background: var(--app-subnav-bg); backdrop-filter: blur(8px); border-bottom: 1px solid var(--app-border); flex-shrink: 0; }
+        .subnav-item { display: flex; align-items: center; gap: 4px; padding: 0 14px; height: 40px; font-size: 12px; color: var(--app-subnav-item); cursor: pointer; border: none; background: none; font-family: 'Sora', sans-serif; transition: color 0.2s; }
+        .subnav-item:hover { color: var(--app-subnav-item-hover); }
 
         .body { display: flex; flex: 1; position: relative; z-index: 5; height: 100%; overflow: hidden; }
 
         /* SIDEBAR */
-        .sidebar { flex-shrink: 0; background: rgba(16,16,22,0.85); border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; overflow-y: auto; }
+        .sidebar { flex-shrink: 0; background: var(--dash-sidebar); border-right: 1px solid var(--app-sidebar-border); display: flex; flex-direction: column; overflow-y: auto; }
         .sidebar::-webkit-scrollbar { width: 3px; }
         .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
 
@@ -469,8 +469,8 @@ export default function Dashboard() {
         .main::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
 
         .panel {
-          background: rgba(20,20,30,0.85);
-          border: 1px solid rgba(255,255,255,0.07);
+          background: var(--dash-panel-bg);
+          border: 1px solid var(--dash-panel-border);
           border-radius: 16px;
           padding: 18px;
           backdrop-filter: blur(12px);

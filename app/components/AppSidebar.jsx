@@ -317,8 +317,8 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
           width: ${width}px;
           height: 100%;
           flex-shrink: 0;
-          background: rgb(16, 16, 22);
-          border-right: 1px solid rgba(255,255,255,0.05);
+          background: var(--app-sidebar-bg);
+          border-right: 1px solid var(--app-sidebar-border);
           display: flex;
           flex-direction: column;
           overflow-y: auto;
@@ -558,6 +558,70 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
           animation: asToastIn 0.2s ease;
         }
         @keyframes asToastIn { from { opacity: 0; transform: translateX(-50%) translateY(8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+        html[data-theme="light"] .as-side::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); }
+        html[data-theme="light"] .as-title { color: rgba(0,0,0,0.45); }
+        html[data-theme="light"] .as-chev { color: rgba(0,0,0,0.35); }
+        html[data-theme="light"] .as-divider { background: rgba(0,0,0,0.08); }
+        html[data-theme="light"] .as-empty { color: rgba(0,0,0,0.45); }
+        html[data-theme="light"] .as-loading { color: rgba(0,0,0,0.45); }
+        html[data-theme="light"] .as-spin { border-color: rgba(0,0,0,0.12); border-top-color: #6366f1; }
+        html[data-theme="light"] .as-hi:hover { background: rgba(0,0,0,0.04); }
+        html[data-theme="light"] .as-hname { color: #111827; }
+        html[data-theme="light"] .as-hmeta { color: rgba(0,0,0,0.45); }
+        html[data-theme="light"] .as-hdots { color: rgba(0,0,0,0.45); }
+        html[data-theme="light"] .as-hdots:hover { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.78); }
+        html[data-theme="light"] .as-hfile { color: rgba(0,0,0,0.45); }
+        html[data-theme="light"] .as-pi:hover { background: rgba(0,0,0,0.04); }
+        html[data-theme="light"] .as-pname { color: #1f2937; }
+        html[data-theme="light"] .as-pmeta { color: rgba(0,0,0,0.45); }
+        html[data-theme="light"] .as-sec-menu {
+          background: rgba(0,0,0,0.02);
+          border-color: rgba(0,0,0,0.08);
+        }
+        html[data-theme="light"] .as-sec-children { border-left-color: rgba(0,0,0,0.1); }
+        html[data-theme="light"] .as-sec-twist { color: rgba(0,0,0,0.45); }
+        html[data-theme="light"] .as-sec-twist:hover { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.75); }
+        html[data-theme="light"] .as-sec-item { color: #374151; }
+        html[data-theme="light"] .as-sec-item.lv2 { color: rgba(0,0,0,0.62); }
+        html[data-theme="light"] .as-sec-item.lv3 { color: rgba(0,0,0,0.52); }
+        html[data-theme="light"] .as-sec-label { color: rgba(0,0,0,0.45); }
+        html[data-theme="light"] .as-menu {
+          background: #ffffff;
+          border: 1px solid rgba(0,0,0,0.1);
+          box-shadow: 0 18px 42px rgba(0,0,0,0.12);
+        }
+        html[data-theme="light"] .as-menu-btn { color: #374151; }
+        html[data-theme="light"] .as-menu-btn:hover { background: rgba(0,0,0,0.05); }
+        html[data-theme="light"] .as-menu-ico { color: rgba(0,0,0,0.55); }
+        html[data-theme="light"] .as-modal-box {
+          background: #ffffff;
+          border: 1px solid rgba(0,0,0,0.1);
+          box-shadow: 0 24px 48px rgba(0,0,0,0.12);
+        }
+        html[data-theme="light"] .as-modal-title { color: #111827; }
+        html[data-theme="light"] .as-modal-desc { color: rgba(0,0,0,0.55); }
+        html[data-theme="light"] .as-modal-input {
+          color: #111827;
+          background: rgba(0,0,0,0.03);
+          border-color: rgba(0,0,0,0.12);
+        }
+        html[data-theme="light"] .as-modal-input::placeholder { color: rgba(0,0,0,0.4); }
+        html[data-theme="light"] .as-modal-btn.sec {
+          color: #4b5563;
+          border-color: rgba(0,0,0,0.12);
+          background: rgba(0,0,0,0.03);
+        }
+        html[data-theme="light"] .as-modal-btn.sec:hover {
+          border-color: rgba(0,0,0,0.18);
+          background: rgba(0,0,0,0.06);
+        }
+        html[data-theme="light"] .as-toast {
+          background: #ffffff;
+          border: 1px solid rgba(0,0,0,0.1);
+          color: #111827;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        }
       `}</style>
 
       <aside className="as-side" aria-label="Sidebar">
@@ -586,6 +650,11 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
                   <div
                     className="as-hrow"
                     onClick={() => {
+                      if (typeof window !== "undefined") {
+                        window.dispatchEvent(
+                          new CustomEvent("s2n-cancel-highlighter"),
+                        );
+                      }
                       setExpandedHistory(expandedHistory === h.id ? null : h.id);
                       router.push(`/summary/${h.id}`);
                     }}

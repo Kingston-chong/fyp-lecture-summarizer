@@ -31,6 +31,8 @@ model User {
   createdAt    DateTime @default(now())
   documents    Document[]
   summaries    Summary[]
+  chatThreads  ChatThread[]
+  highlights   SummaryHighlight[]
 }
 
 model PasswordReset {
@@ -67,6 +69,54 @@ model Summary {
   createdAt   DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id])
   documents   SummaryDocument[]
+  highlights  SummaryHighlight[]
+  chatThreads ChatThread[]
+}
+
+model SummaryHighlight {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  summaryId Int
+  quote     String   @db.VarChar(2000)
+  color     String   @default("#fef08a") @db.VarChar(16)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  summary   Summary  @relation(fields: [summaryId], references: [id], onDelete: Cascade)
+
+  @@index([summaryId])
+}
+
+// Stores persistent chat turns for the "summary -> continue conversation" view.
+// We keep a single thread per (userId, summaryId) so refresh/resume continues the conversation.
+model ChatThread {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  summaryId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages ChatMessage[]
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  summary Summary @relation(fields: [summaryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, summaryId])
+  @@index([summaryId])
+}
+
+model ChatMessage {
+  id         Int      @id @default(autoincrement())
+  threadId   Int
+  turn       Int
+  role       String   @db.VarChar(16) // "user" | "assistant"
+  content    String   @db.LongText
+  modelLabel String?  @db.VarChar(32) // e.g. "ChatGPT" / "DeepSeek" / "Gemini" (assistant only)
+  createdAt  DateTime @default(now())
+
+  thread ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
+  @@unique([threadId, turn])
 }
 
 // Links summaries to which documents were used

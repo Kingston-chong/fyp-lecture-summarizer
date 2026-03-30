@@ -168,6 +168,42 @@ export const CopyIco = ({ size = 12 }) => (
     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
   </svg>
 );
+
+/** Highlighter / marker pen (summary PDF-style highlights) */
+export const HighlightIco = ({ size = 12 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M15 4l5 5-7 7-5-5 7-7z" />
+    <path d="M9.5 14.5L4 20v-3l3.5-3.5" />
+    <path d="M13.5 10.5L8 16" opacity="0.55" />
+  </svg>
+);
+
+/** Save highlights / persist action */
+export const SaveIco = ({ size = 14 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+    <polyline points="17 21 17 13 7 13 7 21" />
+    <polyline points="7 3 7 8 15 8" />
+  </svg>
+);
 export const Spinner = ({ size = 14, color = "white" }) => (
   <div
     style={{

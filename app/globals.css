@@ -1,8 +1,161 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ── App theme tokens (default = dark) ─────────────────────────────────── */
+:root,
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0e0e12;
+  --foreground: #e8e8f0;
+
+  --app-bg: #0e0e12;
+  --app-bg-page: #0c0c14;
+  --app-surface: #14141a;
+  --app-text: #e8e8f0;
+  --app-text-muted: rgba(255, 255, 255, 0.45);
+  --app-border: rgba(255, 255, 255, 0.08);
+  --app-nav-bg: rgba(14, 14, 18, 0.9);
+  --app-subnav-bg: rgba(16, 16, 22, 0.8);
+  --app-blob-1: radial-gradient(
+    circle,
+    rgba(99, 102, 241, 0.13) 0%,
+    transparent 65%
+  );
+  --app-blob-2: radial-gradient(
+    circle,
+    rgba(20, 184, 166, 0.08) 0%,
+    transparent 65%
+  );
+  --app-sidebar-bg: rgb(16, 16, 22);
+  --app-sidebar-border: rgba(255, 255, 255, 0.05);
+  --app-brand-gradient: linear-gradient(90deg, #e8e8f0, #a5b4fc);
+  --app-scrim: rgba(0, 0, 0, 0.45);
+  --app-shell-chrome-mobile: #0e0e12;
+  --app-greet: rgba(255, 255, 255, 0.35);
+  --app-btn-border: rgba(255, 255, 255, 0.08);
+  --app-btn-bg: rgba(255, 255, 255, 0.04);
+  --app-btn-text: rgba(255, 255, 255, 0.4);
+  --app-btn-hover-border: rgba(255, 255, 255, 0.15);
+  --app-btn-hover-text: rgba(255, 255, 255, 0.7);
+  --app-subnav-item: #52526e;
+  --app-subnav-item-hover: #9090b8;
+  --app-drawer-shadow: 8px 0 36px rgba(0, 0, 0, 0.45);
+
+  /* Summary / conversation page */
+  --sum-page-bg: #0c0c14;
+  --sum-card-bg: rgba(18, 18, 28, 0.88);
+  --sum-card-border: rgba(255, 255, 255, 0.07);
+  --sum-head-border: rgba(255, 255, 255, 0.06);
+  --sum-title: #ddddf5;
+  --sum-text: #c8c8e0;
+  --sum-heading-1: #e8e8f5;
+  --sum-heading-2: #ddddf0;
+  --sum-heading-3: #d0d0e8;
+  --sum-heading-4: #c8c8e0;
+  --sum-table-border: rgba(255, 255, 255, 0.14);
+  --sum-table-th-bg: rgba(255, 255, 255, 0.08);
+  --sum-table-th-text: #e0e0f0;
+  --sum-table-td-text: #b8b8d4;
+  --sum-md-code-bg: rgba(255, 255, 255, 0.06);
+  --sum-md-pre-bg: rgba(255, 255, 255, 0.06);
+  --sum-md-pre-border: rgba(255, 255, 255, 0.08);
+  --sum-meta: rgba(255, 255, 255, 0.28);
+  --sum-sources-bg: rgba(12, 12, 20, 0.96);
+  --sum-sources-border: rgba(255, 255, 255, 0.07);
+  --sum-chat-ai-bg: rgba(255, 255, 255, 0.05);
+  --sum-chat-ai-border: rgba(255, 255, 255, 0.07);
+  --sum-chat-user-bg: rgba(99, 102, 241, 0.18);
+  --sum-inp-bg: rgba(255, 255, 255, 0.04);
+  --sum-inp-border: rgba(255, 255, 255, 0.08);
+  --sum-inp-text: #cccce0;
+
+  /* Dashboard */
+  --dash-panel-bg: rgba(20, 20, 30, 0.85);
+  --dash-panel-border: rgba(255, 255, 255, 0.07);
+  --dash-sidebar: rgba(16, 16, 22, 0.85);
+
+  --login-card-bg: rgba(20, 20, 28, 0.92);
+  --login-card-border: rgba(255, 255, 255, 0.075);
+  --login-card-title: #eeeef8;
+  --login-field-bg: rgba(255, 255, 255, 0.04);
+  --login-field-border: rgba(255, 255, 255, 0.1);
+  --login-field-text: #e4e4f0;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --background: #f2f3f8;
+  --foreground: #1a1a28;
+
+  --app-bg: #f2f3f8;
+  --app-bg-page: #ffffff;
+  --app-surface: #ffffff;
+  --app-text: #1a1a28;
+  --app-text-muted: rgba(0, 0, 0, 0.52);
+  --app-border: rgba(0, 0, 0, 0.1);
+  --app-nav-bg: rgba(255, 255, 255, 0.92);
+  --app-subnav-bg: rgba(248, 249, 252, 0.95);
+  --app-blob-1: radial-gradient(
+    circle,
+    rgba(99, 102, 241, 0.14) 0%,
+    transparent 65%
+  );
+  --app-blob-2: radial-gradient(
+    circle,
+    rgba(20, 184, 166, 0.12) 0%,
+    transparent 65%
+  );
+  --app-sidebar-bg: #f8f9fc;
+  --app-sidebar-border: rgba(0, 0, 0, 0.08);
+  --app-brand-gradient: linear-gradient(90deg, #3730a3, #6366f1);
+  --app-scrim: rgba(15, 15, 25, 0.35);
+  --app-shell-chrome-mobile: #f2f3f8;
+  --app-greet: rgba(0, 0, 0, 0.5);
+  --app-btn-border: rgba(0, 0, 0, 0.1);
+  --app-btn-bg: rgba(0, 0, 0, 0.04);
+  --app-btn-text: rgba(0, 0, 0, 0.55);
+  --app-btn-hover-border: rgba(0, 0, 0, 0.18);
+  --app-btn-hover-text: rgba(0, 0, 0, 0.75);
+  --app-subnav-item: #64748b;
+  --app-subnav-item-hover: #475569;
+  --app-drawer-shadow: 8px 0 32px rgba(15, 23, 42, 0.12);
+
+  --sum-page-bg: #f4f5fb;
+  --sum-card-bg: #ffffff;
+  --sum-card-border: rgba(0, 0, 0, 0.08);
+  --sum-head-border: rgba(0, 0, 0, 0.08);
+  --sum-title: #030712;
+  --sum-text: #111827;
+  --sum-heading-1: #030712;
+  --sum-heading-2: #111827;
+  --sum-heading-3: #1f2937;
+  --sum-heading-4: #374151;
+  --sum-table-border: rgba(0, 0, 0, 0.12);
+  --sum-table-th-bg: rgba(0, 0, 0, 0.06);
+  --sum-table-th-text: #111827;
+  --sum-table-td-text: #1f2937;
+  --sum-md-code-bg: rgba(0, 0, 0, 0.07);
+  --sum-md-pre-bg: rgba(0, 0, 0, 0.05);
+  --sum-md-pre-border: rgba(0, 0, 0, 0.1);
+  --sum-meta: rgba(0, 0, 0, 0.45);
+  --sum-sources-bg: #f8f9fc;
+  --sum-sources-border: rgba(0, 0, 0, 0.08);
+  --sum-chat-ai-bg: rgba(0, 0, 0, 0.04);
+  --sum-chat-ai-border: rgba(0, 0, 0, 0.08);
+  --sum-chat-user-bg: rgba(99, 102, 241, 0.12);
+  --sum-inp-bg: rgba(0, 0, 0, 0.04);
+  --sum-inp-border: rgba(0, 0, 0, 0.12);
+  --sum-inp-text: #1e1e2e;
+
+  --dash-panel-bg: #ffffff;
+  --dash-panel-border: rgba(0, 0, 0, 0.08);
+  --dash-sidebar: rgba(248, 249, 252, 0.98);
+
+  --login-card-bg: #ffffff;
+  --login-card-border: rgba(0, 0, 0, 0.1);
+  --login-card-title: #17172e;
+  --login-field-bg: rgba(0, 0, 0, 0.03);
+  --login-field-border: rgba(0, 0, 0, 0.12);
+  --login-field-text: #1a1a28;
 }
 
 @theme inline {
@@ -12,21 +165,51 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--app-bg);
+  color: var(--app-text);
+  font-family:
+    "Sora",
+    system-ui,
+    -apple-system,
+    sans-serif;
 }
 
-/* test */
+.theme-toggle {
+  flex-shrink: 0;
+  width: 36px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--app-btn-border);
+  background: var(--app-btn-bg);
+  color: var(--app-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    color 0.2s;
+}
 
+.theme-toggle:hover {
+  border-color: rgba(99, 102, 241, 0.45);
+  color: #6366f1;
+  background: rgba(99, 102, 241, 0.08);
+}
+
+html[data-theme="light"] .theme-toggle:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+/* Legacy login helpers */
 .login-container {
   min-height: 80vh;
   display: flex;
@@ -35,16 +218,18 @@ body {
 }
 
 .login-card {
-  background: #e5e5e5;
+  background: var(--app-surface);
   padding: 2rem;
   width: 320px;
   border-radius: 6px;
   text-align: center;
+  border: 1px solid var(--app-border);
 }
 
 .login-card h2 {
   margin-bottom: 1.5rem;
   font-weight: 600;
+  color: var(--app-text);
 }
 
 .form-group {
@@ -56,37 +241,42 @@ body {
   font-size: 0.9rem;
   display: block;
   margin-bottom: 0.25rem;
+  color: var(--app-text-muted);
 }
 
 .form-group input {
   width: 100%;
   padding: 0.5rem;
-  border: 1px solid #ccc;
+  border: 1px solid var(--app-border);
   border-radius: 4px;
+  background: var(--app-bg-page);
+  color: var(--app-text);
 }
 
 .btn-primary {
   width: 100%;
   padding: 0.5rem;
-  background: #ffffff;
-  border: 1px solid #ccc;
+  background: var(--app-btn-bg);
+  border: 1px solid var(--app-border);
   cursor: pointer;
   margin-top: 0.5rem;
+  color: var(--app-text);
 }
 
 .divider {
   margin: 1rem 0;
   font-size: 0.85rem;
-  color: #666;
+  color: var(--app-text-muted);
 }
 
 .btn-google {
   width: 100%;
   padding: 0.5rem;
-  background: #ffffff;
+  background: var(--app-bg-page);
   border-radius: 20px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--app-border);
   cursor: pointer;
+  color: var(--app-text);
 }
 
 .login-links {
@@ -95,6 +285,6 @@ body {
 }
 
 .login-links a {
-  color: #000;
+  color: #6366f1;
   text-decoration: underline;
 }

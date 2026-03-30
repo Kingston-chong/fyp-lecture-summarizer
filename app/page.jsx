@@ -13,6 +13,7 @@ import {
   GoogleIcon,
   UserCircleIcon,
 } from "./components/icons";
+import ThemeToggle from "./components/ThemeToggle";
 
 export default function Slide2NotesLogin() {
   const router = useRouter();
@@ -70,11 +71,11 @@ export default function Slide2NotesLogin() {
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        body { background: #0e0e12; }
+        body { background: var(--app-bg); }
 
         .s2n {
           min-height: 100vh;
-          background: #0e0e12;
+          background: var(--app-bg);
           font-family: 'Sora', sans-serif;
           position: relative;
           overflow: hidden;
@@ -120,10 +121,10 @@ export default function Slide2NotesLogin() {
           justify-content: space-between;
           padding: 0 36px;
           height: 60px;
-          background: rgba(14,14,18,0.85);
+          background: var(--app-nav-bg);
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
-          border-bottom: 1px solid rgba(255,255,255,0.055);
+          border-bottom: 1px solid var(--app-border);
         }
         .navbar-logo {
           display: flex;
@@ -148,7 +149,7 @@ export default function Slide2NotesLogin() {
           font-family: 'Fraunces', serif;
           font-size: 17px;
           font-weight: 600;
-          background: linear-gradient(90deg, #e8e8f0 0%, #a5b4fc 100%);
+          background: var(--app-brand-gradient);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -182,10 +183,10 @@ export default function Slide2NotesLogin() {
           justify-content: flex-end;
           padding: 0 36px;
           height: 42px;
-          background: rgba(16,16,22,0.75);
+          background: var(--app-subnav-bg);
           backdrop-filter: blur(8px);
           -webkit-backdrop-filter: blur(8px);
-          border-bottom: 1px solid rgba(255,255,255,0.035);
+          border-bottom: 1px solid var(--app-border);
         }
         .subnav-item {
           display: flex;
@@ -196,14 +197,14 @@ export default function Slide2NotesLogin() {
           font-size: 12.5px;
           font-family: 'Sora', sans-serif;
           font-weight: 400;
-          color: #52526e;
+          color: var(--app-subnav-item);
           cursor: pointer;
           border: none;
           background: none;
           transition: color 0.2s;
           letter-spacing: 0.025em;
         }
-        .subnav-item:hover { color: #9090b8; }
+        .subnav-item:hover { color: var(--app-subnav-item-hover); }
 
         /* MAIN */
         .main {
@@ -221,18 +222,24 @@ export default function Slide2NotesLogin() {
           width: 100%;
           max-width: 400px;
           position: relative;
-          background: rgba(20,20,28,0.9);
-          border: 1px solid rgba(255,255,255,0.075);
+          background: var(--login-card-bg);
+          border: 1px solid var(--login-card-border);
           border-radius: 22px;
           padding: 40px 40px 36px;
           backdrop-filter: blur(24px);
           -webkit-backdrop-filter: blur(24px);
           box-shadow:
             0 0 0 1px rgba(99,102,241,0.08),
-            0 32px 64px rgba(0,0,0,0.6),
-            0 8px 24px rgba(0,0,0,0.35),
+            0 32px 64px rgba(0,0,0,0.15),
+            0 8px 24px rgba(0,0,0,0.08),
             inset 0 1px 0 rgba(255,255,255,0.06);
           animation: cardIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        html[data-theme="light"] .card {
+          box-shadow:
+            0 0 0 1px rgba(99,102,241,0.12),
+            0 24px 48px rgba(15,23,42,0.08),
+            0 8px 20px rgba(15,23,42,0.06);
         }
         @keyframes cardIn {
           from { opacity: 0; transform: translateY(24px) scale(0.97); }
@@ -258,7 +265,7 @@ export default function Slide2NotesLogin() {
           font-family: 'Fraunces', serif;
           font-size: 27px;
           font-weight: 600;
-          color: #eeeef8;
+          color: var(--login-card-title);
           text-align: center;
           margin-bottom: 34px;
           letter-spacing: -0.025em;
@@ -458,9 +465,12 @@ export default function Slide2NotesLogin() {
             />
             <span className="logo-text">Slide2Notes</span>
           </div>
-          <button className="navbar-user-btn">
-            <UserCircleIcon />
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <ThemeToggle />
+            <button type="button" className="navbar-user-btn">
+              <UserCircleIcon />
+            </button>
+          </div>
         </nav>
 
         {/* SUBNAV */}

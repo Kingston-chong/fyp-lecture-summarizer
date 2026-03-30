@@ -32,6 +32,109 @@ const deepseekClient =
 const geminiClient =
   process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
 
+// OpenRouter: one key, OpenAI-compatible API (https://openrouter.ai/docs)
+const openrouterClient = process.env.OPENROUTER_API_KEY
+  ? new OpenAI({
+      apiKey: process.env.OPENROUTER_API_KEY,
+      baseURL: process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
+      defaultHeaders: {
+        ...(process.env.OPENROUTER_HTTP_REFERER && {
+          "HTTP-Referer": process.env.OPENROUTER_HTTP_REFERER,
+        }),
+        ...(process.env.OPENROUTER_APP_NAME && { "X-Title": process.env.OPENROUTER_APP_NAME }),
+      },
+    })
+  : null;
+
+/** Maps dashboard Gemini variant ids to OpenRouter `provider/model` slugs */
+const GEMINI_VARIANT_TO_OPENROUTER = {
+  "gemini-2.0-flash": "google/gemini-2.0-flash-001",
+  "gemini-1.5-flash": "google/gemini-flash-1.5",
+  "gemini-1.5-pro": "google/gemini-pro-1.5",
+  "gemini-2.5-flash": "google/gemini-2.5-flash",
+};
+
+function openRouterModelSlug(model, modelVariant) {
+  if (model === "chatgpt") {
+    const v = modelVariant || process.env.OPENAI_MODEL || "gpt-4o";
+    return v.includes("/") ? v : `openai/${v}`;
+  }
+  if (model === "deepseek") {
+    const v = modelVariant || "deepseek-chat";
+    if (v.includes("/")) return v;
+    return v.startsWith("deepseek/") ? v : `deepseek/${v}`;
+  }
+  if (model === "gemini") {
+    if (modelVariant && modelVariant.includes("/")) return modelVariant;
+    if (modelVariant && GEMINI_VARIANT_TO_OPENROUTER[modelVariant]) {
+      return GEMINI_VARIANT_TO_OPENROUTER[modelVariant];
+    }
+    const fromEnv = process.env.GEMINI_MODEL;
+    if (fromEnv?.includes("/")) return fromEnv;
+    if (fromEnv && GEMINI_VARIANT_TO_OPENROUTER[fromEnv]) {
+      return GEMINI_VARIANT_TO_OPENROUTER[fromEnv];
+    }
+    return "google/gemini-2.0-flash-001";
+  }
+  throw new Error("Unknown model: " + model);
+}
+
+function isOpenRouterModelNotFound(err) {
+  const msg = String(err?.message || err);
+  return msg.includes("404") || msg.toLowerCase().includes("not found");
+}
+
+async function callOpenRouter(model, modelVariant, fullPrompt) {
+  if (!openrouterClient) throw new Error("OPENROUTER_API_KEY is not set");
+
+  const primary = openRouterModelSlug(model, modelVariant);
+  const geminiExtras =
+    model === "gemini"
+      ? [
+          process.env.OPENROUTER_GEMINI_MODEL,
+          "google/gemini-2.0-flash-001",
+          "google/gemini-flash-1.5",
+          "google/gemini-2.5-flash",
+          "google/gemini-pro-1.5",
+        ].filter(Boolean)
+      : [];
+
+  const seen = new Set();
+  const slugs = [];
+  for (const s of [primary, ...geminiExtras]) {
+    if (!s || seen.has(s)) continue;
+    seen.add(s);
+    slugs.push(s);
+  }
+
+  let lastErr;
+  for (const slug of slugs) {
+    try {
+      const res = await openrouterClient.chat.completions.create({
+        model: slug,
+        messages: [{ role: "user", content: fullPrompt }],
+        max_tokens: 2000,
+      });
+      const text = res.choices[0]?.message?.content;
+      if (text != null) return text;
+      if (model !== "gemini") {
+        throw new Error("OpenRouter returned empty content");
+      }
+      lastErr = new Error("empty response");
+    } catch (err) {
+      lastErr = err;
+      if (model === "gemini" && isOpenRouterModelNotFound(err)) continue;
+      throw err;
+    }
+  }
+
+  throw new Error(
+    model === "gemini"
+      ? `OpenRouter Gemini model unavailable. Last error: ${String(lastErr?.message || lastErr)}`
+      : `OpenRouter request failed: ${String(lastErr?.message || lastErr)}`
+  );
+}
+
 // ── Text extraction ───────────────────────────────────────
 
 async function fetchBlobBuffer(url) {
@@ -132,10 +235,15 @@ function createLimiter(concurrency) {
 // - ChatGPT: gpt-4o (OpenAI; paid after free credits). For more free usage use gpt-4o-mini.
 // - DeepSeek: deepseek-chat (free tier at platform.deepseek.com).
 // - Gemini: tries Flash models first (free tier at aistudio.google.com). Override with GEMINI_MODEL in .env.
+// - If OPENROUTER_API_KEY is set, all providers use OpenRouter (OpenAI-compatible API) instead of direct keys.
 
 async function callAI(model, modelVariant, systemPrompt, documentText) {
   const clipped = (documentText || "").slice(0, MAX_MODEL_INPUT_CHARS);
   const fullPrompt = `${systemPrompt}\n\n---\n\nDocument Content:\n${clipped}`;
+
+  if (openrouterClient) {
+    return callOpenRouter(model, modelVariant, fullPrompt);
+  }
 
   if (model === "chatgpt") {
     const openaiModel = modelVariant || process.env.OPENAI_MODEL || "gpt-4o";

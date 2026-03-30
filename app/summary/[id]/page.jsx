@@ -74,18 +74,6 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-/** Readable text on solid highlight swatch */
-function contrastTextOnHighlight(hex) {
-  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex ?? "").trim());
-  if (!m) return "#f8fafc";
-  const n = parseInt(m[1], 16);
-  const r = (n >> 16) & 255;
-  const g = (n >> 8) & 255;
-  const b = n & 255;
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.62 ? "#0c0c14" : "#f8fafc";
-}
-
 function unwrapHighlightMarks(root) {
   if (!root) return;
   root.querySelectorAll("mark.s2n-hl").forEach((m) => {
@@ -96,48 +84,86 @@ function unwrapHighlightMarks(root) {
   });
 }
 
-/** Full-line PDF-style block fill on <mark> (opaque band behind text). */
+/** Translucent fill + inherited text color so overlapping <mark>s stack like Edge / PDF highlighters */
 function applyHighlightBlockStyle(mark, colorHex) {
   const color =
     colorHex && /^#[0-9a-f]{6}$/i.test(colorHex) ? colorHex : DEFAULT_HL_HEX;
-  const fill = hexToRgba(color, 0.82);
+  const fill = hexToRgba(color, 0.38);
   mark.style.background = "none";
   mark.style.backgroundColor = fill;
-  mark.style.color = contrastTextOnHighlight(color);
+  mark.style.color = "inherit";
   mark.style.boxDecorationBreak = "clone";
   mark.style.webkitBoxDecorationBreak = "clone";
   mark.style.padding = "0.12em 0.14em";
   mark.style.borderRadius = "2px";
 }
 
-/** Wrap first occurrence of quote in text nodes; returns true if wrapped */
+function collectTextNodesInOrder(root) {
+  const nodes = [];
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  let n;
+  while ((n = w.nextNode())) {
+    if (n.parentElement?.closest?.("script,style")) continue;
+    nodes.push(n);
+  }
+  return nodes;
+}
+
+/** Map first occurrence of quote to a Range (may span multiple text nodes / cross <mark> boundaries). */
+function findRangeForSubstring(root, quote) {
+  if (!root || !quote) return null;
+  const nodes = collectTextNodesInOrder(root);
+  if (!nodes.length) return null;
+  const big = nodes.map((node) => node.textContent ?? "").join("");
+  const idx = big.indexOf(quote);
+  if (idx === -1) return null;
+  const endIdx = idx + quote.length;
+  let pos = 0;
+  let startNode = null;
+  let startOff = 0;
+  let endNode = null;
+  let endOff = 0;
+  for (const node of nodes) {
+    const t = node.textContent ?? "";
+    const len = t.length;
+    const a = pos;
+    const b = pos + len;
+    if (startNode === null && idx >= a && idx < b) {
+      startNode = node;
+      startOff = idx - a;
+    }
+    if (endIdx > a && endIdx <= b) {
+      endNode = node;
+      endOff = endIdx - a;
+    }
+    pos = b;
+  }
+  if (!startNode || endNode == null) return null;
+  const range = document.createRange();
+  range.setStart(startNode, startOff);
+  range.setEnd(endNode, endOff);
+  return range;
+}
+
+/** Wrap first occurrence of quote; supports overlaps via extractContents + insertNode (not surroundContents). */
 function wrapQuoteInRoot(root, quote, hlId, colorHex, pending) {
   if (!root || !quote) return false;
   const color = colorHex && /^#[0-9a-f]{6}$/i.test(colorHex) ? colorHex : DEFAULT_HL_HEX;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
-  let node = walker.nextNode();
-  while (node) {
-    const t = node.textContent ?? "";
-    const idx = t.indexOf(quote);
-    if (idx !== -1) {
-      const range = document.createRange();
-      range.setStart(node, idx);
-      range.setEnd(node, idx + quote.length);
-      const mark = document.createElement("mark");
-      mark.className = pending ? "s2n-hl s2n-hl-pending" : "s2n-hl";
-      mark.dataset.hlId = String(hlId);
-      mark.dataset.hlColor = color;
-      applyHighlightBlockStyle(mark, color);
-      try {
-        range.surroundContents(mark);
-        return true;
-      } catch {
-        return false;
-      }
-    }
-    node = walker.nextNode();
+  const range = findRangeForSubstring(root, quote);
+  if (!range) return false;
+  const mark = document.createElement("mark");
+  mark.className = pending ? "s2n-hl s2n-hl-pending" : "s2n-hl";
+  mark.dataset.hlId = String(hlId);
+  mark.dataset.hlColor = color;
+  applyHighlightBlockStyle(mark, color);
+  try {
+    const contents = range.extractContents();
+    mark.appendChild(contents);
+    range.insertNode(mark);
+    return true;
+  } catch {
+    return false;
   }
-  return false;
 }
 
 const SUGGESTIONS = [
@@ -247,9 +273,16 @@ export default function SummaryView() {
   const [hlColorHex, setHlColorHex] = useState(DEFAULT_HL_HEX);
   const [hlColorMenuOpen, setHlColorMenuOpen] = useState(false);
   const [hlSaving, setHlSaving] = useState(false);
+  /** Narrow layout: shorter action-bar labels + compact buttons */
+  const [compactActBar, setCompactActBar] = useState(false);
+
+  const [chatTitleEditing, setChatTitleEditing] = useState(false);
+  const [chatTitleDraft, setChatTitleDraft] = useState("");
+  const [chatTitleSaving, setChatTitleSaving] = useState(false);
 
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const chatTitleInputRef = useRef(null);
   const sourceInputRef = useRef(null);
   const summaryBodyRef = useRef(null);
   const hlToolbarRef = useRef(null);
@@ -257,6 +290,48 @@ export default function SummaryView() {
   useEffect(() => {
     if (status === "unauthenticated") router.push("/");
   }, [status]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const fn = () => setCompactActBar(mq.matches);
+    fn();
+    mq.addEventListener("change", fn);
+    return () => mq.removeEventListener("change", fn);
+  }, []);
+
+  /** Turn off highlighter when switching summaries (same route, new id) */
+  useEffect(() => {
+    setHlModeActive(false);
+    setHlColorMenuOpen(false);
+    setPendingHighlights([]);
+    setChatTitleEditing(false);
+    if (typeof window !== "undefined") {
+      window.getSelection()?.removeAllRanges();
+    }
+  }, [summaryId]);
+
+  useEffect(() => {
+    if (!chatTitleEditing) return;
+    const id = requestAnimationFrame(() => {
+      const el = chatTitleInputRef.current;
+      if (!el) return;
+      el.focus();
+      el.select();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [chatTitleEditing]);
+
+  useEffect(() => {
+    function onCancelHighlighter() {
+      setHlModeActive(false);
+      setHlColorMenuOpen(false);
+      setPendingHighlights([]);
+      window.getSelection()?.removeAllRanges();
+    }
+    window.addEventListener("s2n-cancel-highlighter", onCancelHighlighter);
+    return () =>
+      window.removeEventListener("s2n-cancel-highlighter", onCancelHighlighter);
+  }, []);
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, chatLoading]);
@@ -282,6 +357,44 @@ export default function SummaryView() {
       }
     }
     load();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, summaryId]);
+
+  // Load persisted chat turns (so refresh/resume keeps the conversation)
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    if (!summaryId) return;
+
+    let cancelled = false;
+    setMessages([]);
+
+    async function loadChat() {
+      try {
+        const res = await fetch(`/api/summary/${summaryId}/chat`, {
+          method: "GET",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || "Failed to load chat");
+        if (cancelled) return;
+
+        const dbMessages = Array.isArray(data?.messages) ? data.messages : [];
+        setMessages(
+          dbMessages.map((m) => ({
+            id: m.id,
+            role: m.role === "assistant" ? "ai" : "user",
+            content: m.content,
+            modelLabel: m.role === "assistant" ? m.modelLabel : null,
+          })),
+        );
+      } catch {
+        // If chat loading fails, keep the chat empty (fallback behavior).
+        if (!cancelled) setMessages([]);
+      }
+    }
+
+    loadChat();
     return () => {
       cancelled = true;
     };
@@ -460,6 +573,7 @@ export default function SummaryView() {
         body: JSON.stringify({
           summaryId: Number(summaryId),
           model: modelParam,
+          modelLabel: chatModel,
           messages: historyPayload,
         }),
       });
@@ -490,6 +604,56 @@ export default function SummaryView() {
       ]);
     } finally {
       setChatLoading(false);
+    }
+  }
+
+  function startChatTitleEdit() {
+    if (!summary || summaryLoading || chatTitleSaving) return;
+    setChatTitleDraft(summary.title || "");
+    setChatTitleEditing(true);
+  }
+
+  async function saveChatTitle() {
+    if (!summaryId || !summary) return;
+    const next = chatTitleDraft.trim();
+    const prev = (summary.title || "").trim();
+    if (!next) {
+      setChatTitleDraft(prev);
+      setChatTitleEditing(false);
+      return;
+    }
+    if (next === prev) {
+      setChatTitleEditing(false);
+      return;
+    }
+    setChatTitleSaving(true);
+    try {
+      const res = await fetch(`/api/summary/${summaryId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Failed to save title");
+      setSummary((s) => (s ? { ...s, title: next } : s));
+      setChatTitleEditing(false);
+    } catch {
+      setChatTitleDraft(prev);
+      setChatTitleEditing(false);
+    } finally {
+      setChatTitleSaving(false);
+    }
+  }
+
+  function onChatTitleKeyDown(e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      chatTitleInputRef.current?.blur();
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setChatTitleDraft((summary?.title || "").trim());
+      setChatTitleEditing(false);
     }
   }
 
@@ -618,18 +782,18 @@ export default function SummaryView() {
       <style>{`
       @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap');
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-      html, body { height: 100%; background: #0c0c14; }
+      html, body { height: 100%; background: var(--sum-page-bg); }
       @keyframes spin   { to { transform: rotate(360deg); } }
       @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       @keyframes msgIn  { from { opacity: 0; transform: translateY(5px) scale(.98); } to { opacity: 1; transform: none; } }
       @keyframes blink  { 0%,80%,100% { transform: scale(0); opacity: .4; } 40% { transform: scale(1); opacity: 1; } }
 
-      .wrap   { height: 100%; display: flex; flex-direction: column; background: #0c0c14; font-family: 'Sora', sans-serif; overflow: hidden; }
+      .wrap   { height: 100%; display: flex; flex-direction: column; background: var(--sum-page-bg); font-family: 'Sora', sans-serif; overflow: hidden; }
 
       /* ── atmosphere ── */
       .atm    { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
-      .atm-a  { position: absolute; top: -15%; right: -8%; width: 560px; height: 560px; background: radial-gradient(circle, rgba(99,102,241,.11) 0%, transparent 65%); }
-      .atm-b  { position: absolute; bottom: -12%; left: 5%;  width: 440px; height: 440px; background: radial-gradient(circle, rgba(20,184,166,.07) 0%, transparent 65%); }
+      .atm-a  { position: absolute; top: -15%; right: -8%; width: 560px; height: 560px; background: var(--app-blob-1); }
+      .atm-b  { position: absolute; bottom: -12%; left: 5%;  width: 440px; height: 440px; background: var(--app-blob-2); }
 
       /* ── body ── */
       .body   { display: flex; flex: 1; overflow: hidden; position: relative; z-index: 5; }
@@ -641,8 +805,8 @@ export default function SummaryView() {
       .sources {
         width: 260px;
         flex-shrink: 0;
-        border-left: 1px solid rgba(255,255,255,.07);
-        background: rgba(12,12,20,.96);
+        border-left: 1px solid var(--sum-sources-border);
+        background: var(--sum-sources-bg);
         display: flex;
         flex-direction: column;
       }
@@ -824,15 +988,36 @@ export default function SummaryView() {
       }
 
       /* ── action bar ── */
-      .act-bar { display: flex; align-items: center; justify-content: flex-end; gap: 7px; flex-shrink: 0; animation: fadeUp .35s ease both; }
+      .act-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+        width: 100%;
+        min-width: 0;
+        animation: fadeUp .35s ease both;
+      }
+      .act-bar-title-wrap {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+      }
+      .act-bar-btns {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 7px;
+        flex-shrink: 0;
+      }
 
       /* ── content card ── */
-      .card   { flex: 1; min-height: 0; display: flex; flex-direction: column; background: rgba(18,18,28,.88); border: 1px solid rgba(255,255,255,.07); border-radius: 18px; backdrop-filter: blur(14px); overflow: hidden; animation: fadeUp .4s ease both; animation-delay: .05s; }
+      .card   { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--sum-card-bg); border: 1px solid var(--sum-card-border); border-radius: 18px; backdrop-filter: blur(14px); overflow: hidden; animation: fadeUp .4s ease both; animation-delay: .05s; }
 
       /* ── summary + chat: one continuous scroll ── */
-      .sum-head  { display: flex; align-items: flex-start; justify-content: space-between; padding: 16px 20px 10px; flex-shrink: 0; gap: 12px; border-bottom: 1px solid rgba(255,255,255,.06); }
+      .sum-head  { display: flex; align-items: flex-start; justify-content: space-between; padding: 16px 20px 10px; flex-shrink: 0; gap: 12px; border-bottom: 1px solid var(--sum-head-border); }
       .sum-left  { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-      .sum-title { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600; color: #ddddf5; letter-spacing: -.01em; }
+      .sum-title { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600; color: var(--sum-title); letter-spacing: -.01em; }
       .sum-tags  { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
       .tag       { font-size: 9.5px; font-weight: 600; padding: 2px 8px; border-radius: 5px; letter-spacing: .03em; }
       .tag-m     { background: rgba(251,146,60,.12); color: #fdba74; border: 1px solid rgba(251,146,60,.2); }
@@ -899,22 +1084,76 @@ export default function SummaryView() {
       .unified-scroll::-webkit-scrollbar { width: 3px; }
       .unified-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.07); border-radius: 4px; }
       .conv-divider { margin: 18px 0 14px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.08); }
+      .act-bar-chat-title-btn {
+        max-width: 100%;
+        text-align: left;
+        padding: 6px 10px;
+        margin: 0;
+        background: none;
+        border: none;
+        cursor: pointer;
+        border-radius: 8px;
+        font-family: 'Fraunces', Georgia, serif;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--sum-title);
+        letter-spacing: -0.02em;
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        transition: color 0.15s, background 0.15s;
+      }
+      .act-bar-chat-title-btn:hover:not(:disabled) {
+        color: #a5b4fc;
+        background: rgba(99, 102, 241, 0.08);
+      }
+      .act-bar-chat-title-btn:disabled {
+        opacity: 0.55;
+        cursor: default;
+      }
+      .act-bar-chat-title-inp {
+        flex: 1;
+        min-width: 0;
+        width: 100%;
+        box-sizing: border-box;
+        margin: 0;
+        padding: 6px 10px;
+        height: 34px;
+        border-radius: 8px;
+        border: 1px solid rgba(99, 102, 241, 0.35);
+        background: rgba(12, 12, 20, 0.55);
+        font-family: 'Fraunces', Georgia, serif;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--sum-title);
+        letter-spacing: -0.02em;
+        line-height: 1.2;
+        outline: none;
+      }
+      .act-bar-chat-title-inp:focus {
+        border-color: rgba(99, 102, 241, 0.55);
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.12);
+      }
+      .act-bar-chat-title-inp:disabled {
+        opacity: 0.65;
+      }
       .conv-label { font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.28); margin-bottom: 12px; }
       .chat-hint { font-size: 11.5px; color: rgba(255,255,255,.22); font-style: italic; margin-top: 10px; padding-bottom: 4px; }
-      .sum-text  { font-size: 13.5px; font-weight: 400; color: #c8c8e0; line-height: 1.8; font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-      .sum-text h1 { font-size: 1.5em; font-weight: 700; color: #e8e8f5; margin: 0 0 14px; line-height: 1.35; letter-spacing: -0.01em; }
-      .sum-text h2 { font-size: 1.22em; font-weight: 600; color: #ddddf0; margin: 20px 0 10px; line-height: 1.4; }
-      .sum-text h3 { font-size: 1.08em; font-weight: 600; color: #d0d0e8; margin: 16px 0 8px; line-height: 1.45; }
-      .sum-text h4, .sum-text h5, .sum-text h6 { font-size: 1em; font-weight: 600; color: #c8c8e0; margin: 12px 0 6px; }
+      .sum-text  { font-size: 13.5px; font-weight: 400; color: var(--sum-text); line-height: 1.8; font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+      .sum-text h1 { font-size: 1.5em; font-weight: 700; color: var(--sum-heading-1); margin: 0 0 14px; line-height: 1.35; letter-spacing: -0.01em; }
+      .sum-text h2 { font-size: 1.22em; font-weight: 600; color: var(--sum-heading-2); margin: 20px 0 10px; line-height: 1.4; }
+      .sum-text h3 { font-size: 1.08em; font-weight: 600; color: var(--sum-heading-3); margin: 16px 0 8px; line-height: 1.45; }
+      .sum-text h4, .sum-text h5, .sum-text h6 { font-size: 1em; font-weight: 600; color: var(--sum-heading-4); margin: 12px 0 6px; }
       .sum-text ol, .sum-text ul { margin: 12px 0 14px 22px; padding-left: 8px; }
       .sum-text ol { list-style: decimal; }
       .sum-text ul { list-style-type: disc; }
       .sum-text ul ul { list-style-type: disc; }
       .sum-text ol li, .sum-text ul li { margin: 6px 0; }
       .sum-text table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 12.5px; }
-      .sum-text th, .sum-text td { border: 1px solid rgba(255,255,255,0.14); padding: 10px 14px; text-align: left; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
-      .sum-text th { background: rgba(255,255,255,0.08); font-weight: 600; color: #e0e0f0; }
-      .sum-text td { color: #b8b8d4; line-height: 1.6; }
+      .sum-text th, .sum-text td { border: 1px solid var(--sum-table-border); padding: 10px 14px; text-align: left; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
+      .sum-text th { background: var(--sum-table-th-bg); font-weight: 600; color: var(--sum-table-th-text); }
+      .sum-text td { color: var(--sum-table-td-text); line-height: 1.6; }
 
       .sum-selectable ::selection { background: rgba(99,102,241,.35); color: #f0f0ff; }
       .hl-select-ctx.hl-mode-active .sum-selectable ::selection {
@@ -924,10 +1163,10 @@ export default function SummaryView() {
       .sum-gen-meta {
         margin-top: 14px;
         padding-top: 12px;
-        border-top: 1px solid rgba(255,255,255,.06);
+        border-top: 1px solid var(--sum-head-border);
         font-size: 10.5px;
         font-style: italic;
-        color: rgba(255,255,255,.28);
+        color: var(--sum-meta);
       }
       mark.s2n-hl {
         font-weight: 500;
@@ -957,8 +1196,8 @@ export default function SummaryView() {
       .m-bub-col { max-width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; flex: 1; min-width: 0; }
       .m-meta { font-size: 10px; color: rgba(255,255,255,.26); font-style: italic; padding-left: 2px; }
       .m-bub     { width: 100%; padding: 9px 13px; border-radius: 12px; font-size: 12.5px; font-weight: 300; line-height: 1.68; }
-      .m-bub.ai  { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.07); color: #c4c4dc; border-top-left-radius: 3px; }
-      .m-bub.user{ background: rgba(99,102,241,.18); border: 1px solid rgba(99,102,241,.25); color: #ddddf8; border-top-right-radius: 3px; }
+      .m-bub.ai  { background: var(--sum-chat-ai-bg); border: 1px solid var(--sum-chat-ai-border); color: var(--sum-text); border-top-left-radius: 3px; }
+      .m-bub.user{ background: var(--sum-chat-user-bg); border: 1px solid rgba(99,102,241,.25); color: var(--sum-title); border-top-right-radius: 3px; }
       .m-bub.err { background: rgba(248,113,113,.08); border-color: rgba(248,113,113,.2); color: #fca5a5; }
       .m-copy {
         width: 26px; height: 26px; border-radius: 6px; border: 1px solid rgba(255,255,255,.08);
@@ -979,15 +1218,16 @@ export default function SummaryView() {
       .md ul ul { list-style-type: disc; }
       .md li { margin: 6px 0; }
       .md h1, .md h2, .md h3, .md h4, .md h5, .md h6 { font-weight: 600; margin: 12px 0 6px; }
-      .md h1 { font-size: 1.25em; }
-      .md h2 { font-size: 1.12em; }
-      .md h3 { font-size: 1.06em; }
+      .md h1 { font-size: 1.25em; color: var(--sum-heading-1); }
+      .md h2 { font-size: 1.12em; color: var(--sum-heading-2); }
+      .md h3 { font-size: 1.06em; color: var(--sum-heading-3); }
+      .md h4, .md h5, .md h6 { color: var(--sum-heading-4); }
       .md table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
-      .md th, .md td { border: 1px solid rgba(255,255,255,0.14); padding: 8px 12px; text-align: left; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
-      .md th { background: rgba(255,255,255,0.08); font-weight: 600; color: #e0e0f0; }
-      .md td { line-height: 1.6; }
-      .md code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.95em; background: rgba(255,255,255,.06); padding: 1px 5px; border-radius: 6px; }
-      .md pre { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); padding: 10px 12px; border-radius: 10px; overflow: auto; margin: 10px 0; }
+      .md th, .md td { border: 1px solid var(--sum-table-border); padding: 8px 12px; text-align: left; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
+      .md th { background: var(--sum-table-th-bg); font-weight: 600; color: var(--sum-table-th-text); }
+      .md td { line-height: 1.6; color: var(--sum-table-td-text); }
+      .md code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.95em; background: var(--sum-md-code-bg); padding: 1px 5px; border-radius: 6px; }
+      .md pre { background: var(--sum-md-pre-bg); border: 1px solid var(--sum-md-pre-border); padding: 10px 12px; border-radius: 10px; overflow: auto; margin: 10px 0; }
       .md pre code { background: transparent; padding: 0; }
 
       .dots { display: flex; gap: 4px; padding: 3px 0; align-items: center; }
@@ -1002,7 +1242,7 @@ export default function SummaryView() {
 
       /* ── input row ── */
       .inp-row  { display: flex; align-items: center; gap: 7px; padding: 8px 12px; border-top: 1px solid rgba(255,255,255,.06); flex-shrink: 0; }
-      .inp      { flex: 1; height: 40px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 0 14px; font-family: 'Sora',sans-serif; font-size: 12.5px; font-weight: 300; color: #cccce0; outline: none; transition: border-color .2s, box-shadow .2s; }
+      .inp      { flex: 1; height: 40px; background: var(--sum-inp-bg); border: 1px solid var(--sum-inp-border); border-radius: 10px; padding: 0 14px; font-family: 'Sora',sans-serif; font-size: 12.5px; font-weight: 300; color: var(--sum-inp-text); outline: none; transition: border-color .2s, box-shadow .2s; }
       .inp::placeholder { color: rgba(255,255,255,.2); font-style: italic; }
       .inp:focus{ border-color: rgba(99,102,241,.4); box-shadow: 0 0 0 3px rgba(99,102,241,.08); }
       .inp:disabled { opacity: .5; }
@@ -1045,17 +1285,47 @@ export default function SummaryView() {
           border-top: 1px solid rgba(255,255,255,.07);
         }
         .act-bar {
-          flex-wrap: wrap;
-          justify-content: flex-start;
+          flex-wrap: nowrap;
           gap: 6px;
+          width: 100%;
         }
-        .act-bar button {
-          white-space: normal;
-          text-align: center;
-          line-height: 1.25;
-          padding: 7px 10px;
-          height: auto;
-          min-height: 32px;
+        .act-bar-title-wrap {
+          flex: 1 1 0;
+          min-width: 0;
+          max-width: 42%;
+        }
+        .act-bar-chat-title-btn {
+          font-size: 12px;
+          padding: 4px 6px;
+          width: 100%;
+        }
+        .act-bar-chat-title-inp {
+          font-size: 12px;
+          padding: 4px 8px;
+          height: 30px;
+        }
+        .act-bar-btns {
+          flex: 1 1 0;
+          min-width: 0;
+          gap: 4px;
+        }
+        .act-bar-btns button {
+          flex: 1 1 0;
+          min-width: 0;
+          justify-content: center;
+          white-space: nowrap;
+          font-size: 10px;
+          font-weight: 600;
+          padding: 0 4px;
+          height: 30px;
+          min-height: 30px;
+          gap: 3px;
+          line-height: 1.1;
+        }
+        .act-bar-btns button svg {
+          flex-shrink: 0;
+          width: 12px !important;
+          height: 12px !important;
         }
         .card { border-radius: 14px; }
         .sum-head {
@@ -1129,6 +1399,117 @@ export default function SummaryView() {
           right: auto;
         }
       }
+
+      /* Light theme: many rules above use fixed light-on-dark greys — force readable contrast */
+      html[data-theme="light"] .sum-text :is(p, li, strong, em),
+      html[data-theme="light"] .md :is(p, li, strong, em) {
+        color: var(--sum-text);
+      }
+      html[data-theme="light"] .sum-text :is(h1) { color: var(--sum-heading-1); }
+      html[data-theme="light"] .sum-text :is(h2) { color: var(--sum-heading-2); }
+      html[data-theme="light"] .sum-text :is(h3) { color: var(--sum-heading-3); }
+      html[data-theme="light"] .sum-text :is(h4, h5, h6) { color: var(--sum-heading-4); }
+      html[data-theme="light"] .md :is(h1) { color: var(--sum-heading-1); }
+      html[data-theme="light"] .md :is(h2) { color: var(--sum-heading-2); }
+      html[data-theme="light"] .md :is(h3) { color: var(--sum-heading-3); }
+      html[data-theme="light"] .md :is(h4, h5, h6) { color: var(--sum-heading-4); }
+      html[data-theme="light"] .sum-text code,
+      html[data-theme="light"] .md code { color: var(--sum-text); }
+      html[data-theme="light"] .sum-text pre,
+      html[data-theme="light"] .md pre { color: var(--sum-text); }
+
+      html[data-theme="light"] .src-header { border-bottom-color: rgba(0,0,0,0.08); }
+      html[data-theme="light"] .src-title { color: rgba(0,0,0,0.55); }
+      html[data-theme="light"] .src-add-btn {
+        border-color: rgba(0,0,0,0.12);
+        background: rgba(0,0,0,0.03);
+        color: rgba(0,0,0,0.78);
+      }
+      html[data-theme="light"] .src-add-btn:hover { background: rgba(0,0,0,0.06); }
+      html[data-theme="light"] .src-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); }
+      html[data-theme="light"] .hl-panel { border-bottom-color: rgba(0,0,0,0.08); }
+      html[data-theme="light"] .hl-head { color: rgba(0,0,0,0.45); }
+      html[data-theme="light"] .hl-empty { color: rgba(0,0,0,0.45); }
+      html[data-theme="light"] .hl-quote { color: rgba(0,0,0,0.72); }
+      html[data-theme="light"] .hl-sub { color: rgba(180,130,0,0.9); }
+      html[data-theme="light"] .hl-item {
+        background: rgba(0,0,0,0.03);
+        border-color: rgba(0,0,0,0.08);
+      }
+      html[data-theme="light"] .hl-item:hover { background: rgba(0,0,0,0.05); }
+      html[data-theme="light"] .hl-x { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.45); }
+      html[data-theme="light"] .src-empty { color: rgba(0,0,0,0.45); }
+      html[data-theme="light"] .src-item {
+        background: rgba(0,0,0,0.02);
+        border-color: rgba(0,0,0,0.08);
+      }
+      html[data-theme="light"] .src-name { color: #111827; }
+      html[data-theme="light"] .src-meta { color: rgba(0,0,0,0.5); }
+
+      html[data-theme="light"] .sum-copy-btn {
+        border-color: rgba(0,0,0,0.1);
+        background: rgba(0,0,0,0.03);
+        color: rgba(0,0,0,0.65);
+      }
+      html[data-theme="light"] .sum-copy-btn:hover:not(:disabled) {
+        border-color: rgba(0,0,0,0.18);
+        color: rgba(0,0,0,0.88);
+        background: rgba(0,0,0,0.05);
+      }
+      html[data-theme="light"] .sum-hl-main,
+      html[data-theme="light"] .sum-hl-chevron {
+        border-color: rgba(0,0,0,0.1);
+        background: rgba(0,0,0,0.03);
+        color: rgba(0,0,0,0.6);
+      }
+      html[data-theme="light"] .sum-hl-main:hover { border-color: rgba(0,0,0,0.16); color: rgba(0,0,0,0.85); background: rgba(0,0,0,0.05); }
+      html[data-theme="light"] .sum-hl-chevron:hover { border-color: rgba(0,0,0,0.16); color: rgba(0,0,0,0.8); background: rgba(0,0,0,0.05); }
+      html[data-theme="light"] .sum-hl-menu {
+        background: #fff;
+        border-color: rgba(0,0,0,0.1);
+        box-shadow: 0 12px 36px rgba(0,0,0,0.12);
+      }
+      html[data-theme="light"] .sum-hl-menu-label { color: rgba(0,0,0,0.45); }
+      html[data-theme="light"] .sum-date { color: rgba(0,0,0,0.45); }
+      html[data-theme="light"] .fchip {
+        background: rgba(0,0,0,0.04);
+        border-color: rgba(0,0,0,0.08);
+        color: rgba(0,0,0,0.55);
+      }
+      html[data-theme="light"] .unified-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); }
+      html[data-theme="light"] .conv-divider { border-top-color: rgba(0,0,0,0.08); }
+      html[data-theme="light"] .act-bar-chat-title-inp {
+        background: rgba(255,255,255,0.9);
+        border-color: rgba(99,102,241,0.28);
+      }
+      html[data-theme="light"] .conv-label { color: rgba(0,0,0,0.45); }
+      html[data-theme="light"] .chat-hint { color: rgba(0,0,0,0.45); }
+      html[data-theme="light"] .chat-empty { color: rgba(0,0,0,0.45); }
+      html[data-theme="light"] .m-meta { color: rgba(0,0,0,0.45); }
+      html[data-theme="light"] .m-copy {
+        border-color: rgba(0,0,0,0.1);
+        background: rgba(0,0,0,0.03);
+        color: rgba(0,0,0,0.5);
+      }
+      html[data-theme="light"] .m-copy:hover { background: rgba(0,0,0,0.06); }
+      html[data-theme="light"] .sug {
+        border-color: rgba(0,0,0,0.1);
+        color: rgba(0,0,0,0.5);
+      }
+      html[data-theme="light"] .inp-row { border-top-color: rgba(0,0,0,0.08); }
+      html[data-theme="light"] .inp::placeholder { color: rgba(0,0,0,0.38); }
+      html[data-theme="light"] .mdl-btn {
+        border-color: rgba(0,0,0,0.1);
+        background: rgba(0,0,0,0.03);
+        color: rgba(0,0,0,0.65);
+      }
+      html[data-theme="light"] .mdl-menu {
+        background: #fff;
+        border-color: rgba(0,0,0,0.1);
+        box-shadow: 0 -12px 36px rgba(0,0,0,0.12);
+      }
+      html[data-theme="light"] .mdl-opt { color: #374151; }
+      html[data-theme="light"] .sources { border-top-color: rgba(0,0,0,0.08); }
     `}</style>
 
       <div className="wrap">
@@ -1143,26 +1524,66 @@ export default function SummaryView() {
             <main className="main">
               {/* Action bar */}
               <div className="act-bar">
-                <Button
-                  variant="quiz"
-                  onClick={() => alert("Create Quiz — coming soon!")}
-                >
-                  <QuizIco /> Create quiz!
-                </Button>
-                <Button
-                  variant="pdf"
-                  onClick={handlePDF}
-                  disabled={pdfLoading || !summary}
-                >
-                  {pdfLoading ? <Spinner size={13} /> : <PdfIco />}
-                  Save as PDF
-                </Button>
-                <Button
-                  variant="slides"
-                  onClick={() => setSlidesModal(true)}
-                >
-                  <SlidesIco /> Generate Slides
-                </Button>
+                <div className="act-bar-title-wrap">
+                  {!summaryLoading && !summaryError && summary && (
+                    <>
+                      {chatTitleEditing ? (
+                        <input
+                          ref={chatTitleInputRef}
+                          type="text"
+                          className="act-bar-chat-title-inp"
+                          value={chatTitleDraft}
+                          onChange={(e) => setChatTitleDraft(e.target.value)}
+                          onBlur={() => saveChatTitle()}
+                          onKeyDown={onChatTitleKeyDown}
+                          disabled={chatTitleSaving}
+                          maxLength={255}
+                          aria-label="Chat title"
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          className="act-bar-chat-title-btn"
+                          onClick={startChatTitleEdit}
+                          disabled={chatTitleSaving}
+                          title="Click to rename"
+                        >
+                          {summary.title?.trim()
+                            ? summary.title
+                            : "Untitled summary"}
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+                <div className="act-bar-btns">
+                  <Button
+                    variant="quiz"
+                    onClick={() => alert("Create Quiz — coming soon!")}
+                  >
+                    <QuizIco />{" "}
+                    {compactActBar ? "Quiz" : "Create quiz!"}
+                  </Button>
+                  <Button
+                    variant="pdf"
+                    onClick={handlePDF}
+                    disabled={pdfLoading || !summary}
+                  >
+                    {pdfLoading ? (
+                      <Spinner size={compactActBar ? 11 : 13} />
+                    ) : (
+                      <PdfIco />
+                    )}{" "}
+                    {compactActBar ? "PDF" : "Save as PDF"}
+                  </Button>
+                  <Button
+                    variant="slides"
+                    onClick={() => setSlidesModal(true)}
+                  >
+                    <SlidesIco />{" "}
+                    {compactActBar ? "Slides" : "Generate Slides"}
+                  </Button>
+                </div>
               </div>
 
               {/* Card: summary + chat */}
@@ -1305,7 +1726,9 @@ export default function SummaryView() {
 
                   {(messages.length > 0 || chatLoading) && (
                     <div className="conv-divider">
-                      <div className="conv-label">Continue the conversation</div>
+                      <div className="conv-label">
+                        Continue the conversation
+                      </div>
                       <div className="chat-thread">
                         {messages.map((m) => (
                           <div key={m.id} className={`m-row ${m.role}`}>
