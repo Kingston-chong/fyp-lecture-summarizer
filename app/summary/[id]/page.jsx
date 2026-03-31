@@ -291,6 +291,7 @@ export default function SummaryView() {
   const sourceInputRef = useRef(null);
   const summaryBodyRef = useRef(null);
   const hlToolbarRef = useRef(null);
+  const lastSelectionTriggerRef = useRef(0);
 
   // Drag-to-resize sources sidebar (desktop)
   useEffect(() => {
@@ -692,7 +693,7 @@ export default function SummaryView() {
     setTimeout(() => setPdfLoading(false), 900);
   }
 
-  const handleSummaryMouseUp = useCallback(() => {
+  const handleSummarySelectionTrigger = useCallback(() => {
     const root = summaryBodyRef.current;
     if (!root || !hlModeActive || hlSaving) return;
     const sel = window.getSelection();
@@ -711,6 +712,22 @@ export default function SummaryView() {
     ]);
     window.getSelection()?.removeAllRanges();
   }, [hlModeActive, hlSaving, hlColorHex]);
+
+  const handleSummaryMouseUp = useCallback((e) => {
+    const now = Date.now();
+    if (now - lastSelectionTriggerRef.current < 350) return;
+    lastSelectionTriggerRef.current = now;
+
+    const isTouch =
+      (e && e.pointerType === "touch") || (e && e.type === "touchend");
+
+    // On touch devices the selection can finalize slightly after the event.
+    if (isTouch) {
+      setTimeout(() => handleSummarySelectionTrigger(), 0);
+    } else {
+      handleSummarySelectionTrigger();
+    }
+  }, [handleSummarySelectionTrigger]);
 
   async function flushPendingHighlights() {
     if (!summaryId || hlSaving || pendingHighlights.length === 0) return;
@@ -1762,7 +1779,9 @@ export default function SummaryView() {
                           role="article"
                           className="sum-text md sum-selectable"
                           style={SUMMARY_BODY_INNER_STYLE}
-                          onMouseUp={handleSummaryMouseUp}
+                        onMouseUp={handleSummaryMouseUp}
+                        onPointerUp={handleSummaryMouseUp}
+                        onTouchEnd={handleSummaryMouseUp}
                           dangerouslySetInnerHTML={summaryBodyDangerousHtml}
                         />
                       </div>

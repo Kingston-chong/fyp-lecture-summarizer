@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AppSidebar from "./AppSidebar";
 import ThemeToggle from "./ThemeToggle";
 import { ChevronDownIcon, LogoutIcon, MenuIcon } from "./icons";
@@ -20,12 +20,19 @@ export default function AppShell({
   const pathname = usePathname();
   const { data: session } = useSession();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const prevPathnameRef = useRef(pathname);
 
   useEffect(() => {
-    if (!mobileNavOpen) return;
-    // Defer to the next tick to avoid react's "setState in effect body" warning.
-    const t = setTimeout(() => setMobileNavOpen(false), 0);
-    return () => clearTimeout(t);
+    const prev = prevPathnameRef.current;
+    prevPathnameRef.current = pathname;
+
+    // Close only when the route changes (not when the user opens the drawer).
+    if (prev !== pathname && mobileNavOpen) {
+      const t = setTimeout(() => setMobileNavOpen(false), 0);
+      return () => clearTimeout(t);
+    }
+
+    return undefined;
   }, [pathname, mobileNavOpen]);
 
   useEffect(() => {
