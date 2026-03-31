@@ -536,12 +536,12 @@ export default function Dashboard() {
           width: 100%;
           height: 38px;
           border-radius: 9px;
-          border: 1.5px solid rgba(34,197,94,0.35);
-          background: linear-gradient(135deg, rgba(34,197,94,0.16), rgba(16,185,129,0.10));
+          border: 1.5px solid rgba(22,163,74,0.65);
+          background: linear-gradient(135deg, rgba(22,163,74,0.22), rgba(21,128,61,0.16));
           font-family: 'Sora', sans-serif;
           font-size: 12.5px;
           font-weight: 600;
-          color: #86efac;
+          color: #fff;
           cursor: pointer;
           display: flex;
           align-items: center;
@@ -551,7 +551,12 @@ export default function Dashboard() {
           box-shadow: 0 6px 18px rgba(16,185,129,0.12);
           margin-bottom: 8px;
         }
-        .upload-btn:hover { border-color: rgba(34,197,94,0.65); background: linear-gradient(135deg, rgba(34,197,94,0.22), rgba(16,185,129,0.14)); box-shadow: 0 10px 26px rgba(16,185,129,0.2); transform: translateY(-1px); }
+        .upload-btn:hover {
+          border-color: rgba(22,163,74,0.9);
+          background: linear-gradient(135deg, rgba(22,163,74,0.30), rgba(21,128,61,0.22));
+          box-shadow: 0 10px 26px rgba(22,163,74,0.30);
+          transform: translateY(-1px);
+        }
         .upload-hint { font-size: 10.5px; color: rgba(255,255,255,0.2); text-align: center; margin-bottom: 10px; }
 
         .radio-label { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.3); letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 6px; }
@@ -704,6 +709,143 @@ export default function Dashboard() {
           border-radius: 999px;
           background: linear-gradient(135deg, #6366f1, #8b5cf6);
         }
+
+        /* Light-mode overrides (dashboard has hardcoded dark colors otherwise) */
+        html[data-theme="light"] .sidebar::-webkit-scrollbar-thumb {
+          background: rgba(0,0,0,0.12);
+        }
+        html[data-theme="light"] .splitter-v::after { background: rgba(0,0,0,0.10); }
+        html[data-theme="light"] .splitter-v:hover::after { background: rgba(99,102,241,0.35); }
+        html[data-theme="light"] .splitter-v.active::after { background: rgba(99,102,241,0.55); }
+
+        html[data-theme="light"] .sidebar-title { color: rgba(0,0,0,0.45); }
+        html[data-theme="light"] .sidebar-chev { color: rgba(0,0,0,0.35); }
+        html[data-theme="light"] .sidebar-divider { background: rgba(0,0,0,0.08); }
+
+        html[data-theme="light"] .history-item:hover { background: rgba(0,0,0,0.03); }
+        html[data-theme="light"] .history-item.active { background: rgba(99,102,241,0.10); }
+        html[data-theme="light"] .history-name { color: #111827; }
+        html[data-theme="light"] .history-meta { color: rgba(0,0,0,0.45); }
+        html[data-theme="light"] .history-file-chip { color: rgba(0,0,0,0.45); }
+
+        html[data-theme="light"] .prev-item:hover { background: rgba(0,0,0,0.04); }
+        html[data-theme="light"] .prev-name { color: #111827; }
+        html[data-theme="light"] .prev-meta { color: rgba(0,0,0,0.45); }
+
+        html[data-theme="light"] .sidebar-empty { color: rgba(0,0,0,0.45); }
+        html[data-theme="light"] .sidebar-loading { color: rgba(0,0,0,0.45); }
+        html[data-theme="light"] .mini-spinner { border-color: rgba(0,0,0,0.12); border-top-color: #6366f1; }
+
+        html[data-theme="light"] .panel-title { color: #111827; }
+        html[data-theme="light"] .panel-sub { color: rgba(0,0,0,0.52); }
+
+        html[data-theme="light"] .drop-zone-text { color: rgba(0,0,0,0.45); }
+        html[data-theme="light"] .drop-zone-link { color: #4f46e5; }
+
+        html[data-theme="light"] .file-item {
+          background: rgba(0,0,0,0.015);
+          border: 1px solid rgba(0,0,0,0.06);
+        }
+        html[data-theme="light"] .file-name { color: #111827; }
+        html[data-theme="light"] .file-size { color: rgba(0,0,0,0.45); }
+        html[data-theme="light"] .file-badge { background: rgba(0,0,0,0.03); color: rgba(0,0,0,0.35); }
+        html[data-theme="light"] .fmt-chip {
+          background: rgba(0,0,0,0.03);
+          color: rgba(0,0,0,0.38);
+          border: 1px solid rgba(0,0,0,0.06);
+        }
+        html[data-theme="light"] .empty-state { color: rgba(0,0,0,0.45); }
+
+        html[data-theme="light"] .prompt-area {
+          background: rgba(0,0,0,0.03);
+          border: 1px solid rgba(0,0,0,0.10);
+          color: #111827;
+        }
+        html[data-theme="light"] .prompt-area::placeholder { color: rgba(0,0,0,0.35); }
+        html[data-theme="light"] .prompt-count { color: rgba(0,0,0,0.35); }
+        html[data-theme="light"] .prompt-area:focus { border-color: rgba(99,102,241,0.40); box-shadow: 0 0 0 3px rgba(99,102,241,0.10); }
+
+        html[data-theme="light"] .output-area {
+          background: rgba(0,0,0,0.02);
+          border: 1px solid rgba(0,0,0,0.07);
+        }
+        html[data-theme="light"] .output-text { color: #111827; }
+        html[data-theme="light"] .output-text h1,
+        html[data-theme="light"] .output-text h2,
+        html[data-theme="light"] .output-text h3 { color: #111827; }
+        html[data-theme="light"] .output-text th,
+        html[data-theme="light"] .output-text td { border: 1px solid rgba(0,0,0,0.12); }
+        html[data-theme="light"] .output-text th { background: rgba(0,0,0,0.04); color: #111827; }
+        html[data-theme="light"] .output-text td { color: rgba(17,24,39,0.92); }
+
+        html[data-theme="light"] .copy-btn {
+          border: 1px solid rgba(0,0,0,0.10);
+          background: rgba(0,0,0,0.03);
+          color: rgba(0,0,0,0.45);
+        }
+        html[data-theme="light"] .copy-btn:hover { border-color: rgba(0,0,0,0.20); color: rgba(0,0,0,0.70); }
+
+        html[data-theme="light"] .upload-hint { color: rgba(0,0,0,0.35); }
+
+        /* Upload button should stay a clear dark-green CTA in light mode */
+        html[data-theme="light"] .upload-btn {
+          border: 1.5px solid rgba(21,128,61,0.85);
+          background: linear-gradient(135deg, #15803d, #166534);
+          color: #ffffff;
+          box-shadow: 0 10px 28px rgba(21,128,61,0.22);
+        }
+        html[data-theme="light"] .upload-btn:hover {
+          border-color: rgba(21,128,61,1);
+          background: linear-gradient(135deg, #166534, #0f766e);
+          box-shadow: 0 14px 36px rgba(21,128,61,0.26);
+        }
+
+        html[data-theme="light"] .radio-label { color: rgba(0,0,0,0.45); }
+        html[data-theme="light"] .radio-option:hover { background: rgba(0,0,0,0.04); }
+        html[data-theme="light"] .radio-option.selected { background: rgba(99,102,241,0.08); border-color: rgba(99,102,241,0.20); }
+        html[data-theme="light"] .radio-dot { border-color: rgba(0,0,0,0.18); }
+        html[data-theme="light"] .radio-title { color: #111827; }
+        html[data-theme="light"] .radio-sub { color: rgba(0,0,0,0.38); }
+
+        html[data-theme="light"] .model-label { color: rgba(0,0,0,0.45); }
+        html[data-theme="light"] .model-btn {
+          border-color: rgba(0,0,0,0.10);
+          background: rgba(0,0,0,0.03);
+          color: rgba(0,0,0,0.70);
+        }
+        html[data-theme="light"] .model-sub { color: rgba(0,0,0,0.45); }
+        html[data-theme="light"] .model-menu {
+          background: #ffffff;
+          border: 1px solid rgba(0,0,0,0.10);
+          box-shadow: 0 16px 36px rgba(0,0,0,0.12);
+        }
+        html[data-theme="light"] .model-opt-name { color: #111827; }
+        html[data-theme="light"] .model-opt-sub { color: rgba(0,0,0,0.45); }
+        html[data-theme="light"] .model-check { color: #4f46e5; }
+
+        html[data-theme="light"] .modal-box {
+          background: #ffffff;
+          border: 1px solid rgba(0,0,0,0.10);
+          box-shadow: 0 24px 48px rgba(0,0,0,0.12);
+        }
+        html[data-theme="light"] .modal-title { color: #111827; }
+        html[data-theme="light"] .modal-desc { color: rgba(0,0,0,0.55); }
+        html[data-theme="light"] .modal-btn.secondary {
+          border: 1px solid rgba(0,0,0,0.12);
+          background: rgba(0,0,0,0.03);
+          color: #4b5563;
+        }
+        html[data-theme="light"] .modal-btn.secondary:hover {
+          border-color: rgba(0,0,0,0.18);
+          background: rgba(0,0,0,0.06);
+        }
+
+        html[data-theme="light"] .sidebar-toggle {
+          border: 1px solid rgba(0,0,0,0.14);
+          background: rgba(248,249,252,0.98);
+          color: rgba(0,0,0,0.78);
+        }
+        html[data-theme="light"] .sidebar-toggle span { color: rgba(0,0,0,0.55); }
       `}</style>
 
       <div className={`app ${splitterDragging ? "no-select" : ""} ${sidebarOpen ? "app--sidebar-open" : ""}`}>

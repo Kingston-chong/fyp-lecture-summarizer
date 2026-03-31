@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -14,6 +13,7 @@ import {
   UserCircleIcon,
 } from "./components/icons";
 import ThemeToggle from "./components/ThemeToggle";
+import AppHeader from "./components/AppHeader";
 
 export default function Slide2NotesLogin() {
   const router = useRouter();
@@ -241,6 +241,42 @@ export default function Slide2NotesLogin() {
             0 24px 48px rgba(15,23,42,0.08),
             0 8px 20px rgba(15,23,42,0.06);
         }
+
+        /* Light theme: inputs + OR separator need explicit contrast */
+        html[data-theme="light"] .field-label {
+          color: rgba(0,0,0,0.55);
+        }
+        html[data-theme="light"] .field-label.focused {
+          color: rgba(79,70,229,0.85);
+        }
+
+        html[data-theme="light"] .field-input {
+          border: 1px solid rgba(0,0,0,0.12);
+          background: rgba(0,0,0,0.03);
+          color: #111827;
+        }
+        html[data-theme="light"] .field-input::placeholder {
+          color: rgba(0,0,0,0.35);
+        }
+        html[data-theme="light"] .field-input:focus {
+          border-color: rgba(99,102,241,0.45);
+          background: rgba(99,102,241,0.06);
+          box-shadow: 0 0 0 3px rgba(99,102,241,0.10), 0 2px 10px rgba(0,0,0,0.08);
+        }
+
+        html[data-theme="light"] .field-toggle {
+          color: rgba(0,0,0,0.35);
+        }
+        html[data-theme="light"] .field-toggle:hover {
+          color: rgba(0,0,0,0.60);
+        }
+
+        html[data-theme="light"] .or-line {
+          background: rgba(0,0,0,0.10);
+        }
+        html[data-theme="light"] .or-text {
+          color: rgba(0,0,0,0.50);
+        }
         @keyframes cardIn {
           from { opacity: 0; transform: translateY(24px) scale(0.97); }
           to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -398,7 +434,7 @@ export default function Slide2NotesLogin() {
           width: 100%;
           height: 46px;
           border-radius: 11px;
-          border: 1px solid rgba(255,255,255,0.085);
+          border: 1px solid rgba(255,255,255,0.16);
           background: rgba(255,255,255,0.035);
           font-family: 'Sora', sans-serif;
           font-size: 13.5px;
@@ -418,6 +454,18 @@ export default function Slide2NotesLogin() {
           transform: translateY(-1px);
         }
         .btn-google:active { transform: translateY(0); }
+
+        /* Make Google button border clearly visible in light mode */
+        html[data-theme="light"] .btn-google {
+          border-color: rgba(15,23,42,0.22);
+          background: rgba(255,255,255,0.9);
+          color: #111827;
+        }
+        html[data-theme="light"] .btn-google:hover {
+          border-color: rgba(15,23,42,0.32);
+          background: rgba(248,250,252,1);
+          color: #020617;
+        }
 
         /* FOOTER */
         .card-footer {
@@ -453,25 +501,17 @@ export default function Slide2NotesLogin() {
         <div className="blob2" />
         <div className="blob3" />
 
-        {/* NAVBAR */}
-        <nav className="navbar">
-          <div className="navbar-logo">
-            <Image
-              src="/icon.png"
-              alt="Slide2Notes logo"
-              width={34}
-              height={34}
-              priority
-            />
-            <span className="logo-text">Slide2Notes</span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <ThemeToggle />
-            <button type="button" className="navbar-user-btn">
-              <UserCircleIcon />
-            </button>
-          </div>
-        </nav>
+        {/* NAVBAR (shared header) */}
+        <AppHeader
+          right={
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <ThemeToggle />
+              <button type="button" className="navbar-user-btn">
+                <UserCircleIcon />
+              </button>
+            </div>
+          }
+        />
 
         {/* SUBNAV */}
         <div className="subnav">

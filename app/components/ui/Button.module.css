@@ -74,6 +74,14 @@ html[data-theme="light"] .slides {
   box-shadow: 0 4px 14px rgba(99, 102, 241, 0.25);
 }
 
+/* Keep slides gradient + white text in light mode too */
+html[data-theme="light"] .btn.slides {
+  background: linear-gradient(135deg, #5258ee, #8b5cf6);
+  border: none;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.25);
+}
+
 /* Override generic light .btn:hover so Slides keeps purple gradient + glow */
 html[data-theme="light"] .btn.slides:hover {
   background: linear-gradient(135deg, #5258ee, #8b5cf6);

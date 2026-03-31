@@ -5,7 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AppSidebar from "./AppSidebar";
 import ThemeToggle from "./ThemeToggle";
-import { ChevronDownIcon, LogoIcon, LogoutIcon, MenuIcon } from "./icons";
+import { ChevronDownIcon, LogoutIcon, MenuIcon } from "./icons";
+import AppHeader from "./AppHeader";
 
 export default function AppShell({
   children,
@@ -21,8 +22,11 @@ export default function AppShell({
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
-    setMobileNavOpen(false);
-  }, [pathname]);
+    if (!mobileNavOpen) return;
+    // Defer to the next tick to avoid react's "setState in effect body" warning.
+    const t = setTimeout(() => setMobileNavOpen(false), 0);
+    return () => clearTimeout(t);
+  }, [pathname, mobileNavOpen]);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 1023px)");
@@ -243,9 +247,9 @@ export default function AppShell({
         </div>
 
         <div className="shell-chrome">
-          <nav className="shell-nav">
-            <div className="shell-nav-left">
-              {showSidebar && (
+          <AppHeader
+            left={
+              showSidebar ? (
                 <button
                   type="button"
                   className="shell-menu-btn"
@@ -255,30 +259,34 @@ export default function AppShell({
                 >
                   <MenuIcon />
                 </button>
-              )}
-              <div className="shell-brand" onClick={() => router.push("/dashboard")}>
-                <div className="shell-badge">
-                  <LogoIcon />
-                </div>
-                <span className="shell-name">Slide2Notes</span>
-              </div>
-            </div>
-
-            <div className="shell-right">
-              <ThemeToggle />
-              {session?.user?.name && (
-                <span className="shell-greet">Hi, {session.user.name.split(" ")[0]}</span>
-              )}
-              {showBackToDashboard && (
-                <button className="shell-btn" onClick={() => router.push("/dashboard")}>
-                  ← Dashboard
+              ) : null
+            }
+            right={
+              <>
+                <ThemeToggle />
+                {session?.user?.name && (
+                  <span className="shell-greet">
+                    Hi, {session.user.name.split(" ")[0]}
+                  </span>
+                )}
+                {showBackToDashboard && (
+                  <button
+                    className="shell-btn"
+                    onClick={() => router.push("/dashboard")}
+                  >
+                    ← Dashboard
+                  </button>
+                )}
+                <button
+                  className="shell-btn"
+                  onClick={() => signOut({ callbackUrl: "/" })}
+                >
+                  <LogoutIcon /> Sign out
                 </button>
-              )}
-              <button className="shell-btn" onClick={() => signOut({ callbackUrl: "/" })}>
-                <LogoutIcon /> Sign out
-              </button>
-            </div>
-          </nav>
+              </>
+            }
+            onLogoClick={() => router.push("/dashboard")}
+          />
 
           <div className="shell-subnav">
             <button className="shell-subitem" type="button">

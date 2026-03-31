@@ -276,6 +276,11 @@ export default function SummaryView() {
   /** Narrow layout: shorter action-bar labels + compact buttons */
   const [compactActBar, setCompactActBar] = useState(false);
 
+  // Sources sidebar width + splitter (desktop)
+  const [sourcesWidth, setSourcesWidth] = useState(260);
+  const [splitterDragging, setSplitterDragging] = useState(false);
+  const splitterRef = useRef(null); // { startX, startWidth }
+
   const [chatTitleEditing, setChatTitleEditing] = useState(false);
   const [chatTitleDraft, setChatTitleDraft] = useState("");
   const [chatTitleSaving, setChatTitleSaving] = useState(false);
@@ -286,6 +291,29 @@ export default function SummaryView() {
   const sourceInputRef = useRef(null);
   const summaryBodyRef = useRef(null);
   const hlToolbarRef = useRef(null);
+
+  // Drag-to-resize sources sidebar (desktop)
+  useEffect(() => {
+    function onMove(e) {
+      const drag = splitterRef.current;
+      if (!drag) return;
+      const dx = e.clientX - drag.startX;
+      const next = drag.startWidth + dx;
+      setSourcesWidth(Math.max(220, Math.min(420, next)));
+    }
+    function onUp() {
+      if (!splitterRef.current) return;
+      splitterRef.current = null;
+      setSplitterDragging(false);
+      document.body.style.cursor = "";
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/");
@@ -800,6 +828,27 @@ export default function SummaryView() {
 
       /* ── main area + sources panel ── */
       .main-wrap { flex: 1; display: flex; min-width: 0; }
+      .sum-splitter {
+        width: 8px;
+        flex-shrink: 0;
+        cursor: col-resize;
+        background: transparent;
+        position: relative;
+        z-index: 10;
+      }
+      .sum-splitter::after {
+        content: '';
+        position: absolute;
+        top: 10px;
+        bottom: 10px;
+        left: 3px;
+        width: 2px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.06);
+      }
+      .sum-splitter:hover::after {
+        background: rgba(99,102,241,0.35);
+      }
       .main   { flex: 1; display: flex; flex-direction: column; padding: 14px; gap: 10px; overflow: hidden; min-width: 0; }
 
       .sources {
@@ -1869,8 +1918,22 @@ export default function SummaryView() {
               {/* /card */}
             </main>
 
+            <div
+              className="sum-splitter"
+              onMouseDown={(e) => {
+                splitterRef.current = {
+                  startX: e.clientX,
+                  startWidth: sourcesWidth,
+                };
+                setSplitterDragging(true);
+                document.body.style.cursor = "col-resize";
+              }}
+              role="separator"
+              aria-label="Resize sources panel"
+            />
+
             {/* Sources panel (NotebookLM style) */}
-            <aside className="sources" aria-label="Sources">
+            <aside className="sources" aria-label="Sources" style={{ width: sourcesWidth }}>
               <input
                 ref={sourceInputRef}
                 type="file"
