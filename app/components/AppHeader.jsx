@@ -58,6 +58,9 @@ export default function AppHeader({
           align-items: center;
           gap: 10px;
         }
+        @media (max-width: 639px) {
+          .s2n-logo-text { display: none; }
+        }
       `}</style>
 
       <nav className="s2n-header" aria-label="Top navigation">

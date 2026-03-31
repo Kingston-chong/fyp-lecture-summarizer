@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import AppSidebar from "./AppSidebar";
 import ThemeToggle from "./ThemeToggle";
-import { ChevronDownIcon, LogoutIcon, MenuIcon } from "./icons";
+import { ArrowLeftIcon, ChevronDownIcon, LogoutIcon, MenuIcon } from "./icons";
 import AppHeader from "./AppHeader";
 
 export default function AppShell({
@@ -101,6 +101,11 @@ export default function AppShell({
           background: var(--app-btn-bg); display: flex; align-items: center; gap: 6px; cursor: pointer;
           font-family: 'Sora', sans-serif; font-size: 12px; color: var(--app-btn-text); transition: all 0.2s; }
         .shell-btn:hover { border-color: var(--app-btn-hover-border); color: var(--app-btn-hover-text); }
+        @media (max-width: 639px) {
+          .shell-greet { display: none; }
+          .shell-btn-text { display: none; }
+          .shell-btn { padding: 0 8px; width: 32px; justify-content: center; }
+        }
 
         .shell-subnav { position: relative; z-index: 20; display: flex; align-items: center; justify-content: flex-end; padding: 0 28px; height: var(--chrome-subnav-h);
           background: var(--app-subnav-bg); backdrop-filter: blur(8px); border-bottom: 1px solid var(--app-border); }
@@ -188,7 +193,8 @@ export default function AppShell({
             background: var(--app-shell-chrome-mobile);
           }
           .shell {
-            overflow: auto;
+            height: 100dvh;
+            overflow: hidden;
             padding-top: var(--shell-chrome-top);
           }
           .shell.shell--menu-open {
@@ -196,12 +202,14 @@ export default function AppShell({
             overscroll-behavior: none;
           }
           .shell-content {
-            height: auto;
-            min-height: calc(100vh - var(--chrome-h));
-            overflow: visible;
+            height: calc(100vh - var(--chrome-h));
+            overflow: hidden;
           }
           .shell-main {
-            height: auto;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
           }
           .shell-sidebar-wrap:not(.sidebar-always-drawer) {
             position: fixed;
@@ -279,16 +287,18 @@ export default function AppShell({
                 {showBackToDashboard && (
                   <button
                     className="shell-btn"
+                    title="Dashboard"
                     onClick={() => router.push("/dashboard")}
                   >
-                    ← Dashboard
+                    <ArrowLeftIcon /> <span className="shell-btn-text">Dashboard</span>
                   </button>
                 )}
                 <button
                   className="shell-btn"
+                  title="Sign out"
                   onClick={() => signOut({ callbackUrl: "/" })}
                 >
-                  <LogoutIcon /> Sign out
+                  <LogoutIcon /> <span className="shell-btn-text">Sign out</span>
                 </button>
               </>
             }

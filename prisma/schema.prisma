@@ -33,6 +33,7 @@ model User {
   summaries    Summary[]
   chatThreads  ChatThread[]
   highlights   SummaryHighlight[]
+  quizSets     QuizSet[]
 }
 
 model PasswordReset {
@@ -71,6 +72,7 @@ model Summary {
   documents   SummaryDocument[]
   highlights  SummaryHighlight[]
   chatThreads ChatThread[]
+  quizSets    QuizSet[]
 }
 
 model SummaryHighlight {
@@ -126,4 +128,34 @@ model SummaryDocument {
   summary    Summary  @relation(fields: [summaryId], references: [id])
   document   Document @relation(fields: [documentId], references: [id])
   @@id([summaryId, documentId])
+}
+
+model QuizSet {
+  id          Int            @id @default(autoincrement())
+  userId      Int
+  summaryId   Int?
+  title       String
+  settings    Json?          // Store generation settings (difficulty, types, etc.)
+  createdAt   DateTime       @default(now())
+  questions   QuizQuestion[]
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  summary     Summary?       @relation(fields: [summaryId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([summaryId])
+}
+
+model QuizQuestion {
+  id          Int      @id @default(autoincrement())
+  quizSetId   Int
+  question    String   @db.Text
+  type        String   // MCQ, True/False, FillInBlanks, ShortAnswer, Match
+  options     Json?    // For MCQ, Match (Array or Object)
+  answer      String   @db.Text
+  explanation String?  @db.Text
+  order       Int      @default(0)
+  
+  quizSet     QuizSet  @relation(fields: [quizSetId], references: [id], onDelete: Cascade)
+
+  @@index([quizSetId])
 }

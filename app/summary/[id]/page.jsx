@@ -12,6 +12,8 @@ import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import { markdownToHtml } from "@/lib/markdown";
 import GenerateSlidesModal from "@/app/components/GenerateSlidesModal";
+import QuizSettingsModal from "@/app/components/QuizSettingsModal";
+import QuizViewModal from "@/app/components/QuizViewModal";
 import Button from "@/app/components/ui/Button";
 import {
   Chevron,
@@ -26,6 +28,7 @@ import {
   QuizIco,
   PdfIco,
   SlidesIco,
+  ClipIco,
 } from "@/app/components/icons";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -266,6 +269,10 @@ export default function SummaryView() {
   const [copiedId, setCopiedId] = useState(null);
   const [summaryCopied, setSummaryCopied] = useState(false);
   const [slidesModal, setSlidesModal] = useState(false);
+  const [quizModal, setQuizModal] = useState(false);
+  const [quizView, setQuizView] = useState(false);
+  const [quizData, setQuizData] = useState(null);
+  const [quizSettings, setQuizSettings] = useState(null);
   const [highlights, setHighlights] = useState([]);
   const [pendingHighlights, setPendingHighlights] = useState([]);
   const [hlLoading, setHlLoading] = useState(false);
@@ -273,6 +280,7 @@ export default function SummaryView() {
   const [hlColorHex, setHlColorHex] = useState(DEFAULT_HL_HEX);
   const [hlColorMenuOpen, setHlColorMenuOpen] = useState(false);
   const [hlSaving, setHlSaving] = useState(false);
+  const [hlPopupOpen, setHlPopupOpen] = useState(false);
   /** Narrow layout: shorter action-bar labels + compact buttons */
   const [compactActBar, setCompactActBar] = useState(false);
 
@@ -291,6 +299,7 @@ export default function SummaryView() {
   const sourceInputRef = useRef(null);
   const summaryBodyRef = useRef(null);
   const hlToolbarRef = useRef(null);
+  const hlPopupWrapRef = useRef(null);
   const lastSelectionTriggerRef = useRef(0);
 
   // Drag-to-resize sources sidebar (desktop)
@@ -318,7 +327,7 @@ export default function SummaryView() {
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/");
-  }, [status]);
+  }, [status, router]);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 1023px)");
@@ -333,6 +342,7 @@ export default function SummaryView() {
     setHlModeActive(false);
     setHlColorMenuOpen(false);
     setPendingHighlights([]);
+    setHlPopupOpen(false);
     setChatTitleEditing(false);
     if (typeof window !== "undefined") {
       window.getSelection()?.removeAllRanges();
@@ -481,6 +491,15 @@ export default function SummaryView() {
     function onDocDown(e) {
       if (hlToolbarRef.current?.contains(e.target)) return;
       setHlColorMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDocDown);
+    return () => document.removeEventListener("mousedown", onDocDown);
+  }, []);
+
+  useEffect(() => {
+    function onDocDown(e) {
+      if (hlPopupWrapRef.current?.contains(e.target)) return;
+      setHlPopupOpen(false);
     }
     document.addEventListener("mousedown", onDocDown);
     return () => document.removeEventListener("mousedown", onDocDown);
@@ -813,7 +832,18 @@ export default function SummaryView() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Upload failed");
       const docs = data.documents || [];
-      setExtraSources((prev) => [...prev, ...docs]);
+      const baseIds = new Set(
+        (summary?.files || []).map((d) => d?.id).filter(Boolean),
+      );
+      setExtraSources((prev) => {
+        const existing = new Set(prev.map((d) => d?.id).filter(Boolean));
+        const next = docs.filter((d) => {
+          if (!d?.id) return true; // if no id, keep (best-effort)
+          if (baseIds.has(d.id)) return false;
+          return !existing.has(d.id);
+        });
+        return [...prev, ...next];
+      });
     } catch (e) {
       console.error(e);
       alert("Failed to upload sources. Please try again.");
@@ -910,7 +940,7 @@ export default function SummaryView() {
       }
       .src-list {
         padding: 10px 12px 12px;
-        flex: 1;
+        max-height: 50%;
         overflow-y: auto;
         display: flex;
         flex-direction: column;
@@ -924,6 +954,62 @@ export default function SummaryView() {
         max-height: 220px;
         overflow-y: auto;
         flex-shrink: 0;
+      }
+      .hl-popup-wrap { display: none; position: relative; }
+      .hl-list-btn {
+        width: 34px;
+        height: 28px;
+        padding: 0;
+        border-radius: 7px;
+        border: 1px solid rgba(255,255,255,.08);
+        background: rgba(255,255,255,.04);
+        color: rgba(255,255,255,.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all .18s;
+        position: relative;
+      }
+      .hl-list-btn:hover {
+        border-color: rgba(255,255,255,.15);
+        color: rgba(255,255,255,.85);
+        background: rgba(255,255,255,.06);
+      }
+      .hl-list-badge {
+        position: absolute;
+        top: -7px;
+        right: -7px;
+        min-width: 16px;
+        height: 16px;
+        padding: 0 4px;
+        border-radius: 999px;
+        background: rgba(248,113,113,.25);
+        border: 1px solid rgba(248,113,113,.4);
+        color: #fca5a5;
+        font-size: 10px;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 10px 22px rgba(0,0,0,.25);
+      }
+      .hl-popup {
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        z-index: 85;
+        width: min(320px, calc(100vw - 28px));
+        border-radius: 12px;
+        background: rgba(22,22,34,.98);
+        border: 1px solid rgba(255,255,255,.1);
+        box-shadow: 0 14px 40px rgba(0,0,0,.5);
+        overflow: hidden;
+        animation: fadeUp .14s ease;
+      }
+      .hl-popup .hl-panel {
+        border-bottom: none;
+        max-height: 62vh;
       }
       .hl-panel::-webkit-scrollbar { width: 3px; }
       .hl-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 4px; }
@@ -1078,7 +1164,7 @@ export default function SummaryView() {
       }
 
       /* ── content card ── */
-      .card   { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--sum-card-bg); border: 1px solid var(--sum-card-border); border-radius: 18px; backdrop-filter: blur(14px); overflow: hidden; animation: fadeUp .4s ease both; animation-delay: .05s; }
+      .card   { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--sum-card-bg); border: 1px solid var(--sum-card-border); border-radius: 18px; backdrop-filter: blur(14px); overflow: hidden; animation: fadeUp .4s ease both; animation-delay: .05s; }
 
       /* ── summary + chat: one continuous scroll ── */
       .sum-head  { display: flex; align-items: flex-start; justify-content: space-between; padding: 16px 20px 10px; flex-shrink: 0; gap: 12px; border-bottom: 1px solid var(--sum-head-border); }
@@ -1307,14 +1393,29 @@ export default function SummaryView() {
       .sug:hover{ border-color: rgba(99,102,241,.4); color: #a5b4fc; background: rgba(99,102,241,.07); }
 
       /* ── input row ── */
-      .inp-row  { display: flex; align-items: center; gap: 7px; padding: 8px 12px; border-top: 1px solid rgba(255,255,255,.06); flex-shrink: 0; }
-      .inp      { flex: 1; height: 40px; background: var(--sum-inp-bg); border: 1px solid var(--sum-inp-border); border-radius: 10px; padding: 0 14px; font-family: 'Sora',sans-serif; font-size: 12.5px; font-weight: 300; color: var(--sum-inp-text); outline: none; transition: border-color .2s, box-shadow .2s; }
+      .inp-row  { position: sticky; bottom: 0; display: flex; align-items: center; gap: 7px; padding: 8px 12px; border-top: 1px solid rgba(255,255,255,.06); flex-shrink: 0; background: linear-gradient(to top, rgba(16,16,24,.96), rgba(16,16,24,.84)); backdrop-filter: blur(6px); z-index: 20; }
+      .chatbox {
+        flex: 1;
+        min-width: 0;
+        height: 40px;
+        background: var(--sum-inp-bg);
+        border: 1px solid var(--sum-inp-border);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 6px;
+      }
+      .chatbox:focus-within {
+        border-color: rgba(99,102,241,.4);
+        box-shadow: 0 0 0 3px rgba(99,102,241,.08);
+      }
+      .inp      { flex: 1; height: 100%; min-width: 0; background: transparent; border: none; border-radius: 8px; padding: 0 6px; font-family: 'Sora',sans-serif; font-size: 12.5px; font-weight: 300; color: var(--sum-inp-text); outline: none; transition: border-color .2s, box-shadow .2s; }
       .inp::placeholder { color: rgba(255,255,255,.2); font-style: italic; }
-      .inp:focus{ border-color: rgba(99,102,241,.4); box-shadow: 0 0 0 3px rgba(99,102,241,.08); }
       .inp:disabled { opacity: .5; }
 
       .mdl-wrap { position: relative; flex-shrink: 0; }
-      .mdl-btn  { height: 40px; padding: 0 11px; border-radius: 9px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.04); font-family: 'Sora',sans-serif; font-size: 12px; font-weight: 500; color: rgba(255,255,255,.48); display: flex; align-items: center; gap: 5px; cursor: pointer; transition: all .18s; white-space: nowrap; }
+      .mdl-btn  { height: 30px; padding: 0 9px; border-radius: 8px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.04); font-family: 'Sora',sans-serif; font-size: 11.5px; font-weight: 500; color: rgba(255,255,255,.48); display: flex; align-items: center; gap: 5px; cursor: pointer; transition: all .18s; white-space: nowrap; }
       .mdl-btn:hover, .mdl-btn.open { border-color: rgba(99,102,241,.38); color: #a5b4fc; background: rgba(99,102,241,.08); }
       .mdl-menu { position: absolute; bottom: calc(100% + 5px); right: 0; min-width: 130px; background: rgba(20,20,32,.98); border: 1px solid rgba(255,255,255,.1); border-radius: 11px; padding: 4px; z-index: 50; box-shadow: 0 -18px 40px rgba(0,0,0,.55); animation: fadeUp .14s ease; }
       .mdl-opt  { padding: 7px 10px; border-radius: 7px; cursor: pointer; font-size: 12px; color: #b0b0cc; display: flex; align-items: center; justify-content: space-between; transition: background .14s; }
@@ -1325,11 +1426,62 @@ export default function SummaryView() {
       .send-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(99,102,241,.55); }
       .send-btn:disabled { opacity: .38; cursor: not-allowed; transform: none; }
 
+      .attach-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 0;
+        border: none;
+        background: transparent;
+        color: rgba(255,255,255,.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: all .18s;
+        position: relative;
+      }
+      .attach-btn:hover:not(:disabled) {
+        color: rgba(255,255,255,.85);
+        background: transparent;
+      }
+      .attach-btn:disabled {
+        opacity: .45;
+        cursor: not-allowed;
+      }
+      .attach-divider {
+        width: 1px;
+        height: 20px;
+        background: rgba(255,255,255,.14);
+        flex-shrink: 0;
+      }
+
+      .attach-badge {
+        position: absolute;
+        top: -7px;
+        right: -7px;
+        min-width: 16px;
+        height: 16px;
+        padding: 0 4px;
+        border-radius: 999px;
+        background: rgba(99,102,241,.25);
+        border: 1px solid rgba(99,102,241,.45);
+        color: #a5b4fc;
+        font-size: 10px;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 10px 22px rgba(0,0,0,.25);
+      }
+
       /* ── mobile: summary + conversation ── */
       @media (max-width: 1023px) {
         .wrap {
-          overflow-x: hidden;
-          min-height: calc(100dvh - var(--chrome-h, 98px));
+          overflow: hidden;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
         }
         .body { min-height: 0; }
         .main-wrap {
@@ -1341,14 +1493,15 @@ export default function SummaryView() {
           padding: 8px 10px;
           gap: 8px;
           flex: 1;
+          display: flex;
+          flex-direction: column;
           min-height: 0;
         }
         .sources {
-          width: 100%;
-          max-height: min(38vh, 260px);
-          flex-shrink: 0;
-          border-left: none;
-          border-top: 1px solid rgba(255,255,255,.07);
+          display: none;
+        }
+        .sum-splitter {
+          display: none;
         }
         .act-bar {
           flex-wrap: nowrap;
@@ -1393,7 +1546,14 @@ export default function SummaryView() {
           width: 12px !important;
           height: 12px !important;
         }
-        .card { border-radius: 14px; }
+        .card { 
+          border-radius: 14px; 
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+          overflow: hidden;
+        }
         .sum-head {
           flex-direction: column;
           align-items: stretch;
@@ -1404,9 +1564,18 @@ export default function SummaryView() {
           align-items: flex-start;
         }
         .sum-head-actions {
-          flex-wrap: wrap;
-          width: 100%;
-          justify-content: flex-start;
+          position: absolute;
+          top: 12px;
+          right: 14px;
+          width: auto;
+          flex-wrap: nowrap;
+          justify-content: flex-end;
+          gap: 6px;
+          z-index: 30;
+        }
+        .hl-popup-wrap {
+          position: relative;
+          display: flex;
         }
         .sum-files {
           justify-content: flex-start;
@@ -1416,7 +1585,11 @@ export default function SummaryView() {
           min-width: 0;
         }
         .unified-scroll {
-          padding: 0 12px 10px;
+          padding: 0 12px 12px;
+          flex: 1;
+          min-height: 0;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
         }
         .sum-text, .md {
           overflow-x: auto;
@@ -1439,24 +1612,18 @@ export default function SummaryView() {
           line-height: 1.35;
         }
         .inp-row {
-          flex-wrap: wrap;
-          align-items: stretch;
-          padding: 8px 10px;
+          position: relative;
+          flex-shrink: 0;
+          flex-wrap: nowrap;
+          align-items: center;
+          padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+          background: var(--app-nav-bg);
+          border-top: 1px solid var(--app-border);
           gap: 8px;
+          z-index: 40;
         }
-        .inp-row .inp {
-          flex: 1 1 100%;
-          min-width: 0;
-          height: 42px;
-        }
-        .inp-row .mdl-wrap {
-          flex: 1 1 auto;
-          min-width: 0;
-        }
-        .inp-row .mdl-btn {
-          width: 100%;
-          justify-content: space-between;
-        }
+        .inp-row .chatbox { height: 42px; }
+        .inp-row .mdl-btn { max-width: 120px; }
         .inp-row .send-btn {
           flex-shrink: 0;
         }
@@ -1464,6 +1631,8 @@ export default function SummaryView() {
           left: 0;
           right: auto;
         }
+        .hl-popup-wrap { display: flex; }
+        .hl-panel--sources { display: none; }
       }
 
       /* Light theme: many rules above use fixed light-on-dark greys — force readable contrast */
@@ -1562,7 +1731,10 @@ export default function SummaryView() {
         border-color: rgba(0,0,0,0.1);
         color: rgba(0,0,0,0.5);
       }
-      html[data-theme="light"] .inp-row { border-top-color: rgba(0,0,0,0.08); }
+      html[data-theme="light"] .inp-row {
+        border-top-color: rgba(0,0,0,0.08);
+        background: linear-gradient(to top, rgba(255,255,255,.96), rgba(255,255,255,.86));
+      }
       html[data-theme="light"] .inp::placeholder { color: rgba(0,0,0,0.38); }
       html[data-theme="light"] .mdl-btn {
         border-color: rgba(0,0,0,0.1);
@@ -1625,10 +1797,10 @@ export default function SummaryView() {
                 <div className="act-bar-btns">
                   <Button
                     variant="quiz"
-                    onClick={() => alert("Create Quiz — coming soon!")}
+                    onClick={() => setQuizModal(true)}
                   >
                     <QuizIco />{" "}
-                    {compactActBar ? "Quiz" : "Create quiz!"}
+                    {compactActBar ? "Quiz" : "Generate Quiz"}
                   </Button>
                   <Button
                     variant="pdf"
@@ -1699,6 +1871,7 @@ export default function SummaryView() {
                           onClick={() => {
                             setHlModeActive((v) => !v);
                             setHlColorMenuOpen(false);
+                            setHlPopupOpen(false);
                           }}
                         >
                           <HighlightIco size={13} />
@@ -1711,7 +1884,10 @@ export default function SummaryView() {
                           aria-haspopup="true"
                           disabled={summaryLoading || !summary?.output}
                           onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => setHlColorMenuOpen((v) => !v)}
+                          onClick={() => {
+                            setHlPopupOpen(false);
+                            setHlColorMenuOpen((v) => !v);
+                          }}
                         >
                           <Chevron open={hlColorMenuOpen} />
                         </button>
@@ -1735,10 +1911,142 @@ export default function SummaryView() {
                                   onClick={() => {
                                     setHlColorHex(p.hex);
                                     setHlModeActive(true);
+                                    setHlPopupOpen(false);
                                     setHlColorMenuOpen(false);
                                   }}
                                 />
                               ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Mobile-only: open highlights list in a popup */}
+                      <div className="hl-popup-wrap" ref={hlPopupWrapRef}>
+                        <button
+                          type="button"
+                          className="hl-list-btn"
+                          title="Highlights"
+                          aria-label="Show highlights"
+                          aria-expanded={hlPopupOpen}
+                          onClick={() => {
+                            setHlPopupOpen((v) => !v);
+                            setHlColorMenuOpen(false);
+                          }}
+                          disabled={summaryLoading || !summary?.output}
+                        >
+                          <HighlightIco size={13} />
+                          {pendingHighlights.length > 0 && (
+                            <span className="hl-list-badge">
+                              {Math.min(99, pendingHighlights.length)}
+                            </span>
+                          )}
+                        </button>
+
+                        {hlPopupOpen && (
+                          <div className="hl-popup" role="dialog" aria-label="Highlights">
+                            <div className="hl-panel" aria-label="Highlights list">
+                              <div className="hl-head-row">
+                                <div className="hl-head">Highlights</div>
+                                <button
+                                  type="button"
+                                  className="hl-save-btn"
+                                  title={
+                                    pendingHighlights.length
+                                      ? `Save ${pendingHighlights.length} highlight(s) to the server`
+                                      : "No unsaved highlights"
+                                  }
+                                  disabled={
+                                    pendingHighlights.length === 0 ||
+                                    hlSaving ||
+                                    hlLoading
+                                  }
+                                  onClick={() => void flushPendingHighlights()}
+                                  aria-label="Save highlights"
+                                >
+                                  {hlSaving ? <Spinner size={12} /> : <SaveIco size={14} />}
+                                </button>
+                              </div>
+
+                              {pendingHighlights.length > 0 && (
+                                <div className="hl-sub">
+                                  {pendingHighlights.length} unsaved — click save.
+                                </div>
+                              )}
+
+                              {hlLoading ? (
+                                <div className="hl-empty">
+                                  <Spinner size={12} /> Loading…
+                                </div>
+                              ) : highlights.length === 0 &&
+                                pendingHighlights.length === 0 ? (
+                                <div className="hl-empty">
+                                  Turn on the highlighter, pick a color, select text in the summary,
+                                  then save here.
+                                </div>
+                              ) : (
+                                <>
+                                  {pendingHighlights.map((p) => (
+                                    <div
+                                      key={p.clientId}
+                                      className="hl-item pending"
+                                      style={{
+                                        ["--hl-accent"]:
+                                          p.color && /^#[0-9a-f]{6}$/i.test(p.color)
+                                            ? p.color
+                                            : DEFAULT_HL_HEX,
+                                      }}
+                                      onClick={() => scrollToHighlight(p.clientId)}
+                                      title={p.quote}
+                                    >
+                                      <div className="hl-quote">
+                                        {p.quote.length > 140 ? `${p.quote.slice(0, 140)}…` : p.quote}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        className="hl-x"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          removePendingHighlight(p.clientId);
+                                        }}
+                                        aria-label="Remove unsaved highlight"
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                  ))}
+
+                                  {highlights.map((h) => (
+                                    <div
+                                      key={h.id}
+                                      className="hl-item"
+                                      style={{
+                                        ["--hl-accent"]:
+                                          h.color && /^#[0-9a-f]{6}$/i.test(h.color)
+                                            ? h.color
+                                            : DEFAULT_HL_HEX,
+                                      }}
+                                      onClick={() => scrollToHighlight(h.id)}
+                                      title={h.quote}
+                                    >
+                                      <div className="hl-quote">
+                                        {h.quote.length > 140 ? `${h.quote.slice(0, 140)}…` : h.quote}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        className="hl-x"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          deleteHighlight(h.id);
+                                        }}
+                                        aria-label="Remove highlight"
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                  ))}
+                                </>
+                              )}
                             </div>
                           </div>
                         )}
@@ -1886,42 +2194,71 @@ export default function SummaryView() {
                 {/* Input */}
                 <div className="inp-row">
                     <input
-                      ref={inputRef}
-                      className="inp"
-                      placeholder="Refine your summary or ask question..."
-                      value={inputVal}
-                      onChange={(e) => setInputVal(e.target.value)}
-                      onKeyDown={(e) =>
-                        e.key === "Enter" && !e.shiftKey && sendMessage()
-                      }
-                      disabled={chatLoading}
+                      ref={sourceInputRef}
+                      type="file"
+                      multiple
+                      accept={ACCEPTED}
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        handleSourceUpload(e.target.files);
+                        e.target.value = "";
+                      }}
                     />
-                    <div className="mdl-wrap">
+                    <div className="chatbox">
                       <button
-                        className={`mdl-btn ${modelOpen ? "open" : ""}`}
-                        onClick={() => setModelOpen((v) => !v)}
-                        onBlur={() =>
-                          setTimeout(() => setModelOpen(false), 150)
-                        }
+                        type="button"
+                        className="attach-btn"
+                        title="Add attachment"
+                        aria-label="Add attachment"
+                        disabled={sourceUploadLoading}
+                        onClick={() => sourceInputRef.current?.click()}
                       >
-                        {chatModel} <Chevron open={modelOpen} />
+                        {sourceUploadLoading ? <Spinner size={12} /> : <ClipIco size={16} />}
+                        {extraSources.length > 0 && (
+                          <span className="attach-badge">
+                            {Math.min(99, extraSources.length)}
+                          </span>
+                        )}
                       </button>
-                      {modelOpen && (
-                        <div className="mdl-menu">
-                          {MODELS.map((m) => (
-                            <div
-                              key={m}
-                              className={`mdl-opt ${chatModel === m ? "on" : ""}`}
-                              onMouseDown={() => {
-                                setChatModel(m);
-                                setModelOpen(false);
-                              }}
-                            >
-                              {m} {chatModel === m && "✓"}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      <span className="attach-divider" aria-hidden />
+                      <input
+                        ref={inputRef}
+                        className="inp"
+                        placeholder="Refine your summary or ask question..."
+                        value={inputVal}
+                        onChange={(e) => setInputVal(e.target.value)}
+                        onKeyDown={(e) =>
+                          e.key === "Enter" && !e.shiftKey && sendMessage()
+                        }
+                        disabled={chatLoading}
+                      />
+                      <div className="mdl-wrap">
+                        <button
+                          className={`mdl-btn ${modelOpen ? "open" : ""}`}
+                          onClick={() => setModelOpen((v) => !v)}
+                          onBlur={() =>
+                            setTimeout(() => setModelOpen(false), 150)
+                          }
+                        >
+                          {chatModel} <Chevron open={modelOpen} />
+                        </button>
+                        {modelOpen && (
+                          <div className="mdl-menu">
+                            {MODELS.map((m) => (
+                              <div
+                                key={m}
+                                className={`mdl-opt ${chatModel === m ? "on" : ""}`}
+                                onMouseDown={() => {
+                                  setChatModel(m);
+                                  setModelOpen(false);
+                                }}
+                              >
+                                {m} {chatModel === m && "✓"}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <button
                       className="send-btn"
@@ -1953,40 +2290,41 @@ export default function SummaryView() {
 
             {/* Sources panel (NotebookLM style) */}
             <aside className="sources" aria-label="Sources" style={{ width: sourcesWidth }}>
-              <input
-                ref={sourceInputRef}
-                type="file"
-                multiple
-                accept={ACCEPTED}
-                style={{ display: "none" }}
-                onChange={(e) => {
-                  handleSourceUpload(e.target.files);
-                  e.target.value = "";
-                }}
-              />
               <div className="src-header">
-                <span className="src-title">Sources</span>
-                <button
-                  type="button"
-                  className="src-add-btn"
-                  onClick={() => sourceInputRef.current?.click()}
-                  disabled={sourceUploadLoading}
-                >
-                  {sourceUploadLoading ? (
-                    <>
-                      <Spinner size={10} />
-                      <span>Uploading...</span>
-                    </>
-                  ) : (
-                    <>
-                      +<span>Add sources</span>
-                    </>
-                  )}
-                </button>
+                <span className="src-title">SOURCES</span>
               </div>
-              <div className="hl-panel" aria-label="Highlights">
+              <div className="src-list">
+                {(() => {
+                  const base = summary?.files || [];
+                  const extras = extraSources.filter(
+                    (es) => !base.some((f) => f.id === es.id),
+                  );
+                  const all = [...base, ...extras];
+                  if (!all.length) {
+                    return (
+                      <div className="src-empty">
+                        No attached sources. Use “Add sources” to pick documents
+                        from the dashboard.
+                      </div>
+                    );
+                  }
+                  return all.map((f) => (
+                    <div key={f.id} className="src-item">
+                      <DocIco ext={f.type} />
+                      <div className="src-info">
+                        <div className="src-name" title={f.name}>
+                          {f.name}
+                        </div>
+                        <div className="src-meta">{f.type}</div>
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+
+              <div className="hl-panel hl-panel--sources" aria-label="Highlights">
                 <div className="hl-head-row">
-                  <div className="hl-head">Highlights</div>
+                  <div className="hl-head">HIGHLIGHTS</div>
                   <button
                     type="button"
                     className="hl-save-btn"
@@ -2087,39 +2425,32 @@ export default function SummaryView() {
                   </>
                 )}
               </div>
-              <div className="src-list">
-                {(() => {
-                  const base = summary?.files || [];
-                  const extras = extraSources.filter(
-                    (es) => !base.some((f) => f.id === es.id),
-                  );
-                  const all = [...base, ...extras];
-                  if (!all.length) {
-                    return (
-                      <div className="src-empty">
-                        No attached sources. Use “Add sources” to pick documents
-                        from the dashboard.
-                      </div>
-                    );
-                  }
-                  return all.map((f) => (
-                    <div key={f.id} className="src-item">
-                      <DocIco ext={f.type} />
-                      <div className="src-info">
-                        <div className="src-name" title={f.name}>
-                          {f.name}
-                        </div>
-                        <div className="src-meta">{f.type}</div>
-                      </div>
-                    </div>
-                  ));
-                })()}
-              </div>
             </aside>
           </div>
         </div>
       </div>
       {slidesModal && <GenerateSlidesModal onClose={() => setSlidesModal(false)} />}
+
+      {quizModal && (
+        <QuizSettingsModal
+          summaryId={summaryId}
+          onClose={() => setQuizModal(false)}
+          onGenerated={(quiz, settings) => {
+            setQuizModal(false);
+            setQuizData(quiz);
+            setQuizSettings(settings);
+            setQuizView(true);
+          }}
+        />
+      )}
+
+      {quizView && (
+        <QuizViewModal
+          quizSet={quizData}
+          settings={quizSettings}
+          onClose={() => setQuizView(false)}
+        />
+      )}
     </>
   );
 }
