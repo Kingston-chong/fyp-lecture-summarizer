@@ -147,13 +147,16 @@ export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
           difficulty,
           questionTypes,
           focusAreas,
-          generationMode
+          generationMode,
+          answerShowMode,
+          quizMode,
+          timeLimit,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to generate quiz");
       
-      onGenerated(data.quizSet, { answerShowMode, quizMode, timeLimit });
+      onGenerated(data.quizSet);
     } catch (e) {
       setError(e.message);
     } finally {

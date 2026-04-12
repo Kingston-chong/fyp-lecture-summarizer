@@ -11,7 +11,7 @@ import {
 } from "@/lib/llmServer";
 import {
   fetchTavilyContextForChat,
-  shouldAugmentWithWebSearch,
+  userRequestedBeyondSummaryWeb,
 } from "@/lib/tavilySearch";
 import { getRoleProfile, normalizeSummarizeRole } from "@/lib/roleProfiles";
 
@@ -309,18 +309,29 @@ export async function POST(req) {
 
     const webSearchKeyOk = Boolean(process.env.TAVILY_API_KEY);
     const webSearchGloballyOff = process.env.CHAT_WEB_SEARCH === "0";
+    const toggleOn = webSearchOverride === true;
+    const phraseOn = userRequestedBeyondSummaryWeb(lastUserSearchText);
+    const userWantsWeb = toggleOn || phraseOn;
     const wantWebSearch =
-      webSearchKeyOk &&
-      !webSearchGloballyOff &&
-      webSearchOverride !== false &&
-      (webSearchOverride === true ||
-        shouldAugmentWithWebSearch(lastUserSearchText));
+      webSearchKeyOk && !webSearchGloballyOff && userWantsWeb;
+
+    let webSearchSkippedReason = null;
+    if (!wantWebSearch && userWantsWeb) {
+      if (!webSearchKeyOk) webSearchSkippedReason = "missing_tavily_key";
+      else if (webSearchGloballyOff) webSearchSkippedReason = "web_search_disabled_env";
+    }
 
     let webContext = "";
     if (wantWebSearch) {
-      const searchQuery = [summary.title, lastUserSearchText]
+      const qUser = lastUserSearchText.trim().slice(0, 220);
+      const qTitle = (summary.title || "").trim().slice(0, 80);
+      const suffix =
+        " Broader reference information beyond lecture notes only; include established facts not necessarily stated in the slides.";
+      const searchQuery = [qUser, qTitle ? `(Topic: ${qTitle})` : "", suffix]
         .filter(Boolean)
-        .join(" — ")
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim()
         .slice(0, 400);
       webContext = await fetchTavilyContextForChat(searchQuery);
     }
@@ -345,7 +356,9 @@ The user may paste screenshots or diagrams into the chat; use what you see toget
 Use the summary below as the authoritative source for what appears in their materials. Answer clearly in markdown when formatting helps.
 
 When the user asks for elaboration, definitions, background organizations, or other details that are missing or only briefly mentioned in the summary:
-- If a "Web search excerpts" section is present below, use it as the main factual basis for that extra detail. Mention source titles or domains briefly when it helps (you may use markdown links from the excerpts).
+- If a "Web search excerpts" section is present below, treat it as **external** evidence: prioritize facts that are **not already fully stated** in the summary. Do not merely paraphrase the summary using web snippets that only repeat the same points; add genuinely new information from the excerpts when available.
+- Prefer citing web sources (markdown links) for claims that go beyond the summary text.
+- If excerpts are empty, thin, or only restate what the summary already says, rely on the summary and careful general knowledge; label unsourced extrapolation as **Beyond the summary (general knowledge)**.
 - If there is no web section, use careful, well-established general knowledge and label that part clearly as **Beyond the summary (general knowledge)**.
 
 If the summary and web excerpts disagree on lecture-specific claims, prefer the summary for what the materials said, and note any conflict briefly.
@@ -366,6 +379,18 @@ ${attachmentContext ? `\n\n--- Attached Sources (uploaded by user) ---\n${attach
     if (!trimmed) {
       return NextResponse.json({ error: "The model returned an empty reply" }, { status: 502 });
     }
+
+    const webContextIncluded = Boolean(webContext && String(webContext).trim());
+    /** Client can show whether Tavily actually contributed text to the system prompt */
+    const webSearch = wantWebSearch
+      ? { attempted: true, contextIncluded: webContextIncluded }
+      : {
+          attempted: false,
+          contextIncluded: false,
+          ...(webSearchSkippedReason
+            ? { skippedReason: webSearchSkippedReason }
+            : {}),
+        };
     const hasReferencesSection = /\n#{0,3}\s*references\s*\n/i.test(trimmed);
     const finalReply =
       summarizeRole === "lecturer" && !hasReferencesSection
@@ -465,7 +490,7 @@ ${attachmentContext ? `\n\n--- Attached Sources (uploaded by user) ---\n${attach
       `;
     }
 
-    return NextResponse.json({ reply: finalReply });
+    return NextResponse.json({ reply: finalReply, webSearch });
   } catch (err) {
     console.error("Chat error:", err);
     const msg = err?.message || "Chat failed";

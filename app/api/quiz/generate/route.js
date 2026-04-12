@@ -12,14 +12,17 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    const { 
-      summaryId, 
-      model, 
-      numQuestions, 
-      difficulty, 
-      questionTypes, 
+    const {
+      summaryId,
+      model,
+      numQuestions,
+      difficulty,
+      questionTypes,
       focusAreas,
-      generationMode
+      generationMode,
+      answerShowMode,
+      quizMode,
+      timeLimit,
     } = body;
 
     if (!summaryId) {
@@ -78,14 +81,22 @@ Generate the quiz now.`;
         userId: user.id,
         summaryId: Number(summaryId),
         title: `Quiz for ${summary.title}`,
-        settings: {
-          model,
-          numQuestions,
-          difficulty,
-          questionTypes,
-          focusAreas,
-          generationMode
-        },
+        settings: (() => {
+          const s = {
+            model,
+            numQuestions,
+            difficulty,
+            questionTypes: questionTypes ?? [],
+            focusAreas: focusAreas ?? [],
+            generationMode: generationMode || "Strict",
+          };
+          if (answerShowMode != null)
+            s.answerShowMode = String(answerShowMode);
+          if (quizMode != null) s.quizMode = String(quizMode);
+          if (timeLimit != null && Number.isFinite(Number(timeLimit)))
+            s.timeLimit = Math.max(0, Number(timeLimit));
+          return s;
+        })(),
         questions: {
           create: questions.map((q, idx) => ({
             question: q.question,

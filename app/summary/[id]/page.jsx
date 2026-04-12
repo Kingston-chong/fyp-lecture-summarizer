@@ -64,6 +64,22 @@ function formatSlideDeckSavedAt(iso) {
   }
 }
 
+/** Build QuizViewModal settings from persisted QuizSet.settings (and defaults for older rows). */
+function settingsFromQuizSet(quizSet) {
+  const s =
+    quizSet?.settings && typeof quizSet.settings === "object"
+      ? quizSet.settings
+      : {};
+  return {
+    answerShowMode: s.answerShowMode ?? "Immediately",
+    quizMode: s.quizMode ?? "Practice",
+    timeLimit:
+      typeof s.timeLimit === "number" && !Number.isNaN(s.timeLimit)
+        ? s.timeLimit
+        : 0,
+  };
+}
+
 /** Display label for stored summary model e.g. `gemini:gemini-2.0-flash` → Gemini */
 function formatSummaryModelLabel(stored) {
   if (!stored) return "—";
@@ -352,6 +368,8 @@ export default function SummaryView() {
   const [modelOpen, setModelOpen] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
   const [chatNotice, setChatNotice] = useState("");
+  /** When true, /api/chat runs Tavily for that send (if TAVILY_API_KEY is set). Phrases like “beyond the summary” can also trigger search server-side. */
+  const [chatWebSearch, setChatWebSearch] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [showSuggest, setShowSuggest] = useState(true);
   const [sourceUploadLoading, setSourceUploadLoading] = useState(false);
@@ -375,6 +393,9 @@ export default function SummaryView() {
   const [slideDeckRemotePptUrl, setSlideDeckRemotePptUrl] = useState("");
   const [slideDeckPreviewTitle, setSlideDeckPreviewTitle] = useState("");
   const slideDeckDlRef = useRef(null);
+  const [quizSets, setQuizSets] = useState([]);
+  const [quizSetsLoading, setQuizSetsLoading] = useState(false);
+  const [quizSetOpeningId, setQuizSetOpeningId] = useState(null);
   const [highlights, setHighlights] = useState([]);
   const [pendingHighlights, setPendingHighlights] = useState([]);
   const [hlLoading, setHlLoading] = useState(false);
@@ -865,6 +886,7 @@ export default function SummaryView() {
           modelLabel: chatModel,
           messages: historyPayload,
           documentIds: attachedDocumentIds,
+          webSearch: chatWebSearch,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -873,6 +895,10 @@ export default function SummaryView() {
       }
       const reply = (data?.reply || "").trim();
       if (!reply) throw new Error("Empty reply from assistant");
+      const ws =
+        data?.webSearch && typeof data.webSearch === "object"
+          ? data.webSearch
+          : null;
       setMessages((p) => [
         ...p,
         {
@@ -880,6 +906,7 @@ export default function SummaryView() {
           role: "ai",
           content: reply,
           modelLabel: chatModel,
+          webSearch: ws,
         },
       ]);
     } catch (e) {
@@ -944,6 +971,7 @@ export default function SummaryView() {
           messages: historyPayload,
           documentIds: attachedDocumentIds,
           regenerate: true,
+          webSearch: chatWebSearch,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -952,6 +980,10 @@ export default function SummaryView() {
       }
       const reply = (data?.reply || "").trim();
       if (!reply) throw new Error("Empty reply from assistant");
+      const ws =
+        data?.webSearch && typeof data.webSearch === "object"
+          ? data.webSearch
+          : null;
       setMessages((p) => [
         ...p,
         {
@@ -959,6 +991,7 @@ export default function SummaryView() {
           role: "ai",
           content: reply,
           modelLabel: chatModel,
+          webSearch: ws,
         },
       ]);
     } catch (e) {
@@ -1192,12 +1225,59 @@ export default function SummaryView() {
     }
   }, [summaryId]);
 
+  const fetchQuizSets = useCallback(async () => {
+    const n = Number.parseInt(String(summaryId ?? ""), 10);
+    if (!Number.isFinite(n) || n <= 0) return;
+    setQuizSetsLoading(true);
+    try {
+      const res = await fetch(`/api/summary/${n}/quiz-sets`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(data.quizSets)) setQuizSets(data.quizSets);
+      else setQuizSets([]);
+    } catch {
+      setQuizSets([]);
+    } finally {
+      setQuizSetsLoading(false);
+    }
+  }, [summaryId]);
+
   useEffect(() => {
     if (status !== "authenticated") return;
     const n = Number.parseInt(String(summaryId ?? ""), 10);
     if (!Number.isFinite(n) || n <= 0) return;
     void fetchSlideDecks();
   }, [status, summaryId, fetchSlideDecks]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const n = Number.parseInt(String(summaryId ?? ""), 10);
+    if (!Number.isFinite(n) || n <= 0) return;
+    void fetchQuizSets();
+  }, [status, summaryId, fetchQuizSets]);
+
+  const openSavedQuizSet = useCallback(
+    async (setId) => {
+      const n = Number.parseInt(String(summaryId ?? ""), 10);
+      if (!Number.isFinite(n) || n <= 0 || !setId) return;
+      setQuizSetOpeningId(setId);
+      try {
+        const res = await fetch(`/api/summary/${n}/quiz-sets/${setId}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.quizSet) {
+          console.warn(data?.error || "Failed to load quiz");
+          return;
+        }
+        setQuizData(data.quizSet);
+        setQuizSettings(settingsFromQuizSet(data.quizSet));
+        setQuizView(true);
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        setQuizSetOpeningId(null);
+      }
+    },
+    [summaryId],
+  );
 
   function openSlideDeckPreview(deck) {
     setSlideDeckPreviewUrl("");
@@ -1781,6 +1861,20 @@ export default function SummaryView() {
       .sum-text ul { list-style-type: disc; }
       .sum-text ul ul { list-style-type: disc; }
       .sum-text ol li, .sum-text ul li { margin: 6px 0; }
+      .sum-text a, .md a {
+        color: #93c5fd;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        word-break: break-all;
+      }
+      .sum-text a:hover, .md a:hover { color: #bfdbfe; }
+      .sum-text .md-link-preface,
+      .md .md-link-preface,
+      .m-bub .md-link-preface {
+        opacity: 0.82;
+        font-weight: 400;
+        margin-right: 2px;
+      }
       .sum-text table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 12.5px; }
       .sum-text th, .sum-text td { border: 1px solid var(--sum-table-border); padding: 10px 14px; text-align: left; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
       .sum-text th { background: var(--sum-table-th-bg); font-weight: 600; color: var(--sum-table-th-text); }
@@ -1826,7 +1920,35 @@ export default function SummaryView() {
       .m-bub-wrap { position: relative; max-width: 74%; display: flex; flex-direction: row; align-items: flex-start; gap: 6px; }
       .m-bub-col { max-width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; flex: 1; min-width: 0; }
       .m-meta { font-size: 10px; color: rgba(255,255,255,.26); font-style: italic; padding-left: 2px; }
+      .m-web-note {
+        font-size: 10px;
+        line-height: 1.35;
+        margin-top: 5px;
+        padding: 5px 8px;
+        border-radius: 8px;
+        max-width: 100%;
+        font-style: normal;
+      }
+      .m-web-note--ok {
+        color: #a5b4fc;
+        background: rgba(99,102,241,.1);
+        border: 1px solid rgba(99,102,241,.22);
+      }
+      .m-web-note--warn {
+        color: #fcd34d;
+        background: rgba(250,204,21,.08);
+        border: 1px solid rgba(250,204,21,.2);
+      }
       .m-bub     { width: 100%; padding: 9px 13px; border-radius: 12px; font-size: 12.5px; font-weight: 300; line-height: 1.68; }
+      .m-bub a {
+        color: #93c5fd;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        word-break: break-all;
+      }
+      .m-bub a:hover { color: #bfdbfe; }
+      .m-bub.user a { color: #a5b4fc; }
+      .m-bub.user a:hover { color: #c7d2fe; }
       .m-bub.ai  { background: var(--sum-chat-ai-bg); border: 1px solid var(--sum-chat-ai-border); color: var(--sum-text); border-top-left-radius: 3px; }
       .m-bub.user{ background: var(--sum-chat-user-bg); border: 1px solid rgba(99,102,241,.25); color: var(--sum-title); border-top-right-radius: 3px; }
       .m-bub.err { background: rgba(248,113,113,.08); border-color: rgba(248,113,113,.2); color: #fca5a5; }
@@ -1932,6 +2054,31 @@ export default function SummaryView() {
 
       /* ── input row ── */
       .inp-row  { position: sticky; bottom: 0; display: flex; align-items: center; gap: 7px; padding: 8px 12px; border-top: 1px solid rgba(255,255,255,.06); flex-shrink: 0; background: linear-gradient(to top, rgba(16,16,24,.96), rgba(16,16,24,.84)); backdrop-filter: blur(6px); z-index: 20; }
+      .inp-web-label {
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        width: 44px;
+        cursor: pointer;
+        user-select: none;
+        font-family: 'Sora', sans-serif;
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: rgba(255,255,255,.45);
+        line-height: 1.1;
+      }
+      .inp-web-label input {
+        width: 15px;
+        height: 15px;
+        accent-color: #818cf8;
+        cursor: pointer;
+      }
+      .inp-web-label:hover { color: rgba(255,255,255,.65); }
       .chatbox {
         flex: 1;
         min-width: 0;
@@ -2405,6 +2552,16 @@ export default function SummaryView() {
       html[data-theme="light"] .chat-hint { color: rgba(0,0,0,0.45); }
       html[data-theme="light"] .chat-empty { color: rgba(0,0,0,0.45); }
       html[data-theme="light"] .m-meta { color: rgba(0,0,0,0.45); }
+      html[data-theme="light"] .m-web-note--ok {
+        color: #4338ca;
+        background: rgba(99,102,241,.12);
+        border-color: rgba(99,102,241,.28);
+      }
+      html[data-theme="light"] .m-web-note--warn {
+        color: #92400e;
+        background: rgba(250,204,21,.14);
+        border-color: rgba(217,119,6,.25);
+      }
       html[data-theme="light"] .m-copy {
         border-color: rgba(0,0,0,0.1);
         background: rgba(0,0,0,0.03);
@@ -2429,6 +2586,21 @@ export default function SummaryView() {
       html[data-theme="light"] .inp-row {
         border-top-color: rgba(0,0,0,0.08);
         background: linear-gradient(to top, rgba(255,255,255,.96), rgba(255,255,255,.86));
+      }
+      html[data-theme="light"] .inp-web-label { color: rgba(0,0,0,0.45); }
+      html[data-theme="light"] .inp-web-label:hover { color: rgba(0,0,0,0.65); }
+      html[data-theme="light"] .m-bub a { color: #2563eb; }
+      html[data-theme="light"] .m-bub a:hover { color: #1d4ed8; }
+      html[data-theme="light"] .m-bub.user a { color: #4f46e5; }
+      html[data-theme="light"] .m-bub.user a:hover { color: #4338ca; }
+      html[data-theme="light"] .sum-text a,
+      html[data-theme="light"] .md a { color: #2563eb; }
+      html[data-theme="light"] .sum-text a:hover,
+      html[data-theme="light"] .md a:hover { color: #1d4ed8; }
+      html[data-theme="light"] .sum-text .md-link-preface,
+      html[data-theme="light"] .md .md-link-preface,
+      html[data-theme="light"] .m-bub .md-link-preface {
+        color: rgba(0, 0, 0, 0.55);
       }
       html[data-theme="light"] .inp::placeholder { color: rgba(0,0,0,0.38); }
       html[data-theme="light"] .chat-uploads::-webkit-scrollbar-thumb { background: rgba(0,0,0,.16); }
@@ -2892,6 +3064,44 @@ export default function SummaryView() {
                                       Generated by {m.modelLabel}
                                     </div>
                                   )}
+                                {m.role === "ai" &&
+                                  !m.error &&
+                                  m.webSearch?.attempted &&
+                                  m.webSearch?.contextIncluded && (
+                                    <div className="m-web-note m-web-note--ok">
+                                      Web excerpts from Tavily were included with this reply.
+                                    </div>
+                                  )}
+                                {m.role === "ai" &&
+                                  !m.error &&
+                                  m.webSearch?.attempted &&
+                                  !m.webSearch?.contextIncluded && (
+                                    <div className="m-web-note m-web-note--warn">
+                                      Web search ran, but Tavily returned no usable excerpts
+                                      (empty results or API error — check server logs).
+                                    </div>
+                                  )}
+                                {m.role === "ai" &&
+                                  !m.error &&
+                                  !m.webSearch?.attempted &&
+                                  m.webSearch?.skippedReason ===
+                                    "missing_tavily_key" && (
+                                    <div className="m-web-note m-web-note--warn">
+                                      Web search was requested (checkbox or your wording), but{" "}
+                                      <strong>TAVILY_API_KEY</strong> is not set on the server,
+                                      so search was skipped.
+                                    </div>
+                                  )}
+                                {m.role === "ai" &&
+                                  !m.error &&
+                                  !m.webSearch?.attempted &&
+                                  m.webSearch?.skippedReason ===
+                                    "web_search_disabled_env" && (
+                                    <div className="m-web-note m-web-note--warn">
+                                      Web search was requested, but it is disabled for this deployment (
+                                      <strong>CHAT_WEB_SEARCH=0</strong>).
+                                    </div>
+                                  )}
                               </div>
                               {m.role === "ai" && (m.content || "").trim() && (
                                 <div className="m-bub-side-actions">
@@ -3003,6 +3213,21 @@ export default function SummaryView() {
                         e.target.value = "";
                       }}
                     />
+                    <label
+                      className="inp-web-label"
+                      title="Fetches external web excerpts beyond your summary (needs TAVILY_API_KEY). You can also ask in natural language, e.g. information beyond the summary or find info other than what is in the summary."
+                    >
+                      <input
+                        type="checkbox"
+                        checked={chatWebSearch}
+                        onChange={(e) => setChatWebSearch(e.target.checked)}
+                        disabled={chatLoading || sourceUploadLoading}
+                      />
+                      <span style={{ display: "block", textAlign: "center", width: "100%" }}>
+                        Web search
+                      </span>
+                 
+                    </label>
                     <div className={`chatbox ${(pendingSourceFiles.length > 0 || extraSources.length > 0 || pendingPasteImages.length > 0) ? "with-files" : ""}`}>
                       <button
                         type="button"
@@ -3284,6 +3509,59 @@ export default function SummaryView() {
                 </div>
               </div>
 
+              <div
+                className="hl-panel sd-panel sd-panel--sources"
+                aria-label="Saved quizzes"
+              >
+                <div className="hl-head-row">
+                  <div className="hl-head">SAVED QUIZZES</div>
+                  <button
+                    type="button"
+                    className="sd-refresh-btn"
+                    title="Refresh saved quizzes"
+                    disabled={quizSetsLoading}
+                    onClick={() => void fetchQuizSets()}
+                  >
+                    {quizSetsLoading ? <Spinner size={11} /> : "↻"}
+                  </button>
+                </div>
+                <div className="sd-deck-list">
+                  {quizSetsLoading && quizSets.length === 0 ? (
+                    <div className="hl-empty">
+                      <Spinner size={12} /> Loading…
+                    </div>
+                  ) : quizSets.length === 0 ? (
+                    <div className="hl-empty">
+                      None yet. Generate a quiz — it saves here automatically.
+                    </div>
+                  ) : (
+                    quizSets.map((q) => (
+                      <div key={q.id} className="sd-deck-row">
+                        <div className="sd-deck-title" title={q.title}>
+                          {q.title}
+                        </div>
+                        <div className="sd-deck-meta">
+                          {formatSlideDeckSavedAt(q.createdAt)}
+                          {typeof q._count?.questions === "number"
+                            ? ` · ${q._count.questions} Q`
+                            : ""}
+                        </div>
+                        <div className="sd-deck-actions">
+                          <button
+                            type="button"
+                            className="sd-deck-btn"
+                            disabled={quizSetOpeningId === q.id}
+                            onClick={() => void openSavedQuizSet(q.id)}
+                          >
+                            {quizSetOpeningId === q.id ? "…" : "Open"}
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
               <div className="hl-panel hl-panel--sources" aria-label="Highlights">
                 <div className="hl-head-row">
                   <div className="hl-head">HIGHLIGHTS</div>
@@ -3426,17 +3704,19 @@ export default function SummaryView() {
         <QuizSettingsModal
           summaryId={summaryId}
           onClose={() => setQuizModal(false)}
-          onGenerated={(quiz, settings) => {
+          onGenerated={(quiz) => {
             setQuizModal(false);
             setQuizData(quiz);
-            setQuizSettings(settings);
+            setQuizSettings(settingsFromQuizSet(quiz));
             setQuizView(true);
+            void fetchQuizSets();
           }}
         />
       )}
 
-      {quizView && (
+      {quizView && quizData && (
         <QuizViewModal
+          key={quizData.id}
           quizSet={quizData}
           settings={quizSettings}
           onClose={() => setQuizView(false)}

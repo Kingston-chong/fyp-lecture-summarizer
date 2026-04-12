@@ -11,9 +11,9 @@ import {
   EyeOffIcon,
   GoogleIcon,
   UserCircleIcon,
-} from "./components/icons";
-import ThemeToggle from "./components/ThemeToggle";
-import AppHeader from "./components/AppHeader";
+} from "@/app/components/icons";
+import ThemeToggle from "@/app/components/ThemeToggle";
+import AppHeader from "@/app/components/AppHeader";
 
 export default function Slide2NotesLogin() {
   const router = useRouter();

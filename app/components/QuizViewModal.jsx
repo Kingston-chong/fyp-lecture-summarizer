@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useTheme } from "../components/ThemeProvider.jsx";
 
 // ─── Icons ────────────────────────────────────────────────
@@ -40,16 +40,35 @@ export default function QuizViewModal({ quizSet, settings, onClose }) {
   const [userAnswers, setUserAnswers] = useState({});
   const [showExplanation, setShowExplanation] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(settings?.timeLimit ? settings.timeLimit * 60 : null);
-  
+  const initialTimeLeft = useMemo(
+    () => (settings?.timeLimit ? settings.timeLimit * 60 : null),
+    [settings?.timeLimit],
+  );
+  const [timeLeft, setTimeLeft] = useState(initialTimeLeft);
+
   const timerRef = useRef(null);
+
+  const resetSession = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setCurrentIdx(0);
+    setUserAnswers({});
+    setShowExplanation(false);
+    setIsFinished(false);
+    setTimeLeft(initialTimeLeft);
+  }, [initialTimeLeft]);
 
   useEffect(() => {
     if (timeLeft !== null && timeLeft > 0 && !isFinished) {
       timerRef.current = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            clearInterval(timerRef.current);
+        setTimeLeft((prev) => {
+          if (prev === null || prev <= 1) {
+            if (timerRef.current) {
+              clearInterval(timerRef.current);
+              timerRef.current = null;
+            }
             setIsFinished(true);
             return 0;
           }
@@ -57,7 +76,12 @@ export default function QuizViewModal({ quizSet, settings, onClose }) {
         });
       }, 1000);
     }
-    return () => clearInterval(timerRef.current);
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
   }, [timeLeft, isFinished]);
 
   const questions = quizSet?.questions || [];
@@ -388,14 +412,41 @@ export default function QuizViewModal({ quizSet, settings, onClose }) {
               )}
             </>
           ) : (
-            <button
-              type="button"
-              className="btn-submit"
-              style={{ width: "100%", justifyContent: "center" }}
-              onClick={onClose}
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 10,
+                width: "100%",
+                justifyContent: "flex-end",
+              }}
             >
-              Close & Save
-            </button>
+              <button
+                type="button"
+                onClick={resetSession}
+                style={{
+                  height: 42,
+                  padding: "0 20px",
+                  borderRadius: 10,
+                  border: `1px solid ${isDark ? "rgba(255,255,255,.15)" : "rgba(0,0,0,.12)"}`,
+                  background: isDark ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.04)",
+                  color: isDark ? "#e0e0f4" : "#1a1a2e",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: "'Sora', sans-serif",
+                }}
+              >
+                Retake quiz
+              </button>
+              <button
+                type="button"
+                className="btn-submit"
+                style={{ justifyContent: "center" }}
+                onClick={onClose}
+              >
+                Close
+              </button>
+            </div>
           )}
         </div>
       </div>
