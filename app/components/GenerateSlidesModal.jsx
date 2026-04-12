@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import SlidePreviewModal from "./SlidePreviewModal";
+import AlaiSlidesPreviewModal from "./AlaiSlidesPreviewModal";
 
 // ─── Icons ────────────────────────────────────────────────
 const CloseIco = () => (
@@ -107,16 +108,24 @@ const Divider = () => (
 );
 
 // ─── Main Modal ───────────────────────────────────────────
-export default function GenerateSlidesModal({ onClose }) {
+export default function GenerateSlidesModal({
+  onClose,
+  summaryText = "",
+  summarizeFor = "student",
+  /** When set, completed Alai decks are archived for this summary */
+  summaryId = null,
+  /** Called after a deck is successfully saved to the server (e.g. refresh sidebar) */
+  onSlideDecksChanged = null,
+}) {
   const imgInputRef = useRef();
   const pptxInputRef = useRef();
+  /** Latest download action for the open Alai preview (fresh proxy vs saved blob) */
+  const slideDownloadRef = useRef(null);
 
   const [slideTab, setSlideTab] = useState("create");
 
   // Image upload
   const [uploadedImages, setUploadedImages] = useState([]);
-  const [tagInputs, setTagInputs] = useState({});
-  const [tagDraft, setTagDraft]   = useState("");   // for the new-image slot
 
   // Improve existing PPT
   const [improveFile, setImproveFile] = useState(null);
@@ -134,6 +143,7 @@ export default function GenerateSlidesModal({ onClose }) {
 
   // Slide length & detail
   const [title,       setTitle]       = useState("");
+  const [slideUserPrompt, setSlideUserPrompt] = useState("");
   const [slideLength, setSlideLength] = useState("Short (summary)");
   const [maxSlides,   setMaxSlides]   = useState("");
 
@@ -153,8 +163,37 @@ export default function GenerateSlidesModal({ onClose }) {
   const [textDensity, setTextDensity] = useState("Compact");
 
   const [generating, setGenerating] = useState(false);
+  const [generateErr, setGenerateErr] = useState("");
+  const [generateProgress, setGenerateProgress] = useState("");
   const [previewing, setPreviewing] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
+  const [alaiPreviewOpen, setAlaiPreviewOpen] = useState(false);
+  const [alaiPreviewUrl, setAlaiPreviewUrl] = useState("");
+  const [alaiDownloadUrl, setAlaiDownloadUrl] = useState("");
+  /** Alai signed PPTX URL — used for Office Web Viewer when no link preview exists */
+  const [alaiRemotePptUrl, setAlaiRemotePptUrl] = useState("");
+  const [lastGenerationId, setLastGenerationId] = useState("");
+  const [archiveNote, setArchiveNote] = useState("");
+
+  function setFreshSlideDownload(pollData) {
+    const dl = pollData.download_url;
+    if (!dl) {
+      slideDownloadRef.current = null;
+      return;
+    }
+    const t = title || "presentation";
+    slideDownloadRef.current = async () => {
+      const dlRes = await fetch(`${dl}?title=${encodeURIComponent(t)}`);
+      if (!dlRes.ok) throw new Error("Failed to download presentation file");
+      const blob = await dlRes.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const fileName = t.replace(/[^a-z0-9]/gi, "_").toLowerCase() || "presentation";
+      a.download = `${fileName}.pptx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+  }
 
   // Handle image file pick
   function handleImgFiles(files) {
@@ -164,7 +203,6 @@ export default function GenerateSlidesModal({ onClose }) {
       reader.onload = e => {
         const id = Date.now() + Math.random();
         setUploadedImages(prev => [...prev, { id, name: f.name, tag: "", preview: e.target.result }]);
-        setTagInputs(prev => ({ ...prev, [id]: "" }));
       };
       reader.readAsDataURL(f);
     });
@@ -172,36 +210,176 @@ export default function GenerateSlidesModal({ onClose }) {
 
   function removeImage(id) {
     setUploadedImages(prev => prev.filter(img => img.id !== id));
-    setTagInputs(prev => { const n = { ...prev }; delete n[id]; return n; });
   }
 
   function setTag(id, val) {
     setUploadedImages(prev => prev.map(img => img.id === id ? { ...img, tag: val } : img));
   }
 
-  function handleTagKey(id, e) {
-    if (e.key === "Enter" && e.target.value.trim()) {
-      setTag(id, e.target.value.trim());
+  async function handleCreate() {
+    setGenerateErr("");
+    setGenerateProgress("");
+    setGenerating(true);
+    setLastGenerationId("");
+    setAlaiRemotePptUrl("");
+    setArchiveNote("");
+
+    try {
+      const res = await fetch("/api/generate-slides", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          summaryText,
+          summarizeFor,
+          title,
+          slideUserPrompt: slideUserPrompt.trim().slice(0, 4000),
+          slideLength,
+          maxSlides,
+          template,
+          textStyle,
+          strictness,
+          aiModel,
+        }),
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to start generation");
+
+      const genId = data.generation_id;
+      if (!genId) throw new Error("No generation ID returned");
+      setLastGenerationId(String(genId));
+
+      // Poll for completion (check immediately, then every 3s)
+      while (true) {
+        const pollRes = await fetch(`/api/generate-slides/${genId}`);
+        const pollData = await pollRes.json();
+
+        if (!pollRes.ok) {
+          throw new Error(pollData.error || "Failed to check status");
+        }
+
+        if (pollData.status === "failed") {
+          throw new Error(pollData.error || "Slide generation failed on the server.");
+        }
+
+        if (
+          pollData.status === "completed" &&
+          (pollData.preview_url ||
+            pollData.download_url ||
+            pollData.remote_download_url)
+        ) {
+          setGenerateProgress("Ready — opening preview...");
+          setAlaiPreviewUrl(pollData.preview_url || "");
+          setAlaiDownloadUrl(pollData.download_url || "");
+          setAlaiRemotePptUrl(pollData.remote_download_url || "");
+          setFreshSlideDownload(pollData);
+          setAlaiPreviewOpen(true);
+
+          if (summaryId) {
+            setArchiveNote("Saving a copy to your account…");
+            void (async () => {
+              try {
+                const ar = await fetch(`/api/summary/${summaryId}/slide-decks`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    alaiGenerationId: String(genId),
+                    title: title.trim() || undefined,
+                  }),
+                });
+                const aj = await ar.json().catch(() => ({}));
+                if (ar.ok) {
+                  setArchiveNote(
+                    "Saved — open “Slide decks” in the right sidebar to preview or download later.",
+                  );
+                  onSlideDecksChanged?.();
+                } else {
+                  setArchiveNote(
+                    aj?.error
+                      ? `Could not save copy: ${aj.error}`
+                      : "Could not save a copy (download still works).",
+                  );
+                }
+              } catch {
+                setArchiveNote("Could not save a copy (download still works).");
+              }
+              setTimeout(() => setArchiveNote(""), 8000);
+            })();
+          }
+          break;
+        }
+        if (pollData.status === "completed") {
+          throw new Error(
+            pollData.error ||
+              "Slide generation completed but no preview/download link was provided.",
+          );
+        }
+        setGenerateProgress(`Status: ${pollData.status}...`);
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+    } catch (e) {
+      setGenerateErr(e.message || String(e));
+    } finally {
+      setGenerating(false);
+      setGenerateProgress("");
     }
   }
 
   async function handlePreview() {
-    setShowPreview(true);
-  }
-
-  async function handleCreate() {
-    setGenerating(true);
-    // TODO: call /api/generate-slides with all settings
-    await new Promise(r => setTimeout(r, 1500));
-    setGenerating(false);
-    alert("Slides generation — wire up /api/generate-slides!");
-  }
-
-  async function handlePreview() {
     setPreviewing(true);
-    await new Promise(r => setTimeout(r, 800));
-    setPreviewing(false);
-    alert("Preview Slide — coming soon!");
+    try {
+      // If we already have preview data, just open the modal.
+      if (
+        alaiPreviewUrl ||
+        alaiRemotePptUrl ||
+        alaiDownloadUrl
+      ) {
+        if (alaiDownloadUrl) {
+          setFreshSlideDownload({ download_url: alaiDownloadUrl });
+        } else {
+          slideDownloadRef.current = null;
+        }
+        setAlaiPreviewOpen(true);
+        return;
+      }
+
+      // Otherwise, poll using the last generation id.
+      if (!lastGenerationId) {
+        alert("No generated slides found yet. Generate slides first.");
+        return;
+      }
+
+      const genId = lastGenerationId;
+      const maxAttempts = 60; // ~3 minutes (3s interval)
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const pollRes = await fetch(`/api/generate-slides/${genId}`);
+        const pollData = await pollRes.json();
+
+        if (!pollRes.ok) throw new Error(pollData.error || "Failed to check preview status");
+        if (pollData.status === "failed") throw new Error(pollData.error || "Slide generation failed");
+
+        if (
+          pollData.status === "completed" &&
+          (pollData.preview_url ||
+            pollData.download_url ||
+            pollData.remote_download_url)
+        ) {
+          setAlaiPreviewUrl(pollData.preview_url || "");
+          setAlaiDownloadUrl(pollData.download_url || "");
+          setAlaiRemotePptUrl(pollData.remote_download_url || "");
+          setFreshSlideDownload(pollData);
+          setAlaiPreviewOpen(true);
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+
+      alert("Preview timed out. Try generating slides again.");
+    } catch (e) {
+      alert(e?.message || String(e));
+    } finally {
+      setPreviewing(false);
+    }
   }
 
   async function handleImprovePlan() {
@@ -526,6 +704,18 @@ export default function GenerateSlidesModal({ onClose }) {
       .plan-list { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 12px 14px; max-height: 220px; overflow-y: auto; font-size: 11.5px; color: rgba(255,255,255,.65); line-height: 1.55; }
       .plan-item { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,.06); }
       .plan-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+
+      .create-prompt-row { grid-column: 1 / -1; margin-bottom: 4px; }
+      .create-prompt-area {
+        width: 100%; min-height: 88px; max-height: 200px; padding: 12px 14px; border-radius: 10px;
+        background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+        font-family: 'Sora',sans-serif; font-size: 12px; color: #c0c0d8; outline: none; resize: vertical;
+        line-height: 1.5;
+      }
+      .create-prompt-area::placeholder { color: rgba(255,255,255,.28); }
+      .create-prompt-area:focus { border-color: rgba(99,102,241,.4); box-shadow: 0 0 0 3px rgba(99,102,241,.08); }
+      .create-prompt-hint { font-size: 10.5px; color: rgba(255,255,255,.32); margin-top: 6px; }
+      .archive-note { font-size: 11px; color: #a5b4fc; margin-top: 10px; line-height: 1.4; }
     `}</style>
 
     <div className="sl-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -624,6 +814,22 @@ export default function GenerateSlidesModal({ onClose }) {
           )}
 
           {slideTab === "create" && (<>
+          <div className="create-prompt-row">
+            <SectionHead>Custom instructions (optional)</SectionHead>
+            <FieldLabel>
+              Describe focus, audience, pacing, or must-cover topics — the generator will try to follow this together with your summary.
+            </FieldLabel>
+            <textarea
+              className="create-prompt-area"
+              rows={4}
+              maxLength={4000}
+              placeholder='Examples: "Emphasize definitions and one worked example per concept." / "Final slide must list 5 review questions." / "Assume first-year undergrads; avoid jargon."'
+              value={slideUserPrompt}
+              onChange={(e) => setSlideUserPrompt(e.target.value)}
+            />
+            <div className="create-prompt-hint">{slideUserPrompt.length} / 4000</div>
+          </div>
+
           {/* ══ LEFT COLUMN ══ */}
           <div className="col-left">
 
@@ -777,6 +983,10 @@ export default function GenerateSlidesModal({ onClose }) {
               Enable bold keywords
             </label>
 
+            {generateErr && <div className="improve-err" style={{ marginTop: 12 }}>{generateErr}</div>}
+            {generateProgress && <div style={{ fontSize: 11.5, color: "#a5b4fc", marginTop: 12 }}>{generateProgress}</div>}
+            {archiveNote ? <div className="archive-note">{archiveNote}</div> : null}
+
           </div>{/* /col-right */}
           </>)}
 
@@ -809,9 +1019,9 @@ export default function GenerateSlidesModal({ onClose }) {
                 {previewing ? <div className="mini-spin"/> : <EyeIco/>}
                 Preview Slide
               </button>
-              <button className="btn-create" onClick={handleCreate} disabled={generating}>
+              <button type="button" className="btn-create" onClick={handleCreate} disabled={generating}>
                 {generating ? <div className="mini-spin"/> : <SlidesIco/>}
-                Create Slide
+                Generate {generating && generateProgress ? "" : "Slides"}
               </button>
             </>
           )}
@@ -828,6 +1038,24 @@ export default function GenerateSlidesModal({ onClose }) {
         theme={improvePreviewData.theme}
         slides={improvePreviewData.slides}
         totalPages={improvePreviewData.slides?.length || 0}
+      />
+    )}
+
+    {alaiPreviewOpen && (
+      <AlaiSlidesPreviewModal
+        onClose={() => setAlaiPreviewOpen(false)}
+        previewUrl={alaiPreviewUrl}
+        remotePptUrl={alaiRemotePptUrl}
+        title="Create Presentation Slides..."
+        subtitle="Your presentation slides is ready.."
+        onDownload={(() => {
+          const fn = slideDownloadRef.current;
+          return typeof fn === "function"
+            ? async () => {
+                await fn();
+              }
+            : undefined;
+        })()}
       />
     )}
     </>

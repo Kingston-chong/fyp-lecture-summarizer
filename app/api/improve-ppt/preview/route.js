@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { prisma } from "@/lib/prisma";
+import { getRequestUser } from "@/lib/apiAuth";
 import { parseJsonFromLlm } from "@/lib/jsonExtract";
 import { runChat } from "@/lib/llmServer";
 import { uiModelToKey } from "@/lib/improvePptModel";
@@ -41,17 +39,27 @@ function slidesFromOriginal(slides) {
   });
 }
 
+function compactSlidesForLlm(slidesIn) {
+  // Preview only needs enough context to rewrite titles/bullets.
+  // Keep payload small to reduce timeouts and malformed/truncated JSON.
+  return (slidesIn || [])
+    .map((s) => {
+      const idx = Number(s?.index);
+      const lines = Array.isArray(s?.lines) ? s.lines : [];
+      const text = String(s?.text || "").trim();
+      return {
+        index: Number.isFinite(idx) ? idx : s?.index,
+        // cap lines and lengths aggressively for preview prompt size
+        lines: lines.slice(0, 10).map((l) => String(l).slice(0, 280)).filter(Boolean),
+        text: text.slice(0, 1200),
+      };
+    })
+    .filter((s) => s.index != null);
+}
+
 export async function POST(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true },
-    });
+    const user = await getRequestUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -78,6 +86,7 @@ export async function POST(req) {
     const systemPrompt =
       "You are an expert presentation designer. Output ONLY valid JSON (no markdown fences).";
 
+    const slidesForPrompt = compactSlidesForLlm(slidesIn);
     const userContent = `Create an improved preview version of a PPT (theme + slide titles + bullets + speaker notes).
 
 Mode: ${mode}
@@ -88,7 +97,7 @@ Planned adjustments (may be empty):
 ${JSON.stringify(adjustments, null, 2)}
 
 Source slides (index, text, lines):
-${JSON.stringify(slidesIn, null, 2)}
+${JSON.stringify(slidesForPrompt, null, 2)}
 
 Return JSON exactly:
 {
@@ -96,7 +105,7 @@ Return JSON exactly:
   "subtitle": "One line value proposition",
   "theme": { "background":"#RRGGBB", "accent":"#RRGGBB", "text":"#RRGGBB", "panel":"#RRGGBB" },
   "slides": [
-    { "index": 1, "title": "Slide title", "lines": ["3-6 substantive bullets"], "notes": "2-5 sentences speaker notes" }
+    { "index": 1, "title": "Slide title", "lines": ["3-6 substantive bullets"], "notes": "1-2 sentences speaker notes (preview)" }
   ],
   "imageQueries": []
 }
@@ -113,10 +122,18 @@ Rules:
     try {
       parsed = parseJsonFromLlm(raw);
     } catch {
-      return NextResponse.json(
-        { error: "The model did not return valid JSON. Try again." },
-        { status: 502 }
-      );
+      // Degrade gracefully: still show a preview based on original slides.
+      // This avoids blocking the UI when the model returns malformed/truncated JSON.
+      const fallbackTheme = normalizeTheme(null);
+      const fallbackSlides = slidesFromOriginal(slidesIn);
+      return NextResponse.json({
+        title: "Improved presentation",
+        subtitle: "",
+        theme: fallbackTheme,
+        slides: fallbackSlides,
+        warning:
+          "Preview generated from original slides because the AI response was not valid JSON.",
+      });
     }
 
     const theme = normalizeTheme(parsed?.theme);
@@ -159,4 +176,3 @@ Rules:
     return NextResponse.json({ error: String(err?.message || err) }, { status: 500 });
   }
 }
-

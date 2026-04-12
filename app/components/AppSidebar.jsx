@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   ChevronDownIcon,
@@ -151,7 +152,8 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
   const [sectionsOpen, setSectionsOpen] = useState(true);
   /** heading id -> true when subsections are folded */
   const [foldedSectionGroups, setFoldedSectionGroups] = useState({});
-  const [menuOpenId, setMenuOpenId] = useState(null);
+  /** History row ⋮ menu: portaled to body so it is not clipped by sidebar overflow or trapped by drawer transform. */
+  const [historyMenu, setHistoryMenu] = useState(null); // { id, bottom, right, width }
   const [renameModal, setRenameModal] = useState(null); // { summary, value }
   const [deleteModal, setDeleteModal] = useState(null); // { summary }
   const [toast, setToast] = useState(null); // { message } for share feedback
@@ -236,7 +238,7 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
   }
 
   function openRenameModal(summary) {
-    setMenuOpenId(null);
+    setHistoryMenu(null);
     setRenameModal({ summary, value: summary.title || "" });
   }
 
@@ -265,7 +267,7 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
 
   async function handleDeleteSummary(summary) {
     if (!summary?.id) return;
-    setMenuOpenId(null);
+    setHistoryMenu(null);
     setDeleteModal({ summary });
   }
 
@@ -309,6 +311,49 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
     const t = setTimeout(() => setToast(null), 2800);
     return () => clearTimeout(t);
   }, [toast]);
+
+  useEffect(() => {
+    if (!historyMenu) return;
+    const close = () => setHistoryMenu(null);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [historyMenu]);
+
+  useEffect(() => {
+    if (!historyMenu) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setHistoryMenu(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [historyMenu]);
+
+  useEffect(() => {
+    if (!historyMenu) return;
+    const onDown = (e) => {
+      const t = e.target;
+      if (t.closest?.(".as-history-menu-portal")) return;
+      if (t.closest?.(".as-hdots")) return;
+      setHistoryMenu(null);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [historyMenu]);
+
+  const historyMenuSummary = useMemo(
+    () => (historyMenu ? history.find((x) => x.id === historyMenu.id) : null),
+    [history, historyMenu],
+  );
+
+  const portalTarget =
+    typeof document !== "undefined" ? document.body : null;
+
+  /** Move the history ⋮ menu horizontally: increase to shift right (pixels). */
+  const historyMenuShiftRightPx = 0;
 
   return (
     <>
@@ -484,6 +529,11 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
           flex-direction: column;
           gap: 4px;
         }
+        .as-history-menu-portal.as-menu {
+          margin: 0;
+          min-width: 200px;
+          z-index: 10020;
+        }
         .as-menu-btn {
           width: 100%;
           text-align: left;
@@ -520,7 +570,7 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
 
         .as-modal-backdrop {
           position: fixed; inset: 0; background: rgba(0,0,0,0.6);
-          backdrop-filter: blur(4px); z-index: 100;
+          backdrop-filter: blur(4px); z-index: 10030;
           display: flex; align-items: center; justify-content: center; padding: 16px;
         }
         .as-modal-box {
@@ -554,7 +604,7 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
           position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
           padding: 10px 18px; border-radius: 10px; font-size: 12.5px;
           background: rgba(22,22,32,0.95); border: 1px solid rgba(255,255,255,0.12);
-          color: #e0e0f0; z-index: 200; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+          color: #e0e0f0; z-index: 10040; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
           animation: asToastIn 0.2s ease;
         }
         @keyframes asToastIn { from { opacity: 0; transform: translateX(-50%) translateY(8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
@@ -668,7 +718,16 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
                       title="Options"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setMenuOpenId((prev) => (prev === h.id ? null : h.id));
+                        const r = e.currentTarget.getBoundingClientRect();
+                        setHistoryMenu((prev) =>
+                          prev?.id === h.id
+                            ? null
+                            : {
+                                id: h.id,
+                                bottom: r.bottom,
+                                right: r.right,
+                              },
+                        );
                       }}
                     >
                       {renamingId === h.id ? <span className="as-spin" /> : <DotsIcon />}
@@ -677,43 +736,6 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
                   <div className="as-hmeta">
                     {h.files.length} file{h.files.length !== 1 ? "s" : ""} · {timeAgo(h.createdAt)}
                   </div>
-                  {menuOpenId === h.id && (
-                    <div className="as-menu">
-                      <button
-                        type="button"
-                        className="as-menu-btn"
-                        onClick={() => {
-                          setMenuOpenId(null);
-                          openRenameModal(h);
-                        }}
-                      >
-                        <span className="as-menu-ico"><EditIcon size={16} /></span>
-                        Rename
-                      </button>
-                      <button
-                        type="button"
-                        className="as-menu-btn"
-                        onClick={() => {
-                          setMenuOpenId(null);
-                          handleShareSummary(h);
-                        }}
-                      >
-                        <span className="as-menu-ico"><ShareIcon size={16} /></span>
-                        Share
-                      </button>
-                      <button
-                        type="button"
-                        className="as-menu-btn danger"
-                        onClick={() => {
-                          setMenuOpenId(null);
-                          handleDeleteSummary(h);
-                        }}
-                      >
-                        <span className="as-menu-ico"><TrashIcon size={16} /></span>
-                        Delete
-                      </button>
-                    </div>
-                  )}
                 </div>
                 {expandedHistory === h.id &&
                   h.files.map((f) => (
@@ -810,45 +832,157 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
         )}
       </aside>
 
-      {renameModal && (
-        <div className="as-modal-backdrop" onClick={() => setRenameModal(null)}>
-          <div className="as-modal-box" onClick={(e) => e.stopPropagation()}>
-            <div className="as-modal-title">Rename summary</div>
-            <input
-              type="text"
-              className="as-modal-input"
-              value={renameModal.value}
-              onChange={(e) => setRenameModal((p) => ({ ...p, value: e.target.value }))}
-              onKeyDown={(e) => e.key === "Enter" && submitRename()}
-              placeholder="Summary title"
-              autoFocus
-            />
-            <div className="as-modal-btns">
-              <button type="button" className="as-modal-btn sec" onClick={() => setRenameModal(null)}>Cancel</button>
-              <button type="button" className="as-modal-btn primary" onClick={submitRename}>Save</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {portalTarget &&
+        historyMenu &&
+        historyMenuSummary &&
+        createPortal(
+          <div
+            className="as-menu as-history-menu-portal"
+            style={{
+              position: "fixed",
+              top: historyMenu.bottom + 6,
+              left:
+                Math.max(
+                  12,
+                  Math.min(
+                    historyMenu.right - 220,
+                    window.innerWidth - 220 - 12,
+                  ),
+                ) + historyMenuShiftRightPx,
+            }}
+            role="menu"
+          >
+            <button
+              type="button"
+              className="as-menu-btn"
+              onClick={() => {
+                setHistoryMenu(null);
+                openRenameModal(historyMenuSummary);
+              }}
+            >
+              <span className="as-menu-ico">
+                <EditIcon size={16} />
+              </span>
+              Rename
+            </button>
+            <button
+              type="button"
+              className="as-menu-btn"
+              onClick={() => {
+                setHistoryMenu(null);
+                handleShareSummary(historyMenuSummary);
+              }}
+            >
+              <span className="as-menu-ico">
+                <ShareIcon size={16} />
+              </span>
+              Share
+            </button>
+            <button
+              type="button"
+              className="as-menu-btn danger"
+              onClick={() => {
+                setHistoryMenu(null);
+                handleDeleteSummary(historyMenuSummary);
+              }}
+            >
+              <span className="as-menu-ico">
+                <TrashIcon size={16} />
+              </span>
+              Delete
+            </button>
+          </div>,
+          portalTarget,
+        )}
 
-      {deleteModal && (
-        <div className="as-modal-backdrop" onClick={() => setDeleteModal(null)}>
-          <div className="as-modal-box" onClick={(e) => e.stopPropagation()}>
-            <div className="as-modal-title">Delete summary</div>
-            <div className="as-modal-desc">Delete this summary permanently? This cannot be undone.</div>
-            <div className="as-modal-btns">
-              <button type="button" className="as-modal-btn sec" onClick={() => setDeleteModal(null)}>Cancel</button>
-              <button type="button" className="as-modal-btn danger" onClick={confirmDelete}>Delete</button>
+      {portalTarget &&
+        renameModal &&
+        createPortal(
+          <div
+            className="as-modal-backdrop"
+            onClick={() => setRenameModal(null)}
+          >
+            <div
+              className="as-modal-box"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="as-modal-title">Rename summary</div>
+              <input
+                type="text"
+                className="as-modal-input"
+                value={renameModal.value}
+                onChange={(e) =>
+                  setRenameModal((p) => ({ ...p, value: e.target.value }))
+                }
+                onKeyDown={(e) => e.key === "Enter" && submitRename()}
+                placeholder="Summary title"
+                autoFocus
+              />
+              <div className="as-modal-btns">
+                <button
+                  type="button"
+                  className="as-modal-btn sec"
+                  onClick={() => setRenameModal(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="as-modal-btn primary"
+                  onClick={submitRename}
+                >
+                  Save
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          portalTarget,
+        )}
 
-      {toast && (
-        <div className="as-toast" role="status">
-          {toast.message}
-        </div>
-      )}
+      {portalTarget &&
+        deleteModal &&
+        createPortal(
+          <div
+            className="as-modal-backdrop"
+            onClick={() => setDeleteModal(null)}
+          >
+            <div
+              className="as-modal-box"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="as-modal-title">Delete summary</div>
+              <div className="as-modal-desc">
+                Delete this summary permanently? This cannot be undone.
+              </div>
+              <div className="as-modal-btns">
+                <button
+                  type="button"
+                  className="as-modal-btn sec"
+                  onClick={() => setDeleteModal(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="as-modal-btn danger"
+                  onClick={confirmDelete}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>,
+          portalTarget,
+        )}
+
+      {portalTarget &&
+        toast &&
+        createPortal(
+          <div className="as-toast" role="status">
+            {toast.message}
+          </div>,
+          portalTarget,
+        )}
     </>
   );
 }

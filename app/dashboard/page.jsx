@@ -36,10 +36,10 @@ const MODEL_PROVIDERS = [
     id: "gemini",
     label: "Gemini",
     variants: [
-      { id: "gemini-2.0-flash", label: "2.0 Flash" },
-      { id: "gemini-1.5-flash", label: "1.5 Flash" },
-      { id: "gemini-1.5-pro", label: "1.5 Pro" },
-      { id: "gemini-2.5-flash", label: "2.5 Flash" },
+      { id: "gemini-3-flash-preview", label: "3 Flash (Preview)", desc: "Fast & capable — best for quick, everyday tasks" },
+      { id: "gemini-3.1-flash-lite-preview", label: "3.1 Flash Lite (Preview)", desc: "Lightweight & efficient — ideal for simple, high-volume tasks" },
+      { id: "gemini-2.5-flash", label: "2.5 Flash", desc: "Balanced speed & intelligence — great for general-purpose use" },
+      { id: "gemini-2.5-pro", label: "2.5 Pro", desc: "Highest quality & deep reasoning — best for complex analysis" },
     ],
   },
 ];
@@ -112,6 +112,8 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [useExistingDialog, setUseExistingDialog] = useState(null); // { names: string[] } when files already on server
   const [removingDocId, setRemovingDocId] = useState(null); // id of document being removed from server
+  const [selectedPrevDocIds, setSelectedPrevDocIds] = useState([]); // selected docs for bulk delete
+  const [bulkRemoving, setBulkRemoving] = useState(false);
   const fileInputRef = useRef();
   const splitterRef = useRef(null); // { type: "sidebar" | "right", startX, startSidebar, startRight }
 
@@ -147,6 +149,12 @@ export default function Dashboard() {
       fetchPrevUploads();
     }
   }, [status]);
+
+  useEffect(() => {
+    setSelectedPrevDocIds((prev) =>
+      prev.filter((id) => prevUploads.some((doc) => doc.id === id)),
+    );
+  }, [prevUploads]);
 
   // Keep modelVariant in sync with provider (e.g. after switching provider)
   useEffect(() => {
@@ -359,17 +367,71 @@ export default function Dashboard() {
   }
 
   async function handleRemoveDocument(doc) {
-    if (removingDocId != null) return;
+    if (removingDocId != null || bulkRemoving) return;
+    const confirmed = window.confirm(
+      `Delete "${doc?.name ?? "this file"}" from server? This cannot be undone.`,
+    );
+    if (!confirmed) return;
     setRemovingDocId(doc.id);
     try {
       const res = await fetch(`/api/documents/${doc.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to remove");
       setSelectedFiles(prev => prev.filter(f => f.id !== doc.id && f.name !== doc.name));
+      setSelectedPrevDocIds((prev) => prev.filter((id) => id !== doc.id));
       fetchPrevUploads();
     } catch (e) {
       setError("Could not remove document: " + (e?.message ?? "Unknown error"));
     } finally {
       setRemovingDocId(null);
+    }
+  }
+
+  function togglePrevDocSelection(docId) {
+    setSelectedPrevDocIds((prev) =>
+      prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId],
+    );
+  }
+
+  function toggleSelectAllPrevDocs() {
+    if (selectedPrevDocIds.length === prevUploads.length) {
+      setSelectedPrevDocIds([]);
+      return;
+    }
+    setSelectedPrevDocIds(prevUploads.map((doc) => doc.id));
+  }
+
+  async function handleRemoveSelectedDocuments() {
+    if (bulkRemoving || removingDocId != null || selectedPrevDocIds.length === 0) return;
+    const docsToRemove = prevUploads.filter((doc) => selectedPrevDocIds.includes(doc.id));
+    const confirmed = window.confirm(
+      `Delete ${docsToRemove.length} selected file${docsToRemove.length !== 1 ? "s" : ""} from server? This cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setBulkRemoving(true);
+    setError("");
+    let failed = 0;
+    try {
+      for (const doc of docsToRemove) {
+        try {
+          const res = await fetch(`/api/documents/${doc.id}`, { method: "DELETE" });
+          if (!res.ok) throw new Error("Failed to remove");
+        } catch {
+          failed += 1;
+        }
+      }
+      const removedIds = new Set(docsToRemove.map((doc) => doc.id));
+      const removedNames = new Set(docsToRemove.map((doc) => doc.name));
+      setSelectedFiles((prev) =>
+        prev.filter((f) => !(removedIds.has(f.id) || removedNames.has(f.name))),
+      );
+      setSelectedPrevDocIds([]);
+      await fetchPrevUploads();
+      if (failed > 0) {
+        setError(`Could not remove ${failed} file${failed !== 1 ? "s" : ""}.`);
+      }
+    } finally {
+      setBulkRemoving(false);
     }
   }
 
@@ -449,6 +511,13 @@ export default function Dashboard() {
         .prev-item:hover { background: rgba(255,255,255,0.03); }
         .prev-item-main { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; cursor: pointer; }
         .prev-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+        .prev-controls { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 16px 8px; }
+        .prev-select-all { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; color: rgba(255,255,255,0.45); user-select: none; }
+        .prev-select-all input { width: 12px; height: 12px; accent-color: #6366f1; }
+        .prev-bulk-remove { height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid rgba(248,113,113,0.25); background: rgba(248,113,113,0.08); color: #fca5a5; font-size: 10.5px; font-family: 'Sora', sans-serif; cursor: pointer; transition: all 0.15s; }
+        .prev-bulk-remove:hover:not(:disabled) { background: rgba(248,113,113,0.2); border-color: rgba(248,113,113,0.4); }
+        .prev-bulk-remove:disabled { opacity: 0.55; cursor: not-allowed; }
+        .prev-check { width: 13px; height: 13px; accent-color: #6366f1; flex-shrink: 0; }
         .prev-remove { width: 22px; height: 22px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.08); background: rgba(248,113,113,0.08); color: #f87171; font-size: 14px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
         .prev-remove:hover:not(:disabled) { background: rgba(248,113,113,0.2); border-color: rgba(248,113,113,0.3); }
         .prev-remove:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -584,6 +653,7 @@ export default function Dashboard() {
         .model-opt.on { background: rgba(99,102,241,0.16); }
         .model-opt-name { font-size: 12.5px; font-weight: 500; color: #c0c0e0; }
         .model-opt-sub { font-size: 10.5px; color: rgba(255,255,255,0.28); }
+        .model-opt-desc { font-size: 10.5px; color: rgba(255,255,255,0.28); margin-top: 2px; }
         .model-check { color: #a5b4fc; font-size: 11px; }
 
         .error-box { padding: 10px 12px; border-radius: 8px; background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.2); font-size: 12px; color: #fca5a5; }
@@ -614,8 +684,8 @@ export default function Dashboard() {
         .modal-btn.primary { border: none; background: linear-gradient(135deg, #5f60f0 0%, #8b5cf6 100%); color: white; }
         .modal-btn.primary:hover { filter: brightness(1.08); }
 
-        /* ── Mobile layout ───────────────────────────────────────────────── */
-        @media (max-width: 900px) {
+        /* ── Mobile layout (match AppShell 1023px breakpoint; single scroll = shell-content) ── */
+        @media (max-width: 1023px) {
           .app {
             height: auto;
             min-height: 100vh;
@@ -623,8 +693,9 @@ export default function Dashboard() {
 
           .body {
             flex-direction: column;
+            flex: none;
             height: auto;
-            overflow-y: auto;
+            overflow: visible;
           }
 
           .sidebar {
@@ -731,6 +802,9 @@ export default function Dashboard() {
         html[data-theme="light"] .prev-item:hover { background: rgba(0,0,0,0.04); }
         html[data-theme="light"] .prev-name { color: #111827; }
         html[data-theme="light"] .prev-meta { color: rgba(0,0,0,0.45); }
+        html[data-theme="light"] .prev-select-all { color: rgba(0,0,0,0.55); }
+        html[data-theme="light"] .prev-bulk-remove { border-color: rgba(220,38,38,0.25); background: rgba(220,38,38,0.08); color: #b91c1c; }
+        html[data-theme="light"] .prev-bulk-remove:hover:not(:disabled) { background: rgba(220,38,38,0.18); border-color: rgba(220,38,38,0.35); }
 
         html[data-theme="light"] .sidebar-empty { color: rgba(0,0,0,0.45); }
         html[data-theme="light"] .sidebar-loading { color: rgba(0,0,0,0.45); }
@@ -912,11 +986,41 @@ export default function Dashboard() {
                 <div className="sidebar-loading"><div className="mini-spinner" /> Loading...</div>
               ) : prevUploads.length === 0 ? (
                 <div className="sidebar-empty">No uploads yet</div>
-              ) : prevUploads.map(doc => {
+              ) : <>
+                <div className="prev-controls">
+                  <label className="prev-select-all">
+                    <input
+                      type="checkbox"
+                      checked={prevUploads.length > 0 && selectedPrevDocIds.length === prevUploads.length}
+                      onChange={toggleSelectAllPrevDocs}
+                    />
+                    Select all
+                  </label>
+                  <button
+                    type="button"
+                    className="prev-bulk-remove"
+                    onClick={handleRemoveSelectedDocuments}
+                    disabled={bulkRemoving || removingDocId != null || selectedPrevDocIds.length === 0}
+                    title="Delete selected files"
+                  >
+                    {bulkRemoving
+                      ? "Deleting..."
+                      : `Delete selected (${selectedPrevDocIds.length})`}
+                  </button>
+                </div>
+                {prevUploads.map(doc => {
                 const isAdded = selectedFiles.some(f => f.name === doc.name);
                 const isRemoving = removingDocId === doc.id;
                 return (
                   <div className="prev-item" key={doc.id}>
+                    <input
+                      type="checkbox"
+                      className="prev-check"
+                      checked={selectedPrevDocIds.includes(doc.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={() => togglePrevDocSelection(doc.id)}
+                      aria-label={`Select ${doc.name}`}
+                    />
                     <div className="prev-item-main" onClick={() => addPrevFile(doc)}>
                       <FileIcon type={doc.type} />
                       <div className="prev-info">
@@ -929,7 +1033,7 @@ export default function Dashboard() {
                         type="button"
                         className="prev-remove"
                         title="Remove from server"
-                        disabled={isRemoving}
+                        disabled={isRemoving || bulkRemoving}
                         onClick={(e) => { e.stopPropagation(); handleRemoveDocument(doc); }}
                       >
                         {isRemoving ? <span className="mini-spinner" /> : "×"}
@@ -938,7 +1042,8 @@ export default function Dashboard() {
                     </div>
                   </div>
                 );
-              })
+              })}
+              </>
             )}
           </aside>
 
@@ -1121,7 +1226,10 @@ export default function Dashboard() {
                       {variants.map((v) => (
                         <div key={v.id} className={`model-opt ${modelVariant === v.id ? "on" : ""}`}
                           onMouseDown={() => { setModelVariant(v.id); setVariantOpen(false); }}>
-                          <div className="model-opt-name">{v.label}</div>
+                          <div>
+                            <div className="model-opt-name">{v.label}</div>
+                            {v.desc && <div className="model-opt-desc">{v.desc}</div>}
+                          </div>
                           {modelVariant === v.id && <span className="model-check">✓</span>}
                         </div>
                       ))}

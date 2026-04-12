@@ -2,12 +2,12 @@
 import { NextResponse } from "next/server";
 import { get } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getRequestUser } from "@/lib/apiAuth";
 import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { extractText as unpdfExtractText, getDocumentProxy } from "unpdf";
 import mammoth from "mammoth";
+import { getRoleProfile, normalizeSummarizeRole } from "@/lib/roleProfiles";
 
 const MAX_MODEL_INPUT_CHARS = Number.parseInt(
   process.env.SUMMARY_MAX_INPUT_CHARS || "12000",
@@ -316,25 +316,14 @@ async function callAI(model, modelVariant, systemPrompt, documentText) {
 
 export async function POST(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const userEmail = session?.user?.email;
-    if (!userEmail) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: userEmail },
-      select: { id: true },
-    });
+    const user = await getRequestUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { documentIds, model, modelVariant, summarizeFor, prompt } = await req.json();
+    const normalizedRole = normalizeSummarizeRole(summarizeFor);
+    const roleProfile = getRoleProfile(normalizedRole);
 
     if (!documentIds || documentIds.length === 0) {
       return NextResponse.json({ error: "No documents selected" }, { status: 400 });
@@ -352,10 +341,8 @@ export async function POST(req) {
 
     // Build system prompt based on summarizeFor
     const systemPrompt = `You are a document summarization assistant.
-${summarizeFor === "lecturer"
-  ? "Create a detailed, comprehensive summary with full explanations, technical depth, and complete context. Include all important concepts, methodologies, and details."
-  : "Create a simplified, student-friendly summary focusing only on the most important key points. Use clear language, bullet points where helpful, and avoid unnecessary complexity."
-}
+Target audience: ${roleProfile.label}.
+${roleProfile.summaryInstructions.map((line) => `- ${line}`).join("\n")}
 ${prompt ? `\nAdditional instructions: ${prompt}` : ""}
 Format your response in clean markdown with clear sections.`;
 
@@ -388,7 +375,7 @@ Format your response in clean markdown with clear sections.`;
         userId: user.id,
         title,
         model: modelForDb,
-        summarizeFor,
+        summarizeFor: normalizedRole,
         prompt: prompt || null,
         output,
         documents: {

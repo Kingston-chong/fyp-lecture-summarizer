@@ -2,8 +2,7 @@
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getRequestUser } from "@/lib/apiAuth";
 
 // Generates a new unique name if duplicate exists
 // lu1-tutorial.pdf → lu1-tutorial (1).pdf → lu1-tutorial (2).pdf
@@ -27,14 +26,10 @@ function generateRenamedFile(originalName, existingNames) {
 
 export async function POST(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
+    const user = await getRequestUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
 
     const formData = await req.formData();
     const files     = formData.getAll("files");

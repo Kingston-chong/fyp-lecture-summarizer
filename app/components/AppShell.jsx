@@ -205,6 +205,17 @@ export default function AppShell({
             height: calc(100vh - var(--chrome-h));
             overflow: hidden;
           }
+          /* Dashboard (drawer sidebar): main column is tall; allow scroll so controls below the fold stay reachable */
+          .shell.shell--dashboard-mobile .shell-content {
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain;
+          }
+          .shell.shell--dashboard-mobile .shell-main {
+            height: auto;
+            min-height: 100%;
+          }
           .shell-main {
             height: 100%;
             display: flex;
@@ -254,7 +265,9 @@ export default function AppShell({
       `}</style>
 
       <div
-        className={`shell${showSidebar && mobileNavOpen ? " shell--menu-open" : ""}`}
+        className={`shell${showSidebar && mobileNavOpen ? " shell--menu-open" : ""}${
+          sidebarMobileOnly ? " shell--dashboard-mobile" : ""
+        }`}
       >
         <div className="shell-blobs">
           <div className="blob1" />

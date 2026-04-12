@@ -175,8 +175,12 @@ export default function SlidePreviewModal({
   const [regenerating,setRegenerating]= useState(false);
   const thumbsRef = useRef(null);
 
-  const effectiveTotal =
-    Array.isArray(slides) && slides.length > 0 ? slides.length : totalPages;
+  const slideCount = Array.isArray(slides) ? slides.length : 0;
+  const totalNum = Number(totalPages);
+  const effectiveTotal = Math.max(
+    1,
+    slideCount > 0 ? slideCount : Number.isFinite(totalNum) && totalNum > 0 ? totalNum : 1,
+  );
   const activeSlide = Array.isArray(slides) ? slides[currentPage - 1] : null;
 
   // Keep input in sync with currentPage
@@ -224,16 +228,20 @@ export default function SlidePreviewModal({
     onGenerateAgain?.();
   }
 
-  // Keyboard navigation
+  // Keyboard navigation (functional updates so slide count changes stay in sync)
   useEffect(() => {
     function onKey(e) {
-      if (e.key === "ArrowLeft")  goTo(currentPage - 1);
-      if (e.key === "ArrowRight") goTo(currentPage + 1);
-      if (e.key === "Escape")     onClose();
+      if (e.key === "ArrowLeft") {
+        setCurrentPage((p) => Math.max(1, p - 1));
+      }
+      if (e.key === "ArrowRight") {
+        setCurrentPage((p) => Math.min(effectiveTotal, p + 1));
+      }
+      if (e.key === "Escape") onClose?.();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [currentPage]);
+  }, [effectiveTotal, onClose]);
 
   return (
     <>
@@ -392,7 +400,7 @@ export default function SlidePreviewModal({
     `}</style>
 
     <div className="pv-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="pv-modal">
+      <div className="pv-modal" onMouseDown={(e) => e.stopPropagation()}>
 
         {/* ── Header ── */}
         <div className="pv-head">
@@ -423,7 +431,7 @@ export default function SlidePreviewModal({
 
           {/* Page navigation */}
           <div className="page-nav">
-            <button className="nav-btn" onClick={() => goTo(currentPage - 1)} disabled={currentPage <= 1}>
+            <button type="button" className="nav-btn" onClick={() => goTo(currentPage - 1)} disabled={currentPage <= 1}>
               <ChevLeftIco/>
             </button>
             <div className="page-label">
@@ -437,7 +445,7 @@ export default function SlidePreviewModal({
               />
               <span className="out-of">out of {effectiveTotal}</span>
             </div>
-            <button className="nav-btn" onClick={() => goTo(currentPage + 1)} disabled={currentPage >= effectiveTotal}>
+            <button type="button" className="nav-btn" onClick={() => goTo(currentPage + 1)} disabled={currentPage >= effectiveTotal}>
               <ChevRightIco/>
             </button>
           </div>

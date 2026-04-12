@@ -11,7 +11,9 @@ import {
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import { markdownToHtml } from "@/lib/markdown";
+import { buildChatSuggestions } from "@/lib/chatSuggestionsFromSummary";
 import GenerateSlidesModal from "@/app/components/GenerateSlidesModal";
+import AlaiSlidesPreviewModal from "@/app/components/AlaiSlidesPreviewModal";
 import QuizSettingsModal from "@/app/components/QuizSettingsModal";
 import QuizViewModal from "@/app/components/QuizViewModal";
 import Button from "@/app/components/ui/Button";
@@ -20,6 +22,7 @@ import {
   Spinner,
   SendIco,
   CopyIco,
+  RegenIco,
   HighlightIco,
   SaveIco,
   BotIco,
@@ -43,6 +46,22 @@ function timeAgo(iso) {
 function fmtDate(iso) {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}, ${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function formatSlideDeckSavedAt(iso) {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
 }
 
 /** Display label for stored summary model e.g. `gemini:gemini-2.0-flash` → Gemini */
@@ -169,16 +188,75 @@ function wrapQuoteInRoot(root, quote, hlId, colorHex, pending) {
   }
 }
 
-const SUGGESTIONS = [
-  "Explain 2NF with a real-world example",
-  "What problems does BCNF solve?",
-  "When should I use denormalization?",
-];
-
 const MODELS = ["ChatGPT", "DeepSeek", "Gemini"];
 const ACCEPTED = ".pdf,.pptx,.ppt,.docx,.doc,.txt,.xlsx,.xls,.csv,.md";
+/** Documents + images (one file picker for the clip button) */
+const ATTACH_ACCEPT = `${ACCEPTED},image/*`;
+const MAX_CHAT_PASTE_IMAGES = 6;
+const CHAT_PASTE_MAX_EDGE = 1600;
+const CHAT_PASTE_JPEG_QUALITY = 0.88;
+
 /** Stable object so React does not treat summary body props as changing every render */
 const SUMMARY_BODY_INNER_STYLE = { paddingTop: 8 };
+
+/** @param {File} file */
+function downscaleImageFileToJpegDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        let { width, height } = img;
+        const max = CHAT_PASTE_MAX_EDGE;
+        if (width > max || height > max) {
+          const scale = max / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          URL.revokeObjectURL(url);
+          reject(new Error("Canvas unsupported"));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", CHAT_PASTE_JPEG_QUALITY);
+        URL.revokeObjectURL(url);
+        resolve(dataUrl);
+      } catch (e) {
+        URL.revokeObjectURL(url);
+        reject(e);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Could not read image"));
+    };
+    img.src = url;
+  });
+}
+
+/** @param {{ role: string, content?: string, imagePreviews?: string[] }} m */
+function chatMessageToApiPayload(m) {
+  if (m.role === "ai") {
+    return { role: "assistant", content: m.content || "" };
+  }
+  const text = (m.content || "").trim();
+  const urls = m.imagePreviews || [];
+  if (urls.length === 0) {
+    return { role: "user", content: text };
+  }
+  /** @type {{ type: string, text?: string, image_url?: { url: string } }[]} */
+  const parts = [];
+  if (text) parts.push({ type: "text", text });
+  for (const url of urls) {
+    parts.push({ type: "image_url", image_url: { url } });
+  }
+  return { role: "user", content: parts };
+}
 
 // ─── PDF export ───────────────────────────────────────────────────────────────
 function exportPDF(summary, messages) {
@@ -193,8 +271,21 @@ function exportPDF(summary, messages) {
       const roleLabel = isUser
         ? "You"
         : escape(m.modelLabel || formatSummaryModelLabel(summary.model));
-      const contentHtml = markdownToHtml(m.content || "");
-      return `<div class="msg ${cls}"><div class="role">${roleLabel}</div>${contentHtml}</div>`;
+      let imgBlock = "";
+      if (isUser && m.imagePreviews?.length) {
+        imgBlock = `<div class="img-note">${m.imagePreviews.length} image(s) in export</div>`;
+      } else if (isUser && m.lostPastedImageCount > 0) {
+        imgBlock = `<div class="img-note">${m.lostPastedImageCount} pasted image(s) (not stored)</div>`;
+      }
+      const rawText = (m.content || "").trim();
+      const mdSource =
+        isUser &&
+        rawText === "[Image message]" &&
+        (m.imagePreviews?.length > 0 || m.lostPastedImageCount > 0)
+          ? ""
+          : m.content || "";
+      const contentHtml = markdownToHtml(mdSource);
+      return `<div class="msg ${cls}"><div class="role">${roleLabel}</div>${imgBlock}${contentHtml}</div>`;
     })
     .join("");
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
@@ -260,10 +351,14 @@ export default function SummaryView() {
   const [chatModel, setChatModel] = useState("ChatGPT");
   const [modelOpen, setModelOpen] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
+  const [chatNotice, setChatNotice] = useState("");
   const [pdfLoading, setPdfLoading] = useState(false);
   const [showSuggest, setShowSuggest] = useState(true);
   const [sourceUploadLoading, setSourceUploadLoading] = useState(false);
   const [extraSources, setExtraSources] = useState([]);
+  const [pendingSourceFiles, setPendingSourceFiles] = useState([]); // { clientId, file, name, type }
+  /** Pasted screenshots for the next chat send — { clientId, dataUrl } */
+  const [pendingPasteImages, setPendingPasteImages] = useState([]);
   const [headings, setHeadings] = useState([]);
   const [summaryHtml, setSummaryHtml] = useState("");
   const [copiedId, setCopiedId] = useState(null);
@@ -273,6 +368,13 @@ export default function SummaryView() {
   const [quizView, setQuizView] = useState(false);
   const [quizData, setQuizData] = useState(null);
   const [quizSettings, setQuizSettings] = useState(null);
+  const [slideDecks, setSlideDecks] = useState([]);
+  const [slideDecksLoading, setSlideDecksLoading] = useState(false);
+  const [slideDeckPreviewOpen, setSlideDeckPreviewOpen] = useState(false);
+  const [slideDeckPreviewUrl, setSlideDeckPreviewUrl] = useState("");
+  const [slideDeckRemotePptUrl, setSlideDeckRemotePptUrl] = useState("");
+  const [slideDeckPreviewTitle, setSlideDeckPreviewTitle] = useState("");
+  const slideDeckDlRef = useRef(null);
   const [highlights, setHighlights] = useState([]);
   const [pendingHighlights, setPendingHighlights] = useState([]);
   const [hlLoading, setHlLoading] = useState(false);
@@ -288,7 +390,8 @@ export default function SummaryView() {
   const [sourcesWidth, setSourcesWidth] = useState(260);
   const [splitterDragging, setSplitterDragging] = useState(false);
   const splitterRef = useRef(null); // { startX, startWidth }
-
+  const [open, setOpen] = useState(false);
+  
   const [chatTitleEditing, setChatTitleEditing] = useState(false);
   const [chatTitleDraft, setChatTitleDraft] = useState("");
   const [chatTitleSaving, setChatTitleSaving] = useState(false);
@@ -344,6 +447,7 @@ export default function SummaryView() {
     setPendingHighlights([]);
     setHlPopupOpen(false);
     setChatTitleEditing(false);
+    setPendingPasteImages([]);
     if (typeof window !== "undefined") {
       window.getSelection()?.removeAllRanges();
     }
@@ -420,12 +524,33 @@ export default function SummaryView() {
 
         const dbMessages = Array.isArray(data?.messages) ? data.messages : [];
         setMessages(
-          dbMessages.map((m) => ({
-            id: m.id,
-            role: m.role === "assistant" ? "ai" : "user",
-            content: m.content,
-            modelLabel: m.role === "assistant" ? m.modelLabel : null,
-          })),
+          dbMessages.map((m) => {
+            const role = m.role === "assistant" ? "ai" : "user";
+            if (
+              role === "user" &&
+              typeof m.content === "string" &&
+              m.content.startsWith('{"v":1')
+            ) {
+              try {
+                const o = JSON.parse(m.content);
+                return {
+                  id: m.id,
+                  role: "user",
+                  content: typeof o.t === "string" ? o.t : "",
+                  lostPastedImageCount: Number(o.n) > 0 ? Number(o.n) : 0,
+                  modelLabel: null,
+                };
+              } catch {
+                /* fall through */
+              }
+            }
+            return {
+              id: m.id,
+              role,
+              content: m.content,
+              modelLabel: m.role === "assistant" ? m.modelLabel : null,
+            };
+          }),
         );
       } catch {
         // If chat loading fails, keep the chat empty (fallback behavior).
@@ -588,24 +713,99 @@ export default function SummaryView() {
 
   function handleCopyMessage(m) {
     const text = (m?.content || "").trim();
-    if (!text) return;
-    navigator.clipboard?.writeText(text).then(() => {
+    const imgN =
+      (m?.imagePreviews?.length || 0) + (m?.lostPastedImageCount || 0);
+    if (!text && !imgN) return;
+    const clip =
+      text +
+      (imgN
+        ? `${text ? "\n\n" : ""}[${imgN} image(s) in this message — copy text only]`
+        : "");
+    navigator.clipboard?.writeText(clip).then(() => {
       setCopiedId(m.id);
       setTimeout(() => setCopiedId(null), 1800);
     });
   }
 
+  async function addPastedImageFromFile(file) {
+    if (!file?.type?.startsWith("image/")) return;
+    try {
+      const dataUrl = await downscaleImageFileToJpegDataUrl(file);
+      const clientId =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random()}`;
+      let added = false;
+      setPendingPasteImages((p) => {
+        if (p.length >= MAX_CHAT_PASTE_IMAGES) return p;
+        added = true;
+        return [...p, { clientId, dataUrl }];
+      });
+      if (added) setChatNotice("");
+      else {
+        setChatNotice(
+          `You can attach at most ${MAX_CHAT_PASTE_IMAGES} images per message.`,
+        );
+      }
+    } catch {
+      setChatNotice(
+        "Could not add image. Try a different file or smaller image.",
+      );
+    }
+  }
+
+  async function addChatImagesFromFileList(fileList) {
+    if (!fileList?.length) return;
+    const files = Array.from(fileList).filter((f) =>
+      f.type.startsWith("image/"),
+    );
+    for (const file of files) {
+      await addPastedImageFromFile(file);
+    }
+  }
+
+  async function handleAttachmentFilesSelected(fileList) {
+    if (!fileList?.length) return;
+    const files = Array.from(fileList);
+    const images = files.filter((f) => f.type.startsWith("image/"));
+    const docs = files.filter((f) => !f.type.startsWith("image/"));
+    if (docs.length) handleSourceUpload(docs);
+    if (images.length) await addChatImagesFromFileList(images);
+  }
+
+  function removePendingPasteByClientId(clientId) {
+    setPendingPasteImages((p) => p.filter((x) => x.clientId !== clientId));
+  }
+
   async function sendMessage(text) {
     const msg = (text ?? inputVal).trim();
-    if (!msg || chatLoading) return;
+    if ((!msg && pendingPasteImages.length === 0) || chatLoading || sourceUploadLoading)
+      return;
     if (!summary?.output) return;
+    const threadHasInlineImages = messages.some(
+      (m) => m.role === "user" && (m.imagePreviews?.length || 0) > 0,
+    );
+    if (
+      chatModel === "DeepSeek" &&
+      (pendingPasteImages.length > 0 || threadHasInlineImages)
+    ) {
+      setChatNotice(
+        "DeepSeek cannot view pasted images in this thread. Choose ChatGPT or Gemini, or refresh if you no longer need image context.",
+      );
+      return;
+    }
+    setChatNotice("");
     setInputVal("");
     setShowSuggest(false);
-    const userMsg = { id: Date.now(), role: "user", content: msg };
-    const historyPayload = [...messages, userMsg].map((m) => ({
-      role: m.role === "ai" ? "assistant" : "user",
-      content: m.content,
-    }));
+    const pasteSnapshot = pendingPasteImages.map((x) => x.dataUrl);
+    setPendingPasteImages([]);
+    const userMsg = {
+      id: Date.now(),
+      role: "user",
+      content: msg,
+      ...(pasteSnapshot.length > 0 ? { imagePreviews: pasteSnapshot } : {}),
+    };
+    const historyPayload = [...messages, userMsg].map(chatMessageToApiPayload);
     const modelParam =
       chatModel === "DeepSeek"
         ? "deepseek"
@@ -615,6 +815,47 @@ export default function SummaryView() {
     setMessages((p) => [...p, userMsg]);
     setChatLoading(true);
     try {
+      // Upload staged attachments right before sending (ChatGPT-like "upload on send").
+      let nextExtraSources = extraSources;
+      if (pendingSourceFiles.length > 0) {
+        setSourceUploadLoading(true);
+        try {
+          const formData = new FormData();
+          pendingSourceFiles.forEach((p) => formData.append("files", p.file));
+          const upRes = await fetch("/api/upload", {
+            method: "POST",
+            body: formData,
+          });
+          const upData = await upRes.json().catch(() => ({}));
+          if (!upRes.ok) {
+            throw new Error(upData?.error || "Attachment upload failed");
+          }
+          const docs = Array.isArray(upData?.documents) ? upData.documents : [];
+          const baseIds = new Set(
+            (summary?.files || []).map((d) => d?.id).filter(Boolean),
+          );
+          const existing = new Set(
+            nextExtraSources.map((d) => d?.id).filter(Boolean),
+          );
+          const merged = docs.filter((d) => {
+            if (!d?.id) return false;
+            if (baseIds.has(d.id)) return false;
+            if (existing.has(d.id)) return false;
+            return true;
+          });
+          nextExtraSources = [...nextExtraSources, ...merged];
+          setExtraSources(nextExtraSources);
+          setPendingSourceFiles([]);
+        } finally {
+          setSourceUploadLoading(false);
+        }
+      }
+
+      const attachedDocumentIds = nextExtraSources
+        .map((d) => d?.id)
+        .filter((id) => Number.isFinite(Number(id)))
+        .map((id) => Number(id));
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -623,6 +864,7 @@ export default function SummaryView() {
           model: modelParam,
           modelLabel: chatModel,
           messages: historyPayload,
+          documentIds: attachedDocumentIds,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -646,10 +888,84 @@ export default function SummaryView() {
         {
           id: Date.now() + 1,
           role: "ai",
-          content: e?.message ?? "Something went wrong — please try again.",
+          content:
+            e?.message ??
+            "Something went wrong (including possible attachment upload). Please try again.",
           error: true,
         },
       ]);
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
+  async function regenerateLastResponse() {
+    if (chatLoading || sourceUploadLoading || !summary?.output) return;
+    const threadHasInlineImages = messages.some(
+      (m) => m.role === "user" && (m.imagePreviews?.length || 0) > 0,
+    );
+    if (chatModel === "DeepSeek" && threadHasInlineImages) {
+      setChatNotice(
+        "Regenerate is unavailable with DeepSeek while this thread still has pasted image previews.",
+      );
+      return;
+    }
+    const idx = messages.length - 1;
+    const last = messages[idx];
+    if (!last || last.role !== "ai" || last.error) return;
+    const prev = messages[idx - 1];
+    if (!prev || prev.role !== "user") return;
+
+    const removed = last;
+    const historyPayload = messages.slice(0, -1).map(chatMessageToApiPayload);
+    const modelParam =
+      chatModel === "DeepSeek"
+        ? "deepseek"
+        : chatModel === "Gemini"
+          ? "gemini"
+          : "chatgpt";
+
+    setChatNotice("");
+    setMessages((p) => p.slice(0, -1));
+    setChatLoading(true);
+    try {
+      const attachedDocumentIds = extraSources
+        .map((d) => d?.id)
+        .filter((id) => Number.isFinite(Number(id)))
+        .map((id) => Number(id));
+
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          summaryId: Number(summaryId),
+          model: modelParam,
+          modelLabel: chatModel,
+          messages: historyPayload,
+          documentIds: attachedDocumentIds,
+          regenerate: true,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || "Regenerate failed");
+      }
+      const reply = (data?.reply || "").trim();
+      if (!reply) throw new Error("Empty reply from assistant");
+      setMessages((p) => [
+        ...p,
+        {
+          id: Date.now() + 1,
+          role: "ai",
+          content: reply,
+          modelLabel: chatModel,
+        },
+      ]);
+    } catch (e) {
+      setMessages((p) => [...p, removed]);
+      setChatNotice(
+        (e?.message || "Could not regenerate. Try again.").toString(),
+      );
     } finally {
       setChatLoading(false);
     }
@@ -819,36 +1135,109 @@ export default function SummaryView() {
     return { __html: raw };
   }, [summaryHtml, summary?.output]);
 
-  async function handleSourceUpload(files) {
+  const chatSuggestions = useMemo(
+    () =>
+      buildChatSuggestions({
+        markdown: summary?.output || "",
+        headings,
+        title: summary?.title || "",
+        max: 4,
+      }),
+    [summary?.output, summary?.title, headings],
+  );
+
+  function fileExtUpper(name) {
+    const parts = String(name || "").split(".");
+    const ext = parts.length > 1 ? parts[parts.length - 1] : "";
+    return ext ? ext.toUpperCase() : "FILE";
+  }
+
+  function handleSourceUpload(files) {
+    // Stage files locally; actual upload happens when user presses Send.
     if (!files || !files.length) return;
-    const formData = new FormData();
-    Array.from(files).forEach((f) => formData.append("files", f));
-    setSourceUploadLoading(true);
+    const incoming = Array.from(files).map((f) => ({
+      clientId: `local-${crypto.randomUUID()}`,
+      file: f,
+      name: f.name,
+      type: fileExtUpper(f.name),
+    }));
+    setPendingSourceFiles((prev) => {
+      const names = new Set(prev.map((p) => p.name));
+      const deduped = incoming.filter((p) => !names.has(p.name));
+      return [...prev, ...deduped];
+    });
+  }
+
+  function removeExtraSourceById(docId) {
+    setExtraSources((prev) => prev.filter((d) => d?.id !== docId));
+  }
+
+  function removePendingSourceByClientId(clientId) {
+    setPendingSourceFiles((prev) => prev.filter((p) => p.clientId !== clientId));
+  }
+
+  const fetchSlideDecks = useCallback(async () => {
+    const n = Number.parseInt(String(summaryId ?? ""), 10);
+    if (!Number.isFinite(n) || n <= 0) return;
+    setSlideDecksLoading(true);
     try {
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Upload failed");
-      const docs = data.documents || [];
-      const baseIds = new Set(
-        (summary?.files || []).map((d) => d?.id).filter(Boolean),
-      );
-      setExtraSources((prev) => {
-        const existing = new Set(prev.map((d) => d?.id).filter(Boolean));
-        const next = docs.filter((d) => {
-          if (!d?.id) return true; // if no id, keep (best-effort)
-          if (baseIds.has(d.id)) return false;
-          return !existing.has(d.id);
-        });
-        return [...prev, ...next];
-      });
-    } catch (e) {
-      console.error(e);
-      alert("Failed to upload sources. Please try again.");
+      const res = await fetch(`/api/summary/${n}/slide-decks`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(data.decks)) setSlideDecks(data.decks);
+      else setSlideDecks([]);
+    } catch {
+      setSlideDecks([]);
     } finally {
-      setSourceUploadLoading(false);
+      setSlideDecksLoading(false);
+    }
+  }, [summaryId]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const n = Number.parseInt(String(summaryId ?? ""), 10);
+    if (!Number.isFinite(n) || n <= 0) return;
+    void fetchSlideDecks();
+  }, [status, summaryId, fetchSlideDecks]);
+
+  function openSlideDeckPreview(deck) {
+    setSlideDeckPreviewUrl("");
+    setSlideDeckRemotePptUrl(deck.pptxUrl || "");
+    setSlideDeckPreviewTitle(String(deck.title || "Presentation").trim() || "Presentation");
+    const baseTitle =
+      String(deck.title || "presentation").trim() || "presentation";
+    slideDeckDlRef.current = async () => {
+      const r = await fetch(deck.pptxUrl);
+      if (!r.ok) throw new Error("Failed to download file");
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const fileName =
+        baseTitle.replace(/[^a-z0-9]/gi, "_").toLowerCase() || "presentation";
+      a.download = `${fileName}.pptx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+    setSlideDeckPreviewOpen(true);
+  }
+
+  async function downloadSlideDeck(deck) {
+    try {
+      const r = await fetch(deck.pptxUrl);
+      if (!r.ok) throw new Error("Download failed");
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const fileName =
+        String(deck.title || "presentation")
+          .replace(/[^a-z0-9]/gi, "_")
+          .toLowerCase() || "presentation";
+      a.download = `${fileName}.pptx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert(e?.message || String(e));
     }
   }
 
@@ -1108,6 +1497,96 @@ export default function SummaryView() {
         font-style: italic;
       }
 
+      .hl-panel.sd-panel {
+        max-height: 200px;
+        flex-shrink: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .sd-refresh-btn {
+        flex-shrink: 0;
+        width: 30px;
+        height: 28px;
+        padding: 0;
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,.1);
+        background: rgba(255,255,255,.04);
+        color: rgba(255,255,255,.55);
+        font-size: 14px;
+        line-height: 1;
+        cursor: pointer;
+        transition: all .15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .sd-refresh-btn:hover:not(:disabled) {
+        border-color: rgba(99,102,241,.35);
+        color: #a5b4fc;
+        background: rgba(99,102,241,.1);
+      }
+      .sd-refresh-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .sd-deck-list {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        margin-top: 4px;
+        padding-right: 2px;
+      }
+      .sd-deck-list::-webkit-scrollbar { width: 3px; }
+      .sd-deck-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 4px; }
+      .sd-deck-row {
+        padding: 8px;
+        border-radius: 8px;
+        background: rgba(255,255,255,.03);
+        border: 1px solid rgba(255,255,255,.08);
+        margin-bottom: 6px;
+      }
+      .sd-deck-row:last-child { margin-bottom: 0; }
+      .sd-deck-title {
+        font-size: 11px;
+        font-weight: 600;
+        color: #e5e5ff;
+        line-height: 1.3;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .sd-deck-meta {
+        font-size: 10px;
+        color: rgba(255,255,255,.38);
+        margin-top: 4px;
+      }
+      .sd-deck-actions {
+        display: flex;
+        gap: 5px;
+        margin-top: 8px;
+      }
+      .sd-deck-btn {
+        flex: 1;
+        min-height: 26px;
+        padding: 0 6px;
+        border-radius: 6px;
+        border: 1px solid rgba(255,255,255,.12);
+        background: rgba(255,255,255,.04);
+        font-family: 'Sora', sans-serif;
+        font-size: 10px;
+        font-weight: 600;
+        color: rgba(255,255,255,.78);
+        cursor: pointer;
+        transition: all .15s;
+      }
+      .sd-deck-btn:hover {
+        border-color: rgba(99,102,241,.4);
+        color: #c7d2fe;
+        background: rgba(99,102,241,.1);
+      }
+
       .src-empty {
         font-size: 11.5px;
         color: rgba(255,255,255,.25);
@@ -1351,6 +1830,46 @@ export default function SummaryView() {
       .m-bub.ai  { background: var(--sum-chat-ai-bg); border: 1px solid var(--sum-chat-ai-border); color: var(--sum-text); border-top-left-radius: 3px; }
       .m-bub.user{ background: var(--sum-chat-user-bg); border: 1px solid rgba(99,102,241,.25); color: var(--sum-title); border-top-right-radius: 3px; }
       .m-bub.err { background: rgba(248,113,113,.08); border-color: rgba(248,113,113,.2); color: #fca5a5; }
+      .chat-msg-images { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+      .chat-msg-images img {
+        max-width: 100%;
+        max-height: min(40vh, 280px);
+        width: auto;
+        height: auto;
+        border-radius: 8px;
+        object-fit: contain;
+        border: 1px solid rgba(99,102,241,.2);
+        background: rgba(0,0,0,.06);
+      }
+      .chat-img-lost-note {
+        font-size: 11px;
+        font-style: italic;
+        opacity: 0.75;
+        margin-bottom: 6px;
+        color: var(--sum-text, #888);
+      }
+      .chat-paste-chip {
+        border: 1px solid rgba(99,102,241,.28);
+        background: rgba(99,102,241,.07);
+      }
+      .chat-paste-chip .chat-upload-badge {
+        background: rgba(99,102,241,.18);
+        border: 1px solid rgba(99,102,241,.35);
+        color: #c7d2fe;
+      }
+      .chat-upload-content-single {
+        flex: 1;
+        justify-content: center;
+      }
+      .chat-paste-ico {
+        display: block;
+        width: 20px;
+        height: 16px;
+        border-radius: 3px;
+        border: 2px solid rgba(99,102,241,.55);
+        box-shadow: inset 0 0 0 2px rgba(255,255,255,.35);
+        background: linear-gradient(135deg, rgba(99,102,241,.2), rgba(139,92,246,.15));
+      }
       .m-copy {
         width: 26px; height: 26px; border-radius: 6px; border: 1px solid rgba(255,255,255,.08);
         background: rgba(255,255,255,.04); color: rgba(255,255,255,.5); display: flex;
@@ -1360,6 +1879,13 @@ export default function SummaryView() {
       .m-copy:hover { background: rgba(255,255,255,.08); color: #a5b4fc; border-color: rgba(99,102,241,.3); }
       .m-copy.copied { background: rgba(52,211,153,.12); border-color: rgba(52,211,153,.3); color: #6ee7b7; }
       .m-copy-txt { font-size: 10px; font-weight: 600; }
+      .m-bub-side-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        flex-shrink: 0;
+        align-self: flex-start;
+      }
 
       /* markdown-ish rendering (summary + chat) */
       .md p, .sum-text p { margin: 0 0 12px; }
@@ -1389,6 +1915,18 @@ export default function SummaryView() {
 
       /* ── suggestions ── */
       .suggests { padding: 0 20px 8px; display: flex; gap: 6px; flex-wrap: wrap; flex-shrink: 0; }
+      .suggests--above-inp {
+        padding: 6px 12px 4px;
+        border-top: 1px solid rgba(255,255,255,.06);
+        background: linear-gradient(to top, rgba(16,16,24,.9), rgba(16,16,24,.82));
+        backdrop-filter: blur(6px);
+      }
+      .suggests--above-inp .sug {
+        white-space: normal;
+        max-width: 100%;
+        text-align: left;
+        line-height: 1.35;
+      }
       .sug      { padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,.08); background: transparent; font-family: 'Sora',sans-serif; font-size: 11px; color: rgba(255,255,255,.38); cursor: pointer; transition: all .18s; white-space: nowrap; }
       .sug:hover{ border-color: rgba(99,102,241,.4); color: #a5b4fc; background: rgba(99,102,241,.07); }
 
@@ -1397,25 +1935,135 @@ export default function SummaryView() {
       .chatbox {
         flex: 1;
         min-width: 0;
-        height: 40px;
+        min-height: 44px;
         background: var(--sum-inp-bg);
         border: 1px solid var(--sum-inp-border);
-        border-radius: 10px;
+        border-radius: 26px;
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 0 6px;
+        gap: 4px;
+        padding: 6px 8px 6px 10px;
+        box-shadow: 0 1px 2px rgba(0,0,0,.12);
       }
       .chatbox:focus-within {
-        border-color: rgba(99,102,241,.4);
-        box-shadow: 0 0 0 3px rgba(99,102,241,.08);
+        border-color: rgba(99,102,241,.45);
+        box-shadow: 0 0 0 3px rgba(99,102,241,.1), 0 2px 8px rgba(0,0,0,.14);
+      }
+      .chatbox.with-files {
+        align-items: stretch;
+      }
+      .chatbox.with-files .send-btn--inline {
+        align-self: center;
+      }
+      .chatbox-main {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 4px;
+        padding: 2px 0;
+      }
+      .chat-uploads {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 0 4px 0 2px;
+      }
+      .chat-uploads::-webkit-scrollbar { height: 3px; }
+      .chat-uploads::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 999px; }
+      .chat-upload-chip {
+        flex-shrink: 0;
+        width: 340px;
+        max-width: min(340px, calc(100vw - 180px));
+        min-height: 54px;
+        display: flex;
+        align-items: stretch;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,.14);
+        background: rgba(255,255,255,.03);
+        position: relative;
+      }
+      .chat-upload-badge {
+        width: 40px;
+        height: 40px;
+        border-radius: 14px;
+        background: rgba(239,68,68,0.25);
+        border: 1px solid rgba(239,68,68,0.45);
+        color: #fecaca;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .chat-upload-content {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 2px;
+        padding-right: 16px; /* breathing room for close btn */
+      }
+      .chat-upload-name {
+        font-size: 12px;
+        font-weight: 600;
+        color: rgba(255,255,255,.9);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+      }
+      .chat-upload-type {
+        font-size: 10px;
+        color: rgba(255,255,255,.5);
+        text-transform: uppercase;
+        letter-spacing: .08em;
+      }
+      .chat-upload-rm {
+        width: 18px;
+        height: 18px;
+        border: none;
+        border-radius: 50%;
+        background: rgba(255,255,255,.06);
+        color: rgba(255,255,255,.7);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        line-height: 1;
+        flex-shrink: 0;
+        position: absolute;
+        top: 6px;
+        right: 6px;
+      }
+      .chat-upload-rm:hover {
+        background: rgba(248,113,113,.2);
+        color: #fca5a5;
+      }
+      .chatbox-row {
+        min-height: 32px;
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        gap: 6px;
+      }
+      .chat-actions-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 4px 0 2px;
       }
       .inp      { flex: 1; height: 100%; min-width: 0; background: transparent; border: none; border-radius: 8px; padding: 0 6px; font-family: 'Sora',sans-serif; font-size: 12.5px; font-weight: 300; color: var(--sum-inp-text); outline: none; transition: border-color .2s, box-shadow .2s; }
       .inp::placeholder { color: rgba(255,255,255,.2); font-style: italic; }
       .inp:disabled { opacity: .5; }
 
-      .mdl-wrap { position: relative; flex-shrink: 0; }
-      .mdl-btn  { height: 30px; padding: 0 9px; border-radius: 8px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.04); font-family: 'Sora',sans-serif; font-size: 11.5px; font-weight: 500; color: rgba(255,255,255,.48); display: flex; align-items: center; gap: 5px; cursor: pointer; transition: all .18s; white-space: nowrap; }
+      .mdl-wrap { position: relative; flex-shrink: 1; min-width: 0; }
+      .mdl-btn  { height: 30px; max-width: 100%; padding: 0 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.04); font-family: 'Sora',sans-serif; font-size: 11.5px; font-weight: 500; color: rgba(255,255,255,.48); display: flex; align-items: center; gap: 4px; cursor: pointer; transition: all .18s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .mdl-btn:hover, .mdl-btn.open { border-color: rgba(99,102,241,.38); color: #a5b4fc; background: rgba(99,102,241,.08); }
       .mdl-menu { position: absolute; bottom: calc(100% + 5px); right: 0; min-width: 130px; background: rgba(20,20,32,.98); border: 1px solid rgba(255,255,255,.1); border-radius: 11px; padding: 4px; z-index: 50; box-shadow: 0 -18px 40px rgba(0,0,0,.55); animation: fadeUp .14s ease; }
       .mdl-opt  { padding: 7px 10px; border-radius: 7px; cursor: pointer; font-size: 12px; color: #b0b0cc; display: flex; align-items: center; justify-content: space-between; transition: background .14s; }
@@ -1423,15 +2071,26 @@ export default function SummaryView() {
       .mdl-opt.on    { background: rgba(99,102,241,.18); color: #a5b4fc; font-weight: 500; }
 
       .send-btn { width: 40px; height: 40px; border-radius: 10px; border: none; background: linear-gradient(135deg,#5258ee,#8b5cf6); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: transform .15s, box-shadow .18s, opacity .18s; box-shadow: 0 3px 12px rgba(99,102,241,.38); }
+      .send-btn--inline {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        box-shadow: 0 2px 10px rgba(99,102,241,.35);
+        margin-left: 2px;
+      }
+      .send-btn--inline:hover:not(:disabled) {
+        box-shadow: 0 4px 14px rgba(99,102,241,.5);
+      }
       .send-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(99,102,241,.55); }
       .send-btn:disabled { opacity: .38; cursor: not-allowed; transform: none; }
 
       .attach-btn {
+        align-self: center;
         width: 30px;
         height: 30px;
-        border-radius: 0;
-        border: none;
-        background: transparent;
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,.10);
+        background: rgba(255,255,255,.04);
         color: rgba(255,255,255,.55);
         display: flex;
         align-items: center;
@@ -1443,19 +2102,13 @@ export default function SummaryView() {
       }
       .attach-btn:hover:not(:disabled) {
         color: rgba(255,255,255,.85);
-        background: transparent;
+        background: rgba(255,255,255,.08);
+        border-color: rgba(255,255,255,.16);
       }
       .attach-btn:disabled {
         opacity: .45;
         cursor: not-allowed;
       }
-      .attach-divider {
-        width: 1px;
-        height: 20px;
-        background: rgba(255,255,255,.14);
-        flex-shrink: 0;
-      }
-
       .attach-badge {
         position: absolute;
         top: -7px;
@@ -1606,6 +2259,9 @@ export default function SummaryView() {
           padding: 0 12px 8px;
           gap: 5px;
         }
+        .suggests--above-inp {
+          padding: 6px 10px 4px;
+        }
         .sug {
           white-space: normal;
           text-align: left;
@@ -1622,7 +2278,7 @@ export default function SummaryView() {
           gap: 8px;
           z-index: 40;
         }
-        .inp-row .chatbox { height: 42px; }
+        .inp-row .chatbox { min-height: 42px; height: auto; }
         .inp-row .mdl-btn { max-width: 120px; }
         .inp-row .send-btn {
           flex-shrink: 0;
@@ -1633,6 +2289,7 @@ export default function SummaryView() {
         }
         .hl-popup-wrap { display: flex; }
         .hl-panel--sources { display: none; }
+        .sd-panel--sources { display: none; }
       }
 
       /* Light theme: many rules above use fixed light-on-dark greys — force readable contrast */
@@ -1665,6 +2322,33 @@ export default function SummaryView() {
       html[data-theme="light"] .hl-panel { border-bottom-color: rgba(0,0,0,0.08); }
       html[data-theme="light"] .hl-head { color: rgba(0,0,0,0.45); }
       html[data-theme="light"] .hl-empty { color: rgba(0,0,0,0.45); }
+      html[data-theme="light"] .sd-refresh-btn {
+        border-color: rgba(0,0,0,0.1);
+        background: rgba(0,0,0,0.03);
+        color: rgba(0,0,0,0.5);
+      }
+      html[data-theme="light"] .sd-refresh-btn:hover:not(:disabled) {
+        border-color: rgba(99,102,241,0.35);
+        color: #4f46e5;
+        background: rgba(99,102,241,0.08);
+      }
+      html[data-theme="light"] .sd-deck-row {
+        background: rgba(0,0,0,0.03);
+        border-color: rgba(0,0,0,0.08);
+      }
+      html[data-theme="light"] .sd-deck-title { color: #111827; }
+      html[data-theme="light"] .sd-deck-meta { color: rgba(0,0,0,0.45); }
+      html[data-theme="light"] .sd-deck-btn {
+        border-color: rgba(0,0,0,0.1);
+        background: rgba(0,0,0,0.03);
+        color: rgba(0,0,0,0.75);
+      }
+      html[data-theme="light"] .sd-deck-btn:hover {
+        border-color: rgba(99,102,241,0.4);
+        color: #4f46e5;
+        background: rgba(99,102,241,0.08);
+      }
+      html[data-theme="light"] .sd-deck-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); }
       html[data-theme="light"] .hl-quote { color: rgba(0,0,0,0.72); }
       html[data-theme="light"] .hl-sub { color: rgba(180,130,0,0.9); }
       html[data-theme="light"] .hl-item {
@@ -1727,15 +2411,50 @@ export default function SummaryView() {
         color: rgba(0,0,0,0.5);
       }
       html[data-theme="light"] .m-copy:hover { background: rgba(0,0,0,0.06); }
+      .chat-notice {
+        font-size: 11px;
+        color: #fca5a5;
+        padding: 6px 8px 0;
+        line-height: 1.35;
+      }
+      html[data-theme="light"] .chat-notice { color: #b91c1c; }
       html[data-theme="light"] .sug {
         border-color: rgba(0,0,0,0.1);
         color: rgba(0,0,0,0.5);
+      }
+      html[data-theme="light"] .suggests--above-inp {
+        border-top-color: rgba(0,0,0,0.06);
+        background: linear-gradient(to top, rgba(255,255,255,.94), rgba(255,255,255,.88));
       }
       html[data-theme="light"] .inp-row {
         border-top-color: rgba(0,0,0,0.08);
         background: linear-gradient(to top, rgba(255,255,255,.96), rgba(255,255,255,.86));
       }
       html[data-theme="light"] .inp::placeholder { color: rgba(0,0,0,0.38); }
+      html[data-theme="light"] .chat-uploads::-webkit-scrollbar-thumb { background: rgba(0,0,0,.16); }
+      html[data-theme="light"] .chat-upload-chip {
+        border-color: rgba(0,0,0,.12);
+        background: rgba(0,0,0,.03);
+      }
+      html[data-theme="light"] .chat-upload-badge {
+        background: rgba(220,38,38,0.18);
+        border-color: rgba(220,38,38,0.35);
+        color: #991b1b;
+      }
+      html[data-theme="light"] .chat-upload-name { color: #111827; }
+      html[data-theme="light"] .chat-upload-type { color: rgba(0,0,0,.5); }
+      html[data-theme="light"] .chat-paste-chip {
+        border-color: rgba(99,102,241,.22);
+        background: rgba(99,102,241,.05);
+      }
+      html[data-theme="light"] .chat-paste-chip .chat-upload-badge {
+        background: rgba(99,102,241,.12);
+        border-color: rgba(99,102,241,.28);
+      }
+      html[data-theme="light"] .chat-upload-rm {
+        background: rgba(0,0,0,.08);
+        color: rgba(0,0,0,.58);
+      }
       html[data-theme="light"] .mdl-btn {
         border-color: rgba(0,0,0,0.1);
         background: rgba(0,0,0,0.03);
@@ -2106,7 +2825,13 @@ export default function SummaryView() {
                         Continue the conversation
                       </div>
                       <div className="chat-thread">
-                        {messages.map((m) => (
+                        {messages.map((m, i) => {
+                          const showRegen =
+                            m.role === "ai" &&
+                            !m.error &&
+                            i === messages.length - 1 &&
+                            !chatLoading;
+                          return (
                           <div key={m.id} className={`m-row ${m.role}`}>
                             <div className={`m-ava ${m.role}`}>
                               {m.role === "ai" ? <BotIco /> : <UserIco />}
@@ -2115,10 +2840,51 @@ export default function SummaryView() {
                               <div className="m-bub-col">
                                 <div
                                   className={`m-bub ${m.role} ${m.error ? "err" : ""} md`}
-                                  dangerouslySetInnerHTML={{
-                                    __html: markdownToHtml(m.content),
-                                  }}
-                                />
+                                >
+                                  {m.role === "user" &&
+                                    m.imagePreviews &&
+                                    m.imagePreviews.length > 0 && (
+                                      <div className="chat-msg-images">
+                                        {m.imagePreviews.map((src, ii) => (
+                                          <img key={ii} src={src} alt="" />
+                                        ))}
+                                      </div>
+                                    )}
+                                  {m.role === "user" &&
+                                    (m.lostPastedImageCount || 0) > 0 && (
+                                      <div className="chat-img-lost-note">
+                                        {m.lostPastedImageCount} pasted image
+                                        {m.lostPastedImageCount === 1 ? "" : "s"}{" "}
+                                        in this message (previews are not kept after
+                                        refresh)
+                                      </div>
+                                    )}
+                                  {(() => {
+                                    const raw = (m.content || "").trim();
+                                    const hidePlaceholder =
+                                      m.role === "user" &&
+                                      raw === "[Image message]" &&
+                                      ((m.imagePreviews?.length || 0) > 0 ||
+                                        (m.lostPastedImageCount || 0) > 0);
+                                    const mdSrc =
+                                      hidePlaceholder ? "" : m.content || "";
+                                    if (
+                                      m.role === "user" &&
+                                      !mdSrc.trim() &&
+                                      ((m.imagePreviews?.length || 0) > 0 ||
+                                        (m.lostPastedImageCount || 0) > 0)
+                                    ) {
+                                      return null;
+                                    }
+                                    return (
+                                      <div
+                                        dangerouslySetInnerHTML={{
+                                          __html: markdownToHtml(mdSrc),
+                                        }}
+                                      />
+                                    );
+                                  })()}
+                                </div>
                                 {m.role === "ai" &&
                                   m.modelLabel &&
                                   !m.error && (
@@ -2128,23 +2894,37 @@ export default function SummaryView() {
                                   )}
                               </div>
                               {m.role === "ai" && (m.content || "").trim() && (
-                                <button
-                                  type="button"
-                                  className={`m-copy ${copiedId === m.id ? "copied" : ""}`}
-                                  title={copiedId === m.id ? "Copied!" : "Copy"}
-                                  onClick={() => handleCopyMessage(m)}
-                                  aria-label="Copy message"
-                                >
-                                  {copiedId === m.id ? (
-                                    <span className="m-copy-txt">Copied</span>
-                                  ) : (
-                                    <CopyIco size={12} />
+                                <div className="m-bub-side-actions">
+                                  {showRegen && (
+                                    <button
+                                      type="button"
+                                      className="m-copy"
+                                      title="Regenerate response"
+                                      onClick={() => regenerateLastResponse()}
+                                      aria-label="Regenerate response"
+                                    >
+                                      <RegenIco size={12} />
+                                    </button>
                                   )}
-                                </button>
+                                  <button
+                                    type="button"
+                                    className={`m-copy ${copiedId === m.id ? "copied" : ""}`}
+                                    title={copiedId === m.id ? "Copied!" : "Copy"}
+                                    onClick={() => handleCopyMessage(m)}
+                                    aria-label="Copy message"
+                                  >
+                                    {copiedId === m.id ? (
+                                      <span className="m-copy-txt">Copied</span>
+                                    ) : (
+                                      <CopyIco size={12} />
+                                    )}
+                                  </button>
+                                </div>
                               )}
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                         {chatLoading && (
                           <div className="m-row ai">
                             <div className="m-ava ai">
@@ -2174,13 +2954,35 @@ export default function SummaryView() {
                     </>
                   )}
 
-                  {showSuggest && messages.length === 0 && (
-                    <div className="suggests" style={{ paddingLeft: 0, paddingRight: 0 }}>
-                      {SUGGESTIONS.map((s) => (
+                  <div ref={bottomRef} />
+                </div>
+
+                {chatNotice ? (
+                  <div className="chat-notice" role="status">
+                    {chatNotice}
+                  </div>
+                ) : null}
+
+                {showSuggest &&
+                  messages.length === 0 &&
+                  summary?.output &&
+                  chatSuggestions.length > 0 && (
+                    <div
+                      className="suggests suggests--above-inp"
+                      role="group"
+                      aria-label="Suggested questions from this summary"
+                    >
+                      {chatSuggestions.map((s) => (
                         <button
                           key={s}
+                          type="button"
                           className="sug"
-                          onClick={() => sendMessage(s)}
+                          onClick={() => {
+                            setInputVal(s);
+                            requestAnimationFrame(() =>
+                              inputRef.current?.focus(),
+                            );
+                          }}
                         >
                           {s}
                         </button>
@@ -2188,32 +2990,33 @@ export default function SummaryView() {
                     </div>
                   )}
 
-                  <div ref={bottomRef} />
-                </div>
-
                 {/* Input */}
                 <div className="inp-row">
                     <input
                       ref={sourceInputRef}
                       type="file"
                       multiple
-                      accept={ACCEPTED}
+                      accept={ATTACH_ACCEPT}
                       style={{ display: "none" }}
                       onChange={(e) => {
-                        handleSourceUpload(e.target.files);
+                        void handleAttachmentFilesSelected(e.target.files);
                         e.target.value = "";
                       }}
                     />
-                    <div className="chatbox">
+                    <div className={`chatbox ${(pendingSourceFiles.length > 0 || extraSources.length > 0 || pendingPasteImages.length > 0) ? "with-files" : ""}`}>
                       <button
                         type="button"
                         className="attach-btn"
-                        title="Add attachment"
+                        title="Add attachment (documents or images)"
                         aria-label="Add attachment"
-                        disabled={sourceUploadLoading}
+                        disabled={sourceUploadLoading || chatLoading}
                         onClick={() => sourceInputRef.current?.click()}
                       >
-                        {sourceUploadLoading ? <Spinner size={12} /> : <ClipIco size={16} />}
+                        {sourceUploadLoading ? (
+                          <Spinner size={12} />
+                        ) : (
+                          <ClipIco size={16} />
+                        )}
                         {extraSources.length > 0 && (
                           <span className="attach-badge">
                             {Math.min(99, extraSources.length)}
@@ -2221,54 +3024,157 @@ export default function SummaryView() {
                         )}
                       </button>
                       <span className="attach-divider" aria-hidden />
-                      <input
-                        ref={inputRef}
-                        className="inp"
-                        placeholder="Refine your summary or ask question..."
-                        value={inputVal}
-                        onChange={(e) => setInputVal(e.target.value)}
-                        onKeyDown={(e) =>
-                          e.key === "Enter" && !e.shiftKey && sendMessage()
-                        }
-                        disabled={chatLoading}
-                      />
-                      <div className="mdl-wrap">
-                        <button
-                          className={`mdl-btn ${modelOpen ? "open" : ""}`}
-                          onClick={() => setModelOpen((v) => !v)}
-                          onBlur={() =>
-                            setTimeout(() => setModelOpen(false), 150)
-                          }
-                        >
-                          {chatModel} <Chevron open={modelOpen} />
-                        </button>
-                        {modelOpen && (
-                          <div className="mdl-menu">
-                            {MODELS.map((m) => (
+                      <div className="chatbox-main">
+                        {(pendingSourceFiles.length > 0 ||
+                          extraSources.length > 0 ||
+                          pendingPasteImages.length > 0) && (
+                          <div className="chat-uploads" aria-label="Attached files">
+                            {pendingPasteImages.map((p, pi) => (
                               <div
-                                key={m}
-                                className={`mdl-opt ${chatModel === m ? "on" : ""}`}
-                                onMouseDown={() => {
-                                  setChatModel(m);
-                                  setModelOpen(false);
-                                }}
+                                key={p.clientId}
+                                className="chat-upload-chip chat-paste-chip"
+                                title={`Image ${pi + 1}`}
                               >
-                                {m} {chatModel === m && "✓"}
+                                <div className="chat-upload-badge" aria-hidden>
+                                  <span className="chat-paste-ico" />
+                                </div>
+                                <div className="chat-upload-content chat-upload-content-single">
+                                  <span className="chat-upload-name">
+                                    Image {pi + 1}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="chat-upload-rm"
+                                  onClick={() =>
+                                    removePendingPasteByClientId(p.clientId)
+                                  }
+                                  aria-label={`Remove image ${pi + 1}`}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                            {pendingSourceFiles.map((f) => (
+                              <div
+                                key={f.clientId}
+                                className="chat-upload-chip"
+                                title={f.name}
+                              >
+                                <div className="chat-upload-badge" aria-hidden>
+                                  <DocIco ext={f.type} size={18} />
+                                </div>
+                                <div className="chat-upload-content chat-upload-content-single">
+                                  <span className="chat-upload-name">{f.name}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="chat-upload-rm"
+                                  onClick={() => removePendingSourceByClientId(f.clientId)}
+                                  aria-label={`Remove ${f.name}`}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                            {extraSources.map((f) => (
+                              <div key={f.id} className="chat-upload-chip" title={f.name}>
+                                <div className="chat-upload-badge" aria-hidden>
+                                  <DocIco ext={f.type} size={18} />
+                                </div>
+                                <div className="chat-upload-content">
+                                  <span className="chat-upload-name">{f.name}</span>
+                                  <span className="chat-upload-type">{f.type}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="chat-upload-rm"
+                                  onClick={() => removeExtraSourceById(f.id)}
+                                  aria-label={`Remove ${f.name}`}
+                                >
+                                  ×
+                                </button>
                               </div>
                             ))}
                           </div>
                         )}
+                        <div className="chatbox-row">
+                          <input
+                            ref={inputRef}
+                            className="inp"
+                            placeholder="Refine your summary or ask question..."
+                            value={inputVal}
+                            onChange={(e) => setInputVal(e.target.value)}
+                            onPaste={(e) => {
+                              const items = e.clipboardData?.items;
+                              if (!items?.length) return;
+                              for (const item of items) {
+                                if (
+                                  item.kind === "file" &&
+                                  item.type.startsWith("image/")
+                                ) {
+                                  const file = item.getAsFile();
+                                  if (file) {
+                                    e.preventDefault();
+                                    void addPastedImageFromFile(file);
+                                    break;
+                                  }
+                                }
+                              }
+                            }}
+                            onKeyDown={(e) =>
+                              e.key === "Enter" && !e.shiftKey && sendMessage()
+                            }
+                            disabled={chatLoading || sourceUploadLoading}
+                          />
+                          <div className="mdl-wrap">
+                            <button
+                              className={`mdl-btn ${modelOpen ? "open" : ""}`}
+                              onClick={() => setModelOpen((v) => !v)}
+                              onBlur={() =>
+                                setTimeout(() => setModelOpen(false), 150)
+                              }
+                              disabled={chatLoading || sourceUploadLoading}
+                            >
+                              {chatModel} <Chevron open={modelOpen} />
+                            </button>
+                            {modelOpen && (
+                              <div className="mdl-menu">
+                                {MODELS.map((m) => (
+                                  <div
+                                    key={m}
+                                    className={`mdl-opt ${chatModel === m ? "on" : ""}`}
+                                    onMouseDown={() => {
+                                      setChatModel(m);
+                                      setModelOpen(false);
+                                    }}
+                                  >
+                                    {m} {chatModel === m && "✓"}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
+                      <button
+                        type="button"
+                        className="send-btn send-btn--inline"
+                        onClick={() => sendMessage()}
+                        disabled={
+                          chatLoading ||
+                          sourceUploadLoading ||
+                          (!inputVal.trim() && pendingPasteImages.length === 0) ||
+                          !summary?.output
+                        }
+                      >
+                        {chatLoading || sourceUploadLoading ? (
+                          <Spinner size={14} />
+                        ) : (
+                          <SendIco />
+                        )}
+                      </button>
                     </div>
-                    <button
-                      className="send-btn"
-                      onClick={() => sendMessage()}
-                      disabled={
-                        chatLoading || !inputVal.trim() || !summary?.output
-                      }
-                    >
-                      {chatLoading ? <Spinner size={14} /> : <SendIco />}
-                    </button>
                   </div>
               </div>
               {/* /card */}
@@ -2320,6 +3226,62 @@ export default function SummaryView() {
                     </div>
                   ));
                 })()}
+              </div>
+
+              <div
+                className="hl-panel sd-panel sd-panel--sources"
+                aria-label="Saved slide decks"
+              >
+                <div className="hl-head-row">
+                  <div className="hl-head">SLIDE DECKS</div>
+                  <button
+                    type="button"
+                    className="sd-refresh-btn"
+                    title="Refresh slide decks"
+                    disabled={slideDecksLoading}
+                    onClick={() => void fetchSlideDecks()}
+                  >
+                    {slideDecksLoading ? <Spinner size={11} /> : "↻"}
+                  </button>
+                </div>
+                <div className="sd-deck-list">
+                  {slideDecksLoading && slideDecks.length === 0 ? (
+                    <div className="hl-empty">
+                      <Spinner size={12} /> Loading…
+                    </div>
+                  ) : slideDecks.length === 0 ? (
+                    <div className="hl-empty">
+                      None yet. Generate slides — a copy saves here automatically.
+                    </div>
+                  ) : (
+                    slideDecks.map((d) => (
+                      <div key={d.id} className="sd-deck-row">
+                        <div className="sd-deck-title" title={d.title}>
+                          {d.title}
+                        </div>
+                        <div className="sd-deck-meta">
+                          {formatSlideDeckSavedAt(d.createdAt)}
+                        </div>
+                        <div className="sd-deck-actions">
+                          <button
+                            type="button"
+                            className="sd-deck-btn"
+                            onClick={() => openSlideDeckPreview(d)}
+                          >
+                            Preview
+                          </button>
+                          <button
+                            type="button"
+                            className="sd-deck-btn"
+                            onClick={() => void downloadSlideDeck(d)}
+                          >
+                            Download
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
 
               <div className="hl-panel hl-panel--sources" aria-label="Highlights">
@@ -2429,7 +3391,36 @@ export default function SummaryView() {
           </div>
         </div>
       </div>
-      {slidesModal && <GenerateSlidesModal onClose={() => setSlidesModal(false)} />}
+      {slidesModal && (
+        <GenerateSlidesModal
+          onClose={() => setSlidesModal(false)}
+          summaryText={summary?.output || ""}
+          summarizeFor={summary?.summarizeFor || "student"}
+          summaryId={(() => {
+            const n = Number.parseInt(String(summaryId ?? ""), 10);
+            return Number.isFinite(n) && n > 0 ? n : null;
+          })()}
+          onSlideDecksChanged={fetchSlideDecks}
+        />
+      )}
+
+      {slideDeckPreviewOpen && (
+        <AlaiSlidesPreviewModal
+          onClose={() => setSlideDeckPreviewOpen(false)}
+          previewUrl={slideDeckPreviewUrl}
+          remotePptUrl={slideDeckRemotePptUrl}
+          title={slideDeckPreviewTitle}
+          subtitle="Saved slide deck"
+          onDownload={(() => {
+            const fn = slideDeckDlRef.current;
+            return typeof fn === "function"
+              ? async () => {
+                  await fn();
+                }
+              : undefined;
+          })()}
+        />
+      )}
 
       {quizModal && (
         <QuizSettingsModal

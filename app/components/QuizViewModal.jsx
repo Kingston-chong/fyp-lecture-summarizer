@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useTheme } from "../components/ThemeProvider.jsx";
 
 // ─── Icons ────────────────────────────────────────────────
 const CloseIco = () => (
@@ -24,13 +25,17 @@ const InfoIco = () => (
   </svg>
 );
 
-const SectionHead = ({ children }) => (
-  <div style={{ fontSize: 13.5, fontWeight: 700, color: "#ddddf0", marginBottom: 12, marginTop: 4, fontFamily: "'Sora', sans-serif" }}>
-    {children}
-  </div>
-);
+function SectionHead({ children, isDark }) {
+  return (
+    <div style={{ fontSize: 13.5, fontWeight: 700, color: isDark ? "#ddddf0" : "#1a1a2e", marginBottom: 12, marginTop: 4, fontFamily: "'Sora', sans-serif" }}>
+      {children}
+    </div>
+  );
+}
 
 export default function QuizViewModal({ quizSet, settings, onClose }) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const [currentIdx, setCurrentIdx] = useState(0);
   const [userAnswers, setUserAnswers] = useState({});
   const [showExplanation, setShowExplanation] = useState(false);
@@ -96,31 +101,70 @@ export default function QuizViewModal({ quizSet, settings, onClose }) {
     return score;
   };
 
+  /** X / Escape: confirm while quiz is active. Backdrop ignores clicks until results. */
+  const requestClose = useCallback(() => {
+    if (!isFinished) {
+      const answered = Object.keys(userAnswers).length;
+      const msg =
+        answered > 0
+          ? "Exit the quiz? Your answers so far will be lost."
+          : "Exit the quiz?";
+      if (!window.confirm(msg)) return;
+    }
+    onClose();
+  }, [isFinished, userAnswers, onClose]);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      requestClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [requestClose]);
+
   if (!quizSet) return null;
 
   return (
-    <div className="sl-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="sl-modal" style={{ maxWidth: 680, minHeight: 450 }}>
-        <style>{`
+    <div
+      className="sl-overlay"
+      role="presentation"
+      onClick={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (!isFinished) return;
+        onClose();
+      }}
+    >
+      <div
+        className="sl-modal"
+        style={{ maxWidth: 680, minHeight: 450 }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="quiz-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Theme-aware CSS */}
+        <style dangerouslySetInnerHTML={{__html: `
           @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap');
-          
+
           @keyframes overlayIn { from { opacity:0; } to { opacity:1; } }
           @keyframes modalIn   { from { opacity:0; transform:scale(.96) translateY(14px); } to { opacity:1; transform:none; } }
           @keyframes slideUp   { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
           .sl-overlay {
             position: fixed; inset: 0; z-index: 1000;
-            background: rgba(6,6,14,.72); backdrop-filter: blur(6px);
+            background: ${isDark ? 'rgba(6,6,14,.72)' : 'rgba(0,0,20,.4)'}; backdrop-filter: blur(6px);
             display: flex; align-items: center; justify-content: center;
             padding: 20px; animation: overlayIn .2s ease;
             font-family: 'Sora', sans-serif;
           }
           .sl-modal {
             width: 100%; max-width: 680px; max-height: 90vh;
-            background: rgba(17,17,27,.97);
-            border: 1px solid rgba(255,255,255,.1);
+            background: ${isDark ? 'rgba(17,17,27,.97)' : 'rgba(255,255,255,.98)'};
+            border: 1px solid ${isDark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.1)'};
             border-radius: 18px;
-            box-shadow: 0 32px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(99,102,241,.08);
+            box-shadow: ${isDark ? '0 32px 80px rgba(0,0,0,.7)' : '0 32px 80px rgba(0,0,0,.3)'}, 0 0 0 1px rgba(99,102,241,.08);
             display: flex; flex-direction: column;
             animation: modalIn .28s cubic-bezier(.16,1,.3,1);
             overflow: hidden;
@@ -129,16 +173,16 @@ export default function QuizViewModal({ quizSet, settings, onClose }) {
           .sl-head {
             display: flex; align-items: center; justify-content: space-between;
             padding: 18px 22px 14px;
-            border-bottom: 1px solid rgba(255,255,255,.07);
+            border-bottom: 1px solid ${isDark ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.07)'};
             flex-shrink: 0;
           }
           .sl-title {
             font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600;
-            color: #e0e0f4; display: flex; align-items: center; gap: 8px;
+            color: ${isDark ? '#e0e0f4' : '#1a1a2e'}; display: flex; align-items: center; gap: 8px;
           }
           .sl-close {
-            width: 28px; height: 28px; border-radius: 8px; border: 1px solid rgba(255,255,255,.1);
-            background: rgba(255,255,255,.05); color: rgba(255,255,255,.5);
+            width: 28px; height: 28px; border-radius: 8px; border: 1px solid ${isDark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.1)'};
+            background: ${isDark ? 'rgba(255,255,255,.05)' : 'rgba(0,0,0,.05)'}; color: ${isDark ? 'rgba(255,255,255,.5)' : 'rgba(0,0,0,.5)'};
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; transition: all .18s;
           }
@@ -149,39 +193,40 @@ export default function QuizViewModal({ quizSet, settings, onClose }) {
             padding: 20px 22px;
           }
           .sl-body::-webkit-scrollbar { width: 3px; }
-          .sl-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 4px; }
+          .sl-body::-webkit-scrollbar-thumb { background: ${isDark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.15)'}; border-radius: 4px; }
 
           .sl-foot {
             display: flex; align-items: center; justify-content: flex-end; gap: 9px;
-            padding: 14px 22px; border-top: 1px solid rgba(255,255,255,.07); flex-shrink: 0;
+            padding: 14px 22px; border-top: 1px solid ${isDark ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.07)'}; flex-shrink: 0;
           }
 
-          .quiz-option { 
-            padding: 14px 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,.08); 
-            background: rgba(255,255,255,.03); color: #c0c0d8; cursor: pointer; transition: all .2s;
+          .quiz-option {
+            padding: 14px 18px; border-radius: 12px; border: 1px solid ${isDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.08)'};
+            background: ${isDark ? 'rgba(255,255,255,.03)' : 'rgba(0,0,0,.03)'}; color: ${isDark ? '#c0c0d8' : '#4a4a5a'}; cursor: pointer; transition: all .2s;
             margin-bottom: 10px; font-size: 13.5px; line-height: 1.4; display: flex; align-items: center; gap: 12px;
           }
           .quiz-option:hover { background: rgba(99,102,241,.1); border-color: rgba(99,102,241,.3); }
-          .quiz-option.selected { background: rgba(99,102,241,.15); border-color: #6366f1; color: #fff; }
-          .quiz-option.correct { background: rgba(34,197,94,.15); border-color: #22c55e; color: #fff; }
-          .quiz-option.wrong { background: rgba(239,68,68,.15); border-color: #ef4444; color: #fff; }
-          
+          .quiz-option.selected { background: rgba(99,102,241,.15); border-color: #6366f1; color: ${isDark ? '#fff' : '#1a1a2e'}; }
+          .quiz-option.correct { background: rgba(34,197,94,.15); border-color: #22c55e; color: ${isDark ? '#fff' : '#1a1a2e'}; }
+          .quiz-option.wrong { background: rgba(239,68,68,.15); border-color: #ef4444; color: ${isDark ? '#fff' : '#1a1a2e'}; }
+
           .btn-submit { height: 42px; padding: 0 24px; border-radius: 10px; border: none; background: #6366f1; color: white; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all .2s; }
           .btn-submit:hover { background: #4f46e5; transform: translateY(-1px); }
           .btn-submit:disabled { opacity: .5; cursor: not-allowed; transform: none; }
-          
-          .expl-box { margin-top: 24px; padding: 20px; border-radius: 14px; background: rgba(99,102,241,.06); border: 1px solid rgba(99,102,241,.2); animation: slideUp .3s ease; }
-          
-          .review-card { padding: 18px; border-radius: 12px; background: rgba(255,255,255,.02); border: 1px solid rgba(255,255,255,.06); margin-bottom: 12px; }
+
+          .expl-box { margin-top: 24px; padding: 20px; border-radius: 14px; background: ${isDark ? 'rgba(99,102,241,.06)' : 'rgba(99,102,241,.08)'}; border: 1px solid rgba(99,102,241,.2); animation: slideUp .3s ease; }
+
+          .review-card { padding: 18px; border-radius: 12px; background: ${isDark ? 'rgba(255,255,255,.02)' : 'rgba(0,0,0,.02)'}; border: 1px solid ${isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)'}; margin-bottom: 12px; }
 
           @media (max-width: 640px) {
             .sl-modal { max-height: 95vh; }
             .btn-submit { width: 100%; justify-content: center; }
           }
-        `}</style>
+        `}}
+        />
 
         <div className="sl-head">
-          <div className="sl-title">
+          <div className="sl-title" id="quiz-modal-title">
             {isFinished ? "Quiz Results" : `Question ${currentIdx + 1} of ${totalQuestions}`}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -190,17 +235,24 @@ export default function QuizViewModal({ quizSet, settings, onClose }) {
                 Time: {formatTime(timeLeft)}
               </div>
             )}
-            <button className="sl-close" onClick={onClose}><CloseIco/></button>
+            <button
+              type="button"
+              className="sl-close"
+              onClick={requestClose}
+              aria-label={isFinished ? "Close" : "Exit quiz"}
+            >
+              <CloseIco />
+            </button>
           </div>
         </div>
 
         <div className="sl-body" style={{ display: "block", overflowY: "auto" }}>
           {!isFinished ? (
             <div style={{ paddingBottom: 20 }}>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,.4)", marginBottom: 8 }}>
+              <div style={{ fontSize: 13, color: isDark ? "rgba(255,255,255,.4)" : "rgba(0,0,0,.4)", marginBottom: 8 }}>
                 {currentQuestion.type}
               </div>
-              <h2 style={{ fontSize: 18, color: "#fff", lineHeight: 1.5, marginBottom: 24, fontWeight: 500 }}>
+              <h2 style={{ fontSize: 18, color: isDark ? "#fff" : "#1a1a2e", lineHeight: 1.5, marginBottom: 24, fontWeight: 500 }}>
                 {currentQuestion.question}
               </h2>
 
@@ -209,17 +261,17 @@ export default function QuizViewModal({ quizSet, settings, onClose }) {
                   const isSelected = userAnswers[currentIdx] === opt;
                   const isCorrect = showExplanation && opt === currentQuestion.answer;
                   const isWrong = showExplanation && isSelected && opt !== currentQuestion.answer;
-                  
+
                   return (
-                    <div 
-                      key={i} 
+                    <div
+                      key={i}
                       className={`quiz-option ${isSelected ? "selected" : ""} ${isCorrect ? "correct" : ""} ${isWrong ? "wrong" : ""}`}
                       onClick={() => handleSelectAnswer(opt)}
                     >
-                      <div style={{ 
-                        width: 24, height: 24, borderRadius: "50%", 
-                        background: isCorrect ? "#22c55e" : isWrong ? "#ef4444" : isSelected ? "#6366f1" : "rgba(255,255,255,.1)",
-                        display: "flex", alignItems: "center", justify: "center", color: "#fff", fontSize: 11, fontWeight: 700
+                      <div style={{
+                        width: 24, height: 24, borderRadius: "50%",
+                        background: isCorrect ? "#22c55e" : isWrong ? "#ef4444" : isSelected ? "#6366f1" : (isDark ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.1)"),
+                        display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 700
                       }}>
                         {String.fromCharCode(65 + i)}
                       </div>
@@ -231,10 +283,10 @@ export default function QuizViewModal({ quizSet, settings, onClose }) {
                   const isSelected = userAnswers[currentIdx] === opt;
                   const isCorrect = showExplanation && opt === currentQuestion.answer;
                   const isWrong = showExplanation && isSelected && opt !== currentQuestion.answer;
-                  
+
                   return (
-                    <div 
-                      key={i} 
+                    <div
+                      key={i}
                       className={`quiz-option ${isSelected ? "selected" : ""} ${isCorrect ? "correct" : ""} ${isWrong ? "wrong" : ""}`}
                       onClick={() => handleSelectAnswer(opt)}
                     >
@@ -244,10 +296,10 @@ export default function QuizViewModal({ quizSet, settings, onClose }) {
                 })}
                 {(currentQuestion.type === "FillInBlanks" || currentQuestion.type === "ShortAnswer") && (
                   <div style={{ marginBottom: 20 }}>
-                    <input 
-                      type="text" 
-                      className="txt-inp" 
-                      style={{ height: 44, fontSize: 14 }}
+                    <input
+                      type="text"
+                      className="txt-inp"
+                      style={{ height: 44, fontSize: 14, background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.05)", color: isDark ? "#fff" : "#1a1a2e", border: `1px solid ${isDark ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.1)"}`, borderRadius: 8, padding: "0 12px", outline: "none" }}
                       placeholder="Type your answer here..."
                       value={userAnswers[currentIdx] || ""}
                       onChange={(e) => handleSelectAnswer(e.target.value)}
@@ -264,10 +316,10 @@ export default function QuizViewModal({ quizSet, settings, onClose }) {
 
               {showExplanation && (
                 <div className="expl-box">
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#a5b4fc", fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#818cf8", fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
                     <InfoIco/> Explanation
                   </div>
-                  <div style={{ fontSize: 13.5, color: "rgba(255,255,255,.7)", lineHeight: 1.6 }}>
+                  <div style={{ fontSize: 13.5, color: isDark ? "rgba(255,255,255,.7)" : "rgba(0,0,0,.65)", lineHeight: 1.6 }}>
                     {currentQuestion.explanation}
                   </div>
                 </div>
@@ -278,29 +330,29 @@ export default function QuizViewModal({ quizSet, settings, onClose }) {
               <div style={{ fontSize: 48, fontWeight: 800, color: "#6366f1", marginBottom: 8 }}>
                 {Math.round((getScore() / totalQuestions) * 100)}%
               </div>
-              <div style={{ fontSize: 16, color: "rgba(255,255,255,.6)", marginBottom: 32 }}>
+              <div style={{ fontSize: 16, color: isDark ? "rgba(255,255,255,.6)" : "rgba(0,0,0,.5)", marginBottom: 32 }}>
                 You scored {getScore()} out of {totalQuestions} questions
               </div>
-              
+
               <div style={{ textAlign: "left" }}>
-                <SectionHead>Review Questions</SectionHead>
+                <SectionHead isDark={isDark}>Review Questions</SectionHead>
                 {questions.map((q, idx) => (
                   <div key={idx} className="review-card">
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,.3)", textTransform: "uppercase" }}>Question {idx + 1}</span>
-                      <span style={{ 
-                        fontSize: 11, fontWeight: 700, 
-                        color: userAnswers[idx] === q.answer ? "#22c55e" : "#ef4444" 
+                      <span style={{ fontSize: 11, fontWeight: 700, color: isDark ? "rgba(255,255,255,.3)" : "rgba(0,0,0,.3)", textTransform: "uppercase" }}>Question {idx + 1}</span>
+                      <span style={{
+                        fontSize: 11, fontWeight: 700,
+                        color: userAnswers[idx] === q.answer ? "#22c55e" : "#ef4444"
                       }}>
                         {userAnswers[idx] === q.answer ? "CORRECT" : "WRONG"}
                       </span>
                     </div>
-                    <div style={{ fontSize: 14, color: "#fff", marginBottom: 12 }}>{q.question}</div>
-                    <div style={{ fontSize: 12.5, color: "rgba(255,255,255,.4)" }}>
+                    <div style={{ fontSize: 14, color: isDark ? "#fff" : "#1a1a2e", marginBottom: 12 }}>{q.question}</div>
+                    <div style={{ fontSize: 12.5, color: isDark ? "rgba(255,255,255,.4)" : "rgba(0,0,0,.4)" }}>
                       Your answer: <span style={{ color: userAnswers[idx] === q.answer ? "#22c55e" : "#ef4444" }}>{userAnswers[idx] || "No answer"}</span>
                     </div>
                     {userAnswers[idx] !== q.answer && (
-                      <div style={{ fontSize: 12.5, color: "rgba(255,255,255,.4)", marginTop: 4 }}>
+                      <div style={{ fontSize: 12.5, color: isDark ? "rgba(255,255,255,.4)" : "rgba(0,0,0,.4)", marginTop: 4 }}>
                         Correct answer: <span style={{ color: "#22c55e" }}>{q.answer}</span>
                       </div>
                     )}
@@ -336,7 +388,12 @@ export default function QuizViewModal({ quizSet, settings, onClose }) {
               )}
             </>
           ) : (
-            <button className="btn-submit" style={{ width: "100%", justifyContent: "center" }} onClick={onClose}>
+            <button
+              type="button"
+              className="btn-submit"
+              style={{ width: "100%", justifyContent: "center" }}
+              onClick={onClose}
+            >
               Close & Save
             </button>
           )}

@@ -32,7 +32,7 @@ export const ChevRight = () => (
     <polyline points="9 18 15 12 9 6" />
   </svg>
 );
-export const DocIco = ({ ext }) => {
+export const DocIco = ({ ext, size = 12 }) => {
   const c =
     {
       PDF: "#f87171",
@@ -45,8 +45,8 @@ export const DocIco = ({ ext }) => {
     }[ext?.toUpperCase()] || "#c084fc";
   return (
     <svg
-      width="12"
-      height="12"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke={c}
@@ -166,6 +166,25 @@ export const CopyIco = ({ size = 12 }) => (
   >
     <rect x="9" y="9" width="13" height="13" rx="2" />
     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+  </svg>
+);
+
+/** Regenerate / retry assistant reply (summary chat) */
+export const RegenIco = ({ size = 12 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M21 2v6h-6" />
+    <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+    <path d="M3 22v-6h6" />
+    <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
   </svg>
 );
 
@@ -344,6 +363,24 @@ export const ClipIco = ({ size = 16 }) => (
     strokeLinejoin="round"
   >
     <path d="M21.44 11.05l-8.49 8.49a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-8.49 8.49a2 2 0 1 1-2.83-2.83l7.78-7.78" />
+  </svg>
+);
+
+/** Photo / image attach (chat, etc.) */
+export const ImageIco = ({ size = 16 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+    <circle cx="8.5" cy="8.5" r="1.5" />
+    <path d="M21 15l-5-5L5 21" />
   </svg>
 );
 

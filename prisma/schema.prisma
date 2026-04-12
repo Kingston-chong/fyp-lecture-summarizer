@@ -34,6 +34,7 @@ model User {
   chatThreads  ChatThread[]
   highlights   SummaryHighlight[]
   quizSets     QuizSet[]
+  slideDecks   SlideDeck[]
 }
 
 model PasswordReset {
@@ -73,6 +74,7 @@ model Summary {
   highlights  SummaryHighlight[]
   chatThreads ChatThread[]
   quizSets    QuizSet[]
+  slideDecks  SlideDeck[]
 }
 
 model SummaryHighlight {
@@ -158,4 +160,22 @@ model QuizQuestion {
   quizSet     QuizSet  @relation(fields: [quizSetId], references: [id], onDelete: Cascade)
 
   @@index([quizSetId])
+}
+
+// Alai-generated slide decks saved for a summary (PPTX on Vercel Blob for long-term access).
+model SlideDeck {
+  id               Int      @id @default(autoincrement())
+  userId           Int
+  summaryId        Int
+  title            String   @db.VarChar(512)
+  alaiGenerationId String   @db.VarChar(128)
+  /** Public blob URL — required for in-browser Office preview */
+  pptxUrl          String   @db.VarChar(2048)
+  createdAt        DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  summary Summary @relation(fields: [summaryId], references: [id], onDelete: Cascade)
+
+  @@index([summaryId])
+  @@index([userId])
 }

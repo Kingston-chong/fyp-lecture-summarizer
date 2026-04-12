@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTheme } from "./ThemeProvider.jsx";
 
 // ─── Icons ────────────────────────────────────────────────
 const CloseIco = () => (
@@ -21,6 +22,8 @@ const QuizIco = () => (
 
 // ─── Reusable Components ──────────────────────────────────
 function Dropdown({ value, onChange, options, width = 120 }) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const [open, setOpen] = useState(false);
   return (
     <div style={{ position: "relative", width }}>
@@ -29,9 +32,11 @@ function Dropdown({ value, onChange, options, width = 120 }) {
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         style={{
           width: "100%", height: 32, padding: "0 10px",
-          background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)",
+          background: isDark ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.04)",
+          border: `1px solid ${isDark ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"}`,
           borderRadius: 7, fontFamily: "'Sora',sans-serif", fontSize: 12,
-          color: "#c0c0d8", display: "flex", alignItems: "center", justifyContent: "space-between",
+          color: isDark ? "#c0c0d8" : "#4a4a5a",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
           cursor: "pointer", gap: 6, transition: "all .18s",
         }}
       >
@@ -40,20 +45,21 @@ function Dropdown({ value, onChange, options, width = 120 }) {
       {open && (
         <div style={{
           position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 200,
-          background: "rgba(22,22,34,.98)", border: "1px solid rgba(255,255,255,.12)",
-          borderRadius: 8, padding: 4, boxShadow: "0 12px 32px rgba(0,0,0,.5)",
+          background: isDark ? "rgba(22,22,34,.98)" : "rgba(255,255,255,.98)",
+          border: `1px solid ${isDark ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"}`,
+          borderRadius: 8, padding: 4, boxShadow: isDark ? "0 12px 32px rgba(0,0,0,.5)" : "0 12px 32px rgba(0,0,0,.15)",
         }}>
           {options.map(o => (
             <div key={o}
               onMouseDown={() => { onChange(o); setOpen(false); }}
               style={{
                 padding: "7px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12,
-                color: value === o ? "#a5b4fc" : "#b0b0cc",
+                color: value === o ? "#6366f1" : (isDark ? "#b0b0cc" : "#555568"),
                 background: value === o ? "rgba(99,102,241,.18)" : "transparent",
                 fontWeight: value === o ? 500 : 400,
                 transition: "background .12s",
               }}
-              onMouseEnter={e => { if (value !== o) e.currentTarget.style.background = "rgba(255,255,255,.05)"; }}
+              onMouseEnter={e => { if (value !== o) e.currentTarget.style.background = isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.05)"; }}
               onMouseLeave={e => { if (value !== o) e.currentTarget.style.background = "transparent"; }}
             >{o}</div>
           ))}
@@ -63,24 +69,30 @@ function Dropdown({ value, onChange, options, width = 120 }) {
   );
 }
 
-const SectionHead = ({ children }) => (
-  <div style={{ fontSize: 13.5, fontWeight: 700, color: "#ddddf0", marginBottom: 12, marginTop: 4 }}>
-    {children}
-  </div>
-);
+function SectionHead({ children }) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  return (
+    <div style={{ fontSize: 13.5, fontWeight: 700, color: isDark ? "#ddddf0" : "#1e1b4b", marginBottom: 12, marginTop: 4 }}>
+      {children}
+    </div>
+  );
+}
 
-const FieldLabel = ({ children, style }) => (
-  <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.45)", marginBottom: 8, ...style }}>
-    {children}
-  </div>
-);
-
-const Divider = () => (
-  <div style={{ height: 1, background: "rgba(255,255,255,.07)", margin: "20px 0" }}/>
-);
+function FieldLabel({ children, style }) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  return (
+    <div style={{ fontSize: 11.5, color: isDark ? "rgba(255,255,255,.45)" : "rgba(0,0,0,.5)", marginBottom: 8, ...style }}>
+      {children}
+    </div>
+  );
+}
 
 // ─── Main Modal ───────────────────────────────────────────
 export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const [aiModel, setAiModel] = useState("Gemini");
   const [generationMode, setGenerationMode] = useState("Strict");
   const [questionTypes, setQuestionTypes] = useState(["MCQ"]);
@@ -150,7 +162,10 @@ export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
   };
 
   return (
-    <div className="sl-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div
+      className={`sl-overlay${isDark ? "" : " quiz-modal-light"}`}
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
       <div className="sl-modal" style={{ maxWidth: 720 }}>
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap');
@@ -242,7 +257,80 @@ export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
           .radio-dot.on { border-color: #6366f1; }
           .radio-dot.on::after { content:''; width:6px; height:6px; border-radius:50%; background:#6366f1; }
           
-          .num-input { width: 60px; height: 28px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); borderRadius: 6px; color: #fff; padding: 0 8px; font-size: 12px; outline: none; }
+          .num-input { width: 60px; height: 28px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 6px; color: #fff; padding: 0 8px; font-size: 12px; outline: none; }
+
+          .quiz-modal-light.sl-overlay {
+            background: rgba(15, 18, 30, 0.42);
+            backdrop-filter: blur(8px);
+          }
+          .quiz-modal-light .sl-modal {
+            background: #f8f9fc;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(99, 102, 241, 0.08);
+          }
+          .quiz-modal-light .sl-head {
+            border-bottom-color: rgba(0, 0, 0, 0.08);
+          }
+          .quiz-modal-light .sl-title {
+            color: #1e1b4b;
+          }
+          .quiz-modal-light .sl-close {
+            border-color: rgba(0, 0, 0, 0.12);
+            background: rgba(0, 0, 0, 0.04);
+            color: rgba(0, 0, 0, 0.5);
+          }
+          .quiz-modal-light .sl-close:hover {
+            background: rgba(248, 113, 113, 0.12);
+            border-color: rgba(248, 113, 113, 0.35);
+            color: #b91c1c;
+          }
+          .quiz-modal-light .sl-body::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.12);
+            border-radius: 4px;
+          }
+          .quiz-modal-light .sl-foot {
+            border-top-color: rgba(0, 0, 0, 0.08);
+          }
+          .quiz-modal-light .btn-prev {
+            border-color: rgba(0, 0, 0, 0.12);
+            background: rgba(0, 0, 0, 0.04);
+            color: rgba(0, 0, 0, 0.6);
+          }
+          .quiz-modal-light .btn-prev:hover {
+            border-color: rgba(0, 0, 0, 0.2);
+            color: rgba(0, 0, 0, 0.88);
+            background: rgba(0, 0, 0, 0.06);
+          }
+          .quiz-modal-light .chk-row {
+            color: rgba(0, 0, 0, 0.58);
+          }
+          .quiz-modal-light .chk-row:hover {
+            color: rgba(0, 0, 0, 0.88);
+          }
+          .quiz-modal-light .chk-box {
+            border-color: rgba(0, 0, 0, 0.22);
+          }
+          .quiz-modal-light .radio-opt {
+            color: rgba(0, 0, 0, 0.58);
+          }
+          .quiz-modal-light .radio-opt:hover {
+            color: rgba(0, 0, 0, 0.88);
+          }
+          .quiz-modal-light .radio-opt.on {
+            color: #4f46e5;
+          }
+          .quiz-modal-light .radio-dot {
+            border-color: rgba(0, 0, 0, 0.22);
+          }
+          .quiz-modal-light .num-input {
+            background: #fff;
+            border: 1px solid rgba(0, 0, 0, 0.14);
+            color: #111827;
+          }
+          .quiz-modal-light .num-input:focus {
+            border-color: rgba(99, 102, 241, 0.45);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+          }
           
           @media (max-width: 640px) {
             .sl-body { grid-template-columns: 1fr; gap: 20px; }
@@ -257,7 +345,13 @@ export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
           <button className="sl-close" onClick={onClose}><CloseIco/></button>
         </div>
 
-        <div style={{ padding: "14px 22px", fontSize: 11, color: "rgba(255,255,255,.35)" }}>
+        <div
+          style={{
+            padding: "14px 22px",
+            fontSize: 11,
+            color: isDark ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.48)",
+          }}
+        >
           All these options are optional. If you want to generate quiz straight away, click "Generate Quiz" to start generate random questions.
         </div>
 
@@ -372,7 +466,18 @@ export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
           </div>
         </div>
 
-        {error && <div style={{ padding: "0 22px", color: "#fca5a5", fontSize: 12, marginTop: 10 }}>{error}</div>}
+        {error && (
+          <div
+            style={{
+              padding: "0 22px",
+              color: isDark ? "#fca5a5" : "#b91c1c",
+              fontSize: 12,
+              marginTop: 10,
+            }}
+          >
+            {error}
+          </div>
+        )}
 
         <div className="sl-foot">
           <button className="btn-prev" onClick={() => {

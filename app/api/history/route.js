@@ -4,21 +4,11 @@
 // ============================================================
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getRequestUser } from "@/lib/apiAuth";
 
 export async function GET(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const userEmail = session?.user?.email;
-    if (!userEmail) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const user = await prisma.user.findUnique({
-      where: { email: userEmail },
-      select: { id: true },
-    });
+    const user = await getRequestUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const summaries = await prisma.summary.findMany({
