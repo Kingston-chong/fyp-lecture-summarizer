@@ -34,15 +34,31 @@ export async function GET(_req, context) {
     const quizSets = await prisma.quizSet.findMany({
       where: { summaryId, userId: user.id },
       orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        title: true,
-        createdAt: true,
+      include: {
         _count: { select: { questions: true } },
+        attempts: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            id: true,
+            score: true,
+            totalQuestions: true,
+            createdAt: true,
+          },
+        },
       },
     });
 
-    return NextResponse.json({ quizSets });
+    const payload = quizSets.map((q) => {
+      const latest = q.attempts?.[0] ?? null;
+      const { attempts, ...rest } = q;
+      return {
+        ...rest,
+        latestAttempt: latest,
+      };
+    });
+
+    return NextResponse.json({ quizSets: payload });
   } catch (err) {
     console.error("quiz-sets GET:", err);
     return NextResponse.json(

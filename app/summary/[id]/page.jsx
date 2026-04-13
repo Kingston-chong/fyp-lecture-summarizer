@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Fragment,
   useState,
   useRef,
   useEffect,
@@ -396,6 +397,10 @@ export default function SummaryView() {
   const [quizSets, setQuizSets] = useState([]);
   const [quizSetsLoading, setQuizSetsLoading] = useState(false);
   const [quizSetOpeningId, setQuizSetOpeningId] = useState(null);
+  const [quizHistoryOpenId, setQuizHistoryOpenId] = useState(null);
+  const [quizHistoryLoading, setQuizHistoryLoading] = useState(false);
+  const [quizHistoryList, setQuizHistoryList] = useState([]);
+  const quizHistoryFetchTargetRef = useRef(null);
   const [highlights, setHighlights] = useState([]);
   const [pendingHighlights, setPendingHighlights] = useState([]);
   const [hlLoading, setHlLoading] = useState(false);
@@ -1255,6 +1260,40 @@ export default function SummaryView() {
     void fetchQuizSets();
   }, [status, summaryId, fetchQuizSets]);
 
+  const fetchQuizAttemptHistory = useCallback(
+    async (setId) => {
+      const n = Number.parseInt(String(summaryId ?? ""), 10);
+      if (!Number.isFinite(n) || n <= 0 || !setId) return;
+      quizHistoryFetchTargetRef.current = setId;
+      setQuizHistoryLoading(true);
+      try {
+        const res = await fetch(`/api/summary/${n}/quiz-sets/${setId}/attempts`);
+        const data = await res.json().catch(() => ({}));
+        if (quizHistoryFetchTargetRef.current !== setId) return;
+        if (res.ok && Array.isArray(data.attempts)) setQuizHistoryList(data.attempts);
+        else setQuizHistoryList([]);
+      } catch {
+        if (quizHistoryFetchTargetRef.current === setId) setQuizHistoryList([]);
+      } finally {
+        if (quizHistoryFetchTargetRef.current === setId) setQuizHistoryLoading(false);
+      }
+    },
+    [summaryId],
+  );
+
+  const toggleQuizHistoryPanel = useCallback(
+    (setId) => {
+      if (quizHistoryOpenId === setId) {
+        setQuizHistoryOpenId(null);
+        return;
+      }
+      setQuizHistoryOpenId(setId);
+      setQuizHistoryList([]);
+      void fetchQuizAttemptHistory(setId);
+    },
+    [quizHistoryOpenId, fetchQuizAttemptHistory],
+  );
+
   const openSavedQuizSet = useCallback(
     async (setId) => {
       const n = Number.parseInt(String(summaryId ?? ""), 10);
@@ -1426,9 +1465,11 @@ export default function SummaryView() {
       }
       .hl-popup-wrap { display: none; position: relative; }
       .hl-list-btn {
-        width: 34px;
+        width: auto;
+        min-width: 34px;
         height: 28px;
-        padding: 0;
+        padding: 0 8px 0 6px;
+        gap: 5px;
         border-radius: 7px;
         border: 1px solid rgba(255,255,255,.08);
         background: rgba(255,255,255,.04);
@@ -1439,6 +1480,10 @@ export default function SummaryView() {
         cursor: pointer;
         transition: all .18s;
         position: relative;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        font-family: inherit;
       }
       .hl-list-btn:hover {
         border-color: rgba(255,255,255,.15);
@@ -1748,11 +1793,17 @@ export default function SummaryView() {
       .sum-head-actions { display: flex; flex-direction: row; align-items: center; gap: 6px; flex-shrink: 0; }
       .sum-hl-wrap { position: relative; display: flex; align-items: stretch; }
       .sum-hl-main {
-        height: 28px; width: 34px; padding: 0; border-radius: 7px 0 0 7px;
+        height: 28px; min-width: 34px; width: auto; padding: 0 10px 0 8px; border-radius: 7px 0 0 7px;
         border: 1px solid rgba(255,255,255,.08); border-right: none;
         background: rgba(255,255,255,.04); color: rgba(255,255,255,.5);
-        display: flex; align-items: center; justify-content: center; cursor: pointer;
+        display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;
         transition: all .18s;
+      }
+      .sum-hl-main-txt {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
       }
       .sum-hl-main:hover { border-color: rgba(255,255,255,.15); color: rgba(255,255,255,.85); background: rgba(255,255,255,.06); }
       .sum-hl-main.on {
@@ -2753,11 +2804,15 @@ export default function SummaryView() {
                           className={`sum-hl-main ${hlModeActive ? "on" : ""}`}
                           title={
                             hlModeActive
-                              ? "Highlighter on — select text (saved with sidebar save)"
-                              : "Turn on highlighter"
+                              ? "Highlight on — drag to select text in the summary, then save highlights in the sidebar"
+                              : "Highlight — turn on, pick a color, select text in the summary to mark it"
                           }
                           aria-pressed={hlModeActive}
-                          aria-label="Toggle highlighter mode"
+                          aria-label={
+                            hlModeActive
+                              ? "Highlight mode on; select text in the summary"
+                              : "Turn on highlight mode to mark text in the summary"
+                          }
                           disabled={summaryLoading || !summary?.output}
                           onClick={() => {
                             setHlModeActive((v) => !v);
@@ -2766,6 +2821,7 @@ export default function SummaryView() {
                           }}
                         >
                           <HighlightIco size={13} />
+                          <span className="sum-hl-main-txt">Highlight</span>
                         </button>
                         <button
                           type="button"
@@ -2817,8 +2873,8 @@ export default function SummaryView() {
                         <button
                           type="button"
                           className="hl-list-btn"
-                          title="Highlights"
-                          aria-label="Show highlights"
+                          title="Open your highlights list (saved and unsaved)"
+                          aria-label="Show highlights list"
                           aria-expanded={hlPopupOpen}
                           onClick={() => {
                             setHlPopupOpen((v) => !v);
@@ -2827,6 +2883,7 @@ export default function SummaryView() {
                           disabled={summaryLoading || !summary?.output}
                         >
                           <HighlightIco size={13} />
+                          <span className="sum-hl-main-txt">Highlights</span>
                           {pendingHighlights.length > 0 && (
                             <span className="hl-list-badge">
                               {Math.min(99, pendingHighlights.length)}
@@ -3525,6 +3582,11 @@ export default function SummaryView() {
                     {quizSetsLoading ? <Spinner size={11} /> : "↻"}
                   </button>
                 </div>
+                <div className="hl-sub" style={{ marginTop: -4, marginBottom: 6 }}>
+                  Quiz questions stay saved here. When you <strong>finish</strong> a quiz, that
+                  score is stored; exiting early does not save an attempt. Use{" "}
+                  <strong>History</strong> below to see past scores for each quiz.
+                </div>
                 <div className="sd-deck-list">
                   {quizSetsLoading && quizSets.length === 0 ? (
                     <div className="hl-empty">
@@ -3536,27 +3598,87 @@ export default function SummaryView() {
                     </div>
                   ) : (
                     quizSets.map((q) => (
-                      <div key={q.id} className="sd-deck-row">
-                        <div className="sd-deck-title" title={q.title}>
-                          {q.title}
+                      <Fragment key={q.id}>
+                        <div className="sd-deck-row">
+                          <div className="sd-deck-title" title={q.title}>
+                            {q.title}
+                          </div>
+                          <div className="sd-deck-meta">
+                            {formatSlideDeckSavedAt(q.createdAt)}
+                            {typeof q._count?.questions === "number"
+                              ? ` · ${q._count.questions} Q`
+                              : ""}
+                            {q.latestAttempt ? (
+                              <>
+                                {" "}
+                                · Last: {q.latestAttempt.score}/
+                                {q.latestAttempt.totalQuestions}
+                                {q.latestAttempt.createdAt
+                                  ? ` (${formatSlideDeckSavedAt(q.latestAttempt.createdAt)})`
+                                  : ""}
+                              </>
+                            ) : (
+                              " · No attempts yet"
+                            )}
+                          </div>
+                          <div className="sd-deck-actions">
+                            <button
+                              type="button"
+                              className="sd-deck-btn"
+                              title="View past scores for this quiz"
+                              onClick={() => toggleQuizHistoryPanel(q.id)}
+                            >
+                              {quizHistoryOpenId === q.id ? "Hide" : "History"}
+                            </button>
+                            <button
+                              type="button"
+                              className="sd-deck-btn"
+                              disabled={quizSetOpeningId === q.id}
+                              onClick={() => void openSavedQuizSet(q.id)}
+                            >
+                              {quizSetOpeningId === q.id ? "…" : "Open"}
+                            </button>
+                          </div>
                         </div>
-                        <div className="sd-deck-meta">
-                          {formatSlideDeckSavedAt(q.createdAt)}
-                          {typeof q._count?.questions === "number"
-                            ? ` · ${q._count.questions} Q`
-                            : ""}
-                        </div>
-                        <div className="sd-deck-actions">
-                          <button
-                            type="button"
-                            className="sd-deck-btn"
-                            disabled={quizSetOpeningId === q.id}
-                            onClick={() => void openSavedQuizSet(q.id)}
+                        {quizHistoryOpenId === q.id && (
+                          <div
+                            className="hl-sub"
+                            style={{
+                              margin: "0 0 8px",
+                              padding: "6px 8px",
+                              borderRadius: 8,
+                              border: "1px solid rgba(255,255,255,.08)",
+                              fontSize: 11,
+                              lineHeight: 1.45,
+                            }}
                           >
-                            {quizSetOpeningId === q.id ? "…" : "Open"}
-                          </button>
-                        </div>
-                      </div>
+                            {quizHistoryLoading ? (
+                              <>
+                                <Spinner size={11} /> Loading…
+                              </>
+                            ) : quizHistoryList.length === 0 ? (
+                              "No finished attempts yet."
+                            ) : (
+                              <ul
+                                style={{
+                                  margin: 0,
+                                  paddingLeft: 18,
+                                  listStyle: "disc",
+                                }}
+                              >
+                                {quizHistoryList.map((a) => (
+                                  <li key={a.id}>
+                                    {a.score}/{a.totalQuestions}
+                                    {a.createdAt
+                                      ? ` — ${formatSlideDeckSavedAt(a.createdAt)}`
+                                      : ""}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        )}
+                      </Fragment>
                     ))
                   )}
                 </div>
@@ -3719,6 +3841,8 @@ export default function SummaryView() {
           key={quizData.id}
           quizSet={quizData}
           settings={quizSettings}
+          summaryId={summaryId}
+          onAttemptSaved={() => void fetchQuizSets()}
           onClose={() => setQuizView(false)}
         />
       )}

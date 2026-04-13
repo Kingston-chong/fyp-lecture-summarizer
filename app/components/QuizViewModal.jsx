@@ -33,7 +33,13 @@ function SectionHead({ children, isDark }) {
   );
 }
 
-export default function QuizViewModal({ quizSet, settings, onClose }) {
+export default function QuizViewModal({
+  quizSet,
+  settings,
+  onClose,
+  summaryId,
+  onAttemptSaved,
+}) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -47,6 +53,8 @@ export default function QuizViewModal({ quizSet, settings, onClose }) {
   const [timeLeft, setTimeLeft] = useState(initialTimeLeft);
 
   const timerRef = useRef(null);
+  const userAnswersRef = useRef(userAnswers);
+  userAnswersRef.current = userAnswers;
 
   const resetSession = useCallback(() => {
     if (timerRef.current) {
@@ -59,6 +67,55 @@ export default function QuizViewModal({ quizSet, settings, onClose }) {
     setIsFinished(false);
     setTimeLeft(initialTimeLeft);
   }, [initialTimeLeft]);
+
+  /** Persist finished quiz to server (AbortController avoids double POST under React Strict Mode). */
+  useEffect(() => {
+    if (!isFinished || !quizSet?.id || summaryId == null || summaryId === "") {
+      return undefined;
+    }
+    const n = Number.parseInt(String(summaryId), 10);
+    if (!Number.isFinite(n) || n <= 0) return undefined;
+
+    const qs = quizSet.questions || [];
+    const total = qs.length;
+    if (total === 0) return undefined;
+
+    const ua = userAnswersRef.current;
+    let score = 0;
+    qs.forEach((q, idx) => {
+      if (ua[idx] === q.answer) score++;
+    });
+    const answers = {};
+    for (let i = 0; i < total; i++) {
+      if (ua[i] !== undefined && ua[i] !== "") {
+        answers[String(i)] = ua[i];
+      }
+    }
+
+    const ac = new AbortController();
+    void (async () => {
+      try {
+        const res = await fetch(`/api/summary/${n}/quiz-sets/${quizSet.id}/attempts`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: ac.signal,
+          body: JSON.stringify({
+            score,
+            totalQuestions: total,
+            answers,
+          }),
+        });
+        if (!res.ok) return;
+        onAttemptSaved?.();
+      } catch (e) {
+        if (e?.name !== "AbortError") {
+          console.warn("Quiz attempt save failed:", e);
+        }
+      }
+    })();
+
+    return () => ac.abort();
+  }, [isFinished, quizSet, summaryId, onAttemptSaved]);
 
   useEffect(() => {
     if (timeLeft !== null && timeLeft > 0 && !isFinished) {
@@ -354,8 +411,22 @@ export default function QuizViewModal({ quizSet, settings, onClose }) {
               <div style={{ fontSize: 48, fontWeight: 800, color: "#6366f1", marginBottom: 8 }}>
                 {Math.round((getScore() / totalQuestions) * 100)}%
               </div>
-              <div style={{ fontSize: 16, color: isDark ? "rgba(255,255,255,.6)" : "rgba(0,0,0,.5)", marginBottom: 32 }}>
+              <div style={{ fontSize: 16, color: isDark ? "rgba(255,255,255,.6)" : "rgba(0,0,0,.5)", marginBottom: 10 }}>
                 You scored {getScore()} out of {totalQuestions} questions
+              </div>
+              <div
+                style={{
+                  fontSize: 12,
+                  lineHeight: 1.45,
+                  color: isDark ? "rgba(255,255,255,.38)" : "rgba(0,0,0,.42)",
+                  marginBottom: 28,
+                  maxWidth: 420,
+                  marginLeft: "auto",
+                  marginRight: "auto",
+                }}
+              >
+                This result is saved to your account when you finish. Exiting before the end does not save a score. Use{" "}
+                <strong>Retake quiz</strong> for another attempt, or open this quiz again from Saved quizzes to see your latest score in the list.
               </div>
 
               <div style={{ textAlign: "left" }}>

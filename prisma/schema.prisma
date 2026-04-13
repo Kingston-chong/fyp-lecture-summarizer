@@ -34,6 +34,7 @@ model User {
   chatThreads  ChatThread[]
   highlights   SummaryHighlight[]
   quizSets     QuizSet[]
+  quizAttempts QuizAttempt[]
   slideDecks   SlideDeck[]
 }
 
@@ -140,11 +141,28 @@ model QuizSet {
   settings    Json?          // Store generation settings (difficulty, types, etc.)
   createdAt   DateTime       @default(now())
   questions   QuizQuestion[]
+  attempts    QuizAttempt[]
   user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   summary     Summary?       @relation(fields: [summaryId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([summaryId])
+}
+
+model QuizAttempt {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  quizSetId      Int
+  score          Int
+  totalQuestions Int
+  answers        Json?
+  createdAt      DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizSet QuizSet @relation(fields: [quizSetId], references: [id], onDelete: Cascade)
+
+  @@index([quizSetId])
+  @@index([userId, quizSetId])
 }
 
 model QuizQuestion {
