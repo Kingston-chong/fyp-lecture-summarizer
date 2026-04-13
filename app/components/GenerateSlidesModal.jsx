@@ -716,6 +716,51 @@ export default function GenerateSlidesModal({
       .create-prompt-area:focus { border-color: rgba(99,102,241,.4); box-shadow: 0 0 0 3px rgba(99,102,241,.08); }
       .create-prompt-hint { font-size: 10.5px; color: rgba(255,255,255,.32); margin-top: 6px; }
       .archive-note { font-size: 11px; color: #a5b4fc; margin-top: 10px; line-height: 1.4; }
+
+      @media (max-width: 900px) {
+        .sl-overlay {
+          align-items: flex-start;
+          padding: 10px;
+        }
+        .sl-modal {
+          max-width: 100%;
+          max-height: calc(100vh - 20px);
+          border-radius: 14px;
+        }
+        .sl-head {
+          padding: 14px 14px 12px;
+        }
+        .sl-tabs {
+          padding: 0 14px 12px;
+          overflow-x: auto;
+          scrollbar-width: thin;
+        }
+        .sl-body {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+          padding: 14px;
+        }
+        .col-left,
+        .col-right,
+        .improve-wrap,
+        .create-prompt-row {
+          width: 100%;
+        }
+        .col-right {
+          margin-top: 0;
+        }
+        .sl-foot {
+          padding: 12px 14px;
+          justify-content: stretch;
+          flex-wrap: wrap;
+        }
+        .sl-foot .btn-prev,
+        .sl-foot .btn-create {
+          flex: 1 1 100%;
+          justify-content: center;
+        }
+      }
     `}</style>
 
     <div className="sl-overlay" onClick={e => e.target === e.currentTarget && onClose()}>

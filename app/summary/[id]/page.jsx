@@ -276,11 +276,28 @@ function chatMessageToApiPayload(m) {
 }
 
 // ─── PDF export ───────────────────────────────────────────────────────────────
-function exportPDF(summary, messages) {
+function exportPDF(summary, messages, renderedSummaryHtml) {
   const dateStr = fmtDate(summary.createdAt);
   const escape = (s) =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const bodyHtml = markdownToHtml(summary.output || "");
+  const stripPendingHighlights = (html) => {
+    if (!html) return "";
+    try {
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      doc.querySelectorAll("mark.s2n-hl-pending").forEach((m) => {
+        const p = m.parentNode;
+        if (!p) return;
+        while (m.firstChild) p.insertBefore(m.firstChild, m);
+        p.removeChild(m);
+      });
+      return doc.body.innerHTML;
+    } catch {
+      return html;
+    }
+  };
+  const bodyHtml = renderedSummaryHtml
+    ? stripPendingHighlights(renderedSummaryHtml)
+    : markdownToHtml(summary.output || "");
   const msgsHtml = messages
     .map((m) => {
       const isUser = m.role === "user";
@@ -311,6 +328,10 @@ function exportPDF(summary, messages) {
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Sora',sans-serif;color:#18182a;background:#fff;padding:52px;max-width:780px;margin:0 auto;font-size:13.5px;line-height:1.75}
+.pdf-toolbar{position:sticky;top:0;z-index:20;display:flex;justify-content:flex-end;gap:8px;background:rgba(255,255,255,.95);backdrop-filter:blur(6px);padding:10px 0 12px;border-bottom:1px solid #ececf4;margin-bottom:12px}
+.pdf-btn{border:1px solid #d6d6e5;border-radius:8px;background:#f8f8ff;color:#2a2a3e;font:600 12px 'Sora',sans-serif;padding:8px 12px;cursor:pointer}
+.pdf-btn.primary{background:#6366f1;color:#fff;border-color:#6366f1}
+.pdf-hint{font-size:11px;color:#666;align-self:center;margin-right:auto}
 .brand{font-size:10px;font-weight:600;color:#6366f1;letter-spacing:.14em;text-transform:uppercase;margin-bottom:10px}
 h1{font-size:24px;font-weight:600;color:#18182a;margin-bottom:14px;line-height:1.3}
 .meta{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:8px}
@@ -325,8 +346,13 @@ hr{border:none;border-top:1.5px solid #e8e8f0;margin:24px 0}
 .msg-a{background:#f8f8fa;border-left:3px solid #ddd}
 .role{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#999;margin-bottom:5px}
 .footer{margin-top:44px;padding-top:14px;border-top:1px solid #e8e8f0;font-size:10.5px;color:#bbb;text-align:center}
-@media print{body{padding:36px}}
+@media print{.pdf-toolbar{display:none}body{padding:36px}}
 </style></head><body>
+<div class="pdf-toolbar">
+  <div class="pdf-hint">Use Download PDF to save this page as a PDF.</div>
+  <button class="pdf-btn primary" onclick="window.print()">Download PDF</button>
+  <button class="pdf-btn" onclick="window.print()">Print</button>
+</div>
 <div class="brand">Slide2Notes — Summary Export</div>
 <h1>${escape(summary.title)}</h1>
 <div class="meta">
@@ -344,12 +370,9 @@ ${messages.length ? `<hr/><div class="sec">Chat History</div>${msgsHtml}` : ""}
   const blob = new Blob([html], { type: "text/html" });
   const url = URL.createObjectURL(blob);
   const win = window.open(url, "_blank");
-  if (win)
-    win.onload = () =>
-      setTimeout(() => {
-        win.print();
-        URL.revokeObjectURL(url);
-      }, 300);
+  if (win) {
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
 }
 
 // Component
@@ -1062,7 +1085,7 @@ export default function SummaryView() {
   function handlePDF() {
     if (!summary) return;
     setPdfLoading(true);
-    exportPDF(summary, messages);
+    exportPDF(summary, messages, summaryBodyRef.current?.innerHTML || "");
     setTimeout(() => setPdfLoading(false), 900);
   }
 
@@ -1580,7 +1603,7 @@ export default function SummaryView() {
         border-radius: 8px;
         background: rgba(255,255,255,.03);
         border: 1px solid rgba(255,255,255,.08);
-        border-left: 3px solid var(--hl-accent, #fef08a);
+        border-left: 5px solid var(--hl-accent, #fef08a);
         margin-bottom: 6px;
         cursor: pointer;
       }
@@ -1591,6 +1614,16 @@ export default function SummaryView() {
         border-color: rgba(99,102,241,.22);
       }
       .hl-item.pending:hover { background: rgba(99,102,241,.1); }
+      .hl-color-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,.38);
+        background: var(--hl-accent, #fef08a);
+        margin-top: 3px;
+        flex-shrink: 0;
+        box-shadow: 0 0 0 1px rgba(0,0,0,.2);
+      }
       .hl-quote {
         font-size: 11px;
         color: rgba(255,255,255,.72);
@@ -2550,10 +2583,16 @@ export default function SummaryView() {
       html[data-theme="light"] .hl-quote { color: rgba(0,0,0,0.72); }
       html[data-theme="light"] .hl-sub { color: rgba(180,130,0,0.9); }
       html[data-theme="light"] .hl-item {
-        background: rgba(0,0,0,0.03);
-        border-color: rgba(0,0,0,0.08);
+        background: rgba(255,255,255,0.92);
+        border-color: rgba(0,0,0,0.14);
+        border-left-width: 5px;
       }
       html[data-theme="light"] .hl-item:hover { background: rgba(0,0,0,0.05); }
+      html[data-theme="light"] .hl-color-dot {
+        border-color: rgba(0,0,0,0.25);
+        box-shadow: 0 0 0 1px rgba(255,255,255,.85);
+      }
+      html[data-theme="light"] .hl-quote { color: rgba(0,0,0,0.78); }
       html[data-theme="light"] .hl-x { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.45); }
       html[data-theme="light"] .src-empty { color: rgba(0,0,0,0.45); }
       html[data-theme="light"] .src-item {
@@ -3735,6 +3774,7 @@ export default function SummaryView() {
                         onClick={() => scrollToHighlight(p.clientId)}
                         title={p.quote}
                       >
+                        <span className="hl-color-dot" />
                         <div className="hl-quote">
                           {p.quote.length > 140
                             ? `${p.quote.slice(0, 140)}…`
@@ -3766,6 +3806,7 @@ export default function SummaryView() {
                         onClick={() => scrollToHighlight(h.id)}
                         title={h.quote}
                       >
+                        <span className="hl-color-dot" />
                         <div className="hl-quote">
                           {h.quote.length > 140
                             ? `${h.quote.slice(0, 140)}…`
