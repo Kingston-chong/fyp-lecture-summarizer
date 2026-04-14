@@ -15,15 +15,15 @@ Live Demo: [https://fyp-lecture-summarizer.vercel.app](https://fyp-lecture-summa
 
 ## ✨ Key Features
 
-- 📄 **Multi-Format Support**: Upload PDFs, Word documents, PowerPoint presentations, and Excel spreadsheets
-- 🤖 **AI-Powered Summarization**: Leverages Google Generative AI and OpenAI models for intelligent content analysis
-- 📊 **Smart Slide Generation**: Automatically creates professional presentations using the Alai API
-- 🎨 **Customizable Templates**: Choose from various slide templates and styling options
-- 💾 **Multiple Export Formats**: Download summaries as PDF or presentations in PPTX format
-- 🔐 **User Authentication**: Secure login system with email and password authentication
-- 📧 **Email Notifications**: Receive updates via email for important actions
-- 🌐 **Cloud Storage**: File uploads backed by Vercel Blob for reliable storage
-- 📱 **Responsive Design**: Mobile-friendly interface built with TailwindCSS
+- **Multi-Format Support**: Upload PDFs, Word documents, PowerPoint presentations, and Excel spreadsheets
+- **AI-Powered Summarization**: Leverages Google Generative AI and OpenAI models for intelligent content analysis
+- **Smart Slide Generation**: Automatically creates professional presentations using the Alai API
+- **Customizable Templates**: Choose from various slide templates and styling options
+- **Multiple Export Formats**: Download summaries as PDF or presentations in PPTX format
+- **User Authentication**: Secure login system with email and password authentication
+- **Email Notifications**: Receive updates via email for important actions
+- **Cloud Storage**: File uploads backed by Vercel Blob for reliable storage
+- **Responsive Design**: Mobile-friendly interface built with TailwindCSS
 
 ## 🛠️ Tech Stack
 
