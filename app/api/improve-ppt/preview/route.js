@@ -65,7 +65,8 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    const mode = body?.mode === "style" ? "style" : "context";
+    const mode = body?.mode === "style" ? "style" : "content";
+    const additiveImprove = body?.additiveImprove !== false;
     const instructions = String(body?.instructions || "").trim();
     const modelLabel = String(body?.model || "Gemini");
     const slidesIn = Array.isArray(body?.slides) ? body.slides : [];
@@ -87,9 +88,15 @@ export async function POST(req) {
       "You are an expert presentation designer. Output ONLY valid JSON (no markdown fences).";
 
     const slidesForPrompt = compactSlidesForLlm(slidesIn);
+    const additiveHint = additiveImprove
+      ? "Additive mode: keep source wording on slides unless the user asked to change it; expand mainly in speaker notes."
+      : "Full redesign mode: you may refresh theme and on-slide text for a cohesive preview.";
+
     const userContent = `Create an improved preview version of a PPT (theme + slide titles + bullets + speaker notes).
 
-Mode: ${mode}
+Mode: ${mode} (content = teaching clarity + rich notes without aggressive shortening; style = visuals/theme)
+${additiveHint}
+
 User instructions:
 ${instructions}
 
@@ -105,7 +112,7 @@ Return JSON exactly:
   "subtitle": "One line value proposition",
   "theme": { "background":"#RRGGBB", "accent":"#RRGGBB", "text":"#RRGGBB", "panel":"#RRGGBB" },
   "slides": [
-    { "index": 1, "title": "Slide title", "lines": ["3-6 substantive bullets"], "notes": "1-2 sentences speaker notes (preview)" }
+    { "index": 1, "title": "Slide title", "lines": ["3-6 substantive bullets"], "notes": "3+ sentences speaker notes when possible (preview)" }
   ],
   "imageQueries": []
 }
@@ -136,9 +143,18 @@ Rules:
       });
     }
 
-    const theme = normalizeTheme(parsed?.theme);
+    const theme = additiveImprove
+      ? {
+          background: "#f8fafc",
+          accent: "#64748b",
+          text: "#0f172a",
+          panel: `#${panelFromBackground("#f8fafc", "#64748b")}`,
+        }
+      : normalizeTheme(parsed?.theme);
     const title = String(parsed?.title || "Improved presentation").slice(0, 200);
-    const subtitle = String(parsed?.subtitle || "").slice(0, 300);
+    const subtitle = additiveImprove
+      ? ""
+      : String(parsed?.subtitle || "").slice(0, 300);
 
     let outSlides = Array.isArray(parsed?.slides) ? parsed.slides : [];
     if (outSlides.length === 0) {

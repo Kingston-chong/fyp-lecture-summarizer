@@ -187,7 +187,8 @@ function findRangeForSubstring(root, quote) {
 /** Wrap first occurrence of quote; supports overlaps via extractContents + insertNode (not surroundContents). */
 function wrapQuoteInRoot(root, quote, hlId, colorHex, pending) {
   if (!root || !quote) return false;
-  const color = colorHex && /^#[0-9a-f]{6}$/i.test(colorHex) ? colorHex : DEFAULT_HL_HEX;
+  const color =
+    colorHex && /^#[0-9a-f]{6}$/i.test(colorHex) ? colorHex : DEFAULT_HL_HEX;
   const range = findRangeForSubstring(root, quote);
   if (!range) return false;
   const mark = document.createElement("mark");
@@ -395,7 +396,7 @@ export default function SummaryView() {
   /** When true, /api/chat runs Tavily for that send (if TAVILY_API_KEY is set). Phrases like “beyond the summary” can also trigger search server-side. */
   const [chatWebSearch, setChatWebSearch] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
-  const [showSuggest, setShowSuggest] = useState(true);
+  const [aiChatSuggestions, setAiChatSuggestions] = useState([]);
   const [sourceUploadLoading, setSourceUploadLoading] = useState(false);
   const [extraSources, setExtraSources] = useState([]);
   const [pendingSourceFiles, setPendingSourceFiles] = useState([]); // { clientId, file, name, type }
@@ -423,6 +424,8 @@ export default function SummaryView() {
   const [quizHistoryOpenId, setQuizHistoryOpenId] = useState(null);
   const [quizHistoryLoading, setQuizHistoryLoading] = useState(false);
   const [quizHistoryList, setQuizHistoryList] = useState([]);
+  const [quizHistoryQuestions, setQuizHistoryQuestions] = useState([]);
+  const [quizAttemptDetail, setQuizAttemptDetail] = useState(null);
   const quizHistoryFetchTargetRef = useRef(null);
   const [highlights, setHighlights] = useState([]);
   const [pendingHighlights, setPendingHighlights] = useState([]);
@@ -431,7 +434,8 @@ export default function SummaryView() {
   const [hlColorHex, setHlColorHex] = useState(DEFAULT_HL_HEX);
   const [hlColorMenuOpen, setHlColorMenuOpen] = useState(false);
   const [hlSaving, setHlSaving] = useState(false);
-  const [hlPopupOpen, setHlPopupOpen] = useState(false);
+  /** Mobile: "More" bottom-sheet (shows full right panel content) */
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   /** Narrow layout: shorter action-bar labels + compact buttons */
   const [compactActBar, setCompactActBar] = useState(false);
 
@@ -440,7 +444,7 @@ export default function SummaryView() {
   const [splitterDragging, setSplitterDragging] = useState(false);
   const splitterRef = useRef(null); // { startX, startWidth }
   const [open, setOpen] = useState(false);
-  
+
   const [chatTitleEditing, setChatTitleEditing] = useState(false);
   const [chatTitleDraft, setChatTitleDraft] = useState("");
   const [chatTitleSaving, setChatTitleSaving] = useState(false);
@@ -451,7 +455,6 @@ export default function SummaryView() {
   const sourceInputRef = useRef(null);
   const summaryBodyRef = useRef(null);
   const hlToolbarRef = useRef(null);
-  const hlPopupWrapRef = useRef(null);
   const lastSelectionTriggerRef = useRef(0);
 
   // Drag-to-resize sources sidebar (desktop)
@@ -494,7 +497,6 @@ export default function SummaryView() {
     setHlModeActive(false);
     setHlColorMenuOpen(false);
     setPendingHighlights([]);
-    setHlPopupOpen(false);
     setChatTitleEditing(false);
     setPendingPasteImages([]);
     if (typeof window !== "undefined") {
@@ -621,7 +623,8 @@ export default function SummaryView() {
       try {
         const res = await fetch(`/api/summary/${summaryId}/highlights`);
         const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || "Failed to load highlights");
+        if (!res.ok)
+          throw new Error(data?.error || "Failed to load highlights");
         if (!cancelled) setHighlights(data.highlights || []);
       } catch {
         if (!cancelled) setHighlights([]);
@@ -665,15 +668,6 @@ export default function SummaryView() {
     function onDocDown(e) {
       if (hlToolbarRef.current?.contains(e.target)) return;
       setHlColorMenuOpen(false);
-    }
-    document.addEventListener("mousedown", onDocDown);
-    return () => document.removeEventListener("mousedown", onDocDown);
-  }, []);
-
-  useEffect(() => {
-    function onDocDown(e) {
-      if (hlPopupWrapRef.current?.contains(e.target)) return;
-      setHlPopupOpen(false);
     }
     document.addEventListener("mousedown", onDocDown);
     return () => document.removeEventListener("mousedown", onDocDown);
@@ -828,7 +822,13 @@ export default function SummaryView() {
 
   async function sendMessage(text) {
     const msg = (text ?? inputVal).trim();
-    if ((!msg && pendingPasteImages.length === 0) || chatLoading || sourceUploadLoading)
+    if (
+      (!msg &&
+        pendingPasteImages.length === 0 &&
+        pendingSourceFiles.length === 0) ||
+      chatLoading ||
+      sourceUploadLoading
+    )
       return;
     if (!summary?.output) return;
     const threadHasInlineImages = messages.some(
@@ -845,14 +845,20 @@ export default function SummaryView() {
     }
     setChatNotice("");
     setInputVal("");
-    setShowSuggest(false);
     const pasteSnapshot = pendingPasteImages.map((x) => x.dataUrl);
+    const stagedDocSnapshot = pendingSourceFiles.map((f) => ({
+      name: f.name,
+      type: f.type,
+    }));
     setPendingPasteImages([]);
     const userMsg = {
       id: Date.now(),
       role: "user",
       content: msg,
       ...(pasteSnapshot.length > 0 ? { imagePreviews: pasteSnapshot } : {}),
+      ...(stagedDocSnapshot.length > 0
+        ? { attachedFiles: stagedDocSnapshot }
+        : {}),
     };
     const historyPayload = [...messages, userMsg].map(chatMessageToApiPayload);
     const modelParam =
@@ -1109,21 +1115,24 @@ export default function SummaryView() {
     window.getSelection()?.removeAllRanges();
   }, [hlModeActive, hlSaving, hlColorHex]);
 
-  const handleSummaryMouseUp = useCallback((e) => {
-    const now = Date.now();
-    if (now - lastSelectionTriggerRef.current < 350) return;
-    lastSelectionTriggerRef.current = now;
+  const handleSummaryMouseUp = useCallback(
+    (e) => {
+      const now = Date.now();
+      if (now - lastSelectionTriggerRef.current < 350) return;
+      lastSelectionTriggerRef.current = now;
 
-    const isTouch =
-      (e && e.pointerType === "touch") || (e && e.type === "touchend");
+      const isTouch =
+        (e && e.pointerType === "touch") || (e && e.type === "touchend");
 
-    // On touch devices the selection can finalize slightly after the event.
-    if (isTouch) {
-      setTimeout(() => handleSummarySelectionTrigger(), 0);
-    } else {
-      handleSummarySelectionTrigger();
-    }
-  }, [handleSummarySelectionTrigger]);
+      // On touch devices the selection can finalize slightly after the event.
+      if (isTouch) {
+        setTimeout(() => handleSummarySelectionTrigger(), 0);
+      } else {
+        handleSummarySelectionTrigger();
+      }
+    },
+    [handleSummarySelectionTrigger],
+  );
 
   async function flushPendingHighlights() {
     if (!summaryId || hlSaving || pendingHighlights.length === 0) return;
@@ -1152,9 +1161,9 @@ export default function SummaryView() {
       if (stillPending.length) {
         alert(
           stillPending.length === queue.length
-            ? (queue.length === 1
-                ? "Could not save the highlight. Please try again."
-                : "Could not save highlights. Please try again.")
+            ? queue.length === 1
+              ? "Could not save the highlight. Please try again."
+              : "Could not save highlights. Please try again."
             : `Saved ${created.length} highlight(s); ${stillPending.length} could not be saved.`,
         );
       }
@@ -1169,10 +1178,9 @@ export default function SummaryView() {
 
   async function deleteHighlight(hid) {
     try {
-      const res = await fetch(
-        `/api/summary/${summaryId}/highlights/${hid}`,
-        { method: "DELETE" },
-      );
+      const res = await fetch(`/api/summary/${summaryId}/highlights/${hid}`, {
+        method: "DELETE",
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Delete failed");
       setHighlights((p) => p.filter((h) => h.id !== hid));
@@ -1184,7 +1192,9 @@ export default function SummaryView() {
   function scrollToHighlight(hid) {
     const id = String(hid);
     const safe =
-      typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id.replace(/"/g, '\\"');
+      typeof CSS !== "undefined" && CSS.escape
+        ? CSS.escape(id)
+        : id.replace(/"/g, '\\"');
     const el = document.querySelector(`mark.s2n-hl[data-hl-id="${safe}"]`);
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
@@ -1196,16 +1206,44 @@ export default function SummaryView() {
     return { __html: raw };
   }, [summaryHtml, summary?.output]);
 
-  const chatSuggestions = useMemo(
-    () =>
-      buildChatSuggestions({
-        markdown: summary?.output || "",
-        headings,
-        title: summary?.title || "",
-        max: 4,
-      }),
-    [summary?.output, summary?.title, headings],
-  );
+  const chatSuggestions = useMemo(() => {
+    if (aiChatSuggestions.length > 0) return aiChatSuggestions;
+    return buildChatSuggestions({
+      markdown: summary?.output || "",
+      headings,
+      title: summary?.title || "",
+      max: 4,
+    });
+  }, [aiChatSuggestions, summary?.output, summary?.title, headings]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    if (!summaryId || !summary?.output) {
+      setAiChatSuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    async function loadAiSuggestions() {
+      try {
+        const res = await fetch(`/api/summary/${summaryId}/chat-suggestions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ max: 4 }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok)
+          throw new Error(data?.error || "Failed to load suggestions");
+        const next = Array.isArray(data?.suggestions) ? data.suggestions : [];
+        if (!cancelled) setAiChatSuggestions(next);
+      } catch {
+        if (!cancelled) setAiChatSuggestions([]);
+      }
+    }
+    loadAiSuggestions();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, summaryId, summary?.output]);
 
   function fileExtUpper(name) {
     const parts = String(name || "").split(".");
@@ -1229,12 +1267,10 @@ export default function SummaryView() {
     });
   }
 
-  function removeExtraSourceById(docId) {
-    setExtraSources((prev) => prev.filter((d) => d?.id !== docId));
-  }
-
   function removePendingSourceByClientId(clientId) {
-    setPendingSourceFiles((prev) => prev.filter((p) => p.clientId !== clientId));
+    setPendingSourceFiles((prev) =>
+      prev.filter((p) => p.clientId !== clientId),
+    );
   }
 
   const fetchSlideDecks = useCallback(async () => {
@@ -1290,15 +1326,28 @@ export default function SummaryView() {
       quizHistoryFetchTargetRef.current = setId;
       setQuizHistoryLoading(true);
       try {
-        const res = await fetch(`/api/summary/${n}/quiz-sets/${setId}/attempts`);
+        const res = await fetch(
+          `/api/summary/${n}/quiz-sets/${setId}/attempts`,
+        );
         const data = await res.json().catch(() => ({}));
         if (quizHistoryFetchTargetRef.current !== setId) return;
-        if (res.ok && Array.isArray(data.attempts)) setQuizHistoryList(data.attempts);
-        else setQuizHistoryList([]);
+        if (res.ok && Array.isArray(data.attempts)) {
+          setQuizHistoryList(data.attempts);
+          setQuizHistoryQuestions(
+            Array.isArray(data.questions) ? data.questions : [],
+          );
+        } else {
+          setQuizHistoryList([]);
+          setQuizHistoryQuestions([]);
+        }
       } catch {
-        if (quizHistoryFetchTargetRef.current === setId) setQuizHistoryList([]);
+        if (quizHistoryFetchTargetRef.current === setId) {
+          setQuizHistoryList([]);
+          setQuizHistoryQuestions([]);
+        }
       } finally {
-        if (quizHistoryFetchTargetRef.current === setId) setQuizHistoryLoading(false);
+        if (quizHistoryFetchTargetRef.current === setId)
+          setQuizHistoryLoading(false);
       }
     },
     [summaryId],
@@ -1308,13 +1357,48 @@ export default function SummaryView() {
     (setId) => {
       if (quizHistoryOpenId === setId) {
         setQuizHistoryOpenId(null);
+        setQuizAttemptDetail(null);
         return;
       }
       setQuizHistoryOpenId(setId);
       setQuizHistoryList([]);
+      setQuizHistoryQuestions([]);
+      setQuizAttemptDetail(null);
       void fetchQuizAttemptHistory(setId);
     },
     [quizHistoryOpenId, fetchQuizAttemptHistory],
+  );
+
+  const openQuizAttemptDetail = useCallback(
+    (attempt) => {
+      if (!attempt) return;
+      const answers =
+        attempt.answers && typeof attempt.answers === "object"
+          ? attempt.answers
+          : {};
+      const rows = quizHistoryQuestions.map((q, idx) => {
+        const userAnswer = answers[String(idx)] ?? null;
+        const correctAnswer = q.answer ?? "";
+        return {
+          id: q.id ?? `${idx}`,
+          questionNumber: idx + 1,
+          question: q.question ?? "",
+          userAnswer,
+          correctAnswer,
+          isCorrect:
+            userAnswer != null &&
+            String(userAnswer).trim() === String(correctAnswer).trim(),
+        };
+      });
+      setQuizAttemptDetail({
+        id: attempt.id,
+        createdAt: attempt.createdAt,
+        score: attempt.score,
+        totalQuestions: attempt.totalQuestions,
+        rows,
+      });
+    },
+    [quizHistoryQuestions],
   );
 
   const openSavedQuizSet = useCallback(
@@ -1344,7 +1428,9 @@ export default function SummaryView() {
   function openSlideDeckPreview(deck) {
     setSlideDeckPreviewUrl("");
     setSlideDeckRemotePptUrl(deck.pptxUrl || "");
-    setSlideDeckPreviewTitle(String(deck.title || "Presentation").trim() || "Presentation");
+    setSlideDeckPreviewTitle(
+      String(deck.title || "Presentation").trim() || "Presentation",
+    );
     const baseTitle =
       String(deck.title || "presentation").trim() || "presentation";
     slideDeckDlRef.current = async () => {
@@ -1486,29 +1572,24 @@ export default function SummaryView() {
         overflow-y: auto;
         flex-shrink: 0;
       }
-      .hl-popup-wrap { display: none; position: relative; }
-      .hl-list-btn {
-        width: auto;
-        min-width: 34px;
+      /* Three-dot More button — hidden on desktop, revealed in mobile media query */
+      .mob-more-btn {
+        display: none;
+        position: relative;
+        width: 30px;
         height: 28px;
-        padding: 0 8px 0 6px;
-        gap: 5px;
+        padding: 0;
         border-radius: 7px;
         border: 1px solid rgba(255,255,255,.08);
         background: rgba(255,255,255,.04);
-        color: rgba(255,255,255,.5);
-        display: flex;
+        color: rgba(255,255,255,.55);
         align-items: center;
         justify-content: center;
         cursor: pointer;
         transition: all .18s;
-        position: relative;
-        font-size: 11px;
-        font-weight: 600;
-        letter-spacing: 0.02em;
-        font-family: inherit;
+        flex-shrink: 0;
       }
-      .hl-list-btn:hover {
+      .mob-more-btn:hover {
         border-color: rgba(255,255,255,.15);
         color: rgba(255,255,255,.85);
         background: rgba(255,255,255,.06);
@@ -1530,23 +1611,6 @@ export default function SummaryView() {
         align-items: center;
         justify-content: center;
         box-shadow: 0 10px 22px rgba(0,0,0,.25);
-      }
-      .hl-popup {
-        position: absolute;
-        top: calc(100% + 6px);
-        right: 0;
-        z-index: 85;
-        width: min(320px, calc(100vw - 28px));
-        border-radius: 12px;
-        background: rgba(22,22,34,.98);
-        border: 1px solid rgba(255,255,255,.1);
-        box-shadow: 0 14px 40px rgba(0,0,0,.5);
-        overflow: hidden;
-        animation: fadeUp .14s ease;
-      }
-      .hl-popup .hl-panel {
-        border-bottom: none;
-        max-height: 62vh;
       }
       .hl-panel::-webkit-scrollbar { width: 3px; }
       .hl-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 4px; }
@@ -2036,6 +2100,31 @@ export default function SummaryView() {
       .m-bub.ai  { background: var(--sum-chat-ai-bg); border: 1px solid var(--sum-chat-ai-border); color: var(--sum-text); border-top-left-radius: 3px; }
       .m-bub.user{ background: var(--sum-chat-user-bg); border: 1px solid rgba(99,102,241,.25); color: var(--sum-title); border-top-right-radius: 3px; }
       .m-bub.err { background: rgba(248,113,113,.08); border-color: rgba(248,113,113,.2); color: #fca5a5; }
+      .chat-msg-files { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+      .chat-msg-file-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        max-width: 100%;
+        padding: 4px 9px;
+        border-radius: 999px;
+        border: 1px solid rgba(99,102,241,.25);
+        background: rgba(99,102,241,.08);
+        color: inherit;
+        font-size: 11px;
+        line-height: 1.2;
+      }
+      .chat-msg-file-chip .file-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .chat-msg-file-chip .file-type {
+        font-size: 10px;
+        opacity: 0.72;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
       .chat-msg-images { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
       .chat-msg-images img {
         max-width: 100%;
@@ -2121,13 +2210,11 @@ export default function SummaryView() {
 
       /* ── suggestions ── */
       .suggests { padding: 0 20px 8px; display: flex; gap: 6px; flex-wrap: wrap; flex-shrink: 0; }
-      .suggests--above-inp {
-        padding: 6px 12px 4px;
-        border-top: 1px solid rgba(255,255,255,.06);
-        background: linear-gradient(to top, rgba(16,16,24,.9), rgba(16,16,24,.82));
-        backdrop-filter: blur(6px);
+      .suggests--end-chat {
+        padding: 10px 10px 4px;
+        margin-top: 8px;
       }
-      .suggests--above-inp .sug {
+      .suggests--end-chat .sug {
         white-space: normal;
         max-width: 100%;
         text-align: left;
@@ -2457,10 +2544,6 @@ export default function SummaryView() {
           gap: 6px;
           z-index: 30;
         }
-        .hl-popup-wrap {
-          position: relative;
-          display: flex;
-        }
         .sum-files {
           justify-content: flex-start;
         }
@@ -2490,7 +2573,7 @@ export default function SummaryView() {
           padding: 0 12px 8px;
           gap: 5px;
         }
-        .suggests--above-inp {
+        .suggests--end-chat {
           padding: 6px 10px 4px;
         }
         .sug {
@@ -2518,7 +2601,10 @@ export default function SummaryView() {
           left: 0;
           right: auto;
         }
-        .hl-popup-wrap { display: flex; }
+        /* Show the three-dot More button on mobile */
+        .mob-more-btn { display: flex; }
+        /* Hide "Highlight" text label on the highlight toggle button */
+        .sum-hl-main .sum-hl-main-txt { display: none; }
         .hl-panel--sources { display: none; }
         .sd-panel--sources { display: none; }
       }
@@ -2669,13 +2755,32 @@ export default function SummaryView() {
         border-color: rgba(0,0,0,0.1);
         color: rgba(0,0,0,0.5);
       }
-      html[data-theme="light"] .suggests--above-inp {
-        border-top-color: rgba(0,0,0,0.06);
-        background: linear-gradient(to top, rgba(255,255,255,.94), rgba(255,255,255,.88));
+      html[data-theme="light"] .suggests--end-chat {
+        background: transparent;
       }
       html[data-theme="light"] .inp-row {
         border-top-color: rgba(0,0,0,0.08);
         background: linear-gradient(to top, rgba(255,255,255,.96), rgba(255,255,255,.86));
+      }
+      html[data-theme="light"] .attach-btn {
+        border-color: rgba(0,0,0,0.16);
+        background: rgba(0,0,0,0.04);
+        color: rgba(0,0,0,0.68);
+      }
+      html[data-theme="light"] .attach-btn:hover:not(:disabled) {
+        border-color: rgba(79,70,229,0.4);
+        background: rgba(79,70,229,0.1);
+        color: #4338ca;
+      }
+      html[data-theme="light"] .mob-more-btn {
+        border-color: rgba(0,0,0,0.16);
+        background: rgba(0,0,0,0.04);
+        color: rgba(0,0,0,0.68);
+      }
+      html[data-theme="light"] .mob-more-btn:hover:not(:disabled) {
+        border-color: rgba(79,70,229,0.42);
+        background: rgba(79,70,229,0.1);
+        color: #4338ca;
       }
       html[data-theme="light"] .inp-web-label { color: rgba(0,0,0,0.45); }
       html[data-theme="light"] .inp-web-label:hover { color: rgba(0,0,0,0.65); }
@@ -2712,6 +2817,14 @@ export default function SummaryView() {
       html[data-theme="light"] .chat-paste-chip .chat-upload-badge {
         background: rgba(99,102,241,.12);
         border-color: rgba(99,102,241,.28);
+      }
+      html[data-theme="light"] .chat-msg-file-chip {
+        border-color: rgba(79,70,229,.25);
+        background: rgba(79,70,229,.08);
+        color: rgba(0,0,0,.78);
+      }
+      html[data-theme="light"] .chat-msg-file-chip .file-type {
+        color: rgba(0,0,0,.55);
       }
       html[data-theme="light"] .chat-upload-rm {
         background: rgba(0,0,0,.08);
@@ -2776,12 +2889,8 @@ export default function SummaryView() {
                   )}
                 </div>
                 <div className="act-bar-btns">
-                  <Button
-                    variant="quiz"
-                    onClick={() => setQuizModal(true)}
-                  >
-                    <QuizIco />{" "}
-                    {compactActBar ? "Quiz" : "Generate Quiz"}
+                  <Button variant="quiz" onClick={() => setQuizModal(true)}>
+                    <QuizIco /> {compactActBar ? "Quiz" : "Generate Quiz"}
                   </Button>
                   <Button
                     variant="pdf"
@@ -2795,12 +2904,8 @@ export default function SummaryView() {
                     )}{" "}
                     {compactActBar ? "PDF" : "Save as PDF"}
                   </Button>
-                  <Button
-                    variant="slides"
-                    onClick={() => setSlidesModal(true)}
-                  >
-                    <SlidesIco />{" "}
-                    {compactActBar ? "Slides" : "Generate Slides"}
+                  <Button variant="slides" onClick={() => setSlidesModal(true)}>
+                    <SlidesIco /> {compactActBar ? "Slides" : "Generate Slides"}
                   </Button>
                 </div>
               </div>
@@ -2811,9 +2916,7 @@ export default function SummaryView() {
                   <div className="sum-left">
                     <div className="sum-title">Your summarized content</div>
                     <div className="sum-tags">
-                      <span className="tag tag-m">
-                        {summary?.model ?? "—"}
-                      </span>
+                      <span className="tag tag-m">{summary?.model ?? "—"}</span>
                       <span
                         className={`tag ${summary?.summarizeFor === "lecturer" ? "tag-lec" : "tag-stu"}`}
                       >
@@ -2856,7 +2959,6 @@ export default function SummaryView() {
                           onClick={() => {
                             setHlModeActive((v) => !v);
                             setHlColorMenuOpen(false);
-                            setHlPopupOpen(false);
                           }}
                         >
                           <HighlightIco size={13} />
@@ -2871,7 +2973,6 @@ export default function SummaryView() {
                           disabled={summaryLoading || !summary?.output}
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => {
-                            setHlPopupOpen(false);
                             setHlColorMenuOpen((v) => !v);
                           }}
                         >
@@ -2897,7 +2998,6 @@ export default function SummaryView() {
                                   onClick={() => {
                                     setHlColorHex(p.hex);
                                     setHlModeActive(true);
-                                    setHlPopupOpen(false);
                                     setHlColorMenuOpen(false);
                                   }}
                                 />
@@ -2907,137 +3007,32 @@ export default function SummaryView() {
                         )}
                       </div>
 
-                      {/* Mobile-only: open highlights list in a popup */}
-                      <div className="hl-popup-wrap" ref={hlPopupWrapRef}>
-                        <button
-                          type="button"
-                          className="hl-list-btn"
-                          title="Open your highlights list (saved and unsaved)"
-                          aria-label="Show highlights list"
-                          aria-expanded={hlPopupOpen}
-                          onClick={() => {
-                            setHlPopupOpen((v) => !v);
-                            setHlColorMenuOpen(false);
-                          }}
-                          disabled={summaryLoading || !summary?.output}
+                      {/* Mobile-only: three-dot "More" button → bottom sheet with full right panel */}
+                      <button
+                        type="button"
+                        className="mob-more-btn"
+                        title="More — sources, slide decks, quizzes, highlights"
+                        aria-label="More options"
+                        onClick={() => setMobileMoreOpen(true)}
+                        disabled={summaryLoading || !summary?.output}
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="currentColor"
+                          aria-hidden="true"
                         >
-                          <HighlightIco size={13} />
-                          <span className="sum-hl-main-txt">Highlights</span>
-                          {pendingHighlights.length > 0 && (
-                            <span className="hl-list-badge">
-                              {Math.min(99, pendingHighlights.length)}
-                            </span>
-                          )}
-                        </button>
-
-                        {hlPopupOpen && (
-                          <div className="hl-popup" role="dialog" aria-label="Highlights">
-                            <div className="hl-panel" aria-label="Highlights list">
-                              <div className="hl-head-row">
-                                <div className="hl-head">Highlights</div>
-                                <button
-                                  type="button"
-                                  className="hl-save-btn"
-                                  title={
-                                    pendingHighlights.length
-                                      ? `Save ${pendingHighlights.length} highlight(s) to the server`
-                                      : "No unsaved highlights"
-                                  }
-                                  disabled={
-                                    pendingHighlights.length === 0 ||
-                                    hlSaving ||
-                                    hlLoading
-                                  }
-                                  onClick={() => void flushPendingHighlights()}
-                                  aria-label="Save highlights"
-                                >
-                                  {hlSaving ? <Spinner size={12} /> : <SaveIco size={14} />}
-                                </button>
-                              </div>
-
-                              {pendingHighlights.length > 0 && (
-                                <div className="hl-sub">
-                                  {pendingHighlights.length} unsaved — click save.
-                                </div>
-                              )}
-
-                              {hlLoading ? (
-                                <div className="hl-empty">
-                                  <Spinner size={12} /> Loading…
-                                </div>
-                              ) : highlights.length === 0 &&
-                                pendingHighlights.length === 0 ? (
-                                <div className="hl-empty">
-                                  Turn on the highlighter, pick a color, select text in the summary,
-                                  then save here.
-                                </div>
-                              ) : (
-                                <>
-                                  {pendingHighlights.map((p) => (
-                                    <div
-                                      key={p.clientId}
-                                      className="hl-item pending"
-                                      style={{
-                                        ["--hl-accent"]:
-                                          p.color && /^#[0-9a-f]{6}$/i.test(p.color)
-                                            ? p.color
-                                            : DEFAULT_HL_HEX,
-                                      }}
-                                      onClick={() => scrollToHighlight(p.clientId)}
-                                      title={p.quote}
-                                    >
-                                      <div className="hl-quote">
-                                        {p.quote.length > 140 ? `${p.quote.slice(0, 140)}…` : p.quote}
-                                      </div>
-                                      <button
-                                        type="button"
-                                        className="hl-x"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          removePendingHighlight(p.clientId);
-                                        }}
-                                        aria-label="Remove unsaved highlight"
-                                      >
-                                        ×
-                                      </button>
-                                    </div>
-                                  ))}
-
-                                  {highlights.map((h) => (
-                                    <div
-                                      key={h.id}
-                                      className="hl-item"
-                                      style={{
-                                        ["--hl-accent"]:
-                                          h.color && /^#[0-9a-f]{6}$/i.test(h.color)
-                                            ? h.color
-                                            : DEFAULT_HL_HEX,
-                                      }}
-                                      onClick={() => scrollToHighlight(h.id)}
-                                      title={h.quote}
-                                    >
-                                      <div className="hl-quote">
-                                        {h.quote.length > 140 ? `${h.quote.slice(0, 140)}…` : h.quote}
-                                      </div>
-                                      <button
-                                        type="button"
-                                        className="hl-x"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          deleteHighlight(h.id);
-                                        }}
-                                        aria-label="Remove highlight"
-                                      >
-                                        ×
-                                      </button>
-                                    </div>
-                                  ))}
-                                </>
-                              )}
-                            </div>
-                          </div>
+                          <circle cx="3" cy="8" r="1.5" />
+                          <circle cx="8" cy="8" r="1.5" />
+                          <circle cx="13" cy="8" r="1.5" />
+                        </svg>
+                        {pendingHighlights.length > 0 && (
+                          <span className="hl-list-badge">
+                            {Math.min(99, pendingHighlights.length)}
+                          </span>
                         )}
-                      </div>
+                      </button>
                     </div>
                     <div className="sum-files">
                       {summary?.files?.map?.((f) => (
@@ -3074,9 +3069,9 @@ export default function SummaryView() {
                           role="article"
                           className="sum-text md sum-selectable"
                           style={SUMMARY_BODY_INNER_STYLE}
-                        onMouseUp={handleSummaryMouseUp}
-                        onPointerUp={handleSummaryMouseUp}
-                        onTouchEnd={handleSummaryMouseUp}
+                          onMouseUp={handleSummaryMouseUp}
+                          onPointerUp={handleSummaryMouseUp}
+                          onTouchEnd={handleSummaryMouseUp}
                           dangerouslySetInnerHTML={summaryBodyDangerousHtml}
                         />
                       </div>
@@ -3100,135 +3095,173 @@ export default function SummaryView() {
                             i === messages.length - 1 &&
                             !chatLoading;
                           return (
-                          <div key={m.id} className={`m-row ${m.role}`}>
-                            <div className={`m-ava ${m.role}`}>
-                              {m.role === "ai" ? <BotIco /> : <UserIco />}
-                            </div>
-                            <div className="m-bub-wrap">
-                              <div className="m-bub-col">
-                                <div
-                                  className={`m-bub ${m.role} ${m.error ? "err" : ""} md`}
-                                >
-                                  {m.role === "user" &&
-                                    m.imagePreviews &&
-                                    m.imagePreviews.length > 0 && (
-                                      <div className="chat-msg-images">
-                                        {m.imagePreviews.map((src, ii) => (
-                                          <img key={ii} src={src} alt="" />
-                                        ))}
+                            <div key={m.id} className={`m-row ${m.role}`}>
+                              <div className={`m-ava ${m.role}`}>
+                                {m.role === "ai" ? <BotIco /> : <UserIco />}
+                              </div>
+                              <div className="m-bub-wrap">
+                                <div className="m-bub-col">
+                                  <div
+                                    className={`m-bub ${m.role} ${m.error ? "err" : ""} md`}
+                                  >
+                                    {m.role === "user" &&
+                                      Array.isArray(m.attachedFiles) &&
+                                      m.attachedFiles.length > 0 && (
+                                        <div className="chat-msg-files">
+                                          {m.attachedFiles.map((f, ii) => (
+                                            <div
+                                              key={`${f.name}-${ii}`}
+                                              className="chat-msg-file-chip"
+                                              title={f.name}
+                                            >
+                                              <DocIco ext={f.type} size={14} />
+                                              <span className="file-name">
+                                                {f.name}
+                                              </span>
+                                              <span className="file-type">
+                                                {String(
+                                                  f.type || "file",
+                                                ).toUpperCase()}
+                                              </span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    {m.role === "user" &&
+                                      m.imagePreviews &&
+                                      m.imagePreviews.length > 0 && (
+                                        <div className="chat-msg-images">
+                                          {m.imagePreviews.map((src, ii) => (
+                                            <img key={ii} src={src} alt="" />
+                                          ))}
+                                        </div>
+                                      )}
+                                    {m.role === "user" &&
+                                      (m.lostPastedImageCount || 0) > 0 && (
+                                        <div className="chat-img-lost-note">
+                                          {m.lostPastedImageCount} pasted image
+                                          {m.lostPastedImageCount === 1
+                                            ? ""
+                                            : "s"}{" "}
+                                          in this message (previews are not kept
+                                          after refresh)
+                                        </div>
+                                      )}
+                                    {(() => {
+                                      const raw = (m.content || "").trim();
+                                      const hidePlaceholder =
+                                        m.role === "user" &&
+                                        raw === "[Image message]" &&
+                                        ((m.imagePreviews?.length || 0) > 0 ||
+                                          (m.lostPastedImageCount || 0) > 0);
+                                      const mdSrc = hidePlaceholder
+                                        ? ""
+                                        : m.content || "";
+                                      if (
+                                        m.role === "user" &&
+                                        !mdSrc.trim() &&
+                                        ((m.imagePreviews?.length || 0) > 0 ||
+                                          (m.lostPastedImageCount || 0) > 0)
+                                      ) {
+                                        return null;
+                                      }
+                                      return (
+                                        <div
+                                          dangerouslySetInnerHTML={{
+                                            __html: markdownToHtml(mdSrc),
+                                          }}
+                                        />
+                                      );
+                                    })()}
+                                  </div>
+                                  {m.role === "ai" &&
+                                    m.modelLabel &&
+                                    !m.error && (
+                                      <div className="m-meta">
+                                        Generated by {m.modelLabel}
                                       </div>
                                     )}
-                                  {m.role === "user" &&
-                                    (m.lostPastedImageCount || 0) > 0 && (
-                                      <div className="chat-img-lost-note">
-                                        {m.lostPastedImageCount} pasted image
-                                        {m.lostPastedImageCount === 1 ? "" : "s"}{" "}
-                                        in this message (previews are not kept after
-                                        refresh)
+                                  {m.role === "ai" &&
+                                    !m.error &&
+                                    m.webSearch?.attempted &&
+                                    m.webSearch?.contextIncluded && (
+                                      <div className="m-web-note m-web-note--ok">
+                                        Web excerpts from Tavily were included
+                                        with this reply.
                                       </div>
                                     )}
-                                  {(() => {
-                                    const raw = (m.content || "").trim();
-                                    const hidePlaceholder =
-                                      m.role === "user" &&
-                                      raw === "[Image message]" &&
-                                      ((m.imagePreviews?.length || 0) > 0 ||
-                                        (m.lostPastedImageCount || 0) > 0);
-                                    const mdSrc =
-                                      hidePlaceholder ? "" : m.content || "";
-                                    if (
-                                      m.role === "user" &&
-                                      !mdSrc.trim() &&
-                                      ((m.imagePreviews?.length || 0) > 0 ||
-                                        (m.lostPastedImageCount || 0) > 0)
-                                    ) {
-                                      return null;
-                                    }
-                                    return (
-                                      <div
-                                        dangerouslySetInnerHTML={{
-                                          __html: markdownToHtml(mdSrc),
-                                        }}
-                                      />
-                                    );
-                                  })()}
+                                  {m.role === "ai" &&
+                                    !m.error &&
+                                    m.webSearch?.attempted &&
+                                    !m.webSearch?.contextIncluded && (
+                                      <div className="m-web-note m-web-note--warn">
+                                        Web search ran, but Tavily returned no
+                                        usable excerpts (empty results or API
+                                        error — check server logs).
+                                      </div>
+                                    )}
+                                  {m.role === "ai" &&
+                                    !m.error &&
+                                    !m.webSearch?.attempted &&
+                                    m.webSearch?.skippedReason ===
+                                      "missing_tavily_key" && (
+                                      <div className="m-web-note m-web-note--warn">
+                                        Web search was requested (checkbox or
+                                        your wording), but{" "}
+                                        <strong>TAVILY_API_KEY</strong> is not
+                                        set on the server, so search was
+                                        skipped.
+                                      </div>
+                                    )}
+                                  {m.role === "ai" &&
+                                    !m.error &&
+                                    !m.webSearch?.attempted &&
+                                    m.webSearch?.skippedReason ===
+                                      "web_search_disabled_env" && (
+                                      <div className="m-web-note m-web-note--warn">
+                                        Web search was requested, but it is
+                                        disabled for this deployment (
+                                        <strong>CHAT_WEB_SEARCH=0</strong>).
+                                      </div>
+                                    )}
                                 </div>
                                 {m.role === "ai" &&
-                                  m.modelLabel &&
-                                  !m.error && (
-                                    <div className="m-meta">
-                                      Generated by {m.modelLabel}
-                                    </div>
-                                  )}
-                                {m.role === "ai" &&
-                                  !m.error &&
-                                  m.webSearch?.attempted &&
-                                  m.webSearch?.contextIncluded && (
-                                    <div className="m-web-note m-web-note--ok">
-                                      Web excerpts from Tavily were included with this reply.
-                                    </div>
-                                  )}
-                                {m.role === "ai" &&
-                                  !m.error &&
-                                  m.webSearch?.attempted &&
-                                  !m.webSearch?.contextIncluded && (
-                                    <div className="m-web-note m-web-note--warn">
-                                      Web search ran, but Tavily returned no usable excerpts
-                                      (empty results or API error — check server logs).
-                                    </div>
-                                  )}
-                                {m.role === "ai" &&
-                                  !m.error &&
-                                  !m.webSearch?.attempted &&
-                                  m.webSearch?.skippedReason ===
-                                    "missing_tavily_key" && (
-                                    <div className="m-web-note m-web-note--warn">
-                                      Web search was requested (checkbox or your wording), but{" "}
-                                      <strong>TAVILY_API_KEY</strong> is not set on the server,
-                                      so search was skipped.
-                                    </div>
-                                  )}
-                                {m.role === "ai" &&
-                                  !m.error &&
-                                  !m.webSearch?.attempted &&
-                                  m.webSearch?.skippedReason ===
-                                    "web_search_disabled_env" && (
-                                    <div className="m-web-note m-web-note--warn">
-                                      Web search was requested, but it is disabled for this deployment (
-                                      <strong>CHAT_WEB_SEARCH=0</strong>).
+                                  (m.content || "").trim() && (
+                                    <div className="m-bub-side-actions">
+                                      {showRegen && (
+                                        <button
+                                          type="button"
+                                          className="m-copy"
+                                          title="Regenerate response"
+                                          onClick={() =>
+                                            regenerateLastResponse()
+                                          }
+                                          aria-label="Regenerate response"
+                                        >
+                                          <RegenIco size={12} />
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        className={`m-copy ${copiedId === m.id ? "copied" : ""}`}
+                                        title={
+                                          copiedId === m.id ? "Copied!" : "Copy"
+                                        }
+                                        onClick={() => handleCopyMessage(m)}
+                                        aria-label="Copy message"
+                                      >
+                                        {copiedId === m.id ? (
+                                          <span className="m-copy-txt">
+                                            Copied
+                                          </span>
+                                        ) : (
+                                          <CopyIco size={12} />
+                                        )}
+                                      </button>
                                     </div>
                                   )}
                               </div>
-                              {m.role === "ai" && (m.content || "").trim() && (
-                                <div className="m-bub-side-actions">
-                                  {showRegen && (
-                                    <button
-                                      type="button"
-                                      className="m-copy"
-                                      title="Regenerate response"
-                                      onClick={() => regenerateLastResponse()}
-                                      aria-label="Regenerate response"
-                                    >
-                                      <RegenIco size={12} />
-                                    </button>
-                                  )}
-                                  <button
-                                    type="button"
-                                    className={`m-copy ${copiedId === m.id ? "copied" : ""}`}
-                                    title={copiedId === m.id ? "Copied!" : "Copy"}
-                                    onClick={() => handleCopyMessage(m)}
-                                    aria-label="Copy message"
-                                  >
-                                    {copiedId === m.id ? (
-                                      <span className="m-copy-txt">Copied</span>
-                                    ) : (
-                                      <CopyIco size={12} />
-                                    )}
-                                  </button>
-                                </div>
-                              )}
                             </div>
-                          </div>
                           );
                         })}
                         {chatLoading && (
@@ -3254,11 +3287,40 @@ export default function SummaryView() {
                       <div className="chat-hint">
                         <div className="chat-empty">
                           <BotIco />
-                          <span>Continue below — your replies stay in this thread with the summary above.</span>
+                          <span>
+                            Continue below — your replies stay in this thread
+                            with the summary above.
+                          </span>
                         </div>
                       </div>
                     </>
                   )}
+
+                  {messages.length > 0 &&
+                    summary?.output &&
+                    chatSuggestions.length > 0 && (
+                      <div
+                        className="suggests suggests--end-chat"
+                        role="group"
+                        aria-label="Suggested questions from this summary"
+                      >
+                        {chatSuggestions.map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            className="sug"
+                            onClick={() => {
+                              setInputVal(s);
+                              requestAnimationFrame(() =>
+                                inputRef.current?.focus(),
+                              );
+                            }}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
                   <div ref={bottomRef} />
                 </div>
@@ -3269,234 +3331,206 @@ export default function SummaryView() {
                   </div>
                 ) : null}
 
-                {showSuggest &&
-                  messages.length === 0 &&
-                  summary?.output &&
-                  chatSuggestions.length > 0 && (
-                    <div
-                      className="suggests suggests--above-inp"
-                      role="group"
-                      aria-label="Suggested questions from this summary"
-                    >
-                      {chatSuggestions.map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          className="sug"
-                          onClick={() => {
-                            setInputVal(s);
-                            requestAnimationFrame(() =>
-                              inputRef.current?.focus(),
-                            );
-                          }}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
                 {/* Input */}
                 <div className="inp-row">
+                  <input
+                    ref={sourceInputRef}
+                    type="file"
+                    multiple
+                    accept={ATTACH_ACCEPT}
+                    style={{ display: "none" }}
+                    onChange={(e) => {
+                      void handleAttachmentFilesSelected(e.target.files);
+                      e.target.value = "";
+                    }}
+                  />
+                  <label
+                    className="inp-web-label"
+                    title="Fetches external web excerpts beyond your summary (needs TAVILY_API_KEY). You can also ask in natural language, e.g. information beyond the summary or find info other than what is in the summary."
+                  >
                     <input
-                      ref={sourceInputRef}
-                      type="file"
-                      multiple
-                      accept={ATTACH_ACCEPT}
-                      style={{ display: "none" }}
-                      onChange={(e) => {
-                        void handleAttachmentFilesSelected(e.target.files);
-                        e.target.value = "";
-                      }}
+                      type="checkbox"
+                      checked={chatWebSearch}
+                      onChange={(e) => setChatWebSearch(e.target.checked)}
+                      disabled={chatLoading || sourceUploadLoading}
                     />
-                    <label
-                      className="inp-web-label"
-                      title="Fetches external web excerpts beyond your summary (needs TAVILY_API_KEY). You can also ask in natural language, e.g. information beyond the summary or find info other than what is in the summary."
+                    <span
+                      style={{
+                        display: "block",
+                        textAlign: "center",
+                        width: "100%",
+                      }}
                     >
-                      <input
-                        type="checkbox"
-                        checked={chatWebSearch}
-                        onChange={(e) => setChatWebSearch(e.target.checked)}
-                        disabled={chatLoading || sourceUploadLoading}
-                      />
-                      <span style={{ display: "block", textAlign: "center", width: "100%" }}>
-                        Web search
-                      </span>
-                 
-                    </label>
-                    <div className={`chatbox ${(pendingSourceFiles.length > 0 || extraSources.length > 0 || pendingPasteImages.length > 0) ? "with-files" : ""}`}>
-                      <button
-                        type="button"
-                        className="attach-btn"
-                        title="Add attachment (documents or images)"
-                        aria-label="Add attachment"
-                        disabled={sourceUploadLoading || chatLoading}
-                        onClick={() => sourceInputRef.current?.click()}
-                      >
-                        {sourceUploadLoading ? (
-                          <Spinner size={12} />
-                        ) : (
-                          <ClipIco size={16} />
-                        )}
-                        {extraSources.length > 0 && (
-                          <span className="attach-badge">
-                            {Math.min(99, extraSources.length)}
-                          </span>
-                        )}
-                      </button>
-                      <span className="attach-divider" aria-hidden />
-                      <div className="chatbox-main">
-                        {(pendingSourceFiles.length > 0 ||
-                          extraSources.length > 0 ||
-                          pendingPasteImages.length > 0) && (
-                          <div className="chat-uploads" aria-label="Attached files">
-                            {pendingPasteImages.map((p, pi) => (
-                              <div
-                                key={p.clientId}
-                                className="chat-upload-chip chat-paste-chip"
-                                title={`Image ${pi + 1}`}
+                      Web search
+                    </span>
+                  </label>
+                  <div
+                    className={`chatbox ${pendingSourceFiles.length > 0 || pendingPasteImages.length > 0 ? "with-files" : ""}`}
+                  >
+                    <button
+                      type="button"
+                      className="attach-btn"
+                      title="Add attachment (documents or images)"
+                      aria-label="Add attachment"
+                      disabled={sourceUploadLoading || chatLoading}
+                      onClick={() => sourceInputRef.current?.click()}
+                    >
+                      {sourceUploadLoading ? (
+                        <Spinner size={12} />
+                      ) : (
+                        <ClipIco size={16} />
+                      )}
+                      {pendingSourceFiles.length > 0 && (
+                        <span className="attach-badge">
+                          {Math.min(99, pendingSourceFiles.length)}
+                        </span>
+                      )}
+                    </button>
+                    <span className="attach-divider" aria-hidden />
+                    <div className="chatbox-main">
+                      {(pendingSourceFiles.length > 0 ||
+                        pendingPasteImages.length > 0) && (
+                        <div
+                          className="chat-uploads"
+                          aria-label="Attached files"
+                        >
+                          {pendingPasteImages.map((p, pi) => (
+                            <div
+                              key={p.clientId}
+                              className="chat-upload-chip chat-paste-chip"
+                              title={`Image ${pi + 1}`}
+                            >
+                              <div className="chat-upload-badge" aria-hidden>
+                                <span className="chat-paste-ico" />
+                              </div>
+                              <div className="chat-upload-content chat-upload-content-single">
+                                <span className="chat-upload-name">
+                                  Image {pi + 1}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                className="chat-upload-rm"
+                                onClick={() =>
+                                  removePendingPasteByClientId(p.clientId)
+                                }
+                                aria-label={`Remove image ${pi + 1}`}
                               >
-                                <div className="chat-upload-badge" aria-hidden>
-                                  <span className="chat-paste-ico" />
-                                </div>
-                                <div className="chat-upload-content chat-upload-content-single">
-                                  <span className="chat-upload-name">
-                                    Image {pi + 1}
-                                  </span>
-                                </div>
-                                <button
-                                  type="button"
-                                  className="chat-upload-rm"
-                                  onClick={() =>
-                                    removePendingPasteByClientId(p.clientId)
-                                  }
-                                  aria-label={`Remove image ${pi + 1}`}
-                                >
-                                  ×
-                                </button>
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                          {pendingSourceFiles.map((f) => (
+                            <div
+                              key={f.clientId}
+                              className="chat-upload-chip"
+                              title={f.name}
+                            >
+                              <div className="chat-upload-badge" aria-hidden>
+                                <DocIco ext={f.type} size={18} />
                               </div>
-                            ))}
-                            {pendingSourceFiles.map((f) => (
-                              <div
-                                key={f.clientId}
-                                className="chat-upload-chip"
-                                title={f.name}
+                              <div className="chat-upload-content">
+                                <span className="chat-upload-name">
+                                  {f.name}
+                                </span>
+                                <span className="chat-upload-type">
+                                  {f.type}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                className="chat-upload-rm"
+                                onClick={() =>
+                                  removePendingSourceByClientId(f.clientId)
+                                }
+                                aria-label={`Remove ${f.name}`}
                               >
-                                <div className="chat-upload-badge" aria-hidden>
-                                  <DocIco ext={f.type} size={18} />
-                                </div>
-                                <div className="chat-upload-content chat-upload-content-single">
-                                  <span className="chat-upload-name">{f.name}</span>
-                                </div>
-                                <button
-                                  type="button"
-                                  className="chat-upload-rm"
-                                  onClick={() => removePendingSourceByClientId(f.clientId)}
-                                  aria-label={`Remove ${f.name}`}
-                                >
-                                  ×
-                                </button>
-                              </div>
-                            ))}
-                            {extraSources.map((f) => (
-                              <div key={f.id} className="chat-upload-chip" title={f.name}>
-                                <div className="chat-upload-badge" aria-hidden>
-                                  <DocIco ext={f.type} size={18} />
-                                </div>
-                                <div className="chat-upload-content">
-                                  <span className="chat-upload-name">{f.name}</span>
-                                  <span className="chat-upload-type">{f.type}</span>
-                                </div>
-                                <button
-                                  type="button"
-                                  className="chat-upload-rm"
-                                  onClick={() => removeExtraSourceById(f.id)}
-                                  aria-label={`Remove ${f.name}`}
-                                >
-                                  ×
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <div className="chatbox-row">
-                          <input
-                            ref={inputRef}
-                            className="inp"
-                            placeholder="Refine your summary or ask question..."
-                            value={inputVal}
-                            onChange={(e) => setInputVal(e.target.value)}
-                            onPaste={(e) => {
-                              const items = e.clipboardData?.items;
-                              if (!items?.length) return;
-                              for (const item of items) {
-                                if (
-                                  item.kind === "file" &&
-                                  item.type.startsWith("image/")
-                                ) {
-                                  const file = item.getAsFile();
-                                  if (file) {
-                                    e.preventDefault();
-                                    void addPastedImageFromFile(file);
-                                    break;
-                                  }
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="chatbox-row">
+                        <input
+                          ref={inputRef}
+                          className="inp"
+                          placeholder="Refine your summary or ask question..."
+                          value={inputVal}
+                          onChange={(e) => setInputVal(e.target.value)}
+                          onPaste={(e) => {
+                            const items = e.clipboardData?.items;
+                            if (!items?.length) return;
+                            for (const item of items) {
+                              if (
+                                item.kind === "file" &&
+                                item.type.startsWith("image/")
+                              ) {
+                                const file = item.getAsFile();
+                                if (file) {
+                                  e.preventDefault();
+                                  void addPastedImageFromFile(file);
+                                  break;
                                 }
                               }
-                            }}
-                            onKeyDown={(e) =>
-                              e.key === "Enter" && !e.shiftKey && sendMessage()
+                            }
+                          }}
+                          onKeyDown={(e) =>
+                            e.key === "Enter" && !e.shiftKey && sendMessage()
+                          }
+                          disabled={chatLoading || sourceUploadLoading}
+                        />
+                        <div className="mdl-wrap">
+                          <button
+                            className={`mdl-btn ${modelOpen ? "open" : ""}`}
+                            onClick={() => setModelOpen((v) => !v)}
+                            onBlur={() =>
+                              setTimeout(() => setModelOpen(false), 150)
                             }
                             disabled={chatLoading || sourceUploadLoading}
-                          />
-                          <div className="mdl-wrap">
-                            <button
-                              className={`mdl-btn ${modelOpen ? "open" : ""}`}
-                              onClick={() => setModelOpen((v) => !v)}
-                              onBlur={() =>
-                                setTimeout(() => setModelOpen(false), 150)
-                              }
-                              disabled={chatLoading || sourceUploadLoading}
-                            >
-                              {chatModel} <Chevron open={modelOpen} />
-                            </button>
-                            {modelOpen && (
-                              <div className="mdl-menu">
-                                {MODELS.map((m) => (
-                                  <div
-                                    key={m}
-                                    className={`mdl-opt ${chatModel === m ? "on" : ""}`}
-                                    onMouseDown={() => {
-                                      setChatModel(m);
-                                      setModelOpen(false);
-                                    }}
-                                  >
-                                    {m} {chatModel === m && "✓"}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
+                          >
+                            {chatModel} <Chevron open={modelOpen} />
+                          </button>
+                          {modelOpen && (
+                            <div className="mdl-menu">
+                              {MODELS.map((m) => (
+                                <div
+                                  key={m}
+                                  className={`mdl-opt ${chatModel === m ? "on" : ""}`}
+                                  onMouseDown={() => {
+                                    setChatModel(m);
+                                    setModelOpen(false);
+                                  }}
+                                >
+                                  {m} {chatModel === m && "✓"}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        className="send-btn send-btn--inline"
-                        onClick={() => sendMessage()}
-                        disabled={
-                          chatLoading ||
-                          sourceUploadLoading ||
-                          (!inputVal.trim() && pendingPasteImages.length === 0) ||
-                          !summary?.output
-                        }
-                      >
-                        {chatLoading || sourceUploadLoading ? (
-                          <Spinner size={14} />
-                        ) : (
-                          <SendIco />
-                        )}
-                      </button>
                     </div>
+                    <button
+                      type="button"
+                      className="send-btn send-btn--inline"
+                      onClick={() => sendMessage()}
+                      disabled={
+                        chatLoading ||
+                        sourceUploadLoading ||
+                        (!inputVal.trim() &&
+                          pendingPasteImages.length === 0 &&
+                          pendingSourceFiles.length === 0) ||
+                        !summary?.output
+                      }
+                    >
+                      {chatLoading || sourceUploadLoading ? (
+                        <Spinner size={14} />
+                      ) : (
+                        <SendIco />
+                      )}
+                    </button>
                   </div>
+                </div>
               </div>
               {/* /card */}
             </main>
@@ -3516,7 +3550,11 @@ export default function SummaryView() {
             />
 
             {/* Sources panel (NotebookLM style) */}
-            <aside className="sources" aria-label="Sources" style={{ width: sourcesWidth }}>
+            <aside
+              className="sources"
+              aria-label="Sources"
+              style={{ width: sourcesWidth }}
+            >
               <div className="src-header">
                 <span className="src-title">SOURCES</span>
               </div>
@@ -3572,7 +3610,8 @@ export default function SummaryView() {
                     </div>
                   ) : slideDecks.length === 0 ? (
                     <div className="hl-empty">
-                      None yet. Generate slides — a copy saves here automatically.
+                      None yet. Generate slides — a copy saves here
+                      automatically.
                     </div>
                   ) : (
                     slideDecks.map((d) => (
@@ -3621,10 +3660,14 @@ export default function SummaryView() {
                     {quizSetsLoading ? <Spinner size={11} /> : "↻"}
                   </button>
                 </div>
-                <div className="hl-sub" style={{ marginTop: -4, marginBottom: 6 }}>
-                  Quiz questions stay saved here. When you <strong>finish</strong> a quiz, that
-                  score is stored; exiting early does not save an attempt. Use{" "}
-                  <strong>History</strong> below to see past scores for each quiz.
+                <div
+                  className="hl-sub"
+                  style={{ marginTop: -4, marginBottom: 6 }}
+                >
+                  Quiz questions stay saved here. When you{" "}
+                  <strong>finish</strong> a quiz, that score is stored; exiting
+                  early does not save an attempt. Use <strong>History</strong>{" "}
+                  below to see past scores for each quiz.
                 </div>
                 <div className="sd-deck-list">
                   {quizSetsLoading && quizSets.length === 0 ? (
@@ -3706,11 +3749,29 @@ export default function SummaryView() {
                                 }}
                               >
                                 {quizHistoryList.map((a) => (
-                                  <li key={a.id}>
-                                    {a.score}/{a.totalQuestions}
-                                    {a.createdAt
-                                      ? ` — ${formatSlideDeckSavedAt(a.createdAt)}`
-                                      : ""}
+                                  <li key={a.id} style={{ marginBottom: 6 }}>
+                                    <button
+                                      type="button"
+                                      style={{
+                                        border:
+                                          "1px solid rgba(255,255,255,.12)",
+                                        background: "rgba(255,255,255,.04)",
+                                        color: "inherit",
+                                        borderRadius: 7,
+                                        padding: "6px 8px",
+                                        fontSize: 11,
+                                        width: "100%",
+                                        textAlign: "left",
+                                        cursor: "pointer",
+                                        fontFamily: "inherit",
+                                      }}
+                                      onClick={() => openQuizAttemptDetail(a)}
+                                    >
+                                      {a.score}/{a.totalQuestions}
+                                      {a.createdAt
+                                        ? ` — ${formatSlideDeckSavedAt(a.createdAt)}`
+                                        : ""}
+                                    </button>
                                   </li>
                                 ))}
                               </ul>
@@ -3723,7 +3784,10 @@ export default function SummaryView() {
                 </div>
               </div>
 
-              <div className="hl-panel hl-panel--sources" aria-label="Highlights">
+              <div
+                className="hl-panel hl-panel--sources"
+                aria-label="Highlights"
+              >
                 <div className="hl-head-row">
                   <div className="hl-head">HIGHLIGHTS</div>
                   <button
@@ -3745,8 +3809,8 @@ export default function SummaryView() {
                 </div>
                 {pendingHighlights.length > 0 && (
                   <div className="hl-sub">
-                    {pendingHighlights.length} unsaved — click save. Leaving this
-                    page may prompt you if you have not saved.
+                    {pendingHighlights.length} unsaved — click save. Leaving
+                    this page may prompt you if you have not saved.
                   </div>
                 )}
                 {hlLoading ? (
@@ -3886,6 +3950,770 @@ export default function SummaryView() {
           onAttemptSaved={() => void fetchQuizSets()}
           onClose={() => setQuizView(false)}
         />
+      )}
+
+      {quizAttemptDetail &&
+        (() => {
+          const totalQ =
+            quizAttemptDetail.totalQuestions ||
+            quizAttemptDetail.rows.length ||
+            1;
+          const score = quizAttemptDetail.score ?? 0;
+          const pct = Math.round((score / totalQ) * 100);
+          const grade =
+            pct >= 90
+              ? {
+                  label: "Excellent",
+                  color: "#22c55e",
+                  bg: "rgba(34,197,94,0.10)",
+                }
+              : pct >= 70
+                ? {
+                    label: "Good",
+                    color: "#3b82f6",
+                    bg: "rgba(59,130,246,0.10)",
+                  }
+                : pct >= 50
+                  ? {
+                      label: "Fair",
+                      color: "#f59e0b",
+                      bg: "rgba(245,158,11,0.10)",
+                    }
+                  : {
+                      label: "Needs work",
+                      color: "#ef4444",
+                      bg: "rgba(239,68,68,0.10)",
+                    };
+          return (
+            <div
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setQuizAttemptDetail(null);
+              }}
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 1200,
+                background: "rgba(4,6,15,0.72)",
+                backdropFilter: "blur(8px)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 16,
+              }}
+            >
+              <style>{`
+              @keyframes qa-fade-in { from { opacity:0; transform:scale(0.97) translateY(6px); } to { opacity:1; transform:none; } }
+              .qa-modal { animation: qa-fade-in 0.2s cubic-bezier(.22,.68,0,1.2); }
+              .qa-row-card { transition: background 0.15s; }
+              .qa-row-card:hover { background: rgba(255,255,255,0.04) !important; }
+              .qa-close-btn:hover { background: rgba(255,255,255,0.10) !important; }
+              .qa-dismiss-btn:hover { opacity: 0.8; }
+              .qa-scroll::-webkit-scrollbar { width: 4px; }
+              .qa-scroll::-webkit-scrollbar-track { background: transparent; }
+              .qa-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+            `}</style>
+              <div
+                className="qa-modal"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  width: "min(720px, 100%)",
+                  maxHeight: "90vh",
+                  background: "var(--sum-card-bg)",
+                  border: "1px solid var(--sum-card-border)",
+                  borderRadius: 18,
+                  boxShadow:
+                    "0 32px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04)",
+                  overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                {/* ── Header ── */}
+                <div
+                  style={{
+                    padding: "18px 20px 16px",
+                    borderBottom: "1px solid var(--sum-head-border)",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    gap: 12,
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        opacity: 0.45,
+                        letterSpacing: "0.07em",
+                        textTransform: "uppercase",
+                        marginBottom: 7,
+                      }}
+                    >
+                      Attempt Review
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      {/* Score pill */}
+                      <div
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          background: grade.bg,
+                          border: `1px solid ${grade.color}44`,
+                          borderRadius: 999,
+                          padding: "4px 12px 4px 8px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 800,
+                            color: grade.color,
+                          }}
+                        >
+                          {score}/{totalQ}
+                        </span>
+                        <span
+                          style={{
+                            width: 1,
+                            height: 12,
+                            background: `${grade.color}44`,
+                          }}
+                        />
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            color: grade.color,
+                            opacity: 0.85,
+                          }}
+                        >
+                          {pct}% · {grade.label}
+                        </span>
+                      </div>
+                      {quizAttemptDetail.createdAt && (
+                        <span style={{ fontSize: 12, opacity: 0.38 }}>
+                          {formatSlideDeckSavedAt(quizAttemptDetail.createdAt)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="qa-close-btn"
+                    onClick={() => setQuizAttemptDetail(null)}
+                    style={{
+                      flexShrink: 0,
+                      width: 32,
+                      height: 32,
+                      borderRadius: 10,
+                      border: "1px solid var(--sum-card-border)",
+                      background: "transparent",
+                      color: "var(--sum-inp-text)",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 18,
+                      lineHeight: 1,
+                      transition: "background 0.15s",
+                    }}
+                    aria-label="Close"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {/* ── Score progress bar ── */}
+                <div
+                  style={{
+                    height: 3,
+                    background: "rgba(255,255,255,0.05)",
+                    flexShrink: 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${pct}%`,
+                      background: `linear-gradient(90deg, ${grade.color}80, ${grade.color})`,
+                      transition: "width 0.6s cubic-bezier(.22,.68,0,1)",
+                    }}
+                  />
+                </div>
+
+                {/* ── Question list ── */}
+                <div
+                  className="qa-scroll"
+                  style={{
+                    padding: "14px 16px",
+                    overflowY: "auto",
+                    minHeight: 0,
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                  }}
+                >
+                  {quizAttemptDetail.rows.length === 0 ? (
+                    <div
+                      style={{
+                        textAlign: "center",
+                        padding: "40px 0",
+                        opacity: 0.38,
+                        fontSize: 13,
+                      }}
+                    >
+                      No question data found for this attempt.
+                    </div>
+                  ) : (
+                    quizAttemptDetail.rows.map((row, idx) => (
+                      <div
+                        key={row.id}
+                        className="qa-row-card"
+                        style={{
+                          borderRadius: 12,
+                          border: "1px solid var(--sum-card-border)",
+                          borderLeft: `3px solid ${row.isCorrect ? "#22c55e" : "#ef4444"}`,
+                          padding: "12px 14px",
+                          background: "rgba(255,255,255,0.02)",
+                        }}
+                      >
+                        {/* Row header */}
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            marginBottom: 8,
+                            gap: 8,
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 10.5,
+                              fontWeight: 700,
+                              letterSpacing: "0.07em",
+                              textTransform: "uppercase",
+                              opacity: 0.38,
+                            }}
+                          >
+                            Q{row.questionNumber ?? idx + 1}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: 10.5,
+                              fontWeight: 700,
+                              letterSpacing: "0.05em",
+                              textTransform: "uppercase",
+                              color: row.isCorrect ? "#22c55e" : "#ef4444",
+                              background: row.isCorrect
+                                ? "rgba(34,197,94,0.10)"
+                                : "rgba(239,68,68,0.10)",
+                              padding: "2px 8px",
+                              borderRadius: 999,
+                            }}
+                          >
+                            {row.isCorrect ? "✓ Correct" : "✗ Wrong"}
+                          </span>
+                        </div>
+
+                        {/* Question text */}
+                        <div
+                          style={{
+                            fontSize: 13.5,
+                            lineHeight: 1.55,
+                            marginBottom: 10,
+                          }}
+                        >
+                          {row.question}
+                        </div>
+
+                        {/* Answer chips */}
+                        <div
+                          style={{ display: "flex", flexWrap: "wrap", gap: 6 }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 12,
+                              padding: "4px 10px",
+                              borderRadius: 8,
+                              background: row.isCorrect
+                                ? "rgba(34,197,94,0.08)"
+                                : "rgba(239,68,68,0.08)",
+                              border: `1px solid ${row.isCorrect ? "rgba(34,197,94,0.22)" : "rgba(239,68,68,0.22)"}`,
+                              color: row.isCorrect ? "#22c55e" : "#ef4444",
+                            }}
+                          >
+                            <span
+                              style={{
+                                opacity: 0.6,
+                                color: "inherit",
+                                marginRight: 4,
+                              }}
+                            >
+                              Your answer:
+                            </span>
+                            {row.userAnswer != null &&
+                            String(row.userAnswer).trim() ? (
+                              String(row.userAnswer)
+                            ) : (
+                              <em style={{ opacity: 0.55 }}>No answer</em>
+                            )}
+                          </div>
+                          {!row.isCorrect && (
+                            <div
+                              style={{
+                                fontSize: 12,
+                                padding: "4px 10px",
+                                borderRadius: 8,
+                                background: "rgba(34,197,94,0.08)",
+                                border: "1px solid rgba(34,197,94,0.22)",
+                                color: "#22c55e",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  opacity: 0.6,
+                                  color: "inherit",
+                                  marginRight: 4,
+                                }}
+                              >
+                                Correct:
+                              </span>
+                              {row.correctAnswer}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* ── Footer ── */}
+                <div
+                  style={{
+                    padding: "12px 16px",
+                    borderTop: "1px solid var(--sum-head-border)",
+                    display: "flex",
+                    justifyContent: "flex-end",
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="qa-dismiss-btn"
+                    onClick={() => setQuizAttemptDetail(null)}
+                    style={{
+                      height: 36,
+                      padding: "0 20px",
+                      borderRadius: 10,
+                      border: "1px solid var(--sum-card-border)",
+                      background: "rgba(255,255,255,0.06)",
+                      color: "inherit",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      transition: "opacity 0.15s",
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+      {/* ── Mobile "More" bottom sheet ── */}
+      {mobileMoreOpen && (
+        <div
+          className="mob-more-overlay"
+          onClick={() => setMobileMoreOpen(false)}
+          aria-modal="true"
+          role="dialog"
+          aria-label="More options"
+        >
+          <style>{`
+            @keyframes mob-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+            .mob-more-overlay { position:fixed; inset:0; z-index:1300; background:rgba(4,6,15,0.65); backdrop-filter:blur(6px); display:flex; flex-direction:column; justify-content:flex-end; }
+            .mob-more-sheet { background:var(--sum-card-bg); border:1px solid var(--sum-card-border); border-bottom:none; border-radius:18px 18px 0 0; max-height:88vh; display:flex; flex-direction:column; animation:mob-sheet-up 0.28s cubic-bezier(.22,.68,0,1.2); box-shadow:0 -16px 48px rgba(0,0,0,0.45); }
+            .mob-more-handle { width:36px; height:4px; border-radius:2px; background:rgba(255,255,255,0.18); margin:10px auto 0; flex-shrink:0; }
+            .mob-more-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px 10px; border-bottom:1px solid var(--sum-head-border); flex-shrink:0; }
+            .mob-more-title { font-size:13px; font-weight:700; opacity:0.55; letter-spacing:0.07em; text-transform:uppercase; }
+            .mob-more-close { width:30px; height:30px; border-radius:8px; border:1px solid var(--sum-card-border); background:transparent; color:inherit; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:17px; }
+            .mob-more-body { overflow-y:auto; flex:1; min-height:0; padding:12px; display:flex; flex-direction:column; gap:10px; }
+            .mob-more-body::-webkit-scrollbar { width:3px; }
+            .mob-more-body::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.12); border-radius:3px; }
+          `}</style>
+          <div className="mob-more-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="mob-more-handle" />
+            <div className="mob-more-header">
+              <span className="mob-more-title">More</span>
+              <button
+                type="button"
+                className="mob-more-close"
+                onClick={() => setMobileMoreOpen(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="mob-more-body">
+              {/* Sources */}
+              <div className="hl-panel" aria-label="Sources">
+                <div className="hl-head-row">
+                  <div className="hl-head">SOURCES</div>
+                </div>
+                <div className="src-list" style={{ padding: 0 }}>
+                  {(() => {
+                    const base = summary?.files || [];
+                    const extras = extraSources.filter(
+                      (es) => !base.some((f) => f.id === es.id),
+                    );
+                    const all = [...base, ...extras];
+                    if (!all.length)
+                      return (
+                        <div className="src-empty">No attached sources.</div>
+                      );
+                    return all.map((f) => (
+                      <div key={f.id} className="src-item">
+                        <DocIco ext={f.type} />
+                        <div className="src-info">
+                          <div className="src-name" title={f.name}>
+                            {f.name}
+                          </div>
+                          <div className="src-meta">{f.type}</div>
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+
+              {/* Slide Decks */}
+              <div className="hl-panel sd-panel" aria-label="Saved slide decks">
+                <div className="hl-head-row">
+                  <div className="hl-head">SLIDE DECKS</div>
+                  <button
+                    type="button"
+                    className="sd-refresh-btn"
+                    title="Refresh slide decks"
+                    disabled={slideDecksLoading}
+                    onClick={() => void fetchSlideDecks()}
+                  >
+                    {slideDecksLoading ? <Spinner size={11} /> : "↻"}
+                  </button>
+                </div>
+                <div className="sd-deck-list">
+                  {slideDecksLoading && slideDecks.length === 0 ? (
+                    <div className="hl-empty">
+                      <Spinner size={12} /> Loading…
+                    </div>
+                  ) : slideDecks.length === 0 ? (
+                    <div className="hl-empty">
+                      None yet. Generate slides — a copy saves here
+                      automatically.
+                    </div>
+                  ) : (
+                    slideDecks.map((d) => (
+                      <div key={d.id} className="sd-deck-row">
+                        <div className="sd-deck-title" title={d.title}>
+                          {d.title}
+                        </div>
+                        <div className="sd-deck-meta">
+                          {formatSlideDeckSavedAt(d.createdAt)}
+                        </div>
+                        <div className="sd-deck-actions">
+                          <button
+                            type="button"
+                            className="sd-deck-btn"
+                            onClick={() => {
+                              openSlideDeckPreview(d);
+                              setMobileMoreOpen(false);
+                            }}
+                          >
+                            Preview
+                          </button>
+                          <button
+                            type="button"
+                            className="sd-deck-btn"
+                            onClick={() => void downloadSlideDeck(d)}
+                          >
+                            Download
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Saved Quizzes */}
+              <div className="hl-panel sd-panel" aria-label="Saved quizzes">
+                <div className="hl-head-row">
+                  <div className="hl-head">SAVED QUIZZES</div>
+                  <button
+                    type="button"
+                    className="sd-refresh-btn"
+                    title="Refresh saved quizzes"
+                    disabled={quizSetsLoading}
+                    onClick={() => void fetchQuizSets()}
+                  >
+                    {quizSetsLoading ? <Spinner size={11} /> : "↻"}
+                  </button>
+                </div>
+                <div
+                  className="hl-sub"
+                  style={{ marginTop: -4, marginBottom: 6 }}
+                >
+                  Quiz questions stay saved here. Finish a quiz to save a score.
+                  Use <strong>History</strong> to see past scores.
+                </div>
+                <div className="sd-deck-list">
+                  {quizSetsLoading && quizSets.length === 0 ? (
+                    <div className="hl-empty">
+                      <Spinner size={12} /> Loading…
+                    </div>
+                  ) : quizSets.length === 0 ? (
+                    <div className="hl-empty">
+                      None yet. Generate a quiz — it saves here automatically.
+                    </div>
+                  ) : (
+                    quizSets.map((q) => (
+                      <Fragment key={q.id}>
+                        <div className="sd-deck-row">
+                          <div className="sd-deck-title" title={q.title}>
+                            {q.title}
+                          </div>
+                          <div className="sd-deck-meta">
+                            {formatSlideDeckSavedAt(q.createdAt)}
+                            {typeof q._count?.questions === "number"
+                              ? ` · ${q._count.questions} Q`
+                              : ""}
+                            {q.latestAttempt ? (
+                              <>
+                                {" "}
+                                · Last: {q.latestAttempt.score}/
+                                {q.latestAttempt.totalQuestions}
+                                {q.latestAttempt.createdAt
+                                  ? ` (${formatSlideDeckSavedAt(q.latestAttempt.createdAt)})`
+                                  : ""}
+                              </>
+                            ) : (
+                              " · No attempts yet"
+                            )}
+                          </div>
+                          <div className="sd-deck-actions">
+                            <button
+                              type="button"
+                              className="sd-deck-btn"
+                              title="View past scores for this quiz"
+                              onClick={() => toggleQuizHistoryPanel(q.id)}
+                            >
+                              {quizHistoryOpenId === q.id ? "Hide" : "History"}
+                            </button>
+                            <button
+                              type="button"
+                              className="sd-deck-btn"
+                              disabled={quizSetOpeningId === q.id}
+                              onClick={() => {
+                                void openSavedQuizSet(q.id);
+                                setMobileMoreOpen(false);
+                              }}
+                            >
+                              {quizSetOpeningId === q.id ? "…" : "Open"}
+                            </button>
+                          </div>
+                        </div>
+                        {quizHistoryOpenId === q.id && (
+                          <div
+                            className="hl-sub"
+                            style={{
+                              margin: "0 0 8px",
+                              padding: "6px 8px",
+                              borderRadius: 8,
+                              border: "1px solid rgba(255,255,255,.08)",
+                              fontSize: 11,
+                              lineHeight: 1.45,
+                            }}
+                          >
+                            {quizHistoryLoading ? (
+                              <>
+                                <Spinner size={11} /> Loading…
+                              </>
+                            ) : quizHistoryList.length === 0 ? (
+                              "No finished attempts yet."
+                            ) : (
+                              <ul
+                                style={{
+                                  margin: 0,
+                                  paddingLeft: 18,
+                                  listStyle: "disc",
+                                }}
+                              >
+                                {quizHistoryList.map((a) => (
+                                  <li key={a.id} style={{ marginBottom: 6 }}>
+                                    <button
+                                      type="button"
+                                      style={{
+                                        border:
+                                          "1px solid rgba(255,255,255,.12)",
+                                        background: "rgba(255,255,255,.04)",
+                                        color: "inherit",
+                                        borderRadius: 7,
+                                        padding: "6px 8px",
+                                        fontSize: 11,
+                                        width: "100%",
+                                        textAlign: "left",
+                                        cursor: "pointer",
+                                        fontFamily: "inherit",
+                                      }}
+                                      onClick={() => {
+                                        openQuizAttemptDetail(a);
+                                        setMobileMoreOpen(false);
+                                      }}
+                                    >
+                                      {a.score}/{a.totalQuestions}
+                                      {a.createdAt
+                                        ? ` — ${formatSlideDeckSavedAt(a.createdAt)}`
+                                        : ""}
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        )}
+                      </Fragment>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Highlights */}
+              <div className="hl-panel" aria-label="Highlights">
+                <div className="hl-head-row">
+                  <div className="hl-head">HIGHLIGHTS</div>
+                  <button
+                    type="button"
+                    className="hl-save-btn"
+                    title={
+                      pendingHighlights.length
+                        ? `Save ${pendingHighlights.length} highlight(s) to the server`
+                        : "No unsaved highlights"
+                    }
+                    disabled={
+                      pendingHighlights.length === 0 || hlSaving || hlLoading
+                    }
+                    onClick={() => void flushPendingHighlights()}
+                    aria-label="Save highlights"
+                  >
+                    {hlSaving ? <Spinner size={12} /> : <SaveIco size={14} />}
+                  </button>
+                </div>
+                {pendingHighlights.length > 0 && (
+                  <div className="hl-sub">
+                    {pendingHighlights.length} unsaved — click save. Leaving
+                    this page may prompt you if you have not saved.
+                  </div>
+                )}
+                {hlLoading ? (
+                  <div className="hl-empty">
+                    <Spinner size={12} /> Loading…
+                  </div>
+                ) : highlights.length === 0 &&
+                  pendingHighlights.length === 0 ? (
+                  <div className="hl-empty">
+                    Turn on the highlighter, pick a color, select text in the
+                    summary, then save here.
+                  </div>
+                ) : (
+                  <>
+                    {pendingHighlights.map((p) => (
+                      <div
+                        key={p.clientId}
+                        className="hl-item pending"
+                        style={{
+                          ["--hl-accent"]:
+                            p.color && /^#[0-9a-f]{6}$/i.test(p.color)
+                              ? p.color
+                              : DEFAULT_HL_HEX,
+                        }}
+                        onClick={() => {
+                          scrollToHighlight(p.clientId);
+                          setMobileMoreOpen(false);
+                        }}
+                        title={p.quote}
+                      >
+                        <span className="hl-color-dot" />
+                        <div className="hl-quote">
+                          {p.quote.length > 140
+                            ? `${p.quote.slice(0, 140)}…`
+                            : p.quote}
+                        </div>
+                        <button
+                          type="button"
+                          className="hl-x"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removePendingHighlight(p.clientId);
+                          }}
+                          aria-label="Remove unsaved highlight"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    {highlights.map((h) => (
+                      <div
+                        key={h.id}
+                        className="hl-item"
+                        style={{
+                          ["--hl-accent"]:
+                            h.color && /^#[0-9a-f]{6}$/i.test(h.color)
+                              ? h.color
+                              : DEFAULT_HL_HEX,
+                        }}
+                        onClick={() => {
+                          scrollToHighlight(h.id);
+                          setMobileMoreOpen(false);
+                        }}
+                        title={h.quote}
+                      >
+                        <span className="hl-color-dot" />
+                        <div className="hl-quote">
+                          {h.quote.length > 140
+                            ? `${h.quote.slice(0, 140)}…`
+                            : h.quote}
+                        </div>
+                        <button
+                          type="button"
+                          className="hl-x"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteHighlight(h.id);
+                          }}
+                          aria-label="Remove highlight"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

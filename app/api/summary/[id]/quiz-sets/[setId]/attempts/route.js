@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getRequestUser } from "@/lib/apiAuth";
 
 const MAX_ANSWERS_JSON_BYTES = 50_000;
+const DUPLICATE_ATTEMPT_WINDOW_MS = 12_000;
 
 async function resolveIds(context) {
   const resolved = await Promise.resolve(context?.params);
@@ -43,19 +44,31 @@ export async function GET(_req, context) {
       return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
     }
 
-    const attempts = await prisma.quizAttempt.findMany({
-      where: { quizSetId: setId, userId: user.id },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-      select: {
-        id: true,
-        score: true,
-        totalQuestions: true,
-        createdAt: true,
-      },
-    });
-
-    return NextResponse.json({ attempts });
+    const [attempts, questions] = await Promise.all([
+      prisma.quizAttempt.findMany({
+        where: { quizSetId: setId, userId: user.id },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        select: {
+          id: true,
+          score: true,
+          totalQuestions: true,
+          answers: true,
+          createdAt: true,
+        },
+      }),
+      prisma.quizQuestion.findMany({
+        where: { quizSetId: setId },
+        orderBy: { order: "asc" },
+        select: {
+          id: true,
+          order: true,
+          question: true,
+          answer: true,
+        },
+      }),
+    ]);
+    return NextResponse.json({ attempts, questions });
   } catch (err) {
     console.error("quiz-sets attempts GET:", err);
     return NextResponse.json(
@@ -107,6 +120,43 @@ export async function POST(req, context) {
       return NextResponse.json({ error: "answers must be an object" }, { status: 400 });
     } else {
       answers = undefined;
+    }
+
+    // Best-effort idempotency: drop accidental duplicate writes from repeated
+    // frontend effects / retries when payload is identical within a short window.
+    const latestAttempt = await prisma.quizAttempt.findFirst({
+      where: { quizSetId: setId, userId: user.id },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        score: true,
+        totalQuestions: true,
+        answers: true,
+        createdAt: true,
+      },
+    });
+    if (latestAttempt) {
+      const incomingAnswers = answers ?? null;
+      const existingAnswers = latestAttempt.answers ?? null;
+      const samePayload =
+        latestAttempt.score === score &&
+        latestAttempt.totalQuestions === totalQuestions &&
+        JSON.stringify(existingAnswers) === JSON.stringify(incomingAnswers);
+      const createdAtMs = new Date(latestAttempt.createdAt).getTime();
+      const closeInTime =
+        Number.isFinite(createdAtMs) &&
+        Date.now() - createdAtMs <= DUPLICATE_ATTEMPT_WINDOW_MS;
+      if (samePayload && closeInTime) {
+        return NextResponse.json({
+          attempt: {
+            id: latestAttempt.id,
+            score: latestAttempt.score,
+            totalQuestions: latestAttempt.totalQuestions,
+            createdAt: latestAttempt.createdAt,
+          },
+          deduped: true,
+        });
+      }
     }
 
     const attempt = await prisma.quizAttempt.create({

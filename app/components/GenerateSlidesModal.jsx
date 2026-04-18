@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import SlidePreviewModal from "./SlidePreviewModal";
 import AlaiSlidesPreviewModal from "./AlaiSlidesPreviewModal";
+import { useTheme } from "./ThemeProvider.jsx";
 
 // ─── Icons ────────────────────────────────────────────────
 const CloseIco = () => (
@@ -21,22 +22,6 @@ const ChevDownIco = () => (
     <polyline points="6 9 12 15 18 9"/>
   </svg>
 );
-const ChevRightIco = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="9 18 15 12 9 6"/>
-  </svg>
-);
-const ImageIco = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-    <polyline points="21 15 16 10 5 21"/>
-  </svg>
-);
-const XSmallIco = () => (
-  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-  </svg>
-);
 const SlidesIco = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><polygon points="10 8 16 11 10 14 10 8"/>
@@ -50,6 +35,8 @@ const EyeIco = () => (
 
 // ─── Reusable Dropdown ────────────────────────────────────
 function Dropdown({ value, onChange, options, width = 120 }) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const [open, setOpen] = useState(false);
   return (
     <div style={{ position: "relative", width }}>
@@ -58,9 +45,11 @@ function Dropdown({ value, onChange, options, width = 120 }) {
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         style={{
           width: "100%", height: 32, padding: "0 10px",
-          background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)",
+          background: isDark ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.04)",
+          border: `1px solid ${isDark ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"}`,
           borderRadius: 7, fontFamily: "'Sora',sans-serif", fontSize: 12,
-          color: "#c0c0d8", display: "flex", alignItems: "center", justifyContent: "space-between",
+          color: isDark ? "#c0c0d8" : "#4a4a5a",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
           cursor: "pointer", gap: 6, transition: "all .18s",
         }}
       >
@@ -69,20 +58,22 @@ function Dropdown({ value, onChange, options, width = 120 }) {
       {open && (
         <div style={{
           position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 200,
-          background: "rgba(22,22,34,.98)", border: "1px solid rgba(255,255,255,.12)",
-          borderRadius: 8, padding: 4, boxShadow: "0 12px 32px rgba(0,0,0,.5)",
+          background: isDark ? "rgba(22,22,34,.98)" : "rgba(255,255,255,.98)",
+          border: `1px solid ${isDark ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"}`,
+          borderRadius: 8, padding: 4,
+          boxShadow: isDark ? "0 12px 32px rgba(0,0,0,.5)" : "0 12px 32px rgba(0,0,0,.15)",
         }}>
           {options.map(o => (
             <div key={o}
               onMouseDown={() => { onChange(o); setOpen(false); }}
               style={{
                 padding: "7px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12,
-                color: value === o ? "#a5b4fc" : "#b0b0cc",
+                color: value === o ? "#6366f1" : (isDark ? "#b0b0cc" : "#555568"),
                 background: value === o ? "rgba(99,102,241,.18)" : "transparent",
                 fontWeight: value === o ? 500 : 400,
                 transition: "background .12s",
               }}
-              onMouseEnter={e => { if (value !== o) e.currentTarget.style.background = "rgba(255,255,255,.05)"; }}
+              onMouseEnter={e => { if (value !== o) e.currentTarget.style.background = isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.05)"; }}
               onMouseLeave={e => { if (value !== o) e.currentTarget.style.background = "transparent"; }}
             >{o}</div>
           ))}
@@ -93,16 +84,24 @@ function Dropdown({ value, onChange, options, width = 120 }) {
 }
 
 // ─── Section Header ───────────────────────────────────────
-const SectionHead = ({ children }) => (
-  <div style={{ fontSize: 13.5, fontWeight: 700, color: "#ddddf0", marginBottom: 10, marginTop: 2 }}>
-    {children}
-  </div>
-);
-const FieldLabel = ({ children, style }) => (
-  <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.45)", marginBottom: 6, ...style }}>
-    {children}
-  </div>
-);
+const SectionHead = ({ children }) => {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  return (
+    <div style={{ fontSize: 13.5, fontWeight: 700, color: isDark ? "#ddddf0" : "#1e1b4b", marginBottom: 10, marginTop: 2 }}>
+      {children}
+    </div>
+  );
+};
+const FieldLabel = ({ children, style }) => {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  return (
+    <div style={{ fontSize: 11.5, color: isDark ? "rgba(255,255,255,.45)" : "rgba(0,0,0,.5)", marginBottom: 6, ...style }}>
+      {children}
+    </div>
+  );
+};
 const Divider = () => (
   <div style={{ height: 1, background: "rgba(255,255,255,.07)", margin: "16px 0" }}/>
 );
@@ -117,25 +116,43 @@ export default function GenerateSlidesModal({
   /** Called after a deck is successfully saved to the server (e.g. refresh sidebar) */
   onSlideDecksChanged = null,
 }) {
-  const imgInputRef = useRef();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const pptxInputRef = useRef();
   /** Latest download action for the open Alai preview (fresh proxy vs saved blob) */
   const slideDownloadRef = useRef(null);
 
   const [slideTab, setSlideTab] = useState("create");
 
-  // Image upload
-  const [uploadedImages, setUploadedImages] = useState([]);
-
   // Improve existing PPT
   const [improveFile, setImproveFile] = useState(null);
-  const [improveMode, setImproveMode] = useState("context");
+  /** "content" = teaching-focused wording + rich notes; "style" = visuals/theme */
+  const [improveMode, setImproveMode] = useState("content");
   const [improveInstructions, setImproveInstructions] = useState("");
-  const [improvePlan, setImprovePlan] = useState(null);
-  const [improvePlanLoading, setImprovePlanLoading] = useState(false);
+  /** Parsed slide list from /api/improve-ppt/parse (no LLM). */
+  const [parsedSlides, setParsedSlides] = useState(null);
+  const [parseLoading, setParseLoading] = useState(false);
+  /** Background LLM plan adjustments from /api/improve-ppt/plan (JSON). */
+  const [planAdjustments, setPlanAdjustments] = useState([]);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [planError, setPlanError] = useState("");
+  const parseRequestIdRef = useRef(0);
   const [improveGenLoading, setImproveGenLoading] = useState(false);
   const [improveErr, setImproveErr] = useState("");
   const [addStockImages, setAddStockImages] = useState(true);
+  /** When true (default), use neutral theme, skip extra cover slide, and prompt for additive changes */
+  const [additiveImprove, setAdditiveImprove] = useState(true);
+  const [improveDetailLevel, setImproveDetailLevel] = useState("lecture");
+  const [improveImgQuery, setImproveImgQuery] = useState("");
+  const [improveImgSearchLoading, setImproveImgSearchLoading] = useState(false);
+  const [improveImgResults, setImproveImgResults] = useState([]);
+  const [improveImgSearchHint, setImproveImgSearchHint] = useState("");
+  /** "unsplash" | "none" | null (unknown) */
+  const [improveImageProvider, setImproveImageProvider] = useState(null);
+  const [improveTargetSlide, setImproveTargetSlide] = useState(1);
+  /** @type {{ slideIndex: number; url: string; thumb?: string }[]} */
+  const [pickedUserImages, setPickedUserImages] = useState([]);
+  const [improvePasteUrl, setImprovePasteUrl] = useState("");
 
   const [improvePreviewOpen, setImprovePreviewOpen] = useState(false);
   const [improvePreviewLoading, setImprovePreviewLoading] = useState(false);
@@ -195,25 +212,98 @@ export default function GenerateSlidesModal({
     };
   }
 
-  // Handle image file pick
-  function handleImgFiles(files) {
-    const arr = Array.from(files);
-    arr.forEach(f => {
-      const reader = new FileReader();
-      reader.onload = e => {
-        const id = Date.now() + Math.random();
-        setUploadedImages(prev => [...prev, { id, name: f.name, tag: "", preview: e.target.result }]);
-      };
-      reader.readAsDataURL(f);
+  function addPickedImageFromUrl(url, thumb) {
+    const u = String(url || "").trim();
+    if (!u.startsWith("http")) return;
+    const maxSlide = parsedSlides?.length || 1;
+    const slideIndex = Math.max(1, Math.min(Number(improveTargetSlide) || 1, maxSlide));
+    setPickedUserImages((prev) => {
+      const without = prev.filter((p) => p.slideIndex !== slideIndex);
+      const merged = [...without, { slideIndex, url: u, thumb: thumb || u }];
+      if (merged.length > 10) return prev;
+      return merged;
     });
   }
 
-  function removeImage(id) {
-    setUploadedImages(prev => prev.filter(img => img.id !== id));
+  function removePickedImage(slideIndex) {
+    setPickedUserImages((prev) => prev.filter((p) => p.slideIndex !== slideIndex));
   }
 
-  function setTag(id, val) {
-    setUploadedImages(prev => prev.map(img => img.id === id ? { ...img, tag: val } : img));
+  async function handleImproveImageSearch() {
+    const q = improveImgQuery.trim();
+    if (!q) return;
+    setImproveImgSearchLoading(true);
+    setImproveImgSearchHint("");
+    setImproveImgResults([]);
+    try {
+      const res = await fetch(
+        `/api/improve-ppt/image-search?q=${encodeURIComponent(q.slice(0, 200))}`,
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Search failed");
+      setImproveImgResults(Array.isArray(data.items) ? data.items : []);
+      setImproveImgSearchHint(String(data.hint || "").trim());
+      if (data.provider) setImproveImageProvider(data.provider);
+    } catch (e) {
+      setImproveImgSearchHint(e?.message || String(e));
+    } finally {
+      setImproveImgSearchLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!parsedSlides?.length) {
+      setImproveImageProvider(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/improve-ppt/image-search");
+        const data = await res.json().catch(() => ({}));
+        if (!cancelled && res.ok && data.provider) setImproveImageProvider(data.provider);
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [parsedSlides]);
+
+  useEffect(() => {
+    // Planning is now on-demand (Build click), so invalidate old plan output on edits.
+    setPlanAdjustments([]);
+    setPlanError("");
+  }, [improveInstructions, improveMode, aiModel]);
+
+  async function runImprovePlanNow() {
+    if (!parsedSlides?.length || !improveInstructions.trim()) return [];
+    setPlanLoading(true);
+    setPlanError("");
+    try {
+      const res = await fetch("/api/improve-ppt/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slides: parsedSlides,
+          mode: improveMode,
+          instructions: improveInstructions.trim(),
+          model: aiModel,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Planning failed");
+      const adj = Array.isArray(data.adjustments) ? data.adjustments : [];
+      setPlanAdjustments(adj);
+      return adj;
+    } catch (e) {
+      setPlanError(e?.message || String(e));
+      setPlanAdjustments([]);
+      return [];
+    } finally {
+      setPlanLoading(false);
+    }
   }
 
   async function handleCreate() {
@@ -382,50 +472,42 @@ export default function GenerateSlidesModal({
     }
   }
 
-  async function handleImprovePlan() {
-    setImproveErr("");
-    if (!improveFile || !improveInstructions.trim()) {
-      setImproveErr("Upload a .pptx file and describe what to improve.");
-      return;
-    }
-    setImprovePlanLoading(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", improveFile);
-      fd.append("mode", improveMode);
-      fd.append("instructions", improveInstructions.trim());
-      fd.append("model", aiModel);
-      const res = await fetch("/api/improve-ppt/plan", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Plan failed");
-      setImprovePlan(data);
-    } catch (e) {
-      setImproveErr(e.message || String(e));
-    } finally {
-      setImprovePlanLoading(false);
-    }
-  }
-
   async function handleImproveGenerate() {
     setImproveErr("");
-    if (!improvePlan?.slides?.length) {
-      setImproveErr('Click "Generate plan" first.');
+    if (!parsedSlides?.length) {
+      setImproveErr("Upload a .pptx file and wait until slides finish loading.");
+      return;
+    }
+    if (!improveInstructions.trim()) {
+      setImproveErr("Describe what you want to improve.");
       return;
     }
     setImproveGenLoading(true);
     try {
+      // Plan starts only when Build is clicked, then generation follows.
+      const adjustmentsForBuild = await runImprovePlanNow();
+      const payload = {
+        mode: improveMode,
+        instructions: improveInstructions.trim(),
+        model: aiModel,
+        slides: parsedSlides,
+        adjustments: adjustmentsForBuild,
+        addStockImages,
+        sourceName: improveFile?.name || "",
+        additiveImprove,
+        detailLevel: improveDetailLevel,
+        preserveOriginalDesign: true,
+        userImageRefs: pickedUserImages.map((p) => ({
+          slideIndex: p.slideIndex,
+          url: p.url,
+        })),
+      };
+      const fd = new FormData();
+      if (improveFile) fd.append("file", improveFile);
+      fd.append("payload", JSON.stringify(payload));
       const res = await fetch("/api/improve-ppt/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: improveMode,
-          instructions: improveInstructions.trim(),
-          model: aiModel,
-          slides: improvePlan.slides,
-          adjustments: improvePlan.adjustments || [],
-          addStockImages,
-          sourceName: improveFile?.name || "",
-        }),
+        body: fd,
       });
       if (!res.ok) {
         let msg = "Generate failed";
@@ -455,8 +537,8 @@ export default function GenerateSlidesModal({
 
   async function handleImprovePreview() {
     setImproveErr("");
-    if (!improvePlan?.slides?.length) {
-      setImproveErr('Click "Generate plan" first.');
+    if (!parsedSlides?.length) {
+      setImproveErr("Upload a .pptx file and wait until slides finish loading.");
       return;
     }
     if (!improveInstructions.trim()) {
@@ -472,10 +554,12 @@ export default function GenerateSlidesModal({
           mode: improveMode,
           instructions: improveInstructions.trim(),
           model: aiModel,
-          slides: improvePlan.slides,
-          adjustments: improvePlan.adjustments || [],
+          slides: parsedSlides,
+          adjustments: planAdjustments || [],
           // Preview in-browser doesn't currently render fetched images.
           addStockImages: false,
+          additiveImprove,
+          detailLevel: improveDetailLevel,
         }),
       });
       const data = await res.json();
@@ -559,61 +643,42 @@ export default function GenerateSlidesModal({
       .upload-zone:hover { border-color: rgba(99,102,241,.55); background: rgba(99,102,241,.08); color: rgba(255,255,255,.5); }
       .upload-zone-text { font-size: 12px; font-weight: 400; }
 
-      /* image strip */
-      .img-strip {
-        display: flex; gap: 8px; align-items: center;
-        margin-top: 8px; overflow-x: auto; padding-bottom: 2px;
+      .improve-img-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+        gap: 6px; margin-bottom: 10px; max-height: 200px; overflow-y: auto;
       }
-      .img-strip::-webkit-scrollbar { height: 2px; }
-      .img-strip::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 4px; }
+      .improve-img-hit {
+        padding: 0; border: 1px solid rgba(255,255,255,.12); border-radius: 8px;
+        overflow: hidden; cursor: pointer; background: rgba(0,0,0,.25);
+        aspect-ratio: 1; transition: border-color .15s, transform .12s;
+      }
+      .improve-img-hit:hover { border-color: rgba(99,102,241,.55); transform: scale(1.02); }
+      .improve-img-hit img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .improve-picked-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+      .improve-picked-chip {
+        display: inline-flex; align-items: center; gap: 6px; font-size: 11px;
+        padding: 4px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,.12);
+        background: rgba(255,255,255,.06); color: rgba(255,255,255,.65);
+      }
+      .improve-picked-thumb { width: 28px; height: 28px; object-fit: cover; border-radius: 4px; }
+      .improve-picked-x {
+        border: none; background: transparent; color: rgba(255,255,255,.45);
+        cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px;
+      }
+      .improve-picked-x:hover { color: #fca5a5; }
 
-      .img-thumb {
-        flex-shrink: 0; width: 88px; border-radius: 8px;
-        border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04);
-        display: flex; flex-direction: column; overflow: hidden; position: relative;
+      .improve-image-panel {
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,.1);
+        background: rgba(255,255,255,.03);
       }
-      .img-thumb-img {
-        height: 56px; display: flex; align-items: center; justify-content: center;
-        background: rgba(255,255,255,.04); color: rgba(255,255,255,.25); overflow: hidden;
-      }
-      .img-thumb-img img { width: 100%; height: 100%; object-fit: cover; }
-      .img-remove {
-        position: absolute; top: 4px; right: 4px; width: 16px; height: 16px;
-        border-radius: 50%; background: rgba(0,0,0,.6); border: 1px solid rgba(255,255,255,.2);
-        color: rgba(255,255,255,.8); display: flex; align-items: center; justify-content: center;
-        cursor: pointer; transition: background .15s;
-      }
-      .img-remove:hover { background: rgba(248,113,113,.7); }
-      .img-tag-input {
-        background: transparent; border: none; border-top: 1px solid rgba(255,255,255,.08);
-        padding: 5px 7px; font-family: 'Sora',sans-serif; font-size: 10.5px;
-        color: rgba(255,255,255,.55); outline: none; width: 100%;
-      }
-      .img-tag-input::placeholder { color: rgba(255,255,255,.25); }
-      .img-tag-badge {
-        display: flex; align-items: center; gap: 4px;
-        padding: 4px 7px; font-size: 10.5px; color: rgba(255,255,255,.55);
-        border-top: 1px solid rgba(255,255,255,.08);
-      }
-      .tag-x { cursor: pointer; color: rgba(255,255,255,.35); transition: color .15s; display: flex; align-items: center; }
-      .tag-x:hover { color: #fca5a5; }
 
-      /* add-more thumb */
-      .img-add {
-        flex-shrink: 0; width: 88px; height: 80px; border-radius: 8px;
-        border: 1.5px dashed rgba(255,255,255,.14); background: transparent;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        cursor: pointer; color: rgba(255,255,255,.25); gap: 3px;
-        font-size: 10px; transition: all .18s;
-      }
-      .img-add:hover { border-color: rgba(99,102,241,.4); color: #a5b4fc; background: rgba(99,102,241,.06); }
-
-      /* tag hint box (right of upload) */
       .tag-hint {
         background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
         border-radius: 10px; padding: 14px; font-size: 11.5px; font-weight: 300;
         color: rgba(255,255,255,.35); font-style: italic; line-height: 1.6;
-        min-height: 100px; display: flex; align-items: center;
+        min-height: 56px; display: flex; align-items: center;
       }
 
       /* text input */
@@ -701,6 +766,7 @@ export default function GenerateSlidesModal({
       }
       .improve-area:focus { border-color: rgba(99,102,241,.4); box-shadow: 0 0 0 3px rgba(99,102,241,.08); }
       .improve-err { font-size: 11.5px; color: #fca5a5; line-height: 1.4; }
+      .improve-search-hint { font-size: 11px; color: rgba(255,255,255,.42); line-height: 1.4; }
       .plan-list { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 12px 14px; max-height: 220px; overflow-y: auto; font-size: 11.5px; color: rgba(255,255,255,.65); line-height: 1.55; }
       .plan-item { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,.06); }
       .plan-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
@@ -716,6 +782,96 @@ export default function GenerateSlidesModal({
       .create-prompt-area:focus { border-color: rgba(99,102,241,.4); box-shadow: 0 0 0 3px rgba(99,102,241,.08); }
       .create-prompt-hint { font-size: 10.5px; color: rgba(255,255,255,.32); margin-top: 6px; }
       .archive-note { font-size: 11px; color: #a5b4fc; margin-top: 10px; line-height: 1.4; }
+
+      .slides-modal-light.sl-overlay {
+        background: rgba(15, 18, 30, 0.42);
+        backdrop-filter: blur(8px);
+      }
+      .slides-modal-light .sl-modal {
+        background: #f8f9fc;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(99, 102, 241, 0.08);
+      }
+      .slides-modal-light .sl-head,
+      .slides-modal-light .sl-tabs,
+      .slides-modal-light .sl-foot {
+        border-color: rgba(0, 0, 0, 0.08);
+      }
+      .slides-modal-light .sl-title { color: #1e1b4b; }
+      .slides-modal-light .sl-close {
+        border-color: rgba(0, 0, 0, 0.12);
+        background: rgba(0, 0, 0, 0.04);
+        color: rgba(0, 0, 0, 0.5);
+      }
+      .slides-modal-light .sl-close:hover {
+        background: rgba(248, 113, 113, 0.12);
+        border-color: rgba(248, 113, 113, 0.35);
+        color: #b91c1c;
+      }
+      .slides-modal-light .sl-tab {
+        border-color: rgba(0, 0, 0, 0.12);
+        background: rgba(0, 0, 0, 0.04);
+        color: rgba(0, 0, 0, 0.6);
+      }
+      .slides-modal-light .sl-tab:hover { color: rgba(0, 0, 0, 0.88); }
+      .slides-modal-light .sl-tab.on {
+        background: rgba(99, 102, 241, 0.16);
+        border-color: rgba(99, 102, 241, 0.35);
+        color: #4338ca;
+      }
+      .slides-modal-light .upload-zone {
+        border-color: rgba(99, 102, 241, 0.28);
+        background: rgba(99, 102, 241, 0.05);
+        color: rgba(0, 0, 0, 0.5);
+      }
+      .slides-modal-light .upload-zone:hover { color: rgba(0, 0, 0, 0.78); }
+      .slides-modal-light .txt-inp,
+      .slides-modal-light .num-inp,
+      .slides-modal-light .improve-area,
+      .slides-modal-light .create-prompt-area {
+        background: #fff;
+        border-color: rgba(0, 0, 0, 0.14);
+        color: #111827;
+      }
+      .slides-modal-light .txt-inp::placeholder,
+      .slides-modal-light .create-prompt-area::placeholder { color: rgba(0, 0, 0, 0.4); }
+      .slides-modal-light .plan-list,
+      .slides-modal-light .tag-hint {
+        background: rgba(0, 0, 0, 0.03);
+        border-color: rgba(0, 0, 0, 0.1);
+        color: rgba(0, 0, 0, 0.7);
+      }
+      .slides-modal-light .improve-img-hit {
+        border-color: rgba(0, 0, 0, 0.12);
+        background: rgba(0, 0, 0, 0.04);
+      }
+      .slides-modal-light .improve-picked-chip {
+        border-color: rgba(0, 0, 0, 0.12);
+        background: rgba(0, 0, 0, 0.04);
+        color: rgba(0, 0, 0, 0.75);
+      }
+      .slides-modal-light .improve-image-panel {
+        border-color: rgba(0, 0, 0, 0.1);
+        background: rgba(99, 102, 241, 0.06);
+      }
+      .slides-modal-light .radio-opt,
+      .slides-modal-light .chk-row { color: rgba(0, 0, 0, 0.58); }
+      .slides-modal-light .radio-opt:hover,
+      .slides-modal-light .chk-row:hover { color: rgba(0, 0, 0, 0.88); }
+      .slides-modal-light .radio-dot,
+      .slides-modal-light .chk-box { border-color: rgba(0, 0, 0, 0.22); }
+      .slides-modal-light .btn-prev {
+        border-color: rgba(0, 0, 0, 0.12);
+        background: rgba(0, 0, 0, 0.04);
+        color: rgba(0, 0, 0, 0.6);
+      }
+      .slides-modal-light .btn-prev:hover {
+        border-color: rgba(0, 0, 0, 0.2);
+        color: rgba(0, 0, 0, 0.88);
+        background: rgba(0, 0, 0, 0.06);
+      }
+      .slides-modal-light .archive-note { color: #4338ca; }
+      .slides-modal-light .improve-search-hint { color: rgba(0, 0, 0, 0.55); }
 
       @media (max-width: 900px) {
         .sl-overlay {
@@ -763,7 +919,7 @@ export default function GenerateSlidesModal({
       }
     `}</style>
 
-    <div className="sl-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className={`sl-overlay${isDark ? "" : " slides-modal-light"}`} onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="sl-modal">
 
         {/* ── Header ── */}
@@ -791,11 +947,38 @@ export default function GenerateSlidesModal({
             <SectionHead>Upload presentation</SectionHead>
             <FieldLabel>.pptx only. Legacy .ppt is not supported.</FieldLabel>
             <input ref={pptxInputRef} type="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" style={{ display: "none" }}
-              onChange={e => {
+              onChange={(e) => {
                 const f = e.target.files?.[0];
                 setImproveFile(f || null);
-                setImprovePlan(null);
+                setParsedSlides(null);
+                setPlanAdjustments([]);
+                setPlanError("");
+                setPickedUserImages([]);
+                setImproveTargetSlide(1);
+                setImproveImgResults([]);
+                setImproveImgSearchHint("");
                 e.target.value = "";
+                if (!f) return;
+                const reqId = ++parseRequestIdRef.current;
+                setParseLoading(true);
+                setImproveErr("");
+                void (async () => {
+                  try {
+                    const fd = new FormData();
+                    fd.append("file", f);
+                    const res = await fetch("/api/improve-ppt/parse", { method: "POST", body: fd });
+                    const data = await res.json().catch(() => ({}));
+                    if (reqId !== parseRequestIdRef.current) return;
+                    if (!res.ok) throw new Error(data.error || "Could not read slides");
+                    setParsedSlides(Array.isArray(data.slides) ? data.slides : []);
+                  } catch (err) {
+                    if (reqId !== parseRequestIdRef.current) return;
+                    setImproveErr(err?.message || String(err));
+                    setParsedSlides(null);
+                  } finally {
+                    if (reqId === parseRequestIdRef.current) setParseLoading(false);
+                  }
+                })();
               }}/>
             <button type="button" className="upload-zone" style={{ minHeight: 72 }} onClick={() => pptxInputRef.current?.click()}>
               <UploadCloudIco/>
@@ -804,26 +987,178 @@ export default function GenerateSlidesModal({
               </div>
             </button>
 
+            {improveFile && !addStockImages && (
+              <div className="improve-image-panel" style={{ marginTop: 14 }}>
+                <SectionHead>Add images to slides</SectionHead>
+                {parseLoading ? (
+                  <FieldLabel style={{ marginBottom: 0 }}>
+                    Reading slides from your file…
+                  </FieldLabel>
+                ) : !parsedSlides?.length ? (
+                  <FieldLabel style={{ marginBottom: 0 }}>
+                    Could not load slides from this file. Try another .pptx or check the error above.
+                  </FieldLabel>
+                ) : (
+                  <>
+                    {improveImageProvider && (
+                      <div
+                        style={{
+                          fontSize: 11.5,
+                          fontWeight: 600,
+                          color:
+                            improveImageProvider === "none"
+                              ? isDark
+                                ? "rgba(251,191,36,.95)"
+                                : "#b45309"
+                              : isDark
+                                ? "rgba(165,180,252,.95)"
+                                : "#4338ca",
+                          marginBottom: 8,
+                        }}
+                      >
+                        Image search:{" "}
+                        {improveImageProvider === "unsplash"
+                          ? "Unsplash"
+                          : "not configured (set UNSPLASH_ACCESS_KEY on the server)"}
+                      </div>
+                    )}
+                    <FieldLabel>
+                      Pick a slide, search, then click a thumbnail to attach. Or paste a direct <code style={{ fontSize: 10.5 }}>http(s)://</code> image URL. Max 10 images.
+                    </FieldLabel>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                      <span style={{ fontSize: 11, color: isDark ? "rgba(255,255,255,.5)" : "rgba(0,0,0,.55)" }}>Target slide</span>
+                      <select
+                        className="txt-inp"
+                        style={{ width: "auto", minWidth: 120, height: 32, padding: "0 8px" }}
+                        value={improveTargetSlide}
+                        onChange={(e) => setImproveTargetSlide(Number(e.target.value))}
+                      >
+                        {parsedSlides.map((s) => (
+                          <option key={s.index} value={s.index}>
+                            Slide {s.index}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                      <input
+                        className="txt-inp"
+                        placeholder="Search images…"
+                        value={improveImgQuery}
+                        onChange={(e) => setImproveImgQuery(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleImproveImageSearch()}
+                        style={{ flex: 1, minWidth: 0 }}
+                      />
+                      <button
+                        type="button"
+                        className="btn-prev"
+                        style={{ height: 34, flexShrink: 0 }}
+                        disabled={improveImgSearchLoading || !improveImgQuery.trim()}
+                        onClick={() => void handleImproveImageSearch()}
+                      >
+                        {improveImgSearchLoading ? "…" : "Search"}
+                      </button>
+                    </div>
+                    {improveImgSearchHint && (
+                      <div
+                        className={improveImgResults.length ? "improve-search-hint" : "improve-err"}
+                        style={{ marginBottom: 8 }}
+                      >
+                        {improveImgSearchHint}
+                      </div>
+                    )}
+                    {improveImgResults.length > 0 && (
+                      <div className="improve-img-grid">
+                        {improveImgResults.map((it, idx) => (
+                          <button
+                            key={`${it.link || idx}-${idx}`}
+                            type="button"
+                            className="improve-img-hit"
+                            title={it.title || "Add to slide"}
+                            onClick={() => addPickedImageFromUrl(it.link, it.thumbnailLink)}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={it.thumbnailLink || it.link} alt="" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <FieldLabel style={{ marginTop: 10 }}>Or paste a direct image URL</FieldLabel>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <input
+                        className="txt-inp"
+                        placeholder="https://…"
+                        value={improvePasteUrl}
+                        onChange={(e) => setImprovePasteUrl(e.target.value)}
+                        style={{ flex: 1 }}
+                      />
+                      <button
+                        type="button"
+                        className="btn-prev"
+                        style={{ height: 34 }}
+                        onClick={() => {
+                          addPickedImageFromUrl(improvePasteUrl.trim(), "");
+                          setImprovePasteUrl("");
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                    {pickedUserImages.length > 0 && (
+                      <div className="improve-picked-list">
+                        {pickedUserImages.map((p) => (
+                          <div key={p.slideIndex} className="improve-picked-chip">
+                            <span>Slide {p.slideIndex}</span>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            {p.thumb ? <img src={p.thumb} alt="" className="improve-picked-thumb" /> : null}
+                            <button type="button" className="improve-picked-x" onClick={() => removePickedImage(p.slideIndex)} aria-label="Remove">×</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
             <SectionHead>Improvement type</SectionHead>
             <div className="radio-group" style={{ marginBottom: 4 }}>
               {[
-                { id: "context", label: "Context (shorter text, clearer wording)" },
-                { id: "style", label: "Style (colors, theme, images)" },
+                { id: "content", label: "Content (teaching detail, rich speaker notes)" },
+                { id: "style", label: "Style (colors, theme, stock imagery)" },
               ].map(({ id, label }) => (
-                <label key={id} className={`radio-opt ${improveMode === id ? "on" : ""}`} onClick={() => { setImproveMode(id); setImprovePlan(null); }}>
+                <label key={id} className={`radio-opt ${improveMode === id ? "on" : ""}`} onClick={() => setImproveMode(id)}>
                   <div className={`radio-dot ${improveMode === id ? "on" : ""}`}/>
                   {label}
                 </label>
               ))}
             </div>
 
+            <label className="chk-row" style={{ marginTop: 4 }} onClick={() => setAdditiveImprove((v) => !v)}>
+              <div className={`chk-box ${additiveImprove ? "on" : ""}`}>
+                {additiveImprove && <span className="chk-tick">✓</span>}
+              </div>
+              Improve in place (neutral layout, no extra cover slide; keep original wording unless you ask otherwise)
+            </label>
+
+            <FieldLabel style={{ marginTop: 10 }}>Detail level (for generated deck)</FieldLabel>
+            <Dropdown
+              value={improveDetailLevel === "concise" ? "Concise" : improveDetailLevel === "deep" ? "Deep (lecture+)" : "Lecture (default)"}
+              onChange={(v) => {
+                const m = { Concise: "concise", "Lecture (default)": "lecture", "Deep (lecture+)": "deep" };
+                setImproveDetailLevel(m[v] || "lecture");
+              }}
+              options={["Concise", "Lecture (default)", "Deep (lecture+)"]}
+              width={160}
+            />
+
             <SectionHead>What should change?</SectionHead>
             <textarea
               className="improve-area"
               rows={4}
-              placeholder={'Examples:\n• Context: "Make bullets shorter and more precise."\n• Style: "Use a green color theme and add relevant pictures."'}
+              placeholder={'Examples:\n• Content: "Expand speaker notes for each slide; keep bullets close to the original."\n• Style: "Use a green color theme and add relevant pictures."'}
               value={improveInstructions}
-              onChange={e => { setImproveInstructions(e.target.value); setImprovePlan(null); }}
+              onChange={(e) => setImproveInstructions(e.target.value)}
             />
 
             <SectionHead>AI model</SectionHead>
@@ -833,16 +1168,23 @@ export default function GenerateSlidesModal({
               <div className={`chk-box ${addStockImages ? "on" : ""}`}>
                 {addStockImages && <span className="chk-tick">✓</span>}
               </div>
-              Add stock images when the plan asks (requires UNSPLASH_ACCESS_KEY on the server)
+              Auto-add stock images from each slide’s keywords (title, bullets, original text) using Unsplash. Requires UNSPLASH_ACCESS_KEY. Uncheck this to use the manual Unsplash search panel.
             </label>
 
             {improveErr && <div className="improve-err">{improveErr}</div>}
 
-            {improvePlan?.adjustments?.length > 0 && (
+            {parsedSlides?.length > 0 && improveInstructions.trim() && planLoading && (
+              <div style={{ fontSize: 11.5, color: "#a5b4fc", marginTop: 4 }}>Planning adjustments…</div>
+            )}
+            {planError && (
+              <div className="improve-err" style={{ marginTop: 4 }}>{planError}</div>
+            )}
+
+            {planAdjustments.length > 0 && (
               <>
                 <SectionHead>Planned adjustments</SectionHead>
                 <div className="plan-list">
-                  {improvePlan.adjustments.map((adj, i) => (
+                  {planAdjustments.map((adj, i) => (
                     <div key={i} className="plan-item">
                       <strong style={{ color: "#a5b4fc" }}>Slide {adj.slideIndex}</strong> ({adj.type})<br/>
                       {adj.description}
@@ -852,8 +1194,14 @@ export default function GenerateSlidesModal({
                 </div>
               </>
             )}
-            {improvePlan && (!improvePlan.adjustments || improvePlan.adjustments.length === 0) && (
-              <div className="plan-list" style={{ color: "rgba(255,255,255,.4)" }}>No specific adjustments listed — the deck may already match your request, or try different instructions.</div>
+            {parsedSlides?.length > 0 &&
+              improveInstructions.trim() &&
+              !planLoading &&
+              !planError &&
+              planAdjustments.length === 0 && (
+              <div className="plan-list" style={{ color: "rgba(255,255,255,.4)" }}>
+                No specific adjustments listed — the deck may already match your request, or try different instructions.
+              </div>
             )}
           </div>
           )}
@@ -877,54 +1225,6 @@ export default function GenerateSlidesModal({
 
           {/* ══ LEFT COLUMN ══ */}
           <div className="col-left">
-
-            {/* Upload images */}
-            <SectionHead>Upload images</SectionHead>
-            <FieldLabel>Optional, upload images to decorate slides</FieldLabel>
-
-            {/* Drop zone */}
-            <div className="upload-zone" onClick={() => imgInputRef.current?.click()}>
-              <UploadCloudIco/>
-              <div className="upload-zone-text">Click to Upload images here...</div>
-              <input ref={imgInputRef} type="file" multiple accept="image/*" style={{ display:"none" }}
-                onChange={e => { handleImgFiles(e.target.files); e.target.value=""; }}/>
-            </div>
-
-            {/* Image strip */}
-            {uploadedImages.length > 0 && (
-              <div className="img-strip">
-                {uploadedImages.map(img => (
-                  <div key={img.id} className="img-thumb">
-                    <div className="img-thumb-img">
-                      {img.preview
-                        ? <img src={img.preview} alt={img.name}/>
-                        : <ImageIco/>
-                      }
-                    </div>
-                    {/* remove btn */}
-                    <div className="img-remove" onClick={() => removeImage(img.id)}><XSmallIco/></div>
-                    {/* tag: show badge if tag set, else input */}
-                    {img.tag ? (
-                      <div className="img-tag-badge">
-                        {img.tag}
-                        <span className="tag-x" onClick={() => setTag(img.id, "")}><XSmallIco/></span>
-                      </div>
-                    ) : (
-                      <input className="img-tag-input" placeholder="enter tag.."
-                        onKeyDown={e => { if (e.key==="Enter" && e.target.value.trim()) { setTag(img.id, e.target.value.trim()); e.target.value=""; } }}
-                      />
-                    )}
-                  </div>
-                ))}
-                {/* add more */}
-                <div className="img-add" onClick={() => imgInputRef.current?.click()}>
-                  <ChevRightIco/>
-                  <span>more</span>
-                </div>
-              </div>
-            )}
-
-            <Divider/>
 
             {/* Slide Length & Detail */}
             <SectionHead>Slide Length &amp; Detail</SectionHead>
@@ -971,15 +1271,9 @@ export default function GenerateSlidesModal({
           {/* ══ RIGHT COLUMN ══ */}
           <div className="col-right">
 
-            {/* Tag hint box — lines up with upload zone */}
-            <div style={{ marginTop: 36, marginBottom: 0 }}>
-              <div className="tag-hint">
-                Enter tag to make AI model able to recognize the image context.
-              </div>
+            <div className="tag-hint" style={{ marginTop: 8 }}>
+              Slides are generated by Alai from your summary and the options here. Use the Improve tab to add images to an existing deck.
             </div>
-
-            {/* spacer to align with image strip roughly */}
-            <div style={{ minHeight: uploadedImages.length > 0 ? 98 : 0 }}/>
 
             <Divider/>
 
@@ -1041,19 +1335,29 @@ export default function GenerateSlidesModal({
         <div className="sl-foot">
           {slideTab === "improve" ? (
             <>
-              <button className="btn-prev" onClick={handleImprovePlan} disabled={improvePlanLoading}>
-                {improvePlanLoading ? <div className="mini-spin"/> : <EyeIco/>}
-                Generate plan
-              </button>
               <button
                 className="btn-prev"
                 onClick={handleImprovePreview}
-                disabled={improvePreviewLoading || !improvePlan}
+                disabled={
+                  improvePreviewLoading ||
+                  parseLoading ||
+                  !parsedSlides?.length ||
+                  !improveInstructions.trim()
+                }
               >
                 {improvePreviewLoading ? <div className="mini-spin"/> : <EyeIco/>}
                 Preview slides
               </button>
-              <button className="btn-create" onClick={handleImproveGenerate} disabled={improveGenLoading || !improvePlan}>
+              <button
+                className="btn-create"
+                onClick={handleImproveGenerate}
+                disabled={
+                  improveGenLoading ||
+                  parseLoading ||
+                  !parsedSlides?.length ||
+                  !improveInstructions.trim()
+                }
+              >
                 {improveGenLoading ? <div className="mini-spin"/> : <SlidesIco/>}
                 Build improved PPTX
               </button>

@@ -355,7 +355,7 @@ export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
             color: isDark ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.48)",
           }}
         >
-          All these options are optional. If you want to generate quiz straight away, click "Generate Quiz" to start generate random questions.
+          All these options are optional. If you want to generate quiz straight away, click &quot;Generate Quiz&quot; to start generate random questions.
         </div>
 
         <div className="sl-body" style={{ gridTemplateColumns: "1fr 1fr", gap: "0 32px" }}>

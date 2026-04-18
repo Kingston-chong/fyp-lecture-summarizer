@@ -54,7 +54,10 @@ export default function QuizViewModal({
 
   const timerRef = useRef(null);
   const userAnswersRef = useRef(userAnswers);
+  const onAttemptSavedRef = useRef(onAttemptSaved);
+  const attemptPersistedRef = useRef(false);
   userAnswersRef.current = userAnswers;
+  onAttemptSavedRef.current = onAttemptSaved;
 
   const resetSession = useCallback(() => {
     if (timerRef.current) {
@@ -66,13 +69,20 @@ export default function QuizViewModal({
     setShowExplanation(false);
     setIsFinished(false);
     setTimeLeft(initialTimeLeft);
+    attemptPersistedRef.current = false;
   }, [initialTimeLeft]);
+
+  useEffect(() => {
+    // Opening a different quiz set should allow one new save at finish.
+    attemptPersistedRef.current = false;
+  }, [quizSet?.id, summaryId]);
 
   /** Persist finished quiz to server (AbortController avoids double POST under React Strict Mode). */
   useEffect(() => {
     if (!isFinished || !quizSet?.id || summaryId == null || summaryId === "") {
       return undefined;
     }
+    if (attemptPersistedRef.current) return undefined;
     const n = Number.parseInt(String(summaryId), 10);
     if (!Number.isFinite(n) || n <= 0) return undefined;
 
@@ -93,6 +103,7 @@ export default function QuizViewModal({
     }
 
     const ac = new AbortController();
+    attemptPersistedRef.current = true;
     void (async () => {
       try {
         const res = await fetch(`/api/summary/${n}/quiz-sets/${quizSet.id}/attempts`, {
@@ -106,8 +117,9 @@ export default function QuizViewModal({
           }),
         });
         if (!res.ok) return;
-        onAttemptSaved?.();
+        onAttemptSavedRef.current?.();
       } catch (e) {
+        attemptPersistedRef.current = false;
         if (e?.name !== "AbortError") {
           console.warn("Quiz attempt save failed:", e);
         }
@@ -115,7 +127,7 @@ export default function QuizViewModal({
     })();
 
     return () => ac.abort();
-  }, [isFinished, quizSet, summaryId, onAttemptSaved]);
+  }, [isFinished, quizSet, summaryId]);
 
   useEffect(() => {
     if (timeLeft !== null && timeLeft > 0 && !isFinished) {

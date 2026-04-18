@@ -50,6 +50,7 @@ export async function POST(req) {
     if (userExtra) {
       instructions += `\nAdditional instructions from the user (prioritize when consistent with the summary):\n${userExtra}\n`;
     }
+
     instructions += `\nSummary:\n${summaryText}`;
 
     const payload = {

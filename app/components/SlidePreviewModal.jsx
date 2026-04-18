@@ -136,8 +136,14 @@ function SlideDesignPreview({ slide, theme, pageNum, totalPages }) {
   );
 }
 
-// ─── Thumbnail strip item ─────────────────────────────────
-function Thumbnail({ num, active, onClick }) {
+// ─── Thumbnail strip item (mini slide — avoid diagonal “X” which read as crossed-out) ──
+function Thumbnail({ num, active, onClick, theme }) {
+  const bg = theme?.background || "#0f172a";
+  const accent = theme?.accent || "#6366f1";
+  const panelFill =
+    theme?.panel && String(theme.panel).trim()
+      ? String(theme.panel).trim()
+      : "rgba(255,255,255,.1)";
   return (
     <div onClick={onClick} style={{
       flexShrink: 0, width: 52, cursor: "pointer",
@@ -146,13 +152,40 @@ function Thumbnail({ num, active, onClick }) {
       overflow: "hidden", transition: "border-color .18s",
       boxShadow: active ? "0 0 0 3px rgba(99,102,241,.18)" : "none",
     }}>
-      <div style={{ aspectRatio:"16/10", background:"white", position:"relative", display:"flex", alignItems:"center", justifyContent:"center" }}>
-        <svg width="100%" height="100%" viewBox="0 0 52 32" preserveAspectRatio="none">
-          <rect x="0" y="0" width="52" height="32" fill="white"/>
-          <line x1="0" y1="0" x2="52" y2="32" stroke="#ccc" strokeWidth="0.8"/>
-          <line x1="52" y1="0" x2="0" y2="32" stroke="#ccc" strokeWidth="0.8"/>
-        </svg>
-        <div style={{ position:"absolute", bottom:1, right:2, fontSize:6, color:"rgba(0,0,0,.3)", fontFamily:"'Sora',sans-serif" }}>{num}</div>
+      <div
+        style={{
+          aspectRatio: "16/10",
+          background: bg,
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "18%", background: accent }} />
+        <div
+          style={{
+            position: "absolute",
+            left: "8%",
+            right: "8%",
+            top: "24%",
+            bottom: "16%",
+            background: panelFill,
+            borderRadius: 3,
+            border: "1px solid rgba(255,255,255,.08)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            bottom: 2,
+            right: 3,
+            fontSize: 7,
+            fontWeight: 600,
+            color: "rgba(255,255,255,.55)",
+            fontFamily: "'Sora',sans-serif",
+          }}
+        >
+          {num}
+        </div>
       </div>
     </div>
   );
@@ -405,7 +438,7 @@ export default function SlidePreviewModal({
         {/* ── Header ── */}
         <div className="pv-head">
           <div className="pv-head-left">
-            <div className="pv-title"><SlidesIco/> Preview Presentation</div>
+            <div className="pv-title"><SlidesIco/> {String(title || "").trim() || "Preview presentation"}</div>
             <div className="pv-subtitle">{subtitle || "Review your slide design and content."}</div>
           </div>
 
@@ -457,7 +490,7 @@ export default function SlidePreviewModal({
             <div className="thumb-strip" ref={thumbsRef}>
               {Array.from({ length: effectiveTotal }, (_, i) => i + 1).map(n => (
                 <div key={n} data-thumb={n}>
-                  <Thumbnail num={n} active={currentPage === n} onClick={() => goTo(n)}/>
+                  <Thumbnail num={n} active={currentPage === n} onClick={() => goTo(n)} theme={theme} />
                 </div>
               ))}
             </div>

@@ -1,18 +1,37 @@
 import { NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/apiAuth";
-import { parsePptxToSlides } from "@/lib/pptxSlides";
-import { parseJsonFromLlm } from "@/lib/jsonExtract";
-import { runChat } from "@/lib/llmServer";
+import { parsePptxBufferToSlides } from "@/lib/improvePptParse";
+import { runImprovePlanAdjustments } from "@/lib/improvePptPlanLlm";
 import { uiModelToKey } from "@/lib/improvePptModel";
 
-const MAX_SLIDE_TEXT = 4000;
+async function respondWithPlan({
+  mode,
+  instructions,
+  modelKey,
+  slides,
+}) {
+  let adjustments;
+  try {
+    adjustments = await runImprovePlanAdjustments(
+      modelKey,
+      mode,
+      instructions,
+      slides,
+    );
+  } catch {
+    return NextResponse.json(
+      { error: "The model did not return valid JSON. Try again or switch model." },
+      { status: 502 },
+    );
+  }
 
-function truncateSlides(slides) {
-  return slides.map((s) => ({
-    index: s.index,
-    text: String(s.text || "").slice(0, MAX_SLIDE_TEXT),
-    lines: (s.lines || []).map((l) => String(l).slice(0, 800)).slice(0, 40),
-  }));
+  return NextResponse.json({
+    mode,
+    instructions,
+    model: modelKey,
+    slides,
+    adjustments,
+  });
 }
 
 export async function POST(req) {
@@ -22,10 +41,48 @@ export async function POST(req) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const contentType = req.headers.get("content-type") || "";
+
+    if (contentType.includes("application/json")) {
+      const body = await req.json();
+      const modeRaw = String(body?.mode || "content").toLowerCase();
+      const mode = modeRaw === "style" ? "style" : "content";
+      const instructions = String(body?.instructions || "").trim();
+      const modelLabel = String(body?.model || "Gemini");
+      const slidesIn = Array.isArray(body?.slides) ? body.slides : [];
+
+      if (slidesIn.length === 0) {
+        return NextResponse.json(
+          { error: "slides array is required and must not be empty" },
+          { status: 400 },
+        );
+      }
+
+      if (!instructions) {
+        return NextResponse.json(
+          { error: "Instructions are required" },
+          { status: 400 },
+        );
+      }
+
+      const modelKey = uiModelToKey(modelLabel);
+      if (!modelKey) {
+        return NextResponse.json({ error: "Invalid model" }, { status: 400 });
+      }
+
+      const slides = slidesIn.map((s) => ({
+        index: Number(s.index),
+        text: String(s.text || ""),
+        lines: Array.isArray(s.lines) ? s.lines.map((l) => String(l)) : [],
+      }));
+
+      return respondWithPlan({ mode, instructions, modelKey, slides });
+    }
+
     const form = await req.formData();
     const file = form.get("file");
-    const modeRaw = String(form.get("mode") || "context").toLowerCase();
-    const mode = modeRaw === "style" ? "style" : "context";
+    const modeRaw = String(form.get("mode") || "content").toLowerCase();
+    const mode = modeRaw === "style" ? "style" : "content";
     const instructions = String(form.get("instructions") || "").trim();
     const modelLabel = String(form.get("model") || "Gemini");
 
@@ -36,13 +93,19 @@ export async function POST(req) {
     const name = file.name || "upload.pptx";
     if (!/\.pptx$/i.test(name)) {
       return NextResponse.json(
-        { error: "Only .pptx files are supported. Convert .ppt to .pptx in PowerPoint first." },
-        { status: 400 }
+        {
+          error:
+            "Only .pptx files are supported. Convert .ppt to .pptx in PowerPoint first.",
+        },
+        { status: 400 },
       );
     }
 
     if (!instructions) {
-      return NextResponse.json({ error: "Instructions are required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Instructions are required" },
+        { status: 400 },
+      );
     }
 
     const modelKey = uiModelToKey(modelLabel);
@@ -51,65 +114,14 @@ export async function POST(req) {
     }
 
     const buf = Buffer.from(await file.arrayBuffer());
-    const { slides: rawSlides } = await parsePptxToSlides(buf);
-    const slides = truncateSlides(rawSlides);
+    const slides = await parsePptxBufferToSlides(buf);
 
-    const systemPrompt = `You are a presentation planning assistant for Slide2Notes.
-You list concrete adjustments to match the user's goals. Output ONLY valid JSON, no markdown outside JSON.`;
-
-    const userContent = `Improvement mode: "${mode}".
-- style = visual appearance: colors, themes, images, layout polish (not rewriting meaning).
-- context = slide wording: shorter text, clearer bullets, simpler language.
-
-User instructions:
-${instructions}
-
-Slides (index, text, lines):
-${JSON.stringify(slides, null, 2)}
-
-Return JSON exactly in this shape:
-{
-  "adjustments": [
-    {
-      "slideIndex": <number>,
-      "type": "style" | "context",
-      "description": "<what will change>",
-      "before": "<short excerpt from current slide>",
-      "after": "<optional: expected outcome or summary>"
-    }
-  ]
-}
-
-Include only slides that need changes. If nothing applies, return { "adjustments": [] }.`;
-
-    const raw = await runChat(modelKey, null, systemPrompt, [
-      { role: "user", content: userContent },
-    ]);
-
-    let parsed;
-    try {
-      parsed = parseJsonFromLlm(raw);
-    } catch {
-      return NextResponse.json(
-        { error: "The model did not return valid JSON. Try again or switch model." },
-        { status: 502 }
-      );
-    }
-
-    const adjustments = Array.isArray(parsed?.adjustments) ? parsed.adjustments : [];
-
-    return NextResponse.json({
-      mode,
-      instructions,
-      model: modelKey,
-      slides,
-      adjustments,
-    });
+    return respondWithPlan({ mode, instructions, modelKey, slides });
   } catch (err) {
     console.error("improve-ppt plan:", err);
     return NextResponse.json(
       { error: String(err?.message || err) },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

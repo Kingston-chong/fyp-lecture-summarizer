@@ -18,6 +18,7 @@ import AppHeader from "@/app/components/AppHeader";
 export default function Slide2NotesLogin() {
   const router = useRouter();
   const { status } = useSession();
+  const showAuthLoading = status !== "unauthenticated";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -494,6 +495,32 @@ export default function Slide2NotesLogin() {
           font-weight: 500;
         }
         .footer-link.cta:hover { color: #b0b0ff; }
+
+        .auth-loading {
+          min-height: 260px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 14px;
+        }
+        .auth-spinner {
+          width: 34px;
+          height: 34px;
+          border-radius: 999px;
+          border: 3px solid rgba(99,102,241,0.22);
+          border-top-color: #6366f1;
+          animation: authSpin 0.9s linear infinite;
+        }
+        .auth-loading-text {
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--app-muted);
+          letter-spacing: 0.02em;
+        }
+        @keyframes authSpin {
+          to { transform: rotate(360deg); }
+        }
       `}</style>
 
       <div className="s2n">
@@ -527,84 +554,94 @@ export default function Slide2NotesLogin() {
         <main className="main">
           <div className="card">
             <div className="card-top-glow" />
-
-            <p className="card-eyebrow">Welcome back</p>
-            <h1 className="card-title">
-              Login to <em>Slide2Notes</em>
-            </h1>
-
-            {/* Email */}
-            <div className="field-group">
-              <label className={`field-label ${emailFocused ? "focused" : ""}`}>
-                Email address
-              </label>
-              <div className="field-wrapper">
-                <input
-                  className="field-input"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onFocus={() => setEmailFocused(true)}
-                  onBlur={() => setEmailFocused(false)}
-                />
+            {showAuthLoading ? (
+              <div className="auth-loading">
+                <div className="auth-spinner" />
+                <p className="auth-loading-text">
+                  {status === "authenticated" ? "Redirecting to dashboard..." : "Checking session..."}
+                </p>
               </div>
-            </div>
+            ) : (
+              <>
+                <p className="card-eyebrow">Welcome back</p>
+                <h1 className="card-title">
+                  Login to <em>Slide2Notes</em>
+                </h1>
 
-            {/* Password */}
-            <div className="field-group">
-              <label className={`field-label ${passFocused ? "focused" : ""}`}>
-                Password
-              </label>
-              <div className="field-wrapper">
-                <input
-                  className="field-input"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onFocus={() => setPassFocused(true)}
-                  onBlur={() => setPassFocused(false)}
-                />
+                {/* Email */}
+                <div className="field-group">
+                  <label className={`field-label ${emailFocused ? "focused" : ""}`}>
+                    Email address
+                  </label>
+                  <div className="field-wrapper">
+                    <input
+                      className="field-input"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      onFocus={() => setEmailFocused(true)}
+                      onBlur={() => setEmailFocused(false)}
+                    />
+                  </div>
+                </div>
+
+                {/* Password */}
+                <div className="field-group">
+                  <label className={`field-label ${passFocused ? "focused" : ""}`}>
+                    Password
+                  </label>
+                  <div className="field-wrapper">
+                    <input
+                      className="field-input"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onFocus={() => setPassFocused(true)}
+                      onBlur={() => setPassFocused(false)}
+                    />
+                    <button
+                      className="field-toggle"
+                      onClick={() => setShowPassword((v) => !v)}
+                    >
+                      {showPassword ? <EyeIcon /> : <EyeOffIcon />}
+                    </button>
+                  </div>
+                </div>
+
                 <button
-                  className="field-toggle"
-                  onClick={() => setShowPassword((v) => !v)}
+                  className="btn-signin"
+                  onClick={handleSignIn}
+                  disabled={loading}
                 >
-                  {showPassword ? <EyeIcon /> : <EyeOffIcon />}
+                  {loading ? "Signing in..." : "Sign In"}
                 </button>
-              </div>
-            </div>
 
-            <button
-              className="btn-signin"
-              onClick={handleSignIn}
-              disabled={loading}
-            >
-              {loading ? "Signing in..." : "Sign In"}
-            </button>
+                {error && <p className="error-text">{error}</p>}
 
-            {error && <p className="error-text">{error}</p>}
+                <div className="or-row">
+                  <div className="or-line" />
+                  <span className="or-text">or</span>
+                  <div className="or-line" />
+                </div>
 
-            <div className="or-row">
-              <div className="or-line" />
-              <span className="or-text">or</span>
-              <div className="or-line" />
-            </div>
+                <button
+                  className="btn-google"
+                  onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+                >
+                  <GoogleIcon />
+                  Continue with Google
+                </button>
 
-            <button
-              className="btn-google"
-              onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-            >
-              <GoogleIcon />
-              Continue with Google
-            </button>
-
-            <div className="card-footer">
-              <Link href="/register" className="footer-link cta">
-                New? Register an account
-              </Link>
-              <button className="footer-link" onClick={() => router.push("/reset-password")}>Forgot password?</button>
-            </div>
+                <div className="card-footer">
+                  <Link href="/register" className="footer-link cta">
+                    New? Register an account
+                  </Link>
+                  <button className="footer-link" onClick={() => router.push("/reset-password")}>Forgot password?</button>
+                </div>
+              </>
+            )}
           </div>
         </main>
       </div>

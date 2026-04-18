@@ -37,8 +37,15 @@ export default function AlaiSlidesPreviewModal({
 }) {
   const [downloading, setDownloading] = useState(false);
 
-  const iframeSrc = previewUrl || officeEmbedSrc(remotePptUrl);
-  const openInTabHref = previewUrl || officeViewSrc(remotePptUrl) || remotePptUrl;
+  // Prefer Office Online embed for the PPTX when we have a signed URL. Alai's own
+  // preview iframe includes an "exit" that navigates to Alai login, which is
+  // confusing inside our app; Office viewer does not.
+  const iframeSrc = remotePptUrl
+    ? officeEmbedSrc(remotePptUrl)
+    : previewUrl || "";
+  const openInTabHref = remotePptUrl
+    ? officeViewSrc(remotePptUrl) || remotePptUrl
+    : previewUrl || officeViewSrc(remotePptUrl) || remotePptUrl;
 
   // Prevent background scrolling while modal is open
   useEffect(() => {
