@@ -126,8 +126,6 @@ export default function GenerateSlidesModal({
 
   // Improve existing PPT
   const [improveFile, setImproveFile] = useState(null);
-  /** "content" = teaching-focused wording + rich notes; "style" = visuals/theme */
-  const [improveMode, setImproveMode] = useState("content");
   const [improveInstructions, setImproveInstructions] = useState("");
   /** Parsed slide list from /api/improve-ppt/parse (no LLM). */
   const [parsedSlides, setParsedSlides] = useState(null);
@@ -153,7 +151,13 @@ export default function GenerateSlidesModal({
   /** @type {{ slideIndex: number; url: string; thumb?: string }[]} */
   const [pickedUserImages, setPickedUserImages] = useState([]);
   const [improvePasteUrl, setImprovePasteUrl] = useState("");
-
+ // slide theme finder
+ // 2slides theme search
+const [themeQuery, setThemeQuery] = useState("");
+const [themeSearchLoading, setThemeSearchLoading] = useState(false);
+const [themeResults, setThemeResults] = useState([]);
+const [selectedTemplateSpec, setSelectedTemplateSpec] = useState(null);
+const [themeSearchErr, setThemeSearchErr] = useState("");
   const [improvePreviewOpen, setImprovePreviewOpen] = useState(false);
   const [improvePreviewLoading, setImprovePreviewLoading] = useState(false);
   const [improvePreviewData, setImprovePreviewData] = useState(null);
@@ -228,6 +232,28 @@ export default function GenerateSlidesModal({
   function removePickedImage(slideIndex) {
     setPickedUserImages((prev) => prev.filter((p) => p.slideIndex !== slideIndex));
   }
+  async function handleThemeSearch() {
+    const q = themeQuery.trim();
+    if (!q) return;
+    setThemeSearchLoading(true);
+    setThemeSearchErr("");
+    setThemeResults([]);
+    setSelectedTemplateSpec(null);
+    try {
+      const res = await fetch(
+        `/api/improve-ppt/theme-search?q=${encodeURIComponent(q)}&model=${encodeURIComponent(aiModel)}`
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Theme search failed");
+      setThemeResults(Array.isArray(data.themes) ? data.themes : []);
+      // Auto-select the top result's templateSpec
+      if (data.templateSpec) setSelectedTemplateSpec(data.templateSpec);
+    } catch (e) {
+      setThemeSearchErr(e?.message || String(e));
+    } finally {
+      setThemeSearchLoading(false);
+    }
+  }
 
   async function handleImproveImageSearch() {
     const q = improveImgQuery.trim();
@@ -275,7 +301,7 @@ export default function GenerateSlidesModal({
     // Planning is now on-demand (Build click), so invalidate old plan output on edits.
     setPlanAdjustments([]);
     setPlanError("");
-  }, [improveInstructions, improveMode, aiModel]);
+  }, [improveInstructions, aiModel]);
 
   async function runImprovePlanNow() {
     if (!parsedSlides?.length || !improveInstructions.trim()) return [];
@@ -287,7 +313,6 @@ export default function GenerateSlidesModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           slides: parsedSlides,
-          mode: improveMode,
           instructions: improveInstructions.trim(),
           model: aiModel,
         }),
@@ -487,7 +512,6 @@ export default function GenerateSlidesModal({
       // Plan starts only when Build is clicked, then generation follows.
       const adjustmentsForBuild = await runImprovePlanNow();
       const payload = {
-        mode: improveMode,
         instructions: improveInstructions.trim(),
         model: aiModel,
         slides: parsedSlides,
@@ -496,7 +520,7 @@ export default function GenerateSlidesModal({
         sourceName: improveFile?.name || "",
         additiveImprove,
         detailLevel: improveDetailLevel,
-        preserveOriginalDesign: true,
+        templateSpec: selectedTemplateSpec ?? undefined,
         userImageRefs: pickedUserImages.map((p) => ({
           slideIndex: p.slideIndex,
           url: p.url,
@@ -551,7 +575,6 @@ export default function GenerateSlidesModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mode: improveMode,
           instructions: improveInstructions.trim(),
           model: aiModel,
           slides: parsedSlides,
@@ -1121,19 +1144,6 @@ export default function GenerateSlidesModal({
               </div>
             )}
 
-            <SectionHead>Improvement type</SectionHead>
-            <div className="radio-group" style={{ marginBottom: 4 }}>
-              {[
-                { id: "content", label: "Content (teaching detail, rich speaker notes)" },
-                { id: "style", label: "Style (colors, theme, stock imagery)" },
-              ].map(({ id, label }) => (
-                <label key={id} className={`radio-opt ${improveMode === id ? "on" : ""}`} onClick={() => setImproveMode(id)}>
-                  <div className={`radio-dot ${improveMode === id ? "on" : ""}`}/>
-                  {label}
-                </label>
-              ))}
-            </div>
-
             <label className="chk-row" style={{ marginTop: 4 }} onClick={() => setAdditiveImprove((v) => !v)}>
               <div className={`chk-box ${additiveImprove ? "on" : ""}`}>
                 {additiveImprove && <span className="chk-tick">✓</span>}
@@ -1151,12 +1161,65 @@ export default function GenerateSlidesModal({
               options={["Concise", "Lecture (default)", "Deep (lecture+)"]}
               width={160}
             />
+{/* ── 2slides Theme Search ── */}
+<SectionHead>Find a design template (optional)</SectionHead>
+<FieldLabel>Search for a visual style — the generator will try to match it using pptxGenJS.</FieldLabel>
+<div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+  <input
+    className="txt-inp"
+    placeholder="e.g. modern dark, minimal blue, corporate..."
+    value={themeQuery}
+    onChange={(e) => setThemeQuery(e.target.value)}
+    onKeyDown={(e) => e.key === "Enter" && handleThemeSearch()}
+    style={{ flex: 1 }}
+  />
+  <button
+    type="button"
+    className="btn-prev"
+    style={{ height: 34, flexShrink: 0 }}
+    disabled={themeSearchLoading || !themeQuery.trim()}
+    onClick={() => void handleThemeSearch()}
+  >
+    {themeSearchLoading ? "…" : "Search"}
+  </button>
+</div>
+{themeSearchErr && <div className="improve-err" style={{ marginBottom: 8 }}>{themeSearchErr}</div>}
+{themeResults.length > 0 && (
+  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+    {themeResults.map((t) => (
+      <button
+        key={t.id}
+        type="button"
+        onClick={() => {
+          // Re-fetch this theme's spec when user picks a non-top result
+          setThemeQuery(t.name);
+          void handleThemeSearch();
+        }}
+        style={{
+          padding: "5px 10px", borderRadius: 8, fontSize: 11,
+          border: `1px solid ${selectedTemplateSpec?._themeId === t.id ? "rgba(99,102,241,.7)" : "rgba(255,255,255,.12)"}`,
+          background: selectedTemplateSpec?._themeId === t.id ? "rgba(99,102,241,.2)" : "rgba(255,255,255,.04)",
+          color: selectedTemplateSpec?._themeId === t.id ? "#c7d2fe" : "rgba(255,255,255,.6)",
+          cursor: "pointer",
+        }}
+        title={t.description}
+      >
+        {t.name}
+      </button>
+    ))}
+  </div>
+)}
+{selectedTemplateSpec && (
+  <div style={{ fontSize: 11, color: "rgba(165,180,252,.9)", marginBottom: 10 }}>
+    ✓ Using style: <strong>{selectedTemplateSpec._themeName}</strong> — {selectedTemplateSpec._summary}
+  </div>
+)}
 
             <SectionHead>What should change?</SectionHead>
             <textarea
               className="improve-area"
               rows={4}
-              placeholder={'Examples:\n• Content: "Expand speaker notes for each slide; keep bullets close to the original."\n• Style: "Use a green color theme and add relevant pictures."'}
+              placeholder={'Examples:\n• "Expand speaker notes; keep on-slide bullets close to the original."\n• "Switch to a green theme and add relevant pictures."\n• "Tighten bullets for clarity and refresh the deck visuals."'}
               value={improveInstructions}
               onChange={(e) => setImproveInstructions(e.target.value)}
             />

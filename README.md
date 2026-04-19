@@ -1,222 +1,234 @@
 # FYP Lecture Summarizer
 
-An intelligent web application that leverages AI to summarize lecture content and generate professional presentation slides. Built as a Final Year Project (FYP).
+An intelligent web application that uses AI to summarize lecture content and generate presentation slides. Built as a Final Year Project (FYP).
 
-## 🎯 Project Overview
+## Project overview
 
-FYP Lecture Summarizer is a comprehensive solution designed to help students and educators efficiently process lecture materials. The application supports multiple document formats (PDF, DOCX, PPTX, XLSX) and uses advanced AI models to:
+FYP Lecture Summarizer helps students and educators process lecture materials. The application supports multiple document formats (PDF, DOCX, PPTX, XLSX) and uses AI to:
 
 - **Summarize** lecture content from various document types
 - **Extract** key information and concepts
 - **Generate** AI-powered presentation slides with customizable templates
 - **Export** summaries and presentations in multiple formats
 
-Live Demo: [https://fyp-lecture-summarizer.vercel.app](https://fyp-lecture-summarizer.vercel.app)
+**Live demo:** [https://fyp-lecture-summarizer.vercel.app](https://fyp-lecture-summarizer.vercel.app)
 
-## ✨ Key Features
+## Key features
 
-- **Multi-Format Support**: Upload PDFs, Word documents, PowerPoint presentations, and Excel spreadsheets
-- **AI-Powered Summarization**: Leverages Google Generative AI and OpenAI models for intelligent content analysis
-- **Smart Slide Generation**: Automatically creates professional presentations using the Alai API
-- **Customizable Templates**: Choose from various slide templates and styling options
-- **Multiple Export Formats**: Download summaries as PDF or presentations in PPTX format
-- **User Authentication**: Secure login system with email and password authentication
-- **Email Notifications**: Receive updates via email for important actions
-- **Cloud Storage**: File uploads backed by Vercel Blob for reliable storage
-- **Responsive Design**: Mobile-friendly interface built with TailwindCSS
+- **Multi-format support:** PDFs, Word, PowerPoint, and Excel
+- **AI-powered summarization:** Google Gemini, OpenAI, DeepSeek (via server configuration)
+- **Smart slide generation:** Alai API integration for deck generation and previews
+- **Improve existing PPTX:** Parse, plan, preview, and rebuild slides (including optional stock imagery)
+- **Customizable templates:** Slide templates and styling options in the UI
+- **Multiple export formats:** Summaries and PPTX downloads
+- **User authentication:** Email/password and OAuth (see env)
+- **Email notifications:** Password reset and related flows via Nodemailer
+- **Cloud storage:** Vercel Blob for uploads
+- **Responsive UI:** Tailwind CSS
 
-## 🛠️ Tech Stack
+## Tech stack
 
 ### Frontend
-- **Next.js 16.1** - React framework with built-in optimization
-- **React 19** - Latest React version for UI components
-- **TailwindCSS 4** - Utility-first CSS framework
-- **React Markdown** - Markdown rendering with GitHub Flavored Markdown support
+
+- **Next.js 16** — App Router, API routes
+- **React 19**
+- **Tailwind CSS 4**
+- **React Markdown** — GFM support
 
 ### Backend
-- **Next.js API Routes** - Serverless backend functions
-- **Prisma 6.19** - ORM for database operations
-- **MariaDB** - Relational database via Prisma adapter
 
-### AI & Document Processing
-- **Google Generative AI** - Advanced AI model for content summarization
-- **OpenAI** - Alternative AI model for text generation
-- **pdf-parse** - PDF document parsing
-- **Mammoth** - DOCX (Word) document parsing
-- **pptx2json** - PowerPoint presentation parsing
-- **xlsx** - Excel spreadsheet parsing
-- **UnPDF** - Advanced PDF handling
+- **Next.js API routes**
+- **Prisma 6** — ORM
+- **MariaDB / MySQL** — via `mysql2` and Prisma adapter
 
-### Presentation Generation
-- **Alai API** - AI-powered presentation generation
-- **pptxgenjs** - PPTX file creation and manipulation
-- **jsPDF** - PDF generation
-- **jszip** - ZIP file handling
+### AI and documents
 
-### Authentication & Security
-- **NextAuth.js 4.24** - Authentication middleware
-- **bcryptjs** - Password hashing and encryption
-- **Nodemailer** - Email sending functionality
+- **@google/generative-ai** — Gemini
+- **OpenAI** — Chat completions
+- **pdf-parse**, **Mammoth**, **pptx2json**, **xlsx**, **unpdf** — document parsing
 
-### Developer Tools
-- **TypeScript** - Type-safe JavaScript
-- **ESLint** - Code quality and linting
-- **Swagger UI** - API documentation
+### Presentations
 
-## 📋 Prerequisites
+- **Alai API** — slide generation
+- **pptxgenjs** — PPTX building (improve-PPT and related flows)
+- **jsPDF**, **jszip**
 
-Before you begin, ensure you have:
+### Auth and tooling
 
-- **Node.js** 18.0 or higher
-- **npm** or **yarn** package manager
-- **Git** for version control
-- API keys for:
-  - Google Generative AI (get from [Google AI Studio](https://makersuite.google.com/))
-  - OpenAI (optional, get from [OpenAI Platform](https://platform.openai.com/))
-  - Alai Presentation API (get from [Alai Developer Portal](https://www.getalai.com/))
-- MariaDB or compatible MySQL database
+- **NextAuth.js**
+- **bcryptjs**, **Nodemailer**
+- **TypeScript** (types), **ESLint**, **Swagger UI** (`/api-docs`)
 
-## 🚀 Getting Started
+## Prerequisites
 
-### Installation
+- **Node.js** 18 or higher
+- **npm** (or **yarn** / **pnpm**)
+- **Git**
+- **MariaDB or MySQL** — connection string for Prisma
+- API keys as needed (see environment variables below), for example:
+  - **Gemini** — [Google AI Studio](https://aistudio.google.com/)
+  - **OpenAI** — [OpenAI Platform](https://platform.openai.com/) (optional)
+  - **Alai** — [Alai](https://www.getalai.com/)
+  - **Vercel Blob** — for file uploads in production
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/Kingston-chong/fyp-lecture-summarizer.git
-   cd fyp-lecture-summarizer
-Install dependencies
+## Getting started
 
-bash
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/Kingston-chong/fyp-lecture-summarizer.git
+cd fyp-lecture-summarizer
+```
+
+### 2. Install dependencies
+
+```bash
 npm install
-Configure environment variables
+```
 
-Create a .env.local file in the root directory with the following variables:
+### 3. Configure environment variables
 
-env
-# Database Configuration
+Create a `.env.local` file in the project root (do not commit secrets). Example:
+
+```env
+# Database
 DATABASE_URL="mysql://username:password@localhost:3306/lecture_summarizer"
 
-# AI API Keys
-GOOGLE_GENERATIVE_AI_KEY=your_google_ai_key_here
-OPENAI_API_KEY=your_openai_key_here
-ALAI_API_KEY=your_alai_api_key_here
+# AI (use what you enable in your deployment)
+GEMINI_API_KEY=your_gemini_key
+OPENAI_API_KEY=your_openai_key_optional
+DEEPSEEK_API_KEY=your_deepseek_key_optional
 
-# Authentication
-NEXTAUTH_SECRET=your_nextauth_secret_here
+# Slide generation
+ALAI_API_KEY=your_alai_api_key
+
+# Auth
+NEXTAUTH_SECRET=your_nextauth_secret
 NEXTAUTH_URL=http://localhost:3000
 
-# Email Configuration
+# Email (password reset, etc.)
 EMAIL_USER=your_email@gmail.com
-EMAIL_PASSWORD=your_app_password_here
+EMAIL_PASS=your_app_password
 
-# File Storage
+# File storage (e.g. Vercel Blob)
 BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
-Set up the database
+```
 
-bash
-npm run postinstall  # Generates Prisma client
-npx prisma migrate dev  # Run migrations
-Start the development server
+Optional keys used by some features (see codebase / deployment):
 
-bash
+```env
+TAVILY_API_KEY=...
+UNSPLASH_ACCESS_KEY=...
+TWOSLIDES_API_KEY=...
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+```
+
+### 4. Set up the database
+
+```bash
+npm run postinstall   # generates Prisma Client
+npx prisma migrate dev
+```
+
+### 5. Run the development server
+
+```bash
 npm run dev
-Open http://localhost:3000 in your browser to see the application.
+```
 
-📚 Available Scripts
-bash
-# Start development server with hot reload
-npm run dev
+Open [http://localhost:3000](http://localhost:3000).
 
-# Build for production
-npm run build
+## Available scripts
 
-# Start production server
-npm start
+| Command | Description |
+| -------- | ----------- |
+| `npm run dev` | Dev server with hot reload |
+| `npm run build` | Production build (runs Prisma generate) |
+| `npm start` | Start production server |
+| `npm run lint` | ESLint |
+| `npm run postinstall` | `prisma generate` |
 
-# Run ESLint checks
-npm run lint
+## API overview
 
-# Generate Prisma client
-npm run postinstall
-🔌 API Integration
-Alai Presentation API Integration
-The application integrates with Alai's Presentation Generation API for creating professional slides.
+Examples of first-party routes:
 
-Key Endpoints:
+| Method | Path | Purpose |
+| ------ | ---- | ------- |
+| `POST` | `/api/generate-slides` | Start Alai slide generation from summary/settings |
+| `GET` | `/api/generate-slides/[id]` | Poll status and obtain preview/download URLs |
+| `POST` | `/api/improve-ppt/parse` | Parse uploaded PPTX to slide JSON |
+| `POST` | `/api/improve-ppt/plan` | LLM plan of adjustments |
+| `POST` | `/api/improve-ppt/generate` | Build improved PPTX |
 
-POST /api/generate-slides - Initiates slide generation
-Accepts user settings and summary text
-Returns generation ID for polling
-GET /api/generate-slides/[id] - Retrieves generation status and download link
-Polls Alai API for completion
-Returns secure download URL once ready
-For detailed integration information, see walkthrough.md.
+More detail: [walkthrough.md](./walkthrough.md).
 
-📁 Project Structure
-Code
+## Project structure
+
+```text
 fyp-lecture-summarizer/
-├── app/                    # Next.js app directory
-│   ├── api/               # API routes
-│   ├── layout.tsx         # Root layout
-│   └── page.tsx           # Home page
-├── components/            # React components
-├── lib/                   # Utility functions
-├── prisma/                # Database schema
-│   └── schema.prisma      # Data model
-├── public/                # Static assets
-├── .env.local             # Environment variables (create this)
-├── package.json           # Project dependencies
-├── tsconfig.json          # TypeScript config
-├── next.config.ts         # Next.js config
-├── tailwind.config.ts     # TailwindCSS config
-└── README.md              # This file
-🔐 Security Considerations
-Store all API keys in .env.local - never commit to version control
-Use environment variables for sensitive configuration
-Implement rate limiting on API endpoints
-Validate and sanitize all user inputs
-Use HTTPS in production
-Enable CORS only for trusted domains
-🐛 Troubleshooting
-Common Issues
-Issue: "ALAI_API_KEY is not configured on the server"
+├── app/                    # Next.js App Router (pages, layouts, components)
+│   ├── api/                # Route handlers
+│   ├── components/         # Shared React components
+│   ├── dashboard/          # Dashboard routes
+│   ├── summary/            # Summary viewer and related UI
+│   ├── layout.tsx          # Root layout
+│   ├── page.jsx            # Home
+│   └── globals.css
+├── components/             # Additional root-level components (if any)
+├── lib/                    # Shared server/client utilities
+├── prisma/
+│   ├── schema.prisma
+│   └── migrations/
+├── public/                 # Static assets
+├── next.config.ts
+├── postcss.config.mjs
+├── eslint.config.mjs
+├── tsconfig.json
+├── package.json
+├── walkthrough.md
+└── README.md
+```
 
-Solution: Ensure your .env.local file contains the ALAI_API_KEY variable
-Restart the development server after updating .env.local
-Issue: Database connection errors
+## Security
 
-Solution: Verify DATABASE_URL is correct in .env.local
-Ensure MariaDB/MySQL server is running
-Check database credentials and permissions
-Issue: File upload failures
+- Keep secrets in `.env.local` (or host env) and out of Git.
+- Rotate keys if they are ever exposed.
+- Use HTTPS in production; set `NEXTAUTH_URL` to your public URL.
+- Validate and sanitize user input on API routes.
 
-Solution: Verify BLOB_READ_WRITE_TOKEN is valid
-Check file size limits in your Vercel Blob configuration
-📖 Documentation
-Next.js Documentation
-Prisma Documentation
-TailwindCSS Documentation
-NextAuth.js Documentation
-Google Generative AI Documentation
-OpenAI API Documentation
-🚀 Deployment
-Deploy to Vercel (Recommended)
-The easiest way to deploy is using Vercel, the platform created by the Next.js team:
+## Troubleshooting
 
-Push your code to a Git repository (GitHub, GitLab, or Bitbucket)
-Visit vercel.com and sign in with your Git provider
-Import your repository
-Add environment variables in the Vercel dashboard
-Click "Deploy"
-For detailed deployment instructions, see Next.js Deployment Documentation.
+### `ALAI_API_KEY is not configured`
 
-Other Deployment Options
-Docker: Create a Dockerfile for containerized deployment
-AWS: Use AWS Amplify or Elastic Beanstalk
-Google Cloud: Deploy using Cloud Run or App Engine
-Self-hosted: Deploy using any Node.js hosting provider
-🤝 Contributing
-We welcome contributions! Please feel free to submit a Pull Request.
+- Set `ALAI_API_KEY` in `.env.local` and restart `npm run dev`.
 
-📝 License
-This project is open source and available under the MIT License.
+### Database connection errors
+
+- Check `DATABASE_URL` format and that MySQL/MariaDB is reachable.
+- Confirm SSL options if your host requires them (e.g. Aiven, Railway).
+
+### Upload / blob errors
+
+- Ensure `BLOB_READ_WRITE_TOKEN` is set for environments that use Vercel Blob.
+
+## Documentation links
+
+- [Next.js](https://nextjs.org/docs)
+- [Prisma](https://www.prisma.io/docs)
+- [Tailwind CSS](https://tailwindcss.com/docs)
+- [NextAuth.js](https://next-auth.js.org/)
+
+## Deployment
+
+**Vercel (typical for Next.js):** push to GitHub (or GitLab/Bitbucket), import the repo in Vercel, add the same environment variables as in `.env.local`, then deploy.
+
+See also [Next.js deployment](https://nextjs.org/docs/app/building-your-application/deploying).
+
+## Contributing
+
+Contributions are welcome via pull requests.
+
+## License
+
+This project is open source under the [MIT License](https://opensource.org/licenses/MIT).

@@ -5,7 +5,6 @@ import { runImprovePlanAdjustments } from "@/lib/improvePptPlanLlm";
 import { uiModelToKey } from "@/lib/improvePptModel";
 
 async function respondWithPlan({
-  mode,
   instructions,
   modelKey,
   slides,
@@ -14,7 +13,6 @@ async function respondWithPlan({
   try {
     adjustments = await runImprovePlanAdjustments(
       modelKey,
-      mode,
       instructions,
       slides,
     );
@@ -26,7 +24,6 @@ async function respondWithPlan({
   }
 
   return NextResponse.json({
-    mode,
     instructions,
     model: modelKey,
     slides,
@@ -45,8 +42,6 @@ export async function POST(req) {
 
     if (contentType.includes("application/json")) {
       const body = await req.json();
-      const modeRaw = String(body?.mode || "content").toLowerCase();
-      const mode = modeRaw === "style" ? "style" : "content";
       const instructions = String(body?.instructions || "").trim();
       const modelLabel = String(body?.model || "Gemini");
       const slidesIn = Array.isArray(body?.slides) ? body.slides : [];
@@ -76,13 +71,11 @@ export async function POST(req) {
         lines: Array.isArray(s.lines) ? s.lines.map((l) => String(l)) : [],
       }));
 
-      return respondWithPlan({ mode, instructions, modelKey, slides });
+      return respondWithPlan({ instructions, modelKey, slides });
     }
 
     const form = await req.formData();
     const file = form.get("file");
-    const modeRaw = String(form.get("mode") || "content").toLowerCase();
-    const mode = modeRaw === "style" ? "style" : "content";
     const instructions = String(form.get("instructions") || "").trim();
     const modelLabel = String(form.get("model") || "Gemini");
 
@@ -116,7 +109,7 @@ export async function POST(req) {
     const buf = Buffer.from(await file.arrayBuffer());
     const slides = await parsePptxBufferToSlides(buf);
 
-    return respondWithPlan({ mode, instructions, modelKey, slides });
+    return respondWithPlan({ instructions, modelKey, slides });
   } catch (err) {
     console.error("improve-ppt plan:", err);
     return NextResponse.json(

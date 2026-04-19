@@ -4,14 +4,19 @@ import { parseJsonFromLlm } from "@/lib/jsonExtract";
 import { runChat } from "@/lib/llmServer";
 import { uiModelToKey } from "@/lib/improvePptModel";
 import { buildImprovedPptx } from "@/lib/pptxGenerate";
-import { applyThemeToPptx, extractThemeFromPptx } from "@/lib/pptxThemePatch";
-import { applyMasterTemplate } from "@/lib/pptxMasterTemplate";
-import { buildPptxWithImagesInPlace } from "@/lib/pptxInPlaceImages";
+import { extractThemeFromPptx } from "@/lib/pptxThemePatch";
 import { fetchUnsplashImageUrl } from "@/lib/unsplashStock";
 import { fetchRemoteImageBuffer } from "@/lib/fetchRemoteImage";
 import { buildStockPhotoQueryFromSlide } from "@/lib/improvePptStockKeywords";
 import { panelFromBackground } from "@/lib/themeColors";
 import { enrichSlidesWithWebSearch, buildEnrichmentBlock } from "@/lib/improvePptWebSearch";
+import {
+  BUILTIN_SPECS,
+  selectBuiltinSpec,
+  buildTemplateSpecPrompt,
+  TEMPLATE_SPEC_SYSTEM_PROMPT,
+} from "@/lib/pptxTemplateSpec";
+
 
 // ── FIX: Raise the serverless function timeout so Tavily + LLM can finish.
 // Without this Next.js kills the function at 60s before any response is sent.
@@ -63,222 +68,51 @@ async function fetchStockImageUrlForQuery(query) {
 }
 
 /**
- * Curated, designer-quality palettes with unique identities.
- * Keys are plain-English labels the LLM can match against.
- * Each palette is guaranteed to have sufficient text contrast on both
- * the background and the band row color (verified manually).
+ * Resolve the best template spec for content mode.
+ * 1. Try to find a curated built-in by keyword/theme match.
+ * 2. If no good match AND the request sounds creative/unusual, ask the LLM.
+ * 3. Fallback: use the best built-in.
+ *
+ * Returns a spec object compatible with pptxTemplateSpec.BUILTIN_SPECS format.
  */
-const CURATED_PALETTES = {
-  // ── Dark themes ──────────────────────────────────────────────────────────────
-  midnight_aurora: {
-    keywords: ["aurora", "midnight", "violet", "purple", "dark purple", "galaxy", "cosmic"],
-    background: "#0a0e27", accent: "#7c3aed", text: "#e0e7ff", panel: "#131936",
-  },
-  obsidian_gold: {
-    keywords: ["gold", "golden", "luxury", "premium", "elegant", "black gold", "obsidian"],
-    background: "#0c0a09", accent: "#d97706", text: "#fef9ec", panel: "#1a1509",
-  },
-  cyber_noir: {
-    keywords: ["cyber", "neon", "hacker", "tech", "matrix", "mint", "futuristic", "dark tech"],
-    background: "#0d0d0d", accent: "#00ff9f", text: "#e2e8f0", panel: "#1a1a1a",
-  },
-  slate_ocean: {
-    keywords: ["ocean", "sea", "cyan", "teal", "marine", "aqua", "blue teal", "water"],
-    background: "#0f1e2e", accent: "#06b6d4", text: "#e0f7ff", panel: "#162840",
-  },
-  burnt_amber: {
-    keywords: ["amber", "warm", "fire", "orange", "burnt", "autumn", "fall", "copper"],
-    background: "#1c1007", accent: "#f59e0b", text: "#fef3c7", panel: "#2a1a0a",
-  },
-  deep_crimson: {
-    keywords: ["red", "crimson", "ruby", "wine", "passion", "bold red", "cardinal"],
-    background: "#1a0a0a", accent: "#ef4444", text: "#fef2f2", panel: "#2d1111",
-  },
-  indigo_space: {
-    keywords: ["indigo", "space", "dark blue", "navy", "deep blue", "midnight blue"],
-    background: "#0f172a", accent: "#6366f1", text: "#e0e7ff", panel: "#1e2d4a",
-  },
-  charcoal_rose: {
-    keywords: ["rose", "pink", "blush", "feminine", "soft pink", "magenta"],
-    background: "#1a0f14", accent: "#f43f5e", text: "#ffe4e6", panel: "#2d1520",
-  },
-  // ── Light themes ─────────────────────────────────────────────────────────────
-  terracotta_desert: {
-    keywords: ["terracotta", "desert", "earth", "clay", "warm light", "adobe", "sand"],
-    background: "#fdf4ec", accent: "#c2410c", text: "#292524", panel: "#fef3c7",
-  },
-  arctic_glass: {
-    keywords: ["arctic", "ice", "glass", "clean", "minimal", "white", "light blue", "sky"],
-    background: "#f0f9ff", accent: "#0284c7", text: "#0c4a6e", panel: "#e0f2fe",
-  },
-  sakura_bloom: {
-    keywords: ["sakura", "japanese", "cherry", "soft", "feminine light", "blush light"],
-    background: "#fff1f3", accent: "#e11d48", text: "#1f1315", panel: "#ffe4e8",
-  },
-  forest_mist: {
-    keywords: ["forest", "nature", "green", "botanical", "fresh", "eco", "grass", "leaf"],
-    background: "#f6faf5", accent: "#15803d", text: "#14301c", panel: "#ecf7ea",
-  },
-  warm_parchment: {
-    keywords: ["academic", "paper", "parchment", "university", "scholarly", "classic", "vintage"],
-    background: "#fdf8f0", accent: "#b45309", text: "#292524", panel: "#fef3c7",
-  },
-  slate_clean: {
-    keywords: ["slate", "corporate", "professional", "gray", "grey", "minimal light", "business"],
-    background: "#f8fafc", accent: "#334155", text: "#0f172a", panel: "#e2e8f0",
-  },
-  // ── Bold / unique ────────────────────────────────────────────────────────────
-  matcha_zen: {
-    keywords: ["matcha", "zen", "japanese dark", "jade", "lime", "botanical dark"],
-    background: "#1a2e1a", accent: "#4ade80", text: "#f0fdf4", panel: "#243324",
-  },
-  deep_ocean_teal: {
-    keywords: ["teal", "emerald", "jewel", "dark teal", "malachite"],
-    background: "#0c1a2e", accent: "#14b8a6", text: "#e0f2fe", panel: "#0f2d4a",
-  },
-};
+async function resolveTemplateSpec(modelKey, theme, instructions) {
+  // Try built-in first — fast and reliable
+  const builtinKey = selectBuiltinSpec(theme, instructions);
+  const builtin = BUILTIN_SPECS[builtinKey];
 
-/**
- * Find the best matching curated palette for a user's style request.
- * Returns the palette object or null if no strong match.
- */
-function matchCuratedPalette(instructions) {
-  const lower = instructions.toLowerCase();
-  let bestMatch = null;
-  let bestScore = 0;
+  // Generate a custom LLM spec if the request contains creative keywords
+  // suggesting the user wants something unique beyond the built-ins
+  const wantsCustom = /custom|unique|creative|special|unusual|design|artistic|different|original|innovative|futur|retro|vintage|fantasy|sci.?fi|abstract|minimal|luxur|elegant/i.test(instructions);
 
-  for (const [, palette] of Object.entries(CURATED_PALETTES)) {
-    let score = 0;
-    for (const kw of palette.keywords) {
-      if (lower.includes(kw)) score += kw.split(" ").length; // longer phrase = higher score
-    }
-    if (score > bestScore) {
-      bestScore = score;
-      bestMatch = palette;
-    }
-  }
-
-  // Only use curated if we had at least one keyword match
-  return bestScore > 0 ? bestMatch : null;
-}
-
-/**
- * Ask the LLM to pick a color theme matching the user's style request.
- * Returns { background, accent, text, panel } or null on failure.
- */
-async function resolveStyleTheme(modelKey, instructions) {
-  const isHex = (v) => /^#[0-9a-f]{6}$/i.test(String(v || "").trim());
-
-  // ── Try curated palette first ──────────────────────────────────────────────
-  const curated = matchCuratedPalette(instructions);
-  if (curated) {
-    const { keywords: _kw, ...palette } = curated;
-    return palette;
-  }
-
-  // ── Contrast helpers (used to validate LLM output) ─────────────────────────
-  function hexToRgb(hex) {
-    const h = hex.replace(/^#/, "");
-    return { r: parseInt(h.slice(0,2),16), g: parseInt(h.slice(2,4),16), b: parseInt(h.slice(4,6),16) };
-  }
-  function relativeLuminance(hex) {
-    const {r,g,b} = hexToRgb(hex);
-    const toLinear = (v) => { const s=v/255; return s<=0.04045?s/12.92:Math.pow((s+0.055)/1.055,2.4); };
-    return 0.2126*toLinear(r)+0.7152*toLinear(g)+0.0722*toLinear(b);
-  }
-  function contrast(a, b) {
-    const la=relativeLuminance(a), lb=relativeLuminance(b);
-    return (Math.max(la,lb)+0.05)/(Math.min(la,lb)+0.05);
-  }
-  function deriveBand1(bgHex) {
-    const {r,g,b} = hexToRgb(bgHex);
-    const lum = 0.2126*r+0.7152*g+0.0722*b;
-    if (lum < 50) return `#${[r,g,b].map(c=>Math.round(c+(255-c)*0.14).toString(16).padStart(2,"0")).join("")}`;
-    return `#${[r,g,b].map(c=>Math.round(c*0.93).toString(16).padStart(2,"0")).join("")}`;
-  }
-  function fixTextContrast(p) {
-    const band1 = deriveBand1(p.background);
-    const onBg   = contrast(p.text, p.background);
-    const onBand = contrast(p.text, band1);
-    if (onBg < 4.5 || onBand < 3.5) {
-      const {r,g,b} = hexToRgb(p.background);
-      const lum = 0.2126*r+0.7152*g+0.0722*b;
-      p.text = lum < 128 ? "#f1f5f9" : "#111827";
-    }
-    return p;
-  }
-
-  const systemPrompt =
-    `You are a color palette designer. Output ONLY valid JSON — no markdown, no extra text.`;
-
-  const userContent = `The user wants to restyle a presentation.
-Their request: "${instructions}"
-
-Pick a beautiful, unique 4-color palette that closely matches the request.
-Be bold and creative — avoid generic or muddy palettes.
-
-PALETTE GUIDE:
-  background: main slide fill (dark or light)
-  accent:     header / highlight color — must stand out on the background
-  text:       body text — MUST have high contrast on background (WCAG AA ≥ 4.5:1)
-  panel:      card/panel fill — subtle contrast from background
-
-EXAMPLE palettes (use as inspiration, not templates):
-  "midnight aurora":    { "background":"#0a0e27","accent":"#7c3aed","text":"#e0e7ff","panel":"#131936" }
-  "obsidian gold":      { "background":"#0c0a09","accent":"#d97706","text":"#fef9ec","panel":"#1a1509" }
-  "cyber noir":         { "background":"#0d0d0d","accent":"#00ff9f","text":"#e2e8f0","panel":"#1a1a1a" }
-  "terracotta desert":  { "background":"#fdf4ec","accent":"#c2410c","text":"#292524","panel":"#fef3c7" }
-  "sakura bloom":       { "background":"#fff1f3","accent":"#e11d48","text":"#1f1315","panel":"#ffe4e8" }
-  "slate ocean":        { "background":"#0f1e2e","accent":"#06b6d4","text":"#e0f7ff","panel":"#162840" }
-  "matcha zen":         { "background":"#1a2e1a","accent":"#4ade80","text":"#f0fdf4","panel":"#243324" }
-  "warm parchment":     { "background":"#fdf8f0","accent":"#b45309","text":"#292524","panel":"#fef3c7" }
-
-RULES:
-1. All four values must be 7-character hex strings starting with #.
-2. text must have ≥ 4.5:1 contrast ratio against background.
-3. accent must be visually distinct from background.
-4. Create something with personality — not generic corporate gray.
-
-Return ONLY this JSON:
-{
-  "background": "#RRGGBB",
-  "accent":     "#RRGGBB",
-  "text":       "#RRGGBB",
-  "panel":      "#RRGGBB"
-}`;
+  if (!wantsCustom) return { spec: builtin, key: builtinKey, source: "builtin" };
 
   try {
-    const raw = await runChat(modelKey, null, systemPrompt, [
-      { role: "user", content: userContent },
-    ], { maxTokens: IMPROVE_PPT_MAX_TOKENS[modelKey] ?? 4096 });
+    const raw = await runChat(
+      modelKey,
+      null,
+      TEMPLATE_SPEC_SYSTEM_PROMPT,
+      [{ role: "user", content: buildTemplateSpecPrompt(instructions, theme) }]
+    );
     const parsed = parseJsonFromLlm(raw);
+    // Validate minimal structure
     if (
-      isHex(parsed?.background) &&
-      isHex(parsed?.accent) &&
-      isHex(parsed?.text)
+      parsed &&
+      typeof parsed === "object" &&
+      parsed.cover?.shapes && Array.isArray(parsed.cover.shapes) &&
+      parsed.cover?.title &&
+      parsed.content?.shapes && Array.isArray(parsed.content.shapes) &&
+      parsed.content?.title &&
+      parsed.content?.body
     ) {
-      const candidate = {
-        background: parsed.background,
-        accent:     parsed.accent,
-        text:       parsed.text,
-        panel:      isHex(parsed?.panel)
-          ? parsed.panel
-          : `#${panelFromBackground(parsed.background, parsed.accent)}`,
-      };
-      // Guarantee text is readable on both the background and table band rows
-      return fixTextContrast(candidate);
+      return { spec: parsed, key: "ai_generated", source: "llm" };
     }
   } catch (e) {
-    console.warn("resolveStyleTheme failed:", e?.message);
+    console.warn("resolveTemplateSpec LLM failed (non-fatal):", e?.message);
   }
-  return null;
+
+  return { spec: builtin, key: builtinKey, source: "builtin_fallback" };
 }
 
-/**
- * Normalise theme for content-mode rebuild.
- * Additive: neutral readable light palette.
- * Full redesign: use LLM output or defaults.
- */
 function normalizeContentTheme(t, additiveImprove) {
   const isHex = (v) => /^#[0-9a-f]{6}$/i.test(String(v || "").trim());
 
@@ -328,7 +162,6 @@ export async function POST(req) {
       body = await req.json();
     }
 
-    const mode                 = String(body?.mode || "content").toLowerCase() === "style" ? "style" : "content";
     const instructions         = String(body?.instructions || "").trim();
     const modelLabel           = String(body?.model || "Gemini");
     const slidesIn             = Array.isArray(body?.slides)      ? body.slides      : [];
@@ -336,9 +169,13 @@ export async function POST(req) {
     const addStockImages       = Boolean(body?.addStockImages);
     const sourceName           = String(body?.sourceName || "").trim();
     const additiveImprove      = body?.additiveImprove !== false;
-    const preserveOriginalDesign = body?.preserveOriginalDesign === true;
     const detailLevelRaw       = String(body?.detailLevel || "lecture").toLowerCase();
     const detailLevel          = ["concise","lecture","deep"].includes(detailLevelRaw) ? detailLevelRaw : "lecture";
+    // Optional: a pre-extracted templateSpec from /api/improve-ppt/theme-search.
+    // When provided, skip resolveTemplateSpec() and use it directly.
+    const incomingTemplateSpec = body?.templateSpec && typeof body.templateSpec === "object"
+      ? body.templateSpec
+      : null;
 
     if (!instructions) return NextResponse.json({ error: "Instructions are required" }, { status: 400 });
     if (!slidesIn.length) return NextResponse.json({ error: "No slides payload. Run Plan first." }, { status: 400 });
@@ -349,74 +186,7 @@ export async function POST(req) {
     // FIX: Resolve per-model max token limit
     const maxTokens = IMPROVE_PPT_MAX_TOKENS[modelKey] ?? 8192;
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // STYLE MODE — in-place OOXML theme patching
-    // ══════════════════════════════════════════════════════════════════════════
-    if (mode === "style") {
-      if (!(sourceFile instanceof Blob)) {
-        return NextResponse.json(
-          { error: "Original .pptx file is required for style mode. Please re-upload." },
-          { status: 400 }
-        );
-      }
-
-      // 1. Resolve theme
-      const theme = await resolveStyleTheme(modelKey, instructions) ?? {
-        background: DEFAULT_THEME.background,
-        accent:     DEFAULT_THEME.accent,
-        text:       DEFAULT_THEME.text,
-        panel:      `#${panelFromBackground(DEFAULT_THEME.background, DEFAULT_THEME.accent)}`,
-      };
-
-      // 2. Apply theme colors to original PPTX
-      const sourceBuffer = Buffer.from(await sourceFile.arrayBuffer());
-      let pptxBuffer = await applyThemeToPptx(sourceBuffer, theme);
-
-      // 2b. Inject visual template into slide master
-      pptxBuffer = await applyMasterTemplate(pptxBuffer, theme);
-
-      // 3. Optionally inject stock images into corners
-      if (addStockImages && process.env.UNSPLASH_ACCESS_KEY) {
-        const images = [];
-        for (const s of slidesIn) {
-          const query = buildStockPhotoQueryFromSlide(s, s);
-          if (!query) continue;
-          const url  = await fetchStockImageUrlForQuery(query);
-          if (!url) continue;
-          const data = await fetchRemoteImageBuffer(url);
-          if (data) images.push({ slideIndex: s.index, data });
-        }
-
-        // User-picked images override auto
-        for (const ref of (Array.isArray(body?.userImageRefs) ? body.userImageRefs : [])) {
-          const slideIndex = Number(ref?.slideIndex);
-          const url        = String(ref?.url || "").trim();
-          if (!Number.isFinite(slideIndex) || slideIndex <= 0 || !url) continue;
-          const buf = await fetchRemoteImageBuffer(url);
-          if (!buf) continue;
-          const ix = images.findIndex((im) => im.slideIndex === slideIndex);
-          if (ix >= 0) images[ix] = { slideIndex, data: buf };
-          else images.push({ slideIndex, data: buf });
-        }
-
-        if (images.length > 0) {
-          pptxBuffer = await buildPptxWithImagesInPlace(pptxBuffer, images);
-        }
-      }
-
-      return new NextResponse(pptxBuffer, {
-        status: 200,
-        headers: {
-          "Content-Type":        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-          "Content-Disposition": `attachment; filename="${editedFilenameFromSource(sourceName, titleFromSourceFilename(sourceName))}"`,
-        },
-      });
-    }
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // CONTENT MODE — LLM rebuild with web enrichment
-    // ══════════════════════════════════════════════════════════════════════════
-
+    // LLM rebuild with optional web enrichment
     // 1. Web enrichment (now runs in parallel — see improvePptWebSearch.js fix)
     let webEnrichment = [], allWebSources = [];
     if (process.env.TAVILY_API_KEY) {
@@ -446,10 +216,12 @@ export async function POST(req) {
 
     const enrichBlock = buildEnrichmentBlock(webEnrichment);
 
-    const userContent = `You are improving presentation slides for teaching clarity.
+    const userContent = `You are improving presentation slides.
 
 ${detailBlock}
 ${additiveBlock}
+
+Infer the user's priorities only from their instructions: they may want theme/visual polish, stock imagery, clearer on-slide wording, richer speaker notes, or any combination. Align the JSON you return with that intent (there is no separate "content vs style" mode).
 
 User instructions: "${instructions}"
 
@@ -594,12 +366,20 @@ Rules:
       }
     }
 
+    // Resolve template spec:
+    // Priority 1 — spec passed in from theme-search (2slides-derived), use as-is.
+    // Priority 2 — fall back to built-in / LLM-generated spec.
+    const templateSpec = incomingTemplateSpec
+      ?? (await resolveTemplateSpec(modelKey, effectiveTheme, instructions)).spec;
+
     const buffer = await buildImprovedPptx({
       title, subtitle, theme: effectiveTheme,
       slides: outSlides,
       images,
       skipCoverSlide: additiveImprove,
       references,
+      templateSpec,
+      instructions,
     });
 
     return new NextResponse(buffer, {

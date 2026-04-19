@@ -65,7 +65,6 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    const mode = body?.mode === "style" ? "style" : "content";
     const additiveImprove = body?.additiveImprove !== false;
     const instructions = String(body?.instructions || "").trim();
     const modelLabel = String(body?.model || "Gemini");
@@ -94,7 +93,7 @@ export async function POST(req) {
 
     const userContent = `Create an improved preview version of a PPT (theme + slide titles + bullets + speaker notes).
 
-Mode: ${mode} (content = teaching clarity + rich notes without aggressive shortening; style = visuals/theme)
+Follow the user instructions to decide emphasis: they may want only visuals/theme, only teaching clarity and notes, or both. Do not assume a fixed split.
 ${additiveHint}
 
 User instructions:

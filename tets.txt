@@ -1,0 +1,223 @@
+╭─── Claude Code v2.1.91 ──────────────────────────────────────────────────────╮
+│                                                    │ Tips for getting        │
+│                    Welcome back!                   │ started                 │
+│                                                    │ Run /init to create a … │
+│                       ▐▛███▜▌                      │ ─────────────────────── │
+│                      ▝▜█████▛▘                     │ Recent activity         │
+│                        ▘▘ ▝▝                       │ 2h ago  can you explai… │
+│                                                    │ 1d ago  can you make t… │
+│           Sonnet 4.6 · API Usage Billing           │ 1d ago  can you make t… │
+│ ~\OneDrive\Documents\GitHub\fyp-lecture-summarize… │ /resume for more        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+> can you explain how does the backend works? how is the data fetched, where    
+does the upload documents, user data etc. are stored?                           
+
+● There's an issue with the selected model (qwen/qwen3.6-plus-preview:free). It
+  may not exist or you may not have access to it. Run /model to pick a different
+   model.
+
+> /model                                                                        
+  ⎿  Set model to qwen/qwen3.6-plus-preview:free
+
+> can you explain how does the backend works? how is the data fetched, where    
+does the upload documents, user data etc. are stored?                           
+
+● There's an issue with the selected model (qwen/qwen3.6-plus-preview:free). It
+  may not exist or you may not have access to it. Run /model to pick a different
+   model.
+
+> can you explain how does the backend works? how is the data fetched, where    
+does the upload documents, user data etc. are stored?                           
+
+● There's an issue with the selected model (qwen/qwen3.6-plus-preview:free). It
+  may not exist or you may not have access to it. Run /model to pick a different
+   model.
+
+> can you explain how does the backend works? how is the data fetched, where    
+does the upload documents, user data etc. are stored?                           
+
+● Let me explore the codebase to understand the backend architecture.
+
+● Explore(Explore backend architecture)
+  ⎿  Done (0 tool uses · 0 tokens · 0s)
+  (ctrl+o to expand)
+
+● Let me explore directly.
+
+  Searched for 4 patterns, read 4 files (ctrl+o to expand)
+
+● Here's a comprehensive breakdown of the backend:
+
+  ---
+  Overall Architecture
+
+  This is a Next.js 16 app using the App Router, deployed as serverless API 
+  routes (each app/api/*/route.js is a separate serverless function). It uses
+  NextAuth.js v4 for authentication and Prisma ORM with a MySQL database.
+
+  ---
+  Data Storage
+
+  MySQL database (defined in prisma/schema.prisma) stores all structured data:
+
+  ┌───────────────────────┬─────────────────────────────────────────────────┐
+  │         Model         │                     Purpose                     │
+  ├───────────────────────┼─────────────────────────────────────────────────┤
+  │ User                  │ User accounts (email, username, hashed          │
+  │                       │ password, role)                                 │
+  ├───────────────────────┼─────────────────────────────────────────────────┤
+  │ PasswordReset         │ OTP-based password reset tokens                 │
+  ├───────────────────────┼─────────────────────────────────────────────────┤
+  │ Document              │ Metadata for uploaded files (name, URL, type,   │
+  │                       │ size)                                           │
+  ├───────────────────────┼─────────────────────────────────────────────────┤
+  │ Summary               │ Generated summaries (output text, model used,   │
+  │                       │ target audience)                                │
+  ├───────────────────────┼─────────────────────────────────────────────────┤
+  │ SummaryHighlight      │ User-highlighted quotes from summaries          │
+  ├───────────────────────┼─────────────────────────────────────────────────┤
+  │ ChatThread /          │ Persistent Q&A threads per summary              │
+  │ ChatMessage           │                                                 │
+  ├───────────────────────┼─────────────────────────────────────────────────┤
+  │ QuizSet /             │ AI-generated quizzes linked to summaries        │
+  │ QuizQuestion          │                                                 │
+  ├───────────────────────┼─────────────────────────────────────────────────┤
+  │ SummaryDocument       │ Many-to-many join table linking summaries to    │
+  │                       │ source documents                                │
+  └───────────────────────┴─────────────────────────────────────────────────┘
+
+  Uploaded files are stored in Vercel Blob (not the local filesystem). The
+  Document model stores the Vercel Blob URL in the url field.
+
+  ---
+  Authentication (app/api/auth/[...nextauth]/route.js)
+
+  Two sign-in methods via NextAuth.js:
+  1. Credentials — email + password, validated with bcryptjs against
+  passwordHash in MySQL
+  2. Google OAuth — auto-creates a User record on first sign-in (with
+  passwordHash: "google-oauth" as a marker)
+
+  The session callback attaches user.id, username, and role from the database
+  into the session.
+
+  ---
+  API Endpoints
+
+  ┌─────────────────────────────────────────────┬───────────────────────────┐
+  │                  Endpoint                   │       What it does        │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │                                             │ Uploads files to Vercel   │
+  │ POST /api/upload                            │ Blob, creates Document    │
+  │                                             │ records in MySQL          │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │ GET /api/documents                          │ Lists user's documents    │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │ GET/DELETE /api/documents/[id]              │ Get/delete a specific     │
+  │                                             │ document                  │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │                                             │ Sends document content to │
+  │ POST /api/summarize                         │  LLM, creates Summary +   │
+  │                                             │ SummaryDocument records   │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │                                             │ Chat with a summary       │
+  │ POST /api/chat                              │ (appends messages to      │
+  │                                             │ ChatThread)               │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │ GET /api/summary/[id]                       │ Fetch a specific summary  │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │ GET /api/summary/[id]/highlights            │ Get highlights for a      │
+  │                                             │ summary                   │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │ POST /api/summary/[id]/highlights           │ Create a highlight        │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │ DELETE                                      │ Delete a highlight        │
+  │ /api/summary/[id]/highlights/[highlightId]  │                           │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │ POST /api/history                           │ Fetch user's summary      │
+  │                                             │ history                   │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │ POST /api/quiz/generate                     │ Generate quiz questions   │
+  │                                             │ from a summary            │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │                                             │ Generate PowerPoint       │
+  │ POST /api/generate-slides                   │ slides (PPTX via          │
+  │                                             │ pptxgenjs)                │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │ GET /api/generate-slides/[id]               │ Fetch a generated slide   │
+  │                                             │ deck                      │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │ GET /api/generate-slides/[id]/download      │ Download a slide deck     │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │ POST /api/improve-ppt/preview               │ Preview improved PPT      │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │ POST /api/improve-ppt/plan                  │ Plan PPT improvements     │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │ POST /api/improve-ppt/generate              │ Generate improved PPT     │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │ POST /api/register                          │ Create a new user account │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │ POST /api/login                             │ Manual login (separate    │
+  │                                             │ from NextAuth)            │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │ POST /api/forgot-password                   │ Send reset OTP            │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │ POST /api/verify-otp                        │ Verify OTP for password   │
+  │                                             │ reset                     │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │ POST /api/new-password                      │ Set new password          │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │ POST /api/reset-password                    │ Full reset flow           │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │ GET /api/dev/unsplash                       │ Dev endpoint for Unsplash │
+  │                                             │  image testing            │
+  ├─────────────────────────────────────────────┼───────────────────────────┤
+  │ POST /api/admin/sync-documents              │ Admin document            │
+  │                                             │ synchronization           │
+  └─────────────────────────────────────────────┴───────────────────────────┘
+
+  ---
+  Document Upload & Processing Flow
+
+  1. User uploads a file → POST /api/upload sends it to Vercel Blob storage
+  2. A Document record is created in MySQL with the Blob URL
+  3. POST /api/summarize fetches the file content (PDF via pdf-parse/unpdf, DOCX
+   via mammoth, PPTX via pptx2json, XLSX via xlsx)
+  4. The extracted text is sent to an LLM (Google Gemini via
+  @google/generative-ai, or OpenAI via openai)
+  5. The LLM output is saved as a Summary record, with SummaryDocument linking
+  it to the source documents
+
+  ---
+  Key Libraries
+
+  ┌──────────────────────────────────────────┬──────────────────────────────┐
+  │                 Library                  │           Purpose            │
+  ├──────────────────────────────────────────┼──────────────────────────────┤
+  │ @prisma/client                           │ Database ORM                 │
+  ├──────────────────────────────────────────┼──────────────────────────────┤
+  │ @vercel/blob                             │ File storage                 │
+  ├──────────────────────────────────────────┼──────────────────────────────┤
+  │ bcryptjs                                 │ Password hashing             │
+  ├──────────────────────────────────────────┼──────────────────────────────┤
+  │ pdf-parse, unpdf, mammoth, pptx2json,    │ Document text extraction     │
+  │ xlsx                                     │                              │
+  ├──────────────────────────────────────────┼──────────────────────────────┤
+  │ @google/generative-ai, openai            │ LLM API calls                │
+  ├──────────────────────────────────────────┼──────────────────────────────┤
+  │ pptxgenjs                                │ PPTX slide generation        │
+  ├──────────────────────────────────────────┼──────────────────────────────┤
+  │ nodemailer                               │ Password reset email         │
+  │                                          │ delivery                     │
+  ├──────────────────────────────────────────┼──────────────────────────────┤
+  │ jspdf                                    │ PDF export of summaries      │
+  └──────────────────────────────────────────┴──────────────────────────────┘
+
+  ---
+  In short: MySQL (via Prisma) is the single source of truth for all user data,
+  documents metadata, summaries, highlights, chats, and quizzes. Files
+  themselves live on Vercel Blob. AI processing happens server-side by calling
+  external LLM APIs (Google Gemini / OpenAI).
+
+✻ Churned for 1m 11s
