@@ -2128,6 +2128,8 @@ export default function Dashboard() {
                   className="doc-preview-frame"
                   title={`Preview: ${docPreviewDoc.name}`}
                   src={docPreviewSrc}
+                  allow="clipboard-read; clipboard-write; fullscreen *"
+                  allowFullScreen
                   onLoad={() => setDocPreviewIframeLoading(false)}
                 />
               ) : null}
