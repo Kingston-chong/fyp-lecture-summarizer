@@ -58,13 +58,6 @@ function isOfficePreviewName(name) {
   return OFFICE_PREVIEW_EXT.has(ext);
 }
 
-function isOfficePreviewDoc(doc) {
-  if (!doc) return false;
-  if (isOfficePreviewName(doc.name)) return true;
-  const t = String(doc.type || "").toUpperCase();
-  return t === "PPTX" || t === "PPT" || t === "DOCX" || t === "DOC" || t === "XLSX" || t === "XLS";
-}
-
 function getDefaultVariant(providerId) {
   const p = MODEL_PROVIDERS.find((m) => m.id === providerId);
   return p?.variants?.[0]?.id ?? "gpt-4o";
@@ -861,7 +854,7 @@ export default function Dashboard() {
     const basePath = `/api/documents/${doc.id}/view`;
 
     try {
-      if (isOfficePreviewDoc(doc)) {
+      if (isOfficePreviewName(doc.name)) {
         const res = await fetch(`/api/documents/${doc.id}/view-token`);
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || "Could not prepare preview");
