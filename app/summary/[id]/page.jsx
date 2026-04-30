@@ -1430,16 +1430,19 @@ export default function SummaryView() {
     [summaryId],
   );
 
-  function openSlideDeckPreview(deck) {
+  async function openSlideDeckPreview(deck) {
     setSlideDeckPreviewUrl("");
-    setSlideDeckRemotePptUrl(deck.pptxUrl || "");
     setSlideDeckPreviewTitle(
       String(deck.title || "Presentation").trim() || "Presentation",
     );
     const baseTitle =
       String(deck.title || "presentation").trim() || "presentation";
     slideDeckDlRef.current = async () => {
-      const r = await fetch(deck.pptxUrl);
+      const n = Number.parseInt(String(summaryId ?? ""), 10);
+      if (!Number.isFinite(n) || n <= 0) throw new Error("Invalid summary id");
+      const r = await fetch(
+        `/api/summary/${n}/slide-decks/${deck.id}/view?v=${Date.now()}`,
+      );
       if (!r.ok) throw new Error("Failed to download file");
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
@@ -1452,11 +1455,33 @@ export default function SummaryView() {
       URL.revokeObjectURL(url);
     };
     setSlideDeckPreviewOpen(true);
+    try {
+      const n = Number.parseInt(String(summaryId ?? ""), 10);
+      if (!Number.isFinite(n) || n <= 0) throw new Error("Invalid summary id");
+      const res = await fetch(
+        `/api/summary/${n}/slide-decks/${deck.id}/view-token`,
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Could not prepare preview");
+      const origin =
+        typeof window !== "undefined" ? window.location.origin : "";
+      const viewUrl = `${origin}/api/summary/${n}/slide-decks/${deck.id}/view?t=${encodeURIComponent(
+        data.token,
+      )}`;
+      setSlideDeckRemotePptUrl(viewUrl);
+    } catch (e) {
+      setSlideDeckRemotePptUrl("");
+      alert(e?.message || String(e));
+    }
   }
 
   async function downloadSlideDeck(deck) {
     try {
-      const r = await fetch(deck.pptxUrl);
+      const n = Number.parseInt(String(summaryId ?? ""), 10);
+      if (!Number.isFinite(n) || n <= 0) throw new Error("Invalid summary id");
+      const r = await fetch(
+        `/api/summary/${n}/slide-decks/${deck.id}/view?v=${Date.now()}`,
+      );
       if (!r.ok) throw new Error("Download failed");
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
@@ -4419,7 +4444,7 @@ export default function SummaryView() {
                             type="button"
                             className="sd-deck-btn"
                             onClick={() => {
-                              openSlideDeckPreview(d);
+                              void openSlideDeckPreview(d);
                               setMobileMoreOpen(false);
                             }}
                           >
