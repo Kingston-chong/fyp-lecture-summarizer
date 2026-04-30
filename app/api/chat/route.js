@@ -98,6 +98,29 @@ function userMessageTextForSearch(content) {
     .trim();
 }
 
+/** @param {string} text */
+function shouldFallbackToWeb(text) {
+  const t = String(text || "").toLowerCase();
+  if (!t) return true;
+  const signals = [
+    "not in the summary",
+    "not mentioned in the summary",
+    "not provided in the summary",
+    "based on the summary",
+    "summary does not",
+    "slides do not",
+    "not enough context",
+    "insufficient context",
+    "i don't have enough",
+    "i do not have enough",
+    "cannot determine",
+    "can't determine",
+    "unable to determine",
+    "not available in the provided",
+  ];
+  return signals.some((s) => t.includes(s));
+}
+
 /**
  * Stable fingerprint for regenerate sync (DB row vs client payload).
  * @param {unknown} raw
@@ -311,30 +334,27 @@ export async function POST(req) {
     const webSearchGloballyOff = process.env.CHAT_WEB_SEARCH === "0";
     const toggleOn = webSearchOverride === true;
     const phraseOn = userRequestedBeyondSummaryWeb(lastUserSearchText);
-    const userWantsWeb = toggleOn || phraseOn;
-    const wantWebSearch =
-      webSearchKeyOk && !webSearchGloballyOff && userWantsWeb;
+    const autoWebEnabled = webSearchKeyOk && !webSearchGloballyOff;
 
     let webSearchSkippedReason = null;
-    if (!wantWebSearch && userWantsWeb) {
+    if (!autoWebEnabled && (toggleOn || phraseOn)) {
       if (!webSearchKeyOk) webSearchSkippedReason = "missing_tavily_key";
-      else if (webSearchGloballyOff) webSearchSkippedReason = "web_search_disabled_env";
+      else if (webSearchGloballyOff)
+        webSearchSkippedReason = "web_search_disabled_env";
     }
 
-    let webContext = "";
-    if (wantWebSearch) {
+    const buildSearchQuery = () => {
       const qUser = lastUserSearchText.trim().slice(0, 220);
       const qTitle = (summary.title || "").trim().slice(0, 80);
       const suffix =
         " Broader reference information beyond lecture notes only; include established facts not necessarily stated in the slides.";
-      const searchQuery = [qUser, qTitle ? `(Topic: ${qTitle})` : "", suffix]
+      return [qUser, qTitle ? `(Topic: ${qTitle})` : "", suffix]
         .filter(Boolean)
         .join(" ")
         .replace(/\s+/g, " ")
         .trim()
         .slice(0, 400);
-      webContext = await fetchTavilyContextForChat(searchQuery);
-    }
+    };
 
     const roleSpecificRules = roleProfile.chatInstructions.map((line) => `- ${line}`).join("\n");
     const lecturerCitationRules =
@@ -348,7 +368,7 @@ Citation requirements for lecturer mode:
 `
         : "";
 
-    const systemPrompt = `You are a helpful assistant for Slide2Notes. The user is discussing a generated lecture/document summary.
+    const buildSystemPrompt = (webContext = "") => `You are a helpful assistant for Slide2Notes. The user is discussing a generated lecture/document summary.
 Audience mode: ${summarizeRole}.
 
 The user may paste screenshots or diagrams into the chat; use what you see together with the summary when it is relevant.
@@ -374,15 +394,41 @@ ${context}
 ${webContext ? `\n\n--- Web search excerpts ---\n${webContext}` : ""}
 ${attachmentContext ? `\n\n--- Attached Sources (uploaded by user) ---\n${attachmentContext}` : ""}`;
 
-    const reply = await runChat(modelKey, useVariant, systemPrompt, messages);
-    const trimmed = String(reply ?? "").trim();
+    let webContext = "";
+    let webSearchAttempted = false;
+
+    let reply = await runChat(
+      modelKey,
+      useVariant,
+      buildSystemPrompt(""),
+      messages
+    );
+    let trimmed = String(reply ?? "").trim();
+
+    const shouldTryWebFallback =
+      autoWebEnabled && (toggleOn || phraseOn || shouldFallbackToWeb(trimmed));
+
+    if (shouldTryWebFallback) {
+      webSearchAttempted = true;
+      webContext = await fetchTavilyContextForChat(buildSearchQuery());
+      if (String(webContext || "").trim()) {
+        reply = await runChat(
+          modelKey,
+          useVariant,
+          buildSystemPrompt(webContext),
+          messages
+        );
+        trimmed = String(reply ?? "").trim();
+      }
+    }
+
     if (!trimmed) {
       return NextResponse.json({ error: "The model returned an empty reply" }, { status: 502 });
     }
 
     const webContextIncluded = Boolean(webContext && String(webContext).trim());
     /** Client can show whether Tavily actually contributed text to the system prompt */
-    const webSearch = wantWebSearch
+    const webSearch = webSearchAttempted
       ? { attempted: true, contextIncluded: webContextIncluded }
       : {
           attempted: false,

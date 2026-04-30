@@ -135,6 +135,61 @@ async function callOpenRouter(model, modelVariant, fullPrompt) {
   );
 }
 
+async function* callOpenRouterStream(model, modelVariant, fullPrompt) {
+  if (!openrouterClient) throw new Error("OPENROUTER_API_KEY is not set");
+
+  const primary = openRouterModelSlug(model, modelVariant);
+  const geminiExtras =
+    model === "gemini"
+      ? [
+          process.env.OPENROUTER_GEMINI_MODEL,
+          "google/gemini-2.0-flash-001",
+          "google/gemini-flash-1.5",
+          "google/gemini-2.5-flash",
+          "google/gemini-pro-1.5",
+        ].filter(Boolean)
+      : [];
+
+  const seen = new Set();
+  const slugs = [];
+  for (const s of [primary, ...geminiExtras]) {
+    if (!s || seen.has(s)) continue;
+    seen.add(s);
+    slugs.push(s);
+  }
+
+  let lastErr;
+  for (const slug of slugs) {
+    try {
+      const stream = await openrouterClient.chat.completions.create({
+        model: slug,
+        messages: [{ role: "user", content: fullPrompt }],
+        max_tokens: 2000,
+        stream: true,
+      });
+      let emitted = false;
+      for await (const chunk of stream) {
+        const text = chunk?.choices?.[0]?.delta?.content ?? "";
+        if (!text) continue;
+        emitted = true;
+        yield text;
+      }
+      if (emitted || model !== "gemini") return;
+      lastErr = new Error("empty response");
+    } catch (err) {
+      lastErr = err;
+      if (model === "gemini" && isOpenRouterModelNotFound(err)) continue;
+      throw err;
+    }
+  }
+
+  throw new Error(
+    model === "gemini"
+      ? `OpenRouter Gemini model unavailable. Last error: ${String(lastErr?.message || lastErr)}`
+      : `OpenRouter request failed: ${String(lastErr?.message || lastErr)}`
+  );
+}
+
 // ── Text extraction ───────────────────────────────────────
 
 async function fetchBlobBuffer(url) {
@@ -312,6 +367,94 @@ async function callAI(model, modelVariant, systemPrompt, documentText) {
   throw new Error("Unknown model: " + model);
 }
 
+async function* callAIStream(model, modelVariant, systemPrompt, documentText) {
+  const clipped = (documentText || "").slice(0, MAX_MODEL_INPUT_CHARS);
+  const fullPrompt = `${systemPrompt}\n\n---\n\nDocument Content:\n${clipped}`;
+
+  if (openrouterClient) {
+    yield* callOpenRouterStream(model, modelVariant, fullPrompt);
+    return;
+  }
+
+  if (model === "chatgpt") {
+    const openaiModel = modelVariant || process.env.OPENAI_MODEL || "gpt-4o";
+    if (!openaiClient) throw new Error("OPENAI_API_KEY is not set");
+    const stream = await openaiClient.chat.completions.create({
+      model: openaiModel,
+      messages: [{ role: "user", content: fullPrompt }],
+      max_tokens: 2000,
+      stream: true,
+    });
+    for await (const chunk of stream) {
+      const text = chunk?.choices?.[0]?.delta?.content ?? "";
+      if (text) yield text;
+    }
+    return;
+  }
+
+  if (model === "deepseek") {
+    const deepseekModel = modelVariant || "deepseek-chat";
+    if (!deepseekClient) throw new Error("DEEPSEEK_API_KEY is not set");
+    const stream = await deepseekClient.chat.completions.create({
+      model: deepseekModel,
+      messages: [{ role: "user", content: fullPrompt }],
+      max_tokens: 2000,
+      stream: true,
+    });
+    for await (const chunk of stream) {
+      const text = chunk?.choices?.[0]?.delta?.content ?? "";
+      if (text) yield text;
+    }
+    return;
+  }
+
+  if (model === "gemini") {
+    if (!geminiClient) throw new Error("GEMINI_API_KEY is not set");
+    const modelCandidates = modelVariant
+      ? [modelVariant]
+      : [
+          process.env.GEMINI_MODEL,
+          "gemini-2.0-flash",
+          "gemini-1.5-flash",
+          "gemini-2.5-flash",
+          "gemini-flash-latest",
+          "gemini-1.5-pro",
+        ].filter(Boolean);
+
+    const seen = new Set();
+    const uniqueCandidates = modelCandidates.filter((m) => {
+      if (seen.has(m)) return false;
+      seen.add(m);
+      return true;
+    });
+
+    let lastErr;
+    for (const modelName of uniqueCandidates) {
+      try {
+        const geminiModel = geminiClient.getGenerativeModel({ model: modelName });
+        const stream = await geminiModel.generateContentStream(fullPrompt);
+        for await (const chunk of stream.stream) {
+          const text = chunk?.text?.() || "";
+          if (text) yield text;
+        }
+        return;
+      } catch (err) {
+        lastErr = err;
+        const msg = String(err?.message || err);
+        if (msg.includes("404") || msg.toLowerCase().includes("not found")) {
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw new Error(
+      `Gemini model unavailable. Last error: ${String(lastErr?.message || lastErr)}`
+    );
+  }
+
+  throw new Error("Unknown model: " + model);
+}
+
 // ── Route handler ─────────────────────────────────────────
 
 export async function POST(req) {
@@ -321,7 +464,14 @@ export async function POST(req) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { documentIds, model, modelVariant, summarizeFor, prompt } = await req.json();
+    const {
+      documentIds,
+      model,
+      modelVariant,
+      summarizeFor,
+      prompt,
+      stream: streamOutput = false,
+    } = await req.json();
     const normalizedRole = normalizeSummarizeRole(summarizeFor);
     const roleProfile = getRoleProfile(normalizedRole);
 
@@ -362,6 +512,67 @@ Format your response in clean markdown with clear sections.`;
       if (combinedText.length >= MAX_MODEL_INPUT_CHARS) break;
       combinedText += `\n\n=== ${doc.name} ===\n`;
       combinedText += text.slice(0, Math.max(0, MAX_MODEL_INPUT_CHARS - combinedText.length));
+    }
+
+    if (streamOutput) {
+      const encoder = new TextEncoder();
+      const sendEvent = (controller, event, payload) => {
+        controller.enqueue(
+          encoder.encode(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`)
+        );
+      };
+
+      const modelForDb = modelVariant ? `${model}:${modelVariant}` : model;
+      const title = documents[0].name.replace(/\.[^/.]+$/, "");
+
+      const body = new ReadableStream({
+        async start(controller) {
+          try {
+            sendEvent(controller, "meta", { ok: true });
+            let output = "";
+            for await (const chunk of callAIStream(
+              model,
+              modelVariant || null,
+              systemPrompt,
+              combinedText
+            )) {
+              output += chunk;
+              sendEvent(controller, "chunk", { text: chunk });
+            }
+
+            const summary = await prisma.summary.create({
+              data: {
+                userId: user.id,
+                title,
+                model: modelForDb,
+                summarizeFor: normalizedRole,
+                prompt: prompt || null,
+                output,
+                documents: {
+                  create: documents.map((doc) => ({ documentId: doc.id })),
+                },
+              },
+            });
+
+            sendEvent(controller, "done", { summary });
+            controller.close();
+          } catch (err) {
+            console.error("Summarize stream error:", err);
+            sendEvent(controller, "error", {
+              error: "Summarization failed: " + String(err?.message || err),
+            });
+            controller.close();
+          }
+        },
+      });
+
+      return new NextResponse(body, {
+        headers: {
+          "Content-Type": "text/event-stream; charset=utf-8",
+          "Cache-Control": "no-cache, no-transform",
+          Connection: "keep-alive",
+        },
+      });
     }
 
     // Call AI (model = provider, modelVariant = exact model id)
