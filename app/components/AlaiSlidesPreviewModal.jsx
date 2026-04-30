@@ -36,6 +36,7 @@ export default function AlaiSlidesPreviewModal({
   subtitle = "Your presentation slides is ready..",
 }) {
   const [downloading, setDownloading] = useState(false);
+  const [iframeLoading, setIframeLoading] = useState(true);
 
   // Prefer Office Online embed for the PPTX when we have a signed URL. Alai's own
   // preview iframe includes an "exit" that navigates to Alai login, which is
@@ -46,6 +47,10 @@ export default function AlaiSlidesPreviewModal({
   const openInTabHref = remotePptUrl
     ? officeViewSrc(remotePptUrl) || remotePptUrl
     : previewUrl || officeViewSrc(remotePptUrl) || remotePptUrl;
+
+  useEffect(() => {
+    setIframeLoading(Boolean(iframeSrc));
+  }, [iframeSrc]);
 
   // Prevent background scrolling while modal is open
   useEffect(() => {
@@ -72,6 +77,7 @@ export default function AlaiSlidesPreviewModal({
         @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap');
         @keyframes overlayIn { from { opacity:0; } to { opacity:1; } }
         @keyframes modalIn   { from { opacity:0; transform:scale(.96) translateY(14px); } to { opacity:1; transform:none; } }
+        @keyframes spin { to { transform: rotate(360deg); } }
         .alai-overlay {
           position: fixed; inset: 0; z-index: 1200;
           background: rgba(6,6,14,.72); backdrop-filter: blur(6px);
@@ -165,6 +171,23 @@ export default function AlaiSlidesPreviewModal({
           height: 100%;
           border: 0;
         }
+        .alai-frame.busy iframe { pointer-events: none; opacity: 0; }
+        .alai-loading {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(6,6,14,.55);
+          z-index: 1;
+        }
+        .alai-spinner {
+          width: 18px; height: 18px;
+          border-radius: 999px;
+          border: 2px solid rgba(255,255,255,.22);
+          border-top-color: rgba(99,102,241,.95);
+          animation: spin .7s linear infinite;
+        }
         .alai-fallback {
           height: 100%;
           display: flex;
@@ -201,13 +224,22 @@ export default function AlaiSlidesPreviewModal({
           </div>
 
           <div className="alai-body">
-            <div className="alai-frame">
+            <div className={`alai-frame${iframeLoading ? " busy" : ""}`}>
+              {iframeSrc && iframeLoading ? (
+                <div className="alai-loading" aria-label="Loading preview">
+                  <div className="alai-spinner" />
+                </div>
+              ) : null}
               {iframeSrc ? (
                 <iframe
                   src={iframeSrc}
                   title="Alai slide preview"
                   allow="clipboard-read; clipboard-write; fullscreen *"
                   allowFullScreen
+                  onLoad={() => {
+                    // Office viewer often becomes interactive slightly after onLoad.
+                    setTimeout(() => setIframeLoading(false), 650);
+                  }}
                 />
               ) : (
                 <div className="alai-fallback">

@@ -2128,9 +2128,10 @@ export default function Dashboard() {
                   className="doc-preview-frame"
                   title={`Preview: ${docPreviewDoc.name}`}
                   src={docPreviewSrc}
-                  allow="clipboard-read; clipboard-write; fullscreen *"
-                  allowFullScreen
-                  onLoad={() => setDocPreviewIframeLoading(false)}
+                  onLoad={() => {
+                    // Office viewer can accept queued clicks if enabled too early.
+                    setTimeout(() => setDocPreviewIframeLoading(false), 650);
+                  }}
                 />
               ) : null}
             </div>
