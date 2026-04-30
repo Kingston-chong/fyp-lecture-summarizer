@@ -44,6 +44,19 @@ const MODEL_PROVIDERS = [
   },
 ];
 const ACCEPTED = ".pdf,.pptx,.ppt,.docx,.doc,.txt,.xlsx,.xls,.csv,.md";
+const IMPROVE_ACCEPT = ".pptx,.pdf";
+
+function isImproveSourceType(type) {
+  const u = String(type || "").toUpperCase();
+  return u === "PPTX" || u === "PDF";
+}
+
+const OFFICE_PREVIEW_EXT = new Set(["pptx", "ppt", "docx", "doc", "xlsx", "xls"]);
+
+function isOfficePreviewName(name) {
+  const ext = String(name || "").split(".").pop()?.toLowerCase() || "";
+  return OFFICE_PREVIEW_EXT.has(ext);
+}
 
 function getDefaultVariant(providerId) {
   const p = MODEL_PROVIDERS.find((m) => m.id === providerId);
@@ -91,15 +104,12 @@ export default function Dashboard() {
   const [modelVariant, setModelVariant]     = useState("gpt-4o");            // exact model id for API
   const [modelOpen, setModelOpen]           = useState(false);
   const [variantOpen, setVariantOpen]       = useState(false);
+  const [modeOpen, setModeOpen]             = useState(false);
   const [dragging, setDragging]             = useState(false);
   const [loading, setLoading]               = useState(false);  // summarizing
   const [uploading, setUploading]           = useState(false);  // uploading files
   const [summaryOutput, setSummaryOutput]   = useState(null);   // latest result
   const [copied, setCopied]                 = useState(false);
-  const [sidebarWidth, setSidebarWidth]     = useState(220);
-  const [rightPanelWidth, setRightPanelWidth] = useState(272);
-  const [splitterDragging, setSplitterDragging] = useState(false);
-  const [activeSplitter, setActiveSplitter] = useState(null); // "sidebar" | "right" | null
 
   // Sidebar data (from APIs)
   const [history, setHistory]               = useState([]);
@@ -108,14 +118,61 @@ export default function Dashboard() {
   const [prevLoading, setPrevLoading]       = useState(true);
   const [expandedHistory, setExpandedHistory] = useState(null);
   const [sidebarSection, setSidebarSection] = useState({ history: true, prev: true });
+  const [sidebarWidth, setSidebarWidth] = useState(220);
+  const sidebarDragRef = useRef({ active: false, startX: 0, startW: 220 });
+
+  const [docPreviewOpen, setDocPreviewOpen] = useState(false);
+  const [docPreviewDoc, setDocPreviewDoc] = useState(null);
+  const [docPreviewSrc, setDocPreviewSrc] = useState("");
+  const [docPreviewTabHref, setDocPreviewTabHref] = useState("");
+  const [docPreviewTokenLoading, setDocPreviewTokenLoading] = useState(false);
+  const [docPreviewSetupErr, setDocPreviewSetupErr] = useState("");
+  const [docPreviewIframeLoading, setDocPreviewIframeLoading] = useState(true);
 
   const [error, setError] = useState("");
+
+  // ── Dashboard mode: null = choose, "summarize", "improve" ──
+  const [dashMode, setDashMode] = useState(null);
+
+  // ── Improve-PPT state ──
+  const [improveFile, setImproveFile]                         = useState(null);
+  /** When Improve uses a row from Previous Uploads (Vercel Blob), server loads bytes by id */
+  const [improveDocumentId, setImproveDocumentId]             = useState(null);
+  const [improveInstructions, setImproveInstructions]         = useState("");
+  const [parsedSlides, setParsedSlides]                       = useState(null);
+  const [parseLoading, setParseLoading]                       = useState(false);
+  const [planAdjustments, setPlanAdjustments]                 = useState([]);
+  const [planLoading, setPlanLoading]                         = useState(false);
+  const [planError, setPlanError]                             = useState("");
+  const parseRequestIdRef                                     = useRef(0);
+  const [addStockImages, setAddStockImages]                   = useState(true);
+  const [additiveImprove, setAdditiveImprove]                 = useState(true);
+  const [improveDetailLevel, setImproveDetailLevel]           = useState("lecture");
+  const [improveImgQuery, setImproveImgQuery]                 = useState("");
+  const [improveImgSearchLoading, setImproveImgSearchLoading] = useState(false);
+  const [improveImgResults, setImproveImgResults]             = useState([]);
+  const [improveImgSearchHint, setImproveImgSearchHint]       = useState("");
+  const [improveImageProvider, setImproveImageProvider]       = useState(null);
+  const [improveTargetSlide, setImproveTargetSlide]           = useState(1);
+  const [pickedUserImages, setPickedUserImages]               = useState([]);
+  const [improvePasteUrl, setImprovePasteUrl]                 = useState("");
+  const [themeQuery, setThemeQuery]                           = useState("");
+  const [themeSearchLoading, setThemeSearchLoading]           = useState(false);
+  const [themeResults, setThemeResults]                       = useState([]);
+  const [themeResultsQuery, setThemeResultsQuery]             = useState("");
+  const [selectedThemeId, setSelectedThemeId]                 = useState(null);
+  const [selectedTemplateSpec, setSelectedTemplateSpec]       = useState(null);
+  const [themeSearchErr, setThemeSearchErr]                   = useState("");
+  const [improveGenLoading, setImproveGenLoading]             = useState(false);
+  const [improveErr, setImproveErr]                           = useState("");
+  const [improveAiModel, setImproveAiModel]                   = useState("Gemini");
+  const [improveModelOpen, setImproveModelOpen]               = useState(false);
+
   const [useExistingDialog, setUseExistingDialog] = useState(null); // { names: string[] } when files already on server
   const [removingDocId, setRemovingDocId] = useState(null); // id of document being removed from server
   const [selectedPrevDocIds, setSelectedPrevDocIds] = useState([]); // selected docs for bulk delete
   const [bulkRemoving, setBulkRemoving] = useState(false);
   const fileInputRef = useRef();
-  const splitterRef = useRef(null); // { type: "sidebar" | "right", startX, startSidebar, startRight }
 
   // ── Auth guard ─────────────────────────────────────────
   useEffect(() => {
@@ -165,51 +222,35 @@ export default function Dashboard() {
     }
   }, [model]);
 
-  // Draggable splitters (sidebar width and right panel width)
+
+  // ── Improve-PPT side-effects (must be before any early return) ──
   useEffect(() => {
-    function onMove(e) {
-      const drag = splitterRef.current;
-      if (!drag) return;
-      const dx = e.clientX - drag.startX;
-      if (drag.type === "sidebar") {
-        const next = drag.startSidebar + dx;
-        setSidebarWidth(Math.max(200, Math.min(480, next)));
-      }
-      if (drag.type === "right") {
-        // dragging the divider left should increase right panel width (dx negative)
-        const next = drag.startRight - dx;
-        setRightPanelWidth(Math.max(240, Math.min(520, next)));
-      }
-    }
-    function onUp() {
-      if (!splitterRef.current) return;
-      splitterRef.current = null;
-      setSplitterDragging(false);
-      setActiveSplitter(null);
-      document.body.style.cursor = "";
-    }
+    if (!parsedSlides?.length) { setImproveImageProvider(null); return; }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/improve-ppt/image-search");
+        const data = await res.json().catch(() => ({}));
+        if (!cancelled && res.ok && data.provider) setImproveImageProvider(data.provider);
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [parsedSlides]);
 
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, []);
+  useEffect(() => {
+    setPlanAdjustments([]);
+    setPlanError("");
+  }, [improveInstructions, improveAiModel]);
 
-  function startDrag(type) {
-    return (e) => {
-      splitterRef.current = {
-        type,
-        startX: e.clientX,
-        startSidebar: sidebarWidth,
-        startRight: rightPanelWidth,
-      };
-      setSplitterDragging(true);
-      setActiveSplitter(type);
-      document.body.style.cursor = "col-resize";
-    };
-  }
+  // In improve mode, keep only a single .pptx or .pdf selected.
+  useEffect(() => {
+    if (dashMode !== "improve") return;
+    setSelectedFiles((prev) => {
+      const deck = prev.filter((f) => isImproveSourceType(f.type));
+      if (deck.length === 0) return [];
+      return [deck[deck.length - 1]];
+    });
+  }, [dashMode]);
 
   // ── File helpers ───────────────────────────────────────
   function getExt(name) { return name.split(".").pop().toUpperCase(); }
@@ -222,6 +263,19 @@ export default function Dashboard() {
       size: formatBytes(f.size),
       fromPrev: false,
     }));
+
+    if (dashMode === "improve") {
+      const deck = arr.filter((f) => isImproveSourceType(f.type));
+      if (deck.length === 0) {
+        setError("Improve mode only supports .pptx or .pdf files.");
+        setSelectedFiles([]);
+        return;
+      }
+      setError("");
+      setSelectedFiles([deck[deck.length - 1]]);
+      return;
+    }
+
     setSelectedFiles(prev => {
       const names = new Set(prev.map(f => f.name));
       return [...prev, ...arr.filter(f => !names.has(f.name))];
@@ -233,6 +287,18 @@ export default function Dashboard() {
   }
 
   function addPrevFile(doc) {
+    if (dashMode === "improve") {
+      if (!isImproveSourceType(doc.type)) return;
+      setError("");
+      setSelectedFiles([{
+        id: doc.id,
+        name: doc.name,
+        type: doc.type,
+        size: formatBytes(doc.size),
+        fromPrev: true,
+      }]);
+      return;
+    }
     if (selectedFiles.find(f => f.name === doc.name)) return;
     setSelectedFiles(prev => [...prev, {
       id: doc.id,
@@ -450,12 +516,306 @@ export default function Dashboard() {
     setModelVariant(getDefaultVariant(providerId));
   };
 
+  const selectedImproveSource = selectedFiles.find((f) => isImproveSourceType(f.type)) || null;
+  const selectedImproveSourceKey = selectedImproveSource
+    ? selectedImproveSource.fromPrev
+      ? `prev:${selectedImproveSource.id ?? selectedImproveSource.name}`
+      : `local:${selectedImproveSource.file?.lastModified ?? ""}:${selectedImproveSource.name}`
+    : "";
+
+  // Parse the selected deck whenever we enter improve mode.
+  useEffect(() => {
+    if (dashMode !== "improve") return;
+
+    if (!selectedImproveSource) {
+      setImproveFile(null);
+      setImproveDocumentId(null);
+      setParsedSlides(null);
+      setParseLoading(false);
+      setPlanAdjustments([]);
+      setPlanError("");
+      setPickedUserImages([]);
+      setImproveTargetSlide(1);
+      setImproveImgResults([]);
+      setImproveImgSearchHint("");
+      setImproveErr("");
+      return;
+    }
+
+    // Reset improve-state when switching file.
+    setPlanAdjustments([]);
+    setPlanError("");
+    setPickedUserImages([]);
+    setImproveTargetSlide(1);
+    setImproveImgResults([]);
+    setImproveImgSearchHint("");
+    setImproveErr("");
+    setParsedSlides(null);
+
+    if (selectedImproveSource.fromPrev || !selectedImproveSource.file) {
+      if (!selectedImproveSource.fromPrev || !selectedImproveSource.id) {
+        setImproveFile(null);
+        setImproveDocumentId(null);
+        setParseLoading(false);
+        setImproveErr("Pick a .pptx or .pdf from Previous Uploads, or upload a file locally.");
+        return;
+      }
+      const reqId = ++parseRequestIdRef.current;
+      setImproveFile(null);
+      setImproveDocumentId(selectedImproveSource.id);
+      setParseLoading(true);
+      void (async () => {
+        try {
+          const res = await fetch("/api/improve-ppt/parse", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ documentId: selectedImproveSource.id }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (reqId !== parseRequestIdRef.current) return;
+          if (!res.ok) throw new Error(data.error || "Could not read slides");
+          setParsedSlides(Array.isArray(data.slides) ? data.slides : []);
+        } catch (err) {
+          if (reqId !== parseRequestIdRef.current) return;
+          setImproveErr(err?.message || String(err));
+          setParsedSlides(null);
+        } finally {
+          if (reqId === parseRequestIdRef.current) setParseLoading(false);
+        }
+      })();
+      return;
+    }
+
+    const f = selectedImproveSource.file;
+    const reqId = ++parseRequestIdRef.current;
+    setImproveFile(f);
+    setImproveDocumentId(null);
+    setParseLoading(true);
+    void (async () => {
+      try {
+        const fd = new FormData();
+        fd.append("file", f);
+        const res = await fetch("/api/improve-ppt/parse", { method: "POST", body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (reqId !== parseRequestIdRef.current) return;
+        if (!res.ok) throw new Error(data.error || "Could not read slides");
+        setParsedSlides(Array.isArray(data.slides) ? data.slides : []);
+      } catch (err) {
+        if (reqId !== parseRequestIdRef.current) return;
+        setImproveErr(err?.message || String(err));
+        setParsedSlides(null);
+      } finally {
+        if (reqId === parseRequestIdRef.current) setParseLoading(false);
+      }
+    })();
+  }, [dashMode, selectedImproveSourceKey, selectedImproveSource]);
+
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!sidebarDragRef.current.active) return;
+      const dx = e.clientX - sidebarDragRef.current.startX;
+      const w = Math.min(440, Math.max(176, sidebarDragRef.current.startW + dx));
+      setSidebarWidth(w);
+    };
+    const onUp = () => {
+      if (sidebarDragRef.current.active) {
+        sidebarDragRef.current.active = false;
+        document.body.classList.remove("no-select");
+      }
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
   if (status === "loading") return (
     <div style={{ minHeight: "100vh", background: "var(--app-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ width: 32, height: 32, border: "3px solid rgba(99,102,241,0.3)", borderTopColor: "#6366f1", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
+
+  function addPickedImageFromUrl(url, thumb) {
+    if (!url || pickedUserImages.length >= 10) return;
+    const maxSlide = parsedSlides?.length || 1;
+    const idx = Math.min(Number(improveTargetSlide) || 1, maxSlide);
+    setPickedUserImages((prev) => {
+      const filtered = prev.filter((p) => p.slideIndex !== idx);
+      return [...filtered, { slideIndex: idx, url, thumb }];
+    });
+  }
+
+  function removePickedImage(slideIndex) {
+    setPickedUserImages((prev) => prev.filter((p) => p.slideIndex !== slideIndex));
+  }
+
+  async function handleThemeSearch() {
+    const q = themeQuery.trim();
+    if (!q) return;
+    setThemeSearchLoading(true);
+    setThemeSearchErr("");
+    try {
+      const res = await fetch(`/api/improve-ppt/theme-search?q=${encodeURIComponent(q)}&model=${encodeURIComponent(improveAiModel)}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Theme search failed");
+      const themes = Array.isArray(data.themes) ? data.themes : [];
+      if (themes.length > 0 && data.templateSpec) themes[0]._templateSpec = data.templateSpec;
+      setThemeResults(themes);
+      setThemeResultsQuery(q);
+      if (data.templateSpec) setSelectedTemplateSpec(data.templateSpec);
+    } catch (e) {
+      setThemeSearchErr(e?.message || String(e));
+    } finally {
+      setThemeSearchLoading(false);
+    }
+  }
+
+  async function handleImproveImageSearch() {
+    const q = improveImgQuery.trim();
+    setImproveImgSearchHint("");
+    if (!q) return;
+    if (!parsedSlides?.length) {
+      setImproveImgSearchHint("Upload a .pptx or .pdf file first.");
+      return;
+    }
+    setImproveImgSearchLoading(true);
+    try {
+      const res = await fetch(`/api/improve-ppt/image-search?q=${encodeURIComponent(q.slice(0, 200))}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Image search failed");
+      setImproveImgResults(Array.isArray(data.results) ? data.results : []);
+      setImproveImgSearchHint(data.hint || (data.results?.length ? "" : "No results found."));
+    } catch (e) {
+      setImproveImgSearchHint(e?.message || String(e));
+    } finally {
+      setImproveImgSearchLoading(false);
+    }
+  }
+
+  async function runImprovePlanNow() {
+    if (!parsedSlides?.length || !improveInstructions.trim()) return [];
+    setPlanLoading(true);
+    setPlanError("");
+    try {
+      const res = await fetch("/api/improve-ppt/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slides: parsedSlides, instructions: improveInstructions.trim(), model: improveAiModel }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Planning failed");
+      const adj = Array.isArray(data.adjustments) ? data.adjustments : [];
+      setPlanAdjustments(adj);
+      return adj;
+    } catch (e) {
+      setPlanError(e?.message || String(e));
+      setPlanAdjustments([]);
+      return [];
+    } finally {
+      setPlanLoading(false);
+    }
+  }
+
+  async function handleImproveGenerate() {
+    setImproveErr("");
+    if (!parsedSlides?.length) { setImproveErr("Upload a .pptx or .pdf file and wait until slides finish loading."); return; }
+    if (!improveInstructions.trim()) { setImproveErr("Describe what you want to improve."); return; }
+    setImproveGenLoading(true);
+    try {
+      const adjustments = await runImprovePlanNow();
+      const payload = {
+        instructions: improveInstructions.trim(),
+        model: improveAiModel,
+        slides: parsedSlides,
+        adjustments,
+        addStockImages,
+        sourceName: improveFile?.name || selectedImproveSource?.name || "",
+        ...(improveDocumentId != null && improveDocumentId > 0
+          ? { documentId: improveDocumentId }
+          : {}),
+        additiveImprove,
+        detailLevel: improveDetailLevel,
+        templateSpec: selectedTemplateSpec ?? undefined,
+        userImageRefs: pickedUserImages.map((p) => ({ slideIndex: p.slideIndex, url: p.url })),
+      };
+      const fd = new FormData();
+      if (improveFile) fd.append("file", improveFile);
+      fd.append("payload", JSON.stringify(payload));
+      const res = await fetch("/api/improve-ppt/generate", { method: "POST", body: fd });
+      if (!res.ok) {
+        let msg = "Generate failed";
+        try { const err = await res.json(); if (err?.error) msg = err.error; } catch {}
+        throw new Error(msg);
+      }
+      const pptxBlob = await res.blob();
+      const url = URL.createObjectURL(pptxBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      const cd = res.headers.get("content-disposition") || "";
+      const match = cd.match(/filename="?([^"]+)"?/i);
+      a.download = match?.[1] || "improved-slides.pptx";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setImproveErr(e.message || String(e));
+    } finally {
+      setImproveGenLoading(false);
+    }
+  }
+
+  function onSidebarResizeStart(e) {
+    e.preventDefault();
+    sidebarDragRef.current = { active: true, startX: e.clientX, startW: sidebarWidth };
+    document.body.classList.add("no-select");
+  }
+
+  async function openDocFilePreview(doc, e) {
+    e?.stopPropagation?.();
+    e?.preventDefault?.();
+    setDocPreviewDoc(doc);
+    setDocPreviewSetupErr("");
+    setDocPreviewSrc("");
+    setDocPreviewTabHref(`${typeof window !== "undefined" ? window.location.origin : ""}/api/documents/${doc.id}/view`);
+    setDocPreviewIframeLoading(true);
+    setDocPreviewTokenLoading(true);
+    setDocPreviewOpen(true);
+
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const basePath = `/api/documents/${doc.id}/view`;
+
+    try {
+      if (isOfficePreviewName(doc.name)) {
+        const res = await fetch(`/api/documents/${doc.id}/view-token`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Could not prepare preview");
+        const viewUrl = `${origin}${basePath}?t=${encodeURIComponent(data.token)}`;
+        const enc = encodeURIComponent(viewUrl);
+        setDocPreviewSrc(`https://view.officeapps.live.com/op/embed.aspx?src=${enc}`);
+        setDocPreviewTabHref(`https://view.officeapps.live.com/op/view.aspx?src=${enc}`);
+      } else {
+        setDocPreviewSrc(`${origin}${basePath}?v=${Date.now()}`);
+        setDocPreviewTabHref(`${origin}${basePath}`);
+      }
+    } catch (err) {
+      setDocPreviewSetupErr(err?.message || String(err));
+      setDocPreviewIframeLoading(false);
+    } finally {
+      setDocPreviewTokenLoading(false);
+    }
+  }
+
+  function closeDocPreview() {
+    setDocPreviewOpen(false);
+    setDocPreviewDoc(null);
+    setDocPreviewSrc("");
+    setDocPreviewTabHref("");
+    setDocPreviewIframeLoading(true);
+    setDocPreviewTokenLoading(false);
+    setDocPreviewSetupErr("");
+  }
 
   return (
     <>
@@ -489,10 +849,14 @@ export default function Dashboard() {
         .sidebar::-webkit-scrollbar { width: 3px; }
         .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
 
-        .splitter-v { width: 8px; flex-shrink: 0; cursor: col-resize; background: transparent; position: relative; z-index: 10; }
+        .splitter-v { width: 8px; flex-shrink: 0; cursor: col-resize; background: transparent; position: relative; z-index: 10; touch-action: none; }
         .splitter-v::after { content: ''; position: absolute; top: 10px; bottom: 10px; left: 3px; width: 2px; border-radius: 999px; background: rgba(255,255,255,0.06); }
         .splitter-v:hover::after { background: rgba(99,102,241,0.35); }
         .splitter-v.active::after { background: rgba(99,102,241,0.55); }
+        .sidebar-splitter-desktop { display: none; }
+        @media (min-width: 1024px) {
+          .sidebar-splitter-desktop { display: block; }
+        }
 
         .sidebar-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 6px; cursor: pointer; user-select: none; }
         .sidebar-title { font-size: 10.5px; font-weight: 600; color: rgba(255,255,255,0.25); letter-spacing: 0.1em; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
@@ -527,6 +891,42 @@ export default function Dashboard() {
         .prev-add { width: 20px; height: 20px; border-radius: 5px; background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.2); display: flex; align-items: center; justify-content: center; color: #a5b4fc; font-size: 13px; flex-shrink: 0; cursor: pointer; transition: all 0.15s; }
         .prev-item:hover .prev-add { background: rgba(99,102,241,0.25); }
         .prev-add.added { background: rgba(52,211,153,0.12); border-color: rgba(52,211,153,0.3); color: #34d399; }
+        .prev-peek { width: 22px; height: 22px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: rgba(200,200,230,0.85); font-size: 11px; font-family: 'Sora', sans-serif; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+        .prev-peek:hover { border-color: rgba(99,102,241,0.45); background: rgba(99,102,241,0.12); color: #c7d2fe; }
+        .doc-preview-panel {
+          max-width: min(1680px, 99vw);
+          width: 100%;
+          max-height: 96vh;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          margin: auto;
+        }
+        .doc-preview-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-shrink: 0; }
+        .doc-preview-title { font-size: 14px; font-weight: 600; color: #e2e8f0; }
+        .doc-preview-meta { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 4px; }
+        .doc-preview-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex-shrink: 0; }
+        .doc-preview-open-tab {
+          font-size: 11.5px; font-family: 'Sora', sans-serif; font-weight: 500;
+          padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(99,102,241,0.45);
+          background: rgba(99,102,241,0.15); color: #c7d2fe; text-decoration: none; transition: all 0.15s;
+        }
+        .doc-preview-open-tab:hover { background: rgba(99,102,241,0.28); color: #e0e7ff; }
+        .doc-preview-hint { font-size: 10.5px; color: rgba(255,255,255,0.38); line-height: 1.45; max-width: 52rem; }
+        .doc-preview-frame-wrap {
+          position: relative;
+          flex: 1 1 auto;
+          min-height: 88vh;
+          height: 88vh;
+          border-radius: 10px;
+          overflow: hidden;
+          border: 1px solid rgba(255,255,255,0.1);
+          background: #0c0c12;
+        }
+        .doc-preview-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
+        .doc-preview-frame-busy .doc-preview-frame { opacity: 0; pointer-events: none; }
+        .doc-preview-frame-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(12,12,18,0.92); z-index: 1; }
 
         .sidebar-empty { padding: 12px 16px; font-size: 11px; color: rgba(255,255,255,0.18); font-style: italic; }
         .sidebar-loading { padding: 12px 16px; display: flex; align-items: center; gap: 8px; font-size: 11px; color: rgba(255,255,255,0.2); }
@@ -547,7 +947,7 @@ export default function Dashboard() {
           flex-direction: column;
           gap: 12px;
           min-height: 220px;
-          overflow: auto;
+          overflow: visible;
         }
         .panel-title { font-family: 'Fraunces', serif; font-size: 14.5px; font-weight: 600; color: #ddddf0; }
         .panel-sub { font-size: 11px; color: rgba(255,255,255,0.28); margin-top: 8px; }
@@ -628,6 +1028,44 @@ export default function Dashboard() {
         }
         .upload-hint { font-size: 10.5px; color: rgba(255,255,255,0.2); text-align: center; margin-bottom: 10px; }
 
+        .improve-files-banner {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          padding: 9px 11px;
+          margin-bottom: 10px;
+          border-radius: 10px;
+          border: 1px solid rgba(99,102,241,0.35);
+          background: rgba(99,102,241,0.10);
+          font-size: 11px;
+          line-height: 1.45;
+          color: rgba(220,220,255,0.92);
+        }
+        .improve-files-banner strong { color: #e0e7ff; font-weight: 600; }
+        .improve-slot-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-bottom: 2px;
+        }
+        .improve-slot-pill {
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          padding: 3px 8px;
+          border-radius: 999px;
+          border: 1px solid rgba(99,102,241,0.45);
+          background: rgba(99,102,241,0.18);
+          color: #c7d2fe;
+          flex-shrink: 0;
+        }
+        .file-list.improve-single {
+          max-height: 120px;
+        }
+
         .radio-label { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.3); letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 6px; }
         .radio-option { display: flex; align-items: flex-start; gap: 9px; cursor: pointer; padding: 8px 10px; border-radius: 9px; border: 1px solid transparent; transition: all 0.2s; }
         .radio-option:hover { background: rgba(255,255,255,0.03); }
@@ -640,13 +1078,13 @@ export default function Dashboard() {
 
         .model-label { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.3); letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 6px; }
         .model-wrap { position: relative; }
-        .model-btn { width: 100%; height: 40px; padding: 0 12px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); font-family: 'Sora', sans-serif; font-size: 12.5px; font-weight: 500; color: #c0c0e0; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all 0.2s; }
+        .model-btn { width: 100%; height: 46px; padding: 0 12px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); font-family: 'Sora', sans-serif; font-size: 12.5px; font-weight: 500; color: #c0c0e0; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all 0.2s; }
         .model-btn:hover, .model-btn.open { border-color: rgba(99,102,241,0.4); background: rgba(99,102,241,0.06); }
         .model-left { display: flex; align-items: center; gap: 8px; }
         .model-dot { width: 7px; height: 7px; border-radius: 50%; background: linear-gradient(135deg, #6366f1, #8b5cf6); }
         .model-sub { font-size: 10.5px; color: rgba(255,255,255,0.28); font-weight: 300; }
         /* Drop-up menu so it doesn't cover the action buttons below */
-        .model-menu { position: absolute; bottom: calc(100% + 6px); left: 0; right: 0; background: rgba(22,22,32,0.98); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 4px; z-index: 80; box-shadow: 0 16px 36px rgba(0,0,0,0.5); animation: menuInUp 0.14s ease; }
+        .model-menu { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: rgba(22,22,32,0.98); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 4px; z-index: 80; box-shadow: 0 16px 36px rgba(0,0,0,0.5); animation: menuInUp 0.14s ease; }
         @keyframes menuInUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         .model-opt { padding: 8px 10px; border-radius: 7px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: background 0.14s; }
         .model-opt:hover { background: rgba(99,102,241,0.1); }
@@ -659,6 +1097,68 @@ export default function Dashboard() {
         .error-box { padding: 10px 12px; border-radius: 8px; background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.2); font-size: 12px; color: #fca5a5; }
 
         .summarize-btn { width: 100%; height: 44px; border-radius: 10px; border: none; background: linear-gradient(135deg, #5f60f0, #8b5cf6); font-family: 'Sora', sans-serif; font-size: 13.5px; font-weight: 600; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s; box-shadow: 0 4px 16px rgba(99,102,241,0.35); position: relative; overflow: hidden; margin-top: auto; }
+
+        /* ── Mode dropdown ── */
+        .mode-dropdown-wrap { display: flex; flex-direction: column; gap: 6px; }
+        .mode-dropdown-label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.35); }
+        html[data-theme="light"] .mode-dropdown-label { color: rgba(0,0,0,.4); }
+
+        /* ── Mode chooser ── */
+        .mode-chooser { display: flex; flex-direction: column; gap: 10px; flex: 1; justify-content: center; }
+        .mode-chooser-label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.35); margin-bottom: 4px; }
+        .mode-card { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,.09); background: rgba(255,255,255,.03); cursor: pointer; transition: all .18s; text-align: left; width: 100%; }
+        .mode-card:hover { border-color: rgba(99,102,241,.45); background: rgba(99,102,241,.08); transform: translateY(-1px); }
+        .mode-card-title { font-size: 13px; font-weight: 600; color: #e0e0f0; display: flex; align-items: center; gap: 7px; }
+        .mode-card-sub { font-size: 11.5px; color: rgba(255,255,255,.42); line-height: 1.45; }
+        html[data-theme="light"] .mode-chooser-label { color: rgba(0,0,0,.4); }
+        html[data-theme="light"] .mode-card { border-color: rgba(0,0,0,.08); background: rgba(0,0,0,.02); }
+        html[data-theme="light"] .mode-card:hover { border-color: rgba(99,102,241,.4); background: rgba(99,102,241,.07); }
+        html[data-theme="light"] .mode-card-title { color: #111; }
+        html[data-theme="light"] .mode-card-sub { color: rgba(0,0,0,.5); }
+
+        /* ── Improve panel (inline in panel 3) ── */
+        .improve-panel { display: flex; flex-direction: column; gap: 12px; flex: 1; overflow: visible; padding-bottom: 8px; }
+        .improve-panel.centered { align-items: center; justify-content: center; }
+        .improve-panel.centered .improve-section-head { text-align: center; }
+        .improve-controls { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
+        .improve-status { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 2px; }
+        .improve-status-sub { font-size: 11.5px; color: rgba(255,255,255,0.32); text-align: center; line-height: 1.45; }
+        .improve-status-name { font-size: 12.5px; font-weight: 700; color: rgba(220,220,255,0.95); text-align: center; }
+        .improve-back-btn { display: flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid rgba(255,255,255,.1); background: transparent; font-family: 'Sora', sans-serif; font-size: 11.5px; color: rgba(255,255,255,.45); cursor: pointer; transition: all .15s; width: fit-content; margin-bottom: 2px; }
+        .improve-back-btn:hover { border-color: rgba(255,255,255,.22); color: rgba(255,255,255,.75); }
+        .improve-section-head { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.35); margin-top: 4px; }
+        .improve-field-label { font-size: 11.5px; color: rgba(255,255,255,.5); margin-bottom: 4px; line-height: 1.4; }
+        .improve-upload-zone { width: 100%; min-height: 60px; border-radius: 10px; border: 1.5px dashed rgba(255,255,255,.15); background: rgba(255,255,255,.03); display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; font-family: 'Sora', sans-serif; font-size: 12px; color: rgba(255,255,255,.45); transition: all .18s; padding: 12px 14px; text-align: center; }
+        .improve-upload-zone:hover { border-color: rgba(99,102,241,.45); color: rgba(255,255,255,.75); background: rgba(99,102,241,.06); }
+        .improve-txt-inp { width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04); font-family: 'Sora', sans-serif; font-size: 12px; color: #dde; outline: none; transition: border-color .15s; }
+        .improve-txt-inp:focus { border-color: rgba(99,102,241,.45); }
+        .improve-textarea { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04); font-family: 'Sora', sans-serif; font-size: 12px; color: #dde; outline: none; resize: vertical; min-height: 80px; transition: border-color .15s; }
+        .improve-textarea:focus { border-color: rgba(99,102,241,.45); }
+        .improve-dropdown { width: 100%; height: 36px; padding: 0 34px 0 11px; border-radius: 8px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center; font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 500; color: #dde; cursor: pointer; outline: none; appearance: none; -webkit-appearance: none; transition: border-color .15s, box-shadow .15s; }
+        .improve-dropdown:hover { border-color: rgba(99,102,241,.4); background-color: rgba(99,102,241,.06); }
+        .improve-dropdown:focus { border-color: rgba(99,102,241,.55); box-shadow: 0 0 0 3px rgba(99,102,241,.12); }
+        .improve-dropdown option { background: #1a1a28; color: #dde; }
+        .improve-btn-row { display: flex; gap: 8px; margin-top: 4px; }
+        .improve-btn-secondary { flex: 1; height: 36px; border-radius: 9px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 500; color: rgba(255,255,255,.65); cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .improve-btn-secondary:hover:not(:disabled) { border-color: rgba(255,255,255,.22); color: rgba(255,255,255,.9); }
+        .improve-btn-secondary:disabled { opacity: .45; cursor: not-allowed; }
+        .improve-btn-primary { flex: 1; height: 36px; border-radius: 9px; border: none; background: linear-gradient(135deg,#5258ee,#8b5cf6); font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 600; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 3px 12px rgba(99,102,241,.3); transition: all .15s; }
+        .improve-btn-primary:hover:not(:disabled) { box-shadow: 0 5px 18px rgba(99,102,241,.48); transform: translateY(-1px); }
+        .improve-btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+        .improve-btn-primary.improve-btn-full { flex: 1; max-width: 100%; }
+        .improve-err { font-size: 11.5px; color: #f87171; padding: 8px 10px; border-radius: 7px; background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.2); }
+        .improve-mini-spin { width: 12px; height: 12px; border: 2px solid rgba(255,255,255,.25); border-top-color: white; border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; }
+        .improve-theme-chip { padding: 4px 9px; border-radius: 7px; font-size: 11px; cursor: pointer; transition: all .15s; font-family: 'Sora', sans-serif; }
+        html[data-theme="light"] .improve-back-btn { border-color: rgba(0,0,0,.12); color: rgba(0,0,0,.45); }
+        html[data-theme="light"] .improve-back-btn:hover { border-color: rgba(0,0,0,.25); color: rgba(0,0,0,.75); }
+        html[data-theme="light"] .improve-section-head { color: rgba(0,0,0,.4); }
+        html[data-theme="light"] .improve-field-label { color: rgba(0,0,0,.5); }
+        html[data-theme="light"] .improve-upload-zone { border-color: rgba(0,0,0,.15); color: rgba(0,0,0,.45); background: rgba(0,0,0,.02); }
+        html[data-theme="light"] .improve-upload-zone:hover { border-color: rgba(99,102,241,.4); background: rgba(99,102,241,.06); color: rgba(0,0,0,.7); }
+        html[data-theme="light"] .improve-txt-inp, html[data-theme="light"] .improve-textarea { border-color: rgba(0,0,0,.12); background: rgba(0,0,0,.02); color: #111; }
+        html[data-theme="light"] .improve-dropdown { border-color: rgba(0,0,0,.12); background-color: rgba(0,0,0,.02); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%23555' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); color: #111; }
+        html[data-theme="light"] .improve-dropdown option { background: #fff; color: #111; }
+        html[data-theme="light"] .improve-btn-secondary { border-color: rgba(0,0,0,.12); color: rgba(0,0,0,.65); background: rgba(0,0,0,.03); }
         .summarize-btn::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 55%); opacity: 0; transition: opacity 0.2s; }
         .summarize-btn:hover:not(:disabled)::after { opacity: 1; }
         .summarize-btn:hover:not(:disabled) { transform: translateY(-1.5px); box-shadow: 0 8px 22px rgba(99,102,241,0.48); }
@@ -674,7 +1174,9 @@ export default function Dashboard() {
 
         /* Use-existing modal */
         .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
+        .modal-backdrop.doc-preview-backdrop { padding: 6px; align-items: stretch; justify-content: center; }
         .modal-box { background: rgba(22,22,32,0.98); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 24px; max-width: 400px; width: 100%; box-shadow: 0 24px 48px rgba(0,0,0,0.5); }
+        .modal-box.doc-preview-panel { max-width: min(1800px, 98vw); width: 98vw; padding: 12px; }
         .modal-title { font-size: 15px; font-weight: 600; color: #e0e0f0; margin-bottom: 8px; }
         .modal-desc { font-size: 12.5px; color: rgba(255,255,255,0.5); margin-bottom: 18px; line-height: 1.5; }
         .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
@@ -713,10 +1215,6 @@ export default function Dashboard() {
           .app--sidebar-open .sidebar {
             transform: translateX(0);
             box-shadow: 0 18px 40px rgba(0,0,0,0.7);
-          }
-
-          .splitter-v {
-            display: none;
           }
 
           .main {
@@ -785,10 +1283,6 @@ export default function Dashboard() {
         html[data-theme="light"] .sidebar::-webkit-scrollbar-thumb {
           background: rgba(0,0,0,0.12);
         }
-        html[data-theme="light"] .splitter-v::after { background: rgba(0,0,0,0.10); }
-        html[data-theme="light"] .splitter-v:hover::after { background: rgba(99,102,241,0.35); }
-        html[data-theme="light"] .splitter-v.active::after { background: rgba(99,102,241,0.55); }
-
         html[data-theme="light"] .sidebar-title { color: rgba(0,0,0,0.45); }
         html[data-theme="light"] .sidebar-chev { color: rgba(0,0,0,0.35); }
         html[data-theme="light"] .sidebar-divider { background: rgba(0,0,0,0.08); }
@@ -812,6 +1306,18 @@ export default function Dashboard() {
 
         html[data-theme="light"] .panel-title { color: #111827; }
         html[data-theme="light"] .panel-sub { color: rgba(0,0,0,0.52); }
+
+        html[data-theme="light"] .improve-files-banner {
+          border-color: rgba(79,70,229,0.35);
+          background: rgba(79,70,229,0.08);
+          color: rgba(30,27,75,0.9);
+        }
+        html[data-theme="light"] .improve-files-banner strong { color: #3730a3; }
+        html[data-theme="light"] .improve-slot-pill {
+          border-color: rgba(79,70,229,0.35);
+          background: rgba(79,70,229,0.12);
+          color: #4338ca;
+        }
 
         html[data-theme="light"] .drop-zone-text { color: rgba(0,0,0,0.45); }
         html[data-theme="light"] .drop-zone-link { color: #4f46e5; }
@@ -913,6 +1419,26 @@ export default function Dashboard() {
           border-color: rgba(0,0,0,0.18);
           background: rgba(0,0,0,0.06);
         }
+        html[data-theme="light"] .doc-preview-title { color: #111827; }
+        html[data-theme="light"] .doc-preview-meta { color: rgba(0,0,0,0.45); }
+        html[data-theme="light"] .doc-preview-hint { color: rgba(0,0,0,0.5); }
+        html[data-theme="light"] .doc-preview-frame-wrap { border-color: rgba(0,0,0,0.12); background: #f3f4f6; }
+        html[data-theme="light"] .doc-preview-open-tab {
+          border-color: rgba(99,102,241,0.5);
+          background: rgba(99,102,241,0.12);
+          color: #4338ca;
+        }
+        html[data-theme="light"] .doc-preview-open-tab:hover { background: rgba(99,102,241,0.2); color: #312e81; }
+        html[data-theme="light"] .prev-peek {
+          border-color: rgba(0,0,0,0.12);
+          background: rgba(0,0,0,0.04);
+          color: rgba(0,0,0,0.55);
+        }
+        html[data-theme="light"] .prev-peek:hover {
+          border-color: rgba(99,102,241,0.45);
+          background: rgba(99,102,241,0.10);
+          color: #4338ca;
+        }
 
         html[data-theme="light"] .sidebar-toggle {
           border: 1px solid rgba(0,0,0,0.14);
@@ -922,7 +1448,7 @@ export default function Dashboard() {
         html[data-theme="light"] .sidebar-toggle span { color: rgba(0,0,0,0.55); }
       `}</style>
 
-      <div className={`app ${splitterDragging ? "no-select" : ""} ${sidebarOpen ? "app--sidebar-open" : ""}`}>
+      <div className={`app ${sidebarOpen ? "app--sidebar-open" : ""}`}>
         <div className="body">
 
           <button
@@ -1031,6 +1557,15 @@ export default function Dashboard() {
                     <div className="prev-actions">
                       <button
                         type="button"
+                        className="prev-peek"
+                        title="Preview file"
+                        disabled={bulkRemoving}
+                        onClick={(e) => openDocFilePreview(doc, e)}
+                      >
+                        ⧉
+                      </button>
+                      <button
+                        type="button"
                         className="prev-remove"
                         title="Remove from server"
                         disabled={isRemoving || bulkRemoving}
@@ -1038,7 +1573,7 @@ export default function Dashboard() {
                       >
                         {isRemoving ? <span className="mini-spinner" /> : "×"}
                       </button>
-                      <div className={`prev-add ${isAdded ? "added" : ""}`} onClick={() => addPrevFile(doc)}>{isAdded ? "✓" : "+"}</div>
+                      <div className={`prev-add ${isAdded ? "added" : ""}`} onClick={(e) => { e.stopPropagation(); addPrevFile(doc); }}>{isAdded ? "✓" : "+"}</div>
                     </div>
                   </div>
                 );
@@ -1048,17 +1583,18 @@ export default function Dashboard() {
           </aside>
 
           <div
-            className={`splitter-v ${activeSplitter === "sidebar" ? "active" : ""}`}
-            onMouseDown={startDrag("sidebar")}
+            className="splitter-v sidebar-splitter-desktop"
             role="separator"
+            aria-orientation="vertical"
             aria-label="Resize sidebar"
+            onMouseDown={onSidebarResizeStart}
           />
 
           {/* ── MAIN GRID ── */}
           <main
             className="main"
             style={{
-              gridTemplateColumns: `minmax(320px, 1fr) minmax(320px, 1fr) 8px ${rightPanelWidth}px`,
+              gridTemplateColumns: "minmax(320px, 1fr) minmax(320px, 1fr) 300px",
             }}
           >
 
@@ -1066,12 +1602,38 @@ export default function Dashboard() {
             <div className="panel"
             >
               <div>
-                <div className="panel-title">Uploaded / Selected Files</div>
-                <div className="panel-sub">{selectedFiles.length} document{selectedFiles.length !== 1 ? "s" : ""} selected</div>
+                <div className="panel-title">
+                  {dashMode === "improve"
+                    ? "Presentation for improve"
+                    : "Uploaded / Selected Files"}
+                </div>
+                <div className="improve-slot-row">
+                  <div className="panel-sub">
+                    {dashMode === "improve"
+                      ? selectedFiles.length > 0
+                        ? "1 file loaded — remove it to pick another or add a new upload"
+                        : "Add one .pptx or .pdf — only a single file is used in Improve mode"
+                      : `${selectedFiles.length} document${selectedFiles.length !== 1 ? "s" : ""} selected`}
+                  </div>
+                  {dashMode === "improve" && (
+                    <span className="improve-slot-pill" title="Improve mode accepts one presentation only">
+                      {selectedFiles.length >= 1 ? "1 / 1 slot" : "0 / 1 slot"}
+                    </span>
+                  )}
+                </div>
               </div>
 
+              {dashMode === "improve" && (
+                <div className="improve-files-banner" role="status">
+                  <span aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }}>ⓘ</span>
+                  <span>
+                    <strong>Improve mode:</strong> choose exactly one .pptx or .pdf. Accepts 1 file only.
+                  </span>
+                </div>
+              )}
+
               {selectedFiles.length > 0 ? (
-                <div className="file-list">
+                <div className={`file-list${dashMode === "improve" ? " improve-single" : ""}`}>
                   {selectedFiles.map(f => (
                     <div className="file-item" key={f.name}>
                       <FileIcon type={f.type} />
@@ -1089,16 +1651,61 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="empty-state">
-                  <FileIcon type="PDF" />
-                  <span>No files selected</span>
-                  <span>Use the upload button on the right, or pick from sidebar</span>
+                  <FileIcon type={dashMode === "improve" ? "PPTX" : "PDF"} />
+                  <span>{dashMode === "improve" ? "No presentation selected" : "No files selected"}</span>
+                  <span>
+                    {dashMode === "improve"
+                      ? "Upload one .pptx or .pdf below (only one file allowed)"
+                      : "Click upload below or pick from the sidebar"}
+                  </span>
                 </div>
               )}
+
+              {(dashMode !== "improve" || selectedFiles.length === 0) && (
+                <>
+                  <button className="upload-btn" onClick={() => fileInputRef.current?.click()}>
+                    <UploadIcon />{" "}
+                    {dashMode === "improve" ? "Upload .pptx / .pdf" : "Upload Documents"}
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple={dashMode !== "improve"}
+                    accept={dashMode === "improve" ? IMPROVE_ACCEPT : ACCEPTED}
+                    style={{ display: "none" }}
+                    onChange={(e) => {
+                      addLocalFiles(e.target.files);
+                      e.target.value = "";
+                    }}
+                  />
+                </>
+              )}
+              <div className="upload-hint">
+                {dashMode === "improve"
+                  ? selectedFiles.length > 0
+                    ? "Remove the file above to upload a different one or pick from Previous Uploads."
+                    : "(or pick one .pptx or .pdf from Previous Uploads)"
+                  : "(or select from sidebar)"}
+              </div>
             </div>
 
             {/* Panel 2 — Prompt / Output */}
             <div className="panel">
-              {summaryOutput ? (
+              {dashMode === "improve" ? (
+                <>
+                  <div>
+                    <div className="panel-title">What should change?</div>
+                    <div className="panel-sub">Describe design/content improvements for the lecture slides</div>
+                  </div>
+                  <textarea
+                    className="prompt-area"
+                    placeholder={"e.g. Switch to a green theme and add images. Expand speaker notes, keep bullets concise. Tighten bullets for clarity."}
+                    value={improveInstructions}
+                    onChange={(e) => setImproveInstructions(e.target.value.slice(0, 500))}
+                  />
+                  <div className="prompt-count">{improveInstructions.length} / 500</div>
+                </>
+              ) : summaryOutput ? (
                 <>
                   <div className="output-header">
                     <div>
@@ -1112,7 +1719,7 @@ export default function Dashboard() {
                     </div>
                     <div style={{ display: "flex", gap: 6 }}>
                       <button className={`copy-btn ${copied ? "copied" : ""}`} onClick={handleCopy}>
-                        <CopyIcon /> {copied ? "Copied!" : "Copy"}
+                        <CopyIcon /> {copied ? "copied" : "Copy"}
                       </button>
                       <button className="copy-btn" onClick={() => setSummaryOutput(null)}>New</button>
                     </div>
@@ -1143,120 +1750,324 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div
-              className={`splitter-v ${activeSplitter === "right" ? "active" : ""}`}
-              onMouseDown={startDrag("right")}
-              role="separator"
-              aria-label="Resize right panel"
-            />
-
             {/* Panel 3 — Controls */}
             <div className="panel" style={{ minHeight: 340 }}>
-              <button className="upload-btn" onClick={() => fileInputRef.current?.click()}>
-                <UploadIcon /> Upload Documents
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept={ACCEPTED}
-                style={{ display: "none" }}
-                onChange={(e) => {
-                  addLocalFiles(e.target.files);
-                  e.target.value = "";
-                }}
-              />
-              <div className="upload-hint">(or select from sidebar)</div>
 
-              <div>
-                <div className="radio-label">Summarize for</div>
-                {[
-                  { id: "lecturer", title: "Lecturer", sub: "Detailed & comprehensive" },
-                  { id: "student",  title: "Student",  sub: "Simplified, key points" },
-                ].map(opt => (
-                  <div key={opt.id} className={`radio-option ${summarizeFor === opt.id ? "selected" : ""}`}
-                    onClick={() => setSummarizeFor(opt.id)}>
-                    <div className={`radio-dot ${summarizeFor === opt.id ? "on" : ""}`} />
-                    <div>
-                      <div className="radio-title">{opt.title}</div>
-                      <div className="radio-sub">{opt.sub}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div>
-                <div className="model-label">Provider</div>
+              {/* ── Mode dropdown ── */}
+              <div className="mode-dropdown-wrap">
+                <div className="mode-dropdown-label">What would you like to do?</div>
                 <div className="model-wrap">
-                  <button className={`model-btn ${modelOpen ? "open" : ""}`}
-                    onClick={() => { setModelOpen((v) => !v); setVariantOpen(false); }}
-                    onBlur={() => setTimeout(() => setModelOpen(false), 150)}>
+                  <button
+                    className={`model-btn ${modeOpen ? "open" : ""}`}
+                    onClick={() => setModeOpen((v) => !v)}
+                    onBlur={() => setTimeout(() => setModeOpen(false), 150)}
+                  >
                     <div className="model-left">
                       <div className="model-dot" />
-                      <span>{selectedProvider?.label ?? model}</span>
+                      <span>{dashMode === "improve" ? "Improve Lecture Slides Design/Content" : "Summarize Notes"}</span>
                     </div>
                     <ChevronDownIcon />
                   </button>
-                  {modelOpen && (
+                  {modeOpen && (
                     <div className="model-menu">
-                      {MODEL_PROVIDERS.map((m) => (
-                        <div key={m.id} className={`model-opt ${model === m.id ? "on" : ""}`}
-                          onMouseDown={() => { setModelAndVariant(m.id); setModelOpen(false); }}>
-                          <div className="model-opt-name">{m.label}</div>
-                          {model === m.id && <span className="model-check">✓</span>}
+                      {[
+                        { value: "summarize", label: "Summarize Notes" },
+                        { value: "improve",   label: "Improve Lecture Slides Design/Content" },
+                      ].map((opt) => (
+                        <div
+                          key={opt.value}
+                          className={`model-opt ${(dashMode ?? "summarize") === opt.value ? "on" : ""}`}
+                          onMouseDown={() => { setDashMode(opt.value); setModeOpen(false); }}
+                        >
+                          <div className="model-opt-name">{opt.label}</div>
+                          {(dashMode ?? "summarize") === opt.value && <span className="model-check">✓</span>}
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
               </div>
-              <div>
-                <div className="model-label">Model version</div>
-                <div className="model-wrap">
-                  <button className={`model-btn ${variantOpen ? "open" : ""}`}
-                    onClick={() => { setVariantOpen((v) => !v); setModelOpen(false); }}
-                    onBlur={() => setTimeout(() => setVariantOpen(false), 150)}>
-                    <div className="model-left">
-                      <span>{selectedVariant?.label ?? modelVariant}</span>
+
+              {/* ── Summarize mode ── */}
+              {(dashMode === null || dashMode === "summarize") && (<>
+                <div>
+                  <div className="radio-label">Summarize for</div>
+                  {[
+                    { id: "lecturer", title: "Lecturer", sub: "Detailed & comprehensive" },
+                    { id: "student",  title: "Student",  sub: "Simplified, key points" },
+                  ].map(opt => (
+                    <div key={opt.id} className={`radio-option ${summarizeFor === opt.id ? "selected" : ""}`}
+                      onClick={() => setSummarizeFor(opt.id)}>
+                      <div className={`radio-dot ${summarizeFor === opt.id ? "on" : ""}`} />
+                      <div>
+                        <div className="radio-title">{opt.title}</div>
+                        <div className="radio-sub">{opt.sub}</div>
+                      </div>
                     </div>
-                    <ChevronDownIcon />
-                  </button>
-                  {variantOpen && variants.length > 0 && (
-                    <div className="model-menu">
-                      {variants.map((v) => (
-                        <div key={v.id} className={`model-opt ${modelVariant === v.id ? "on" : ""}`}
-                          onMouseDown={() => { setModelVariant(v.id); setVariantOpen(false); }}>
-                          <div>
-                            <div className="model-opt-name">{v.label}</div>
-                            {v.desc && <div className="model-opt-desc">{v.desc}</div>}
+                  ))}
+                </div>
+
+                <div>
+                  <div className="model-label">Provider</div>
+                  <div className="model-wrap">
+                    <button className={`model-btn ${modelOpen ? "open" : ""}`}
+                      onClick={() => { setModelOpen((v) => !v); setVariantOpen(false); }}
+                      onBlur={() => setTimeout(() => setModelOpen(false), 150)}>
+                      <div className="model-left">
+                        <div className="model-dot" />
+                        <span>{selectedProvider?.label ?? model}</span>
+                      </div>
+                      <ChevronDownIcon />
+                    </button>
+                    {modelOpen && (
+                      <div className="model-menu">
+                        {MODEL_PROVIDERS.map((m) => (
+                          <div key={m.id} className={`model-opt ${model === m.id ? "on" : ""}`}
+                            onMouseDown={() => { setModelAndVariant(m.id); setModelOpen(false); }}>
+                            <div className="model-opt-name">{m.label}</div>
+                            {model === m.id && <span className="model-check">✓</span>}
                           </div>
-                          {modelVariant === v.id && <span className="model-check">✓</span>}
-                        </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <div className="model-label">Model version</div>
+                  <div className="model-wrap">
+                    <button className={`model-btn ${variantOpen ? "open" : ""}`}
+                      onClick={() => { setVariantOpen((v) => !v); setModelOpen(false); }}
+                      onBlur={() => setTimeout(() => setVariantOpen(false), 150)}>
+                      <div className="model-left">
+                        <span>{selectedVariant?.label ?? modelVariant}</span>
+                      </div>
+                      <ChevronDownIcon />
+                    </button>
+                    {variantOpen && variants.length > 0 && (
+                      <div className="model-menu">
+                        {variants.map((v) => (
+                          <div key={v.id} className={`model-opt ${modelVariant === v.id ? "on" : ""}`}
+                            onMouseDown={() => { setModelVariant(v.id); setVariantOpen(false); }}>
+                            <div>
+                              <div className="model-opt-name">{v.label}</div>
+                              {v.desc && <div className="model-opt-desc">{v.desc}</div>}
+                            </div>
+                            {modelVariant === v.id && <span className="model-check">✓</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {error && <div className="error-box">{error}</div>}
+
+                <button
+                  className="summarize-btn"
+                  onClick={handleSummarize}
+                  disabled={loading || uploading || selectedFiles.length === 0}
+                >
+                  {(loading || uploading)
+                    ? <><div className="spinner" />{uploading ? "Uploading..." : "Summarizing..."}</>
+                    : <><SparkleIcon /> Summarize</>
+                  }
+                </button>
+              </>)}
+
+              {/* ── Improve mode ── */}
+              {dashMode === "improve" && (
+                <div className="improve-panel centered">
+                  <div className="improve-controls">
+                
+
+                  <div className="improve-section-head">Detail Level</div>
+                  <select
+                    className="improve-dropdown"
+                    value={improveDetailLevel}
+                    onChange={(e) => setImproveDetailLevel(e.target.value)}
+                    style={{ width: "100%" }}
+                  >
+                    <option value="concise">Concise</option>
+                    <option value="lecture">Lecture (default)</option>
+                    <option value="deep">Deep (lecture+)</option>
+                  </select>
+
+                  <div className="improve-section-head">Find a Design Template <span style={{ fontWeight: 400, textTransform: "none", fontSize: 10 }}>(optional)</span></div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input
+                      className="improve-txt-inp"
+                      placeholder="e.g. modern dark, minimal blue…"
+                      value={themeQuery}
+                      onChange={(e) => setThemeQuery(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleThemeSearch()}
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      className="improve-btn-secondary"
+                      style={{ flex: "none", width: 60 }}
+                      disabled={themeSearchLoading || !themeQuery.trim()}
+                      onClick={() => void handleThemeSearch()}
+                    >
+                      {themeSearchLoading ? <span className="improve-mini-spin" /> : "Search"}
+                    </button>
+                  </div>
+                  {themeSearchErr && <div className="improve-err">{themeSearchErr}</div>}
+                  {themeResults.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {themeResults.map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          className="improve-theme-chip"
+                          style={{
+                            border: `1px solid ${selectedThemeId === t.id ? "rgba(99,102,241,.7)" : "rgba(255,255,255,.12)"}`,
+                            background: selectedThemeId === t.id ? "rgba(99,102,241,.2)" : "rgba(255,255,255,.04)",
+                            color: selectedThemeId === t.id ? "#c7d2fe" : "rgba(255,255,255,.6)",
+                          }}
+                          onClick={async () => {
+                            setSelectedThemeId(t.id);
+                            if (t._templateSpec) { setSelectedTemplateSpec(t._templateSpec); return; }
+                            setThemeSearchLoading(true);
+                            try {
+                              const baseQ = (themeResultsQuery || themeQuery).trim() || t.name;
+                              const params = new URLSearchParams({ q: baseQ, model: improveAiModel, themeId: String(t.id), themeName: t.name || "" });
+                              const res = await fetch(`/api/improve-ppt/theme-search?${params.toString()}`);
+                              const data = await res.json().catch(() => ({}));
+                              if (data.templateSpec) { t._templateSpec = data.templateSpec; setSelectedTemplateSpec(data.templateSpec); }
+                            } catch (e) { setThemeSearchErr(e?.message || String(e)); }
+                            finally { setThemeSearchLoading(false); }
+                          }}
+                        >{t.name}</button>
                       ))}
                     </div>
                   )}
+                  {selectedTemplateSpec && (
+                    <div style={{ fontSize: 11, color: "rgba(165,180,252,.9)" }}>
+                      ✓ Using: <strong>{selectedTemplateSpec._themeName}</strong> — {selectedTemplateSpec._summary}
+                    </div>
+                  )}
+
+                  <div className="improve-section-head">AI Model</div>
+                  <div className="model-wrap">
+                    <button
+                      className={`model-btn ${improveModelOpen ? "open" : ""}`}
+                      onClick={() => setImproveModelOpen((v) => !v)}
+                      onBlur={() => setTimeout(() => setImproveModelOpen(false), 150)}
+                    >
+                      <div className="model-left">
+                        <div className="model-dot" />
+                        <span>{improveAiModel}</span>
+                      </div>
+                      <ChevronDownIcon />
+                    </button>
+                    {improveModelOpen && (
+                      <div className="model-menu">
+                        {["ChatGPT", "DeepSeek", "Gemini"].map((opt) => (
+                          <div
+                            key={opt}
+                            className={`model-opt ${improveAiModel === opt ? "on" : ""}`}
+                            onMouseDown={() => { setImproveAiModel(opt); setImproveModelOpen(false); }}
+                          >
+                            <div className="model-opt-name">{opt}</div>
+                            {improveAiModel === opt && <span className="model-check">✓</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <label style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer", fontSize: 11.5, color: "rgba(255,255,255,.55)" }}
+                    onClick={() => setAdditiveImprove((v) => !v)}>
+                    <div style={{ width: 15, height: 15, borderRadius: 4, border: `1.5px solid ${additiveImprove ? "#818cf8" : "rgba(255,255,255,.2)"}`, background: additiveImprove ? "rgba(99,102,241,.3)" : "transparent", flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }}>
+                      {additiveImprove && "✓"}
+                    </div>
+                    Improve in place (keep original wording unless you ask otherwise)
+                  </label>
+
+                  {planAdjustments.length > 0 && (
+                    <div style={{ fontSize: 11, color: "rgba(165,180,252,.85)", background: "rgba(99,102,241,.06)", borderRadius: 8, padding: "8px 10px", border: "1px solid rgba(99,102,241,.15)" }}>
+                      {planAdjustments.length} planned adjustment{planAdjustments.length !== 1 ? "s" : ""}
+                    </div>
+                  )}
+                  {planError && <div className="improve-err">{planError}</div>}
+                  {improveErr && <div className="improve-err">{improveErr}</div>}
+
+                  <div className="improve-btn-row">
+                    <button
+                      className="improve-btn-primary improve-btn-full"
+                      onClick={handleImproveGenerate}
+                      disabled={improveGenLoading || parseLoading || !parsedSlides?.length || !improveInstructions.trim()}
+                    >
+                      {improveGenLoading ? <span className="improve-mini-spin" /> : "✦"} Build PPTX
+                    </button>
+                  </div>
+                  </div>
                 </div>
-              </div>
-
-              {error && <div className="error-box">{error}</div>}
-
-              <button
-                className="summarize-btn"
-                onClick={handleSummarize}
-                disabled={loading || uploading || selectedFiles.length === 0}
-              >
-                {(loading || uploading)
-                  ? <><div className="spinner" />{uploading ? "Uploading..." : "Summarizing..."}</>
-                  : <><SparkleIcon /> Summarize</>
-                }
-              </button>
+              )}
             </div>
           </main>
         </div>
       </div>
 
-      {useExistingDialog && (
-        <div className="modal-backdrop" onClick={() => setUseExistingDialog(null)}>
+      {docPreviewOpen && docPreviewDoc && (
+        <div className="modal-backdrop doc-preview-backdrop" onClick={closeDocPreview}>
+          <div className="modal-box doc-preview-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="doc-preview-head">
+              <div>
+                <div className="doc-preview-title">{docPreviewDoc.name}</div>
+                <div className="doc-preview-meta">
+                  {docPreviewDoc.type} · {formatBytes(docPreviewDoc.size)}
+                </div>
+              </div>
+              <button type="button" className="file-remove" aria-label="Close preview" onClick={closeDocPreview}>
+                <CloseIcon />
+              </button>
+            </div>
+            <div className="doc-preview-toolbar">
+              <a
+                className="doc-preview-open-tab"
+                href={docPreviewTabHref || `/api/documents/${docPreviewDoc.id}/view`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open in new tab
+              </a>
+            </div>
+            {docPreviewSetupErr ? (
+              <div className="improve-err" style={{ margin: 0 }}>{docPreviewSetupErr}</div>
+            ) : (
+              <p className="doc-preview-hint">
+                PDFs and images use the built-in viewer below. PowerPoint, Word, and Excel use Microsoft&apos;s viewer (needs a <strong>public https</strong> URL — localhost may fail). Use <strong>Open in new tab</strong> for a full-page view.
+              </p>
+            )}
+            <div
+              className={`doc-preview-frame-wrap${
+                docPreviewTokenLoading || (docPreviewSrc && docPreviewIframeLoading) ? " doc-preview-frame-busy" : ""
+              }`}
+            >
+              {(docPreviewTokenLoading || (docPreviewSrc && docPreviewIframeLoading)) && (
+                <div className="doc-preview-frame-overlay">
+                  <div className="sidebar-loading" style={{ padding: 0 }}>
+                    <div className="mini-spinner" />{" "}
+                    {docPreviewTokenLoading ? "Preparing preview…" : "Loading preview…"}
+                  </div>
+                </div>
+              )}
+              {docPreviewSrc && !docPreviewSetupErr ? (
+                <iframe
+                  className="doc-preview-frame"
+                  title={`Preview: ${docPreviewDoc.name}`}
+                  src={docPreviewSrc}
+                  onLoad={() => setDocPreviewIframeLoading(false)}
+                />
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {useExistingDialog && (        <div className="modal-backdrop" onClick={() => setUseExistingDialog(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>
             <div className="modal-title">Files already on server</div>
             <div className="modal-desc">

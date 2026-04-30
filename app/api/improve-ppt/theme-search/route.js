@@ -6,6 +6,9 @@ import { uiModelToKey } from "@/lib/improvePptModel";
 
 /**
  * GET /api/improve-ppt/theme-search?q=modern+dark+tech&model=Gemini
+ * Optional: themeId (+ themeName fallback) — pick that row from the search
+ * results for vision extraction instead of always using the first hit.
+ * (Fixes UI mismatch when the user clicks a non-top pill.)
  *
  * 1. Calls the 2slides theme search API (free, just needs TWOSLIDES_API_KEY)
  *    to find templates matching the user's query.
@@ -311,6 +314,8 @@ export async function GET(req) {
     const modelLabel = String(searchParams.get("model") ?? "Gemini");
     const limitRaw = parseInt(searchParams.get("limit") ?? "6", 10);
     const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 20) : 6;
+    const themeId = String(searchParams.get("themeId") ?? "").trim();
+    const themeName = String(searchParams.get("themeName") ?? "").trim();
 
     if (!query) {
       return NextResponse.json(
@@ -343,16 +348,32 @@ export async function GET(req) {
       });
     }
 
-    // 2. Pick the top result and fetch its preview image
-    const topTheme = themes[0];
-    const previewDataUrl = await fetchPreviewAsBase64(topTheme.previewImageUrl);
+    // 2. Choose which theme drives vision extraction (default: first hit)
+    let chosenTheme = themes[0];
+    if (themeId) {
+      const inList = themes.find((x) => String(x.id) === themeId);
+      if (inList) {
+        chosenTheme = inList;
+      } else if (themeName) {
+        try {
+          const wider = Math.max(limit, 15);
+          const alt = await searchTwoSlidesThemes(themeName, wider);
+          const byId = alt.find((x) => String(x.id) === themeId);
+          if (byId) chosenTheme = byId;
+        } catch {
+          /* keep themes[0] */
+        }
+      }
+    }
+
+    const previewDataUrl = await fetchPreviewAsBase64(chosenTheme.previewImageUrl);
 
     // 3. Ask LLM (vision) to extract the style spec from the preview
     let styleSpec = null;
     let templateSpec = null;
     try {
-      styleSpec = await extractStyleSpecFromPreview(modelKey, topTheme, previewDataUrl);
-      templateSpec = buildTemplateSpecFromStyle(styleSpec, topTheme);
+      styleSpec = await extractStyleSpecFromPreview(modelKey, chosenTheme, previewDataUrl);
+      templateSpec = buildTemplateSpecFromStyle(styleSpec, chosenTheme);
     } catch (e) {
       console.warn("Style extraction failed (non-fatal):", e?.message);
       // templateSpec stays null — generate route will fall back to built-ins
@@ -368,13 +389,13 @@ export async function GET(req) {
         themeURL: t.themeURL,
         previewImageUrl: t.previewImageUrl,
       })),
-      // The best-matched theme
+      // Theme used for templateSpec (matches chosen pill when themeId is passed)
       selectedTheme: {
-        id: topTheme.id,
-        name: topTheme.name,
-        description: topTheme.description,
-        themeURL: topTheme.themeURL,
-        previewImageUrl: topTheme.previewImageUrl,
+        id: chosenTheme.id,
+        name: chosenTheme.name,
+        description: chosenTheme.description,
+        themeURL: chosenTheme.themeURL,
+        previewImageUrl: chosenTheme.previewImageUrl,
       },
       // The extracted style spec — pass this as `templateSpec` in the generate request
       styleSpec,

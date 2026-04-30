@@ -43,7 +43,9 @@ function safeParseSuggestions(raw, max) {
   const seen = new Set();
   const out = [];
   for (const item of arr) {
-    const s = String(item || "").trim().replace(/\s+/g, " ");
+    const s = String(item || "")
+      .trim()
+      .replace(/\s+/g, " ");
     if (!s || s.length > 220) continue;
     const key = s.toLowerCase();
     if (seen.has(key)) continue;
@@ -93,19 +95,22 @@ export async function POST(req, ctx) {
     const title = String(summary.title || "Untitled");
 
     const prompt = `You generate short, useful follow-up chat questions for a student reviewing a summary.
-Return ONLY a JSON array of ${max} strings.
-Rules:
-- Each question must be specific to the summary topic.
-- Keep each under 120 characters.
-- No numbering, no markdown, no explanations.
-- Avoid duplicates and vague prompts.
+                    Return ONLY a JSON array of ${max} strings.
+                    Rules:
+                    - Each question must be specific to the summary topic.
+                    - Keep each under 120 characters.
+                    - No numbering, no markdown, no explanations.
+                    - Avoid duplicates and vague prompts.
 
-Summary title: ${title}
-Summary content:
-${context}`;
+                    Summary title: ${title}
+                    Summary content:
+                    ${context}`;
 
     const reply = await runChat(model, variant, prompt, [
-      { role: "user", content: "Generate high-quality follow-up question suggestions now." },
+      {
+        role: "user",
+        content: "Generate high-quality follow-up question suggestions now.",
+      },
     ]);
 
     const aiSuggestions = safeParseSuggestions(reply, max);
@@ -113,7 +118,9 @@ ${context}`;
     return NextResponse.json({ suggestions });
   } catch (err) {
     console.error("chat suggestions error:", err);
-    return NextResponse.json({ error: "Failed to generate suggestions" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to generate suggestions" },
+      { status: 500 },
+    );
   }
 }
-

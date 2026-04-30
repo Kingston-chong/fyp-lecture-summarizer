@@ -6,7 +6,6 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
-  ChevronDownIcon,
   EyeIcon,
   EyeOffIcon,
   GoogleIcon,
@@ -14,6 +13,7 @@ import {
 } from "@/app/components/icons";
 import ThemeToggle from "@/app/components/ThemeToggle";
 import AppHeader from "@/app/components/AppHeader";
+import AuthPageChrome from "@/app/components/AuthPageChrome";
 
 export default function Slide2NotesLogin() {
   const router = useRouter();
@@ -56,7 +56,8 @@ export default function Slide2NotesLogin() {
         return;
       }
 
-      router.push(result?.url || "/dashboard");
+      // Force consistent post-login landing page.
+      router.replace("/dashboard");
     } catch (err) {
       console.error(err);
       setError("Something went wrong. Please try again.");
@@ -68,145 +69,6 @@ export default function Slide2NotesLogin() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap');
-
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body { background: var(--app-bg); }
-
-        .s2n {
-          min-height: 100vh;
-          background: var(--app-bg);
-          font-family: 'Sora', sans-serif;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .blob1 {
-          position: fixed;
-          top: -15%;
-          right: -8%;
-          width: 650px;
-          height: 650px;
-          background: radial-gradient(circle, rgba(99,102,241,0.16) 0%, transparent 65%);
-          pointer-events: none;
-          z-index: 0;
-        }
-        .blob2 {
-          position: fixed;
-          bottom: -10%;
-          left: -5%;
-          width: 520px;
-          height: 520px;
-          background: radial-gradient(circle, rgba(20,184,166,0.1) 0%, transparent 65%);
-          pointer-events: none;
-          z-index: 0;
-        }
-        .blob3 {
-          position: fixed;
-          top: 45%;
-          left: 38%;
-          width: 380px;
-          height: 380px;
-          background: radial-gradient(circle, rgba(168,85,247,0.06) 0%, transparent 65%);
-          pointer-events: none;
-          z-index: 0;
-        }
-
-        /* NAVBAR */
-        .navbar {
-          position: relative;
-          z-index: 10;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 36px;
-          height: 60px;
-          background: var(--app-nav-bg);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
-          border-bottom: 1px solid var(--app-border);
-        }
-        .navbar-logo {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          color: #e8e8f0;
-          text-decoration: none;
-        }
-        .logo-badge {
-          width: 34px;
-          height: 34px;
-          background: linear-gradient(135deg, #6366f1, #8b5cf6);
-          border-radius: 9px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          box-shadow: 0 4px 14px rgba(99,102,241,0.45);
-          flex-shrink: 0;
-        }
-        .logo-text {
-          font-family: 'Fraunces', serif;
-          font-size: 17px;
-          font-weight: 600;
-          background: var(--app-brand-gradient);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          letter-spacing: -0.02em;
-        }
-        .navbar-user-btn {
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          border: 1px solid rgba(255,255,255,0.1);
-          background: rgba(255,255,255,0.04);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          color: #8080a0;
-          transition: all 0.2s;
-        }
-        .navbar-user-btn:hover {
-          border-color: rgba(99,102,241,0.45);
-          background: rgba(99,102,241,0.1);
-          color: #a5b4fc;
-        }
-
-        /* SUBNAV */
-        .subnav {
-          position: relative;
-          z-index: 10;
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          padding: 0 36px;
-          height: 42px;
-          background: var(--app-subnav-bg);
-          backdrop-filter: blur(8px);
-          -webkit-backdrop-filter: blur(8px);
-          border-bottom: 1px solid var(--app-border);
-        }
-        .subnav-item {
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          padding: 0 16px;
-          height: 42px;
-          font-size: 12.5px;
-          font-family: 'Sora', sans-serif;
-          font-weight: 400;
-          color: var(--app-subnav-item);
-          cursor: pointer;
-          border: none;
-          background: none;
-          transition: color 0.2s;
-          letter-spacing: 0.025em;
-        }
-        .subnav-item:hover { color: var(--app-subnav-item-hover); }
-
         /* MAIN */
         .main {
           position: relative;
@@ -523,34 +385,43 @@ export default function Slide2NotesLogin() {
         }
       `}</style>
 
-      <div className="s2n">
-        <div className="blob1" />
-        <div className="blob2" />
-        <div className="blob3" />
-
-        {/* NAVBAR (shared header) */}
-        <AppHeader
-          right={
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <ThemeToggle />
-              <button type="button" className="navbar-user-btn">
-                <UserCircleIcon />
-              </button>
-            </div>
+      <AuthPageChrome
+        shell="themed"
+        blobCount={3}
+        header={
+          <AppHeader
+            right={
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <ThemeToggle />
+                <button type="button" className="login-user-ico">
+                  <UserCircleIcon />
+                </button>
+              </div>
+            }
+          />
+        }
+      >
+        <style>{`
+          .login-user-ico {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.04);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #8080a0;
+            transition: all 0.2s;
           }
-        />
+          .login-user-ico:hover {
+            border-color: rgba(99,102,241,0.45);
+            background: rgba(99,102,241,0.1);
+            color: #a5b4fc;
+          }
+        `}</style>
 
-        {/* SUBNAV */}
-        <div className="subnav">
-          <button className="subnav-item">
-            Text 1 <ChevronDownIcon />
-          </button>
-          <button className="subnav-item">
-            Text 2 <ChevronDownIcon />
-          </button>
-        </div>
-
-        {/* MAIN */}
         <main className="main">
           <div className="card">
             <div className="card-top-glow" />
@@ -644,7 +515,7 @@ export default function Slide2NotesLogin() {
             )}
           </div>
         </main>
-      </div>
+      </AuthPageChrome>
     </>
   );
 }

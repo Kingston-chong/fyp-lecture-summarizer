@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { extractPptxUrlFromAlaiGenerationJson } from "@/lib/alaiSlidePptx";
 
 export async function GET(req, context) {
   try {
@@ -50,17 +51,10 @@ export async function GET(req, context) {
     }
 
     if (status === "completed") {
-      // Alai returns export URLs under data.formats.{ppt|pdf|link}.url (shape may vary by API version)
-      const formats = data?.formats && typeof data.formats === "object" ? data.formats : {};
-      const pptUrl =
-        formats?.ppt?.url ||
-        formats?.pptx?.url ||
-        formats?.presentation?.url ||
-        data?.download_url ||
-        data?.downloadUrl ||
-        data?.ppt_url ||
-        data?.pptx_url ||
-        null;
+      // Alai returns export URLs under data.formats.* (shape may vary by API version)
+      const formats =
+        data?.formats && typeof data.formats === "object" ? data.formats : null;
+      const pptUrl = extractPptxUrlFromAlaiGenerationJson(data);
       const previewUrl =
         formats?.link?.url ||
         formats?.viewer?.url ||

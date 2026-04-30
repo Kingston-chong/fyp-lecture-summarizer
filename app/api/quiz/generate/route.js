@@ -39,13 +39,23 @@ export async function POST(req) {
     }
 
     const modelKey = normalizeModelKey(model) || "gemini";
-    
+
+    const parsedCount = Number(numQuestions);
+    const autoQuestionCount =
+      numQuestions == null ||
+      numQuestions === -1 ||
+      !Number.isFinite(parsedCount) ||
+      parsedCount < 1;
+    const questionCountLine = autoQuestionCount
+      ? "Number of questions: Auto — pick a reasonable count (for example 8–15) from how much material is in the summary."
+      : `Number of questions: ${parsedCount}`;
+
     // Construct the prompt
     const systemPrompt = `You are an expert educational quiz generator. 
 Your task is to generate a high-quality quiz based on the provided document summary.
 
 Settings:
-- Number of questions: ${numQuestions || 10}
+- ${questionCountLine}
 - Difficulty: ${difficulty || "Medium"}
 - Question Types: ${questionTypes?.join(", ") || "MCQ"}
 - Focus Areas: ${focusAreas?.join(", ") || "Key concepts"}
@@ -84,7 +94,7 @@ Generate the quiz now.`;
         settings: (() => {
           const s = {
             model,
-            numQuestions,
+            numQuestions: autoQuestionCount ? null : parsedCount,
             difficulty,
             questionTypes: questionTypes ?? [],
             focusAreas: focusAreas ?? [],

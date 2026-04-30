@@ -69,11 +69,20 @@ function Dropdown({ value, onChange, options, width = 120 }) {
   );
 }
 
-function SectionHead({ children }) {
+function SectionHead({ children, style }) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   return (
-    <div style={{ fontSize: 13.5, fontWeight: 700, color: isDark ? "#ddddf0" : "#1e1b4b", marginBottom: 12, marginTop: 4 }}>
+    <div
+      style={{
+        fontSize: 13.5,
+        fontWeight: 700,
+        color: isDark ? "#ddddf0" : "#1e1b4b",
+        marginBottom: 12,
+        marginTop: 4,
+        ...style,
+      }}
+    >
       {children}
     </div>
   );
@@ -86,6 +95,36 @@ function FieldLabel({ children, style }) {
     <div style={{ fontSize: 11.5, color: isDark ? "rgba(255,255,255,.45)" : "rgba(0,0,0,.5)", marginBottom: 8, ...style }}>
       {children}
     </div>
+  );
+}
+
+/** Small “?” with native tooltip (`title`) for short option explanations */
+function HintMark({ title }) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  return (
+    <span
+      title={title}
+      aria-label={title}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 18,
+        height: 18,
+        borderRadius: 999,
+        flexShrink: 0,
+        fontSize: 11,
+        fontWeight: 700,
+        lineHeight: 1,
+        cursor: "help",
+        color: isDark ? "#a5b4fc" : "#4f46e5",
+        border: `1px solid ${isDark ? "rgba(165,180,252,.45)" : "rgba(79,70,229,.35)"}`,
+        background: isDark ? "rgba(99,102,241,.12)" : "rgba(99,102,241,.08)",
+      }}
+    >
+      ?
+    </span>
   );
 }
 
@@ -143,7 +182,7 @@ export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
         body: JSON.stringify({
           summaryId,
           model: aiModel,
-          numQuestions,
+          numQuestions: questionCountAuto ? null : numQuestions,
           difficulty,
           questionTypes,
           focusAreas,
@@ -363,7 +402,14 @@ export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
             <SectionHead>AI Model Selection</SectionHead>
             <Dropdown value={aiModel} onChange={setAiModel} options={["ChatGPT", "DeepSeek", "Gemini"]} width={140}/>
 
-            <SectionHead>Generation Mode</SectionHead>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 4 }}>
+              <SectionHead style={{ marginBottom: 0, marginTop: 0 }}>Generation Mode</SectionHead>
+              <HintMark
+                title={
+                  "Strict — only facts from your summary. Creative — may add closely related ideas or examples not spelled out in the summary."
+                }
+              />
+            </div>
             <Dropdown value={generationMode} onChange={setGenerationMode} options={["Strict", "Creative"]} width={140}/>
 
             <SectionHead>Question Types</SectionHead>
@@ -392,20 +438,33 @@ export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
             <SectionHead>Quiz Length & Difficulty</SectionHead>
             <FieldLabel>Number of questions:</FieldLabel>
             <div className="radio-group" style={{ marginBottom: 12 }}>
-              <label className={`radio-opt ${numQuestions > 0 ? "on" : ""}`} onClick={() => setNumQuestions(10)}>
-                <div className={`radio-dot ${numQuestions > 0 ? "on" : ""}`}/>
-                Numbers: 
-                <input 
-                  className="num-input" 
-                  type="number" 
-                  value={numQuestions} 
-                  onChange={e => setNumQuestions(parseInt(e.target.value) || 0)}
-                  onClick={e => e.stopPropagation()}
-                  style={{ marginLeft: 8 }}
+              <label
+                className={`radio-opt ${!questionCountAuto ? "on" : ""}`}
+                onClick={() => {
+                  setQuestionCountAuto(false);
+                  setNumQuestions((n) => (Number.isFinite(n) && n >= 1 ? n : 10));
+                }}
+              >
+                <div className={`radio-dot ${!questionCountAuto ? "on" : ""}`}/>
+                Numbers:
+                <input
+                  className="num-input"
+                  type="number"
+                  min={1}
+                  max={100}
+                  disabled={questionCountAuto}
+                  value={questionCountAuto ? "" : numQuestions}
+                  placeholder={questionCountAuto ? "Auto" : ""}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value, 10);
+                    setNumQuestions(Number.isFinite(v) ? Math.min(100, Math.max(1, v)) : 1);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ marginLeft: 8, opacity: questionCountAuto ? 0.55 : 1 }}
                 />
               </label>
-              <label className={`radio-opt ${numQuestions === -1 ? "on" : ""}`} onClick={() => setNumQuestions(-1)}>
-                <div className={`radio-dot ${numQuestions === -1 ? "on" : ""}`}/>
+              <label className={`radio-opt ${questionCountAuto ? "on" : ""}`} onClick={() => setQuestionCountAuto(true)}>
+                <div className={`radio-dot ${questionCountAuto ? "on" : ""}`}/>
                 Auto
               </label>
             </div>
@@ -487,6 +546,7 @@ export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
             setAiModel("Gemini");
             setGenerationMode("Strict");
             setQuestionTypes(["MCQ"]);
+            setQuestionCountAuto(false);
             setNumQuestions(10);
             setDifficulty("Medium");
             setFocusAreas(["Important concepts"]);

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
+import { wrapEmailWithAuthChrome } from "@/lib/emailAuthChrome";
 
 export async function POST(req) {
   const { email } = await req.json();
@@ -35,16 +36,14 @@ export async function POST(req) {
     from: `"Slide2Notes" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: "Your OTP - Reset Password",
-    html: `
-      <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 32px; background: #f9f9f9; border-radius: 12px;">
-        <h2 style="color: #1a1a2e;">Reset Your Password</h2>
-        <p style="color: #555;">Use the OTP below. It expires in <strong>10 minutes</strong>.</p>
-        <div style="background: #6366f1; color: white; font-size: 32px; font-weight: 700; letter-spacing: 10px; text-align: center; padding: 20px; border-radius: 10px;">
+    html: wrapEmailWithAuthChrome(`
+        <h2 style="margin:0 0 12px;font-size:20px;color:#eeeef8;">Reset your password</h2>
+        <p style="margin:0 0 20px;font-size:14px;line-height:1.5;color:rgba(255,255,255,0.65);">Use the OTP below. It expires in <strong>10 minutes</strong>.</p>
+        <div style="background:#6366f1;color:white;font-size:28px;font-weight:700;letter-spacing:8px;text-align:center;padding:18px;border-radius:10px;font-family:ui-monospace,monospace;">
           ${otp}
         </div>
-        <p style="color: #999; font-size: 12px; margin-top: 24px; text-align: center;">If you didn't request this, ignore this email.</p>
-      </div>
-    `,
+        <p style="margin:24px 0 0;font-size:12px;color:rgba(255,255,255,0.4);text-align:center;">If you didn't request this, you can ignore this email.</p>
+      `),
   });
 
   return NextResponse.json({ success: true });

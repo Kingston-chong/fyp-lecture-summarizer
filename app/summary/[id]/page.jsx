@@ -413,6 +413,7 @@ export default function SummaryView() {
   const [quizSettings, setQuizSettings] = useState(null);
   const [slideDecks, setSlideDecks] = useState([]);
   const [slideDecksLoading, setSlideDecksLoading] = useState(false);
+  const [slideDeckDeletingId, setSlideDeckDeletingId] = useState(null);
   const [slideDeckPreviewOpen, setSlideDeckPreviewOpen] = useState(false);
   const [slideDeckPreviewUrl, setSlideDeckPreviewUrl] = useState("");
   const [slideDeckRemotePptUrl, setSlideDeckRemotePptUrl] = useState("");
@@ -1466,6 +1467,37 @@ export default function SummaryView() {
       URL.revokeObjectURL(url);
     } catch (e) {
       alert(e?.message || String(e));
+    }
+  }
+
+  async function deleteSlideDeck(deck) {
+    const deckId = Number.parseInt(String(deck?.id ?? ""), 10);
+    if (!Number.isFinite(deckId) || deckId <= 0) return;
+    const ok = window.confirm(
+      `Delete slide deck "${String(deck?.title || "Presentation")}"?`,
+    );
+    if (!ok) return;
+
+    const n = Number.parseInt(String(summaryId ?? ""), 10);
+    if (!Number.isFinite(n) || n <= 0) {
+      alert("Invalid summary id");
+      return;
+    }
+
+    setSlideDeckDeletingId(deckId);
+    try {
+      const res = await fetch(`/api/summary/${n}/slide-decks`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deckId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Failed to delete slide deck");
+      setSlideDecks((prev) => prev.filter((d) => d.id !== deckId));
+    } catch (e) {
+      alert(e?.message || String(e));
+    } finally {
+      setSlideDeckDeletingId(null);
     }
   }
 
@@ -3637,6 +3669,14 @@ export default function SummaryView() {
                           >
                             Download
                           </button>
+                          <button
+                            type="button"
+                            className="sd-deck-btn"
+                            disabled={slideDeckDeletingId === d.id}
+                            onClick={() => void deleteSlideDeck(d)}
+                          >
+                            {slideDeckDeletingId === d.id ? "Deleting..." : "Delete"}
+                          </button>
                         </div>
                       </div>
                     ))
@@ -4449,6 +4489,14 @@ export default function SummaryView() {
                             onClick={() => void downloadSlideDeck(d)}
                           >
                             Download
+                          </button>
+                          <button
+                            type="button"
+                            className="sd-deck-btn"
+                            disabled={slideDeckDeletingId === d.id}
+                            onClick={() => void deleteSlideDeck(d)}
+                          >
+                            {slideDeckDeletingId === d.id ? "Deleting..." : "Delete"}
                           </button>
                         </div>
                       </div>

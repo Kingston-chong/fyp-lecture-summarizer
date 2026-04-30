@@ -2,13 +2,9 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ChevronDownIcon,
-  EyeIcon,
-  EyeOffIcon,
-  SlidesIcon,
-  UserCircleIcon,
-} from "../components/icons";
+import { ChevronDownIcon, EyeIcon, EyeOffIcon } from "../components/icons";
+import AuthMarketingNav from "../components/AuthMarketingNav";
+import AuthPageChrome from "../components/AuthPageChrome";
 
 const CheckCircle = ({ met }) => (
   <svg
@@ -93,35 +89,6 @@ export default function Slide2NotesRegister() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap');
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: #0e0e12; }
-
-        .s2n {
-          min-height: 100vh;
-          background: #0e0e12;
-          font-family: 'Sora', sans-serif;
-          position: relative;
-          overflow: hidden;
-        }
-        .blob1 { position: fixed; top: -15%; right: -8%; width: 650px; height: 650px; background: radial-gradient(circle, rgba(99,102,241,0.16) 0%, transparent 65%); pointer-events: none; z-index: 0; }
-        .blob2 { position: fixed; bottom: -10%; left: -5%; width: 520px; height: 520px; background: radial-gradient(circle, rgba(20,184,166,0.1) 0%, transparent 65%); pointer-events: none; z-index: 0; }
-        .blob3 { position: fixed; top: 45%; left: 38%; width: 380px; height: 380px; background: radial-gradient(circle, rgba(168,85,247,0.06) 0%, transparent 65%); pointer-events: none; z-index: 0; }
-
-        /* NAVBAR */
-        .navbar { position: relative; z-index: 10; display: flex; align-items: center; justify-content: space-between; padding: 0 36px; height: 60px; background: rgba(14,14,18,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,0.055); }
-        .navbar-logo { display: flex; align-items: center; gap: 10px; }
-        .logo-badge { width: 34px; height: 34px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 9px; display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 4px 14px rgba(99,102,241,0.45); }
-        .logo-text { font-family: 'Fraunces', serif; font-size: 17px; font-weight: 600; background: linear-gradient(90deg, #e8e8f0, #a5b4fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.02em; }
-        .navbar-user-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); display: flex; align-items: center; justify-content: center; cursor: pointer; color: #8080a0; transition: all 0.2s; }
-        .navbar-user-btn:hover { border-color: rgba(99,102,241,0.45); background: rgba(99,102,241,0.1); color: #a5b4fc; }
-
-        /* SUBNAV */
-        .subnav { position: relative; z-index: 10; display: flex; align-items: center; justify-content: flex-end; padding: 0 36px; height: 42px; background: rgba(16,16,22,0.75); backdrop-filter: blur(8px); border-bottom: 1px solid rgba(255,255,255,0.035); }
-        .subnav-item { display: flex; align-items: center; gap: 5px; padding: 0 16px; height: 42px; font-size: 12.5px; font-family: 'Sora', sans-serif; font-weight: 400; color: #52526e; cursor: pointer; border: none; background: none; transition: color 0.2s; letter-spacing: 0.025em; }
-        .subnav-item:hover { color: #9090b8; }
-
-        /* MAIN */
         .main { position: relative; z-index: 5; display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 102px); padding: 48px 24px; }
 
         /* CARD */
@@ -177,7 +144,7 @@ export default function Slide2NotesRegister() {
           border-radius: 10px; border: 1px solid rgba(255,255,255,0.07);
           background: rgba(255,255,255,0.035);
           font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 300;
-          color: ${(p) => (p ? "#dcdcf0" : "rgba(255,255,255,0.16)")};
+          color: #dcdcf0;
           display: flex; align-items: center; justify-content: space-between;
           cursor: pointer; outline: none; transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
         }
@@ -224,35 +191,7 @@ export default function Slide2NotesRegister() {
         }
       `}</style>
 
-      <div className="s2n">
-        <div className="blob1" />
-        <div className="blob2" />
-        <div className="blob3" />
-
-        {/* NAVBAR */}
-        <nav className="navbar">
-          <div className="navbar-logo">
-            <div className="logo-badge">
-              <SlidesIcon />
-            </div>
-            <span className="logo-text">Slide2Notes</span>
-          </div>
-          <button className="navbar-user-btn">
-            <UserCircleIcon />
-          </button>
-        </nav>
-
-        {/* SUBNAV */}
-        <div className="subnav">
-          <button className="subnav-item">
-            Text 1 <ChevronDownIcon />
-          </button>
-          <button className="subnav-item">
-            Text 2 <ChevronDownIcon />
-          </button>
-        </div>
-
-        {/* MAIN */}
+      <AuthPageChrome header={<AuthMarketingNav />} blobCount={3}>
         <main className="main">
           <div className="card">
             <div className="card-glow" />
@@ -463,7 +402,7 @@ export default function Slide2NotesRegister() {
             </div>
           </div>
         </main>
-      </div>
+      </AuthPageChrome>
     </>
   );
 }

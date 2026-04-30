@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/apiAuth";
+import { prisma } from "@/lib/prisma";
+import { fetchVercelBlobBuffer } from "@/lib/fetchVercelBlobBuffer";
 import { parseJsonFromLlm } from "@/lib/jsonExtract";
 import { runChat } from "@/lib/llmServer";
 import { uiModelToKey } from "@/lib/improvePptModel";
@@ -58,7 +60,10 @@ function editedFilenameFromSource(sourceName, fallbackTitle) {
 }
 
 function titleFromSourceFilename(sourceName) {
-  return String(sourceName || "").replace(/\.pptx$/i, "").trim().slice(0, 200);
+  return String(sourceName || "")
+    .replace(/\.(pptx|pdf)$/i, "")
+    .trim()
+    .slice(0, 200);
 }
 
 async function fetchStockImageUrlForQuery(query) {
@@ -177,6 +182,36 @@ export async function POST(req) {
       ? body.templateSpec
       : null;
 
+    const documentId = Number(body?.documentId);
+    const hasUploadedFile =
+      sourceFile instanceof Blob &&
+      typeof sourceFile.arrayBuffer === "function" &&
+      sourceFile.size > 0;
+    const useBlobDocument =
+      Number.isFinite(documentId) && documentId > 0 && !hasUploadedFile;
+
+    let blobDoc = null;
+    if (useBlobDocument) {
+      blobDoc = await prisma.document.findFirst({
+        where: { id: documentId, userId: user.id },
+        select: { url: true, name: true },
+      });
+      if (!blobDoc) {
+        return NextResponse.json({ error: "Document not found" }, { status: 404 });
+      }
+    }
+
+    const uploadedFileName =
+      hasUploadedFile && "name" in sourceFile && sourceFile.name
+        ? String(sourceFile.name)
+        : "";
+    const effectiveSourceName = (
+      sourceName ||
+      uploadedFileName ||
+      blobDoc?.name ||
+      ""
+    ).trim();
+
     if (!instructions) return NextResponse.json({ error: "Instructions are required" }, { status: 400 });
     if (!slidesIn.length) return NextResponse.json({ error: "No slides payload. Run Plan first." }, { status: 400 });
 
@@ -283,7 +318,7 @@ Rules:
     let title    = String(parsed?.title    || "Improved presentation").slice(0, 200);
     let subtitle = String(parsed?.subtitle || "").slice(0, 300);
     if (additiveImprove) {
-      const fromFile = titleFromSourceFilename(sourceName);
+      const fromFile = titleFromSourceFilename(effectiveSourceName);
       if (fromFile) title = fromFile;
       subtitle = "";
     }
@@ -354,13 +389,20 @@ Rules:
     //     so the rebuilt deck matches the original design as closely as possible
     const references = allWebSources.map((s) => ({ title: s.title, url: s.url }));
 
-    // Try to extract original file's theme to preserve its look
+    // Try to extract original PPTX theme to preserve its look (PDF has no PPTX theme)
     let effectiveTheme = theme;
-    if (additiveImprove && sourceFile instanceof Blob) {
+    if (additiveImprove && /\.pptx$/i.test(effectiveSourceName)) {
       try {
-        const sourceBuffer = Buffer.from(await sourceFile.arrayBuffer());
-        const originalTheme = await extractThemeFromPptx(sourceBuffer);
-        if (originalTheme) effectiveTheme = originalTheme;
+        let sourceBuffer = null;
+        if (hasUploadedFile) {
+          sourceBuffer = Buffer.from(await sourceFile.arrayBuffer());
+        } else if (useBlobDocument && blobDoc) {
+          sourceBuffer = await fetchVercelBlobBuffer(blobDoc.url);
+        }
+        if (sourceBuffer) {
+          const originalTheme = await extractThemeFromPptx(sourceBuffer);
+          if (originalTheme) effectiveTheme = originalTheme;
+        }
       } catch (e) {
         console.warn("Could not extract original theme, using default:", e?.message);
       }
@@ -386,7 +428,7 @@ Rules:
       status: 200,
       headers: {
         "Content-Type":        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        "Content-Disposition": `attachment; filename="${editedFilenameFromSource(sourceName, title)}"`,
+        "Content-Disposition": `attachment; filename="${editedFilenameFromSource(effectiveSourceName, title)}"`,
       },
     });
 

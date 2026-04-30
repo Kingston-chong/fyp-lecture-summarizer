@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { put } from "@vercel/blob";
+import { del, put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { downloadPptxBuffer, getAlaiPptxUrl } from "@/lib/alaiSlidePptx";
 import { getRequestUser } from "@/lib/apiAuth";
@@ -87,17 +87,33 @@ export async function POST(req, context) {
       titleRaw.slice(0, 512) ||
       (summary.title || "Presentation").slice(0, 512);
 
-    const urlResult = await getAlaiPptxUrl(alaiGenerationId);
-    if (!urlResult.ok) {
-      return NextResponse.json(
-        { error: urlResult.error },
-        { status: urlResult.status && urlResult.status !== 200 ? urlResult.status : 502 },
-      );
-    }
+    /** Same signed URL the client got when polling — avoids a racey second Alai GET. */
+    const remotePptxUrl = String(body?.remotePptxUrl || "").trim();
 
-    const dl = await downloadPptxBuffer(urlResult.pptUrl);
-    if (!dl.ok) {
-      return NextResponse.json({ error: dl.error }, { status: 502 });
+    let dl = null;
+    if (/^https?:\/\//i.test(remotePptxUrl)) {
+      dl = await downloadPptxBuffer(remotePptxUrl);
+    }
+    if (!dl?.ok) {
+      const urlResult = await getAlaiPptxUrl(alaiGenerationId);
+      if (!urlResult.ok) {
+        return NextResponse.json(
+          { error: urlResult.error },
+          {
+            status:
+              urlResult.status && urlResult.status !== 200
+                ? urlResult.status
+                : 502,
+          },
+        );
+      }
+      dl = await downloadPptxBuffer(urlResult.pptUrl);
+    }
+    if (!dl?.ok) {
+      return NextResponse.json(
+        { error: dl?.error || "Failed to download PPTX" },
+        { status: 502 },
+      );
     }
 
     const safeSlug = title
@@ -107,10 +123,11 @@ export async function POST(req, context) {
     const pathname = `slides/${user.id}/${summaryId}/${Date.now()}-${safeSlug}.pptx`;
 
     const blob = await put(pathname, dl.buffer, {
-      access: "public",
+      access: "private",
       contentType:
         "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     });
+    const storedPptxUrl = blob.downloadUrl || blob.url;
 
     const deck = await prisma.slideDeck.create({
       data: {
@@ -118,7 +135,7 @@ export async function POST(req, context) {
         summaryId,
         title,
         alaiGenerationId: alaiGenerationId.slice(0, 128),
-        pptxUrl: blob.url,
+        pptxUrl: storedPptxUrl,
       },
       select: {
         id: true,
@@ -132,6 +149,53 @@ export async function POST(req, context) {
     return NextResponse.json({ deck });
   } catch (err) {
     console.error("slide-decks POST:", err);
+    return NextResponse.json(
+      { error: String(err?.message || err) },
+      { status: 500 },
+    );
+  }
+}
+
+/** DELETE — remove one saved slide deck for this summary */
+export async function DELETE(req, context) {
+  try {
+    const summaryId = await resolveSummaryId(context);
+    if (!summaryId) {
+      return NextResponse.json({ error: "Invalid summary id" }, { status: 400 });
+    }
+
+    const user = await getRequestUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const deckId = Number.parseInt(String(body?.deckId || ""), 10);
+    if (!Number.isFinite(deckId) || deckId <= 0) {
+      return NextResponse.json({ error: "deckId is required" }, { status: 400 });
+    }
+
+    const deck = await prisma.slideDeck.findFirst({
+      where: { id: deckId, summaryId, userId: user.id },
+      select: { id: true, pptxUrl: true },
+    });
+    if (!deck) {
+      return NextResponse.json({ error: "Slide deck not found" }, { status: 404 });
+    }
+
+    try {
+      if (deck.pptxUrl) await del(deck.pptxUrl);
+    } catch (e) {
+      console.warn("Slide deck blob delete failed:", e?.message || e);
+    }
+
+    await prisma.slideDeck.delete({
+      where: { id: deck.id },
+    });
+
+    return NextResponse.json({ success: true, deckId: deck.id });
+  } catch (err) {
+    console.error("slide-decks DELETE:", err);
     return NextResponse.json(
       { error: String(err?.message || err) },
       { status: 500 },

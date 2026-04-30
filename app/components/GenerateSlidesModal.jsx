@@ -1,38 +1,71 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import SlidePreviewModal from "./SlidePreviewModal";
 import AlaiSlidesPreviewModal from "./AlaiSlidesPreviewModal";
 import { useTheme } from "./ThemeProvider.jsx";
 
 // ─── Icons ────────────────────────────────────────────────
 const CloseIco = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 );
 const UploadCloudIco = () => (
-  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
-    <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+  <svg
+    width="36"
+    height="36"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <polyline points="16 16 12 12 8 16" />
+    <line x1="12" y1="12" x2="12" y2="21" />
+    <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" />
   </svg>
 );
 const ChevDownIco = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="6 9 12 15 18 9"/>
+  <svg
+    width="12"
+    height="12"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <polyline points="6 9 12 15 18 9" />
   </svg>
 );
 const SlidesIco = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><polygon points="10 8 16 11 10 14 10 8"/>
+  <svg
+    width="15"
+    height="15"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="2" y="3" width="20" height="14" rx="2" />
+    <path d="M8 21h8M12 17v4" />
+    <polygon points="10 8 16 11 10 14 10 8" />
   </svg>
 );
-const EyeIco = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-  </svg>
-);
-
 // ─── Reusable Dropdown ────────────────────────────────────
 function Dropdown({ value, onChange, options, width = 120 }) {
   const { theme } = useTheme();
@@ -41,41 +74,76 @@ function Dropdown({ value, onChange, options, width = 120 }) {
   return (
     <div style={{ position: "relative", width }}>
       <button
-        onClick={() => setOpen(v => !v)}
+        onClick={() => setOpen((v) => !v)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         style={{
-          width: "100%", height: 32, padding: "0 10px",
+          width: "100%",
+          height: 32,
+          padding: "0 10px",
           background: isDark ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.04)",
           border: `1px solid ${isDark ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"}`,
-          borderRadius: 7, fontFamily: "'Sora',sans-serif", fontSize: 12,
+          borderRadius: 7,
+          fontFamily: "'Sora',sans-serif",
+          fontSize: 12,
           color: isDark ? "#c0c0d8" : "#4a4a5a",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          cursor: "pointer", gap: 6, transition: "all .18s",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          cursor: "pointer",
+          gap: 6,
+          transition: "all .18s",
         }}
       >
-        {value} <ChevDownIco/>
+        {value} <ChevDownIco />
       </button>
       {open && (
-        <div style={{
-          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 200,
-          background: isDark ? "rgba(22,22,34,.98)" : "rgba(255,255,255,.98)",
-          border: `1px solid ${isDark ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"}`,
-          borderRadius: 8, padding: 4,
-          boxShadow: isDark ? "0 12px 32px rgba(0,0,0,.5)" : "0 12px 32px rgba(0,0,0,.15)",
-        }}>
-          {options.map(o => (
-            <div key={o}
-              onMouseDown={() => { onChange(o); setOpen(false); }}
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            left: 0,
+            right: 0,
+            zIndex: 200,
+            background: isDark ? "rgba(22,22,34,.98)" : "rgba(255,255,255,.98)",
+            border: `1px solid ${isDark ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"}`,
+            borderRadius: 8,
+            padding: 4,
+            boxShadow: isDark
+              ? "0 12px 32px rgba(0,0,0,.5)"
+              : "0 12px 32px rgba(0,0,0,.15)",
+          }}
+        >
+          {options.map((o) => (
+            <div
+              key={o}
+              onMouseDown={() => {
+                onChange(o);
+                setOpen(false);
+              }}
               style={{
-                padding: "7px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12,
-                color: value === o ? "#6366f1" : (isDark ? "#b0b0cc" : "#555568"),
-                background: value === o ? "rgba(99,102,241,.18)" : "transparent",
+                padding: "7px 10px",
+                borderRadius: 6,
+                cursor: "pointer",
+                fontSize: 12,
+                color: value === o ? "#6366f1" : isDark ? "#b0b0cc" : "#555568",
+                background:
+                  value === o ? "rgba(99,102,241,.18)" : "transparent",
                 fontWeight: value === o ? 500 : 400,
                 transition: "background .12s",
               }}
-              onMouseEnter={e => { if (value !== o) e.currentTarget.style.background = isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.05)"; }}
-              onMouseLeave={e => { if (value !== o) e.currentTarget.style.background = "transparent"; }}
-            >{o}</div>
+              onMouseEnter={(e) => {
+                if (value !== o)
+                  e.currentTarget.style.background = isDark
+                    ? "rgba(255,255,255,.05)"
+                    : "rgba(0,0,0,.05)";
+              }}
+              onMouseLeave={(e) => {
+                if (value !== o)
+                  e.currentTarget.style.background = "transparent";
+              }}
+            >
+              {o}
+            </div>
           ))}
         </div>
       )}
@@ -88,7 +156,15 @@ const SectionHead = ({ children }) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   return (
-    <div style={{ fontSize: 13.5, fontWeight: 700, color: isDark ? "#ddddf0" : "#1e1b4b", marginBottom: 10, marginTop: 2 }}>
+    <div
+      style={{
+        fontSize: 13.5,
+        fontWeight: 700,
+        color: isDark ? "#ddddf0" : "#1e1b4b",
+        marginBottom: 10,
+        marginTop: 2,
+      }}
+    >
       {children}
     </div>
   );
@@ -97,13 +173,22 @@ const FieldLabel = ({ children, style }) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   return (
-    <div style={{ fontSize: 11.5, color: isDark ? "rgba(255,255,255,.45)" : "rgba(0,0,0,.5)", marginBottom: 6, ...style }}>
+    <div
+      style={{
+        fontSize: 11.5,
+        color: isDark ? "rgba(255,255,255,.45)" : "rgba(0,0,0,.5)",
+        marginBottom: 6,
+        ...style,
+      }}
+    >
       {children}
     </div>
   );
 };
 const Divider = () => (
-  <div style={{ height: 1, background: "rgba(255,255,255,.07)", margin: "16px 0" }}/>
+  <div
+    style={{ height: 1, background: "rgba(255,255,255,.07)", margin: "16px 0" }}
+  />
 );
 
 // ─── Main Modal ───────────────────────────────────────────
@@ -115,6 +200,8 @@ export default function GenerateSlidesModal({
   summaryId = null,
   /** Called after a deck is successfully saved to the server (e.g. refresh sidebar) */
   onSlideDecksChanged = null,
+  /** Starting tab: "create" | "improve" */
+  initialTab = "create",
 }) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -122,7 +209,7 @@ export default function GenerateSlidesModal({
   /** Latest download action for the open Alai preview (fresh proxy vs saved blob) */
   const slideDownloadRef = useRef(null);
 
-  const [slideTab, setSlideTab] = useState("create");
+  const [slideTab, setSlideTab] = useState(initialTab);
 
   // Improve existing PPT
   const [improveFile, setImproveFile] = useState(null);
@@ -151,42 +238,40 @@ export default function GenerateSlidesModal({
   /** @type {{ slideIndex: number; url: string; thumb?: string }[]} */
   const [pickedUserImages, setPickedUserImages] = useState([]);
   const [improvePasteUrl, setImprovePasteUrl] = useState("");
- // slide theme finder
- // 2slides theme search
-const [themeQuery, setThemeQuery] = useState("");
-const [themeSearchLoading, setThemeSearchLoading] = useState(false);
-const [themeResults, setThemeResults] = useState([]);
-const [selectedTemplateSpec, setSelectedTemplateSpec] = useState(null);
-const [themeSearchErr, setThemeSearchErr] = useState("");
-  const [improvePreviewOpen, setImprovePreviewOpen] = useState(false);
-  const [improvePreviewLoading, setImprovePreviewLoading] = useState(false);
-  const [improvePreviewData, setImprovePreviewData] = useState(null);
-
+  // slide theme finder
+  // 2slides theme search
+  const [themeQuery, setThemeQuery] = useState("");
+  const [themeSearchLoading, setThemeSearchLoading] = useState(false);
+  const [themeResults, setThemeResults] = useState([]); // each item now includes templateSpec
+  /** `q` that produced the current `themeResults` (used so spec fetch matches list order) */
+  const [themeResultsQuery, setThemeResultsQuery] = useState("");
+  const [selectedThemeId, setSelectedThemeId] = useState(null);
+  const [selectedTemplateSpec, setSelectedTemplateSpec] = useState(null);
+  const [themeSearchErr, setThemeSearchErr] = useState("");
   // Slide length & detail
-  const [title,       setTitle]       = useState("");
+  const [title, setTitle] = useState("");
   const [slideUserPrompt, setSlideUserPrompt] = useState("");
   const [slideLength, setSlideLength] = useState("Short (summary)");
-  const [maxSlides,   setMaxSlides]   = useState("");
+  const [maxSlides, setMaxSlides] = useState("");
 
   // AI model & processing
-  const [aiModel,    setAiModel]    = useState("Gemini");
+  const [aiModel, setAiModel] = useState("Gemini");
   const [strictness, setStrictness] = useState("Strict");
 
   // Content style
-  const [textStyle,      setTextStyle]      = useState("Academic");
-  const [bulletLimit,    setBulletLimit]    = useState("");
-  const [highlightDefs,  setHighlightDefs]  = useState(false);
-  const [boldKeywords,   setBoldKeywords]   = useState(false);
+  const [textStyle, setTextStyle] = useState("Academic");
+  const [bulletLimit, setBulletLimit] = useState("");
+  const [highlightDefs, setHighlightDefs] = useState(false);
+  const [boldKeywords, setBoldKeywords] = useState(false);
 
   // Slide design
-  const [template,    setTemplate]    = useState("Academic");
-  const [fontSize,    setFontSize]    = useState("Normal");
+  const [template, setTemplate] = useState("Academic");
+  const [fontSize, setFontSize] = useState("Normal");
   const [textDensity, setTextDensity] = useState("Compact");
 
   const [generating, setGenerating] = useState(false);
   const [generateErr, setGenerateErr] = useState("");
   const [generateProgress, setGenerateProgress] = useState("");
-  const [previewing, setPreviewing] = useState(false);
   const [alaiPreviewOpen, setAlaiPreviewOpen] = useState(false);
   const [alaiPreviewUrl, setAlaiPreviewUrl] = useState("");
   const [alaiDownloadUrl, setAlaiDownloadUrl] = useState("");
@@ -194,6 +279,32 @@ const [themeSearchErr, setThemeSearchErr] = useState("");
   const [alaiRemotePptUrl, setAlaiRemotePptUrl] = useState("");
   const [lastGenerationId, setLastGenerationId] = useState("");
   const [archiveNote, setArchiveNote] = useState("");
+  const quickRequestsRef = useRef(null);
+
+  const quickInstructionPresets = [
+    "Make the deck exam-focused: include key definitions and likely test points.",
+    "Keep slides concise: max 5 bullets per slide and short phrases only.",
+    "Add one simple worked example after each major concept.",
+    "Use beginner-friendly wording and avoid heavy jargon.",
+    "End with a recap slide plus 5 review questions.",
+  ];
+
+  function applyQuickInstruction(text) {
+    setSlideUserPrompt((prev) => {
+      const next = prev.trim() ? `${prev.trim()}\n- ${text}` : `- ${text}`;
+      return next.slice(0, 4000);
+    });
+  }
+
+  function scrollQuickRequests(direction) {
+    const el = quickRequestsRef.current;
+    if (!el) return;
+    const amount = Math.max(180, Math.floor(el.clientWidth * 0.6));
+    el.scrollBy({
+      left: direction === "left" ? -amount : amount,
+      behavior: "smooth",
+    });
+  }
 
   function setFreshSlideDownload(pollData) {
     const dl = pollData.download_url;
@@ -209,18 +320,77 @@ const [themeSearchErr, setThemeSearchErr] = useState("");
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      const fileName = t.replace(/[^a-z0-9]/gi, "_").toLowerCase() || "presentation";
+      const fileName =
+        t.replace(/[^a-z0-9]/gi, "_").toLowerCase() || "presentation";
       a.download = `${fileName}.pptx`;
       a.click();
       URL.revokeObjectURL(url);
     };
   }
 
+  async function saveDeckToArchive({
+    generationId,
+    remotePptxUrl,
+    deckTitle,
+  } = {}) {
+    if (!summaryId) {
+      setArchiveNote(
+        "Generated successfully, but this deck is not attached to a summary so it will not be saved to Slide decks.",
+      );
+      setTimeout(() => setArchiveNote(""), 8000);
+      return false;
+    }
+
+    const genId = String(generationId || lastGenerationId || "").trim();
+    if (!genId) {
+      setArchiveNote(
+        "No generation id found. Please regenerate slides before saving to Slide decks.",
+      );
+      setTimeout(() => setArchiveNote(""), 8000);
+      return false;
+    }
+
+    setArchiveNote("Saving a copy to your account…");
+    try {
+      const ar = await fetch(`/api/summary/${summaryId}/slide-decks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          alaiGenerationId: genId,
+          title: String(deckTitle || title || "").trim() || undefined,
+          remotePptxUrl: String(remotePptxUrl || alaiRemotePptUrl || "").trim() || undefined,
+        }),
+      });
+      const aj = await ar.json().catch(() => ({}));
+      if (ar.ok) {
+        setArchiveNote(
+          "Saved — open “Slide decks” in the right sidebar to preview or download later.",
+        );
+        onSlideDecksChanged?.();
+        return true;
+      }
+      setArchiveNote(
+        aj?.error
+          ? `Could not save copy: ${aj.error}`
+          : "Could not save a copy (download still works).",
+      );
+      return false;
+    } catch {
+      setArchiveNote("Could not save a copy (download still works).");
+      return false;
+    } finally {
+      setTimeout(() => setArchiveNote(""), 8000);
+    }
+  }
+
   function addPickedImageFromUrl(url, thumb) {
     const u = String(url || "").trim();
     if (!u.startsWith("http")) return;
     const maxSlide = parsedSlides?.length || 1;
-    const slideIndex = Math.max(1, Math.min(Number(improveTargetSlide) || 1, maxSlide));
+    const slideIndex = Math.max(
+      1,
+      Math.min(Number(improveTargetSlide) || 1, maxSlide),
+    );
     setPickedUserImages((prev) => {
       const without = prev.filter((p) => p.slideIndex !== slideIndex);
       const merged = [...without, { slideIndex, url: u, thumb: thumb || u }];
@@ -230,7 +400,9 @@ const [themeSearchErr, setThemeSearchErr] = useState("");
   }
 
   function removePickedImage(slideIndex) {
-    setPickedUserImages((prev) => prev.filter((p) => p.slideIndex !== slideIndex));
+    setPickedUserImages((prev) =>
+      prev.filter((p) => p.slideIndex !== slideIndex),
+    );
   }
   async function handleThemeSearch() {
     const q = themeQuery.trim();
@@ -238,15 +410,23 @@ const [themeSearchErr, setThemeSearchErr] = useState("");
     setThemeSearchLoading(true);
     setThemeSearchErr("");
     setThemeResults([]);
+    setThemeResultsQuery("");
     setSelectedTemplateSpec(null);
     try {
       const res = await fetch(
-        `/api/improve-ppt/theme-search?q=${encodeURIComponent(q)}&model=${encodeURIComponent(aiModel)}`
+        `/api/improve-ppt/theme-search?q=${encodeURIComponent(q)}&model=${encodeURIComponent(aiModel)}`,
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Theme search failed");
-      setThemeResults(Array.isArray(data.themes) ? data.themes : []);
-      // Auto-select the top result's templateSpec
+      const themes = Array.isArray(data.themes) ? data.themes : [];
+      // Attach the top result's templateSpec to the first theme entry
+      // (others will be fetched individually on click)
+      if (themes.length > 0 && data.templateSpec) {
+        themes[0]._templateSpec = data.templateSpec;
+      }
+      setThemeResults(themes);
+      setThemeResultsQuery(q);
+      setSelectedThemeId(themes[0]?.id ?? null);
       if (data.templateSpec) setSelectedTemplateSpec(data.templateSpec);
     } catch (e) {
       setThemeSearchErr(e?.message || String(e));
@@ -287,7 +467,8 @@ const [themeSearchErr, setThemeSearchErr] = useState("");
       try {
         const res = await fetch("/api/improve-ppt/image-search");
         const data = await res.json().catch(() => ({}));
-        if (!cancelled && res.ok && data.provider) setImproveImageProvider(data.provider);
+        if (!cancelled && res.ok && data.provider)
+          setImproveImageProvider(data.provider);
       } catch {
         /* ignore */
       }
@@ -354,15 +535,24 @@ const [themeSearchErr, setThemeSearchErr] = useState("");
           textStyle,
           strictness,
           aiModel,
+          highlightDefs,
+          boldKeywords,
+          bulletLimit: String(bulletLimit || "").trim() || undefined,
+          fontSize,
+          textDensity,
         }),
       });
-      
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to start generation");
 
       const genId = data.generation_id;
       if (!genId) throw new Error("No generation ID returned");
       setLastGenerationId(String(genId));
+
+      /** Alai often sets `completed` before `formats.ppt` is populated — keep polling. */
+      let exportWaitAttempts = 0;
+      const MAX_EXPORT_WAIT_ATTEMPTS = 60;
 
       // Poll for completion (check immediately, then every 3s)
       while (true) {
@@ -374,15 +564,19 @@ const [themeSearchErr, setThemeSearchErr] = useState("");
         }
 
         if (pollData.status === "failed") {
-          throw new Error(pollData.error || "Slide generation failed on the server.");
+          throw new Error(
+            pollData.error || "Slide generation failed on the server.",
+          );
         }
 
-        if (
-          pollData.status === "completed" &&
-          (pollData.preview_url ||
+        const hasArtifact =
+          !!(
+            pollData.preview_url ||
             pollData.download_url ||
-            pollData.remote_download_url)
-        ) {
+            pollData.remote_download_url
+          );
+
+        if (pollData.status === "completed" && hasArtifact) {
           setGenerateProgress("Ready — opening preview...");
           setAlaiPreviewUrl(pollData.preview_url || "");
           setAlaiDownloadUrl(pollData.download_url || "");
@@ -390,45 +584,29 @@ const [themeSearchErr, setThemeSearchErr] = useState("");
           setFreshSlideDownload(pollData);
           setAlaiPreviewOpen(true);
 
-          if (summaryId) {
-            setArchiveNote("Saving a copy to your account…");
-            void (async () => {
-              try {
-                const ar = await fetch(`/api/summary/${summaryId}/slide-decks`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    alaiGenerationId: String(genId),
-                    title: title.trim() || undefined,
-                  }),
-                });
-                const aj = await ar.json().catch(() => ({}));
-                if (ar.ok) {
-                  setArchiveNote(
-                    "Saved — open “Slide decks” in the right sidebar to preview or download later.",
-                  );
-                  onSlideDecksChanged?.();
-                } else {
-                  setArchiveNote(
-                    aj?.error
-                      ? `Could not save copy: ${aj.error}`
-                      : "Could not save a copy (download still works).",
-                  );
-                }
-              } catch {
-                setArchiveNote("Could not save a copy (download still works).");
-              }
-              setTimeout(() => setArchiveNote(""), 8000);
-            })();
-          }
+          void saveDeckToArchive({
+            generationId: String(genId),
+            remotePptxUrl: pollData.remote_download_url || "",
+            deckTitle: title.trim() || undefined,
+          });
           break;
         }
-        if (pollData.status === "completed") {
-          throw new Error(
-            pollData.error ||
-              "Slide generation completed but no preview/download link was provided.",
+
+        if (pollData.status === "completed" && !hasArtifact) {
+          exportWaitAttempts++;
+          if (exportWaitAttempts > MAX_EXPORT_WAIT_ATTEMPTS) {
+            throw new Error(
+              pollData.error ||
+                "Slide generation completed but no preview/download link was provided.",
+            );
+          }
+          setGenerateProgress(
+            String(pollData.error || "").trim() || "Waiting for PPTX export…",
           );
+          await new Promise((r) => setTimeout(r, 3000));
+          continue;
         }
+
         setGenerateProgress(`Status: ${pollData.status}...`);
         await new Promise((r) => setTimeout(r, 3000));
       }
@@ -440,67 +618,12 @@ const [themeSearchErr, setThemeSearchErr] = useState("");
     }
   }
 
-  async function handlePreview() {
-    setPreviewing(true);
-    try {
-      // If we already have preview data, just open the modal.
-      if (
-        alaiPreviewUrl ||
-        alaiRemotePptUrl ||
-        alaiDownloadUrl
-      ) {
-        if (alaiDownloadUrl) {
-          setFreshSlideDownload({ download_url: alaiDownloadUrl });
-        } else {
-          slideDownloadRef.current = null;
-        }
-        setAlaiPreviewOpen(true);
-        return;
-      }
-
-      // Otherwise, poll using the last generation id.
-      if (!lastGenerationId) {
-        alert("No generated slides found yet. Generate slides first.");
-        return;
-      }
-
-      const genId = lastGenerationId;
-      const maxAttempts = 60; // ~3 minutes (3s interval)
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        const pollRes = await fetch(`/api/generate-slides/${genId}`);
-        const pollData = await pollRes.json();
-
-        if (!pollRes.ok) throw new Error(pollData.error || "Failed to check preview status");
-        if (pollData.status === "failed") throw new Error(pollData.error || "Slide generation failed");
-
-        if (
-          pollData.status === "completed" &&
-          (pollData.preview_url ||
-            pollData.download_url ||
-            pollData.remote_download_url)
-        ) {
-          setAlaiPreviewUrl(pollData.preview_url || "");
-          setAlaiDownloadUrl(pollData.download_url || "");
-          setAlaiRemotePptUrl(pollData.remote_download_url || "");
-          setFreshSlideDownload(pollData);
-          setAlaiPreviewOpen(true);
-          return;
-        }
-        await new Promise((r) => setTimeout(r, 3000));
-      }
-
-      alert("Preview timed out. Try generating slides again.");
-    } catch (e) {
-      alert(e?.message || String(e));
-    } finally {
-      setPreviewing(false);
-    }
-  }
-
   async function handleImproveGenerate() {
     setImproveErr("");
     if (!parsedSlides?.length) {
-      setImproveErr("Upload a .pptx file and wait until slides finish loading.");
+      setImproveErr(
+        "Upload a .pptx file and wait until slides finish loading.",
+      );
       return;
     }
     if (!improveInstructions.trim()) {
@@ -538,20 +661,51 @@ const [themeSearchErr, setThemeSearchErr] = useState("");
         try {
           const err = await res.json();
           if (err?.error) msg = err.error;
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
         throw new Error(msg);
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      const pptxBlob = await res.blob();
+      const url = URL.createObjectURL(pptxBlob);
       const a = document.createElement("a");
       a.href = url;
 
       // Prefer the filename suggested by the server.
       const cd = res.headers.get("content-disposition") || "";
       const match = cd.match(/filename="?([^"]+)"?/i);
-      a.download = match?.[1] || "improved-slides.pptx";
+      const downloadName = match?.[1] || "improved-slides.pptx";
+      a.download = downloadName;
       a.click();
       URL.revokeObjectURL(url);
+
+      if (summaryId) {
+        try {
+          const saveTitle =
+            String(improveFile?.name || "")
+              .replace(/\.pptx$/i, "")
+              .trim() ||
+            title.trim() ||
+            "Improved slides";
+          const fd = new FormData();
+          fd.append("file", pptxBlob, downloadName);
+          fd.append("title", saveTitle.slice(0, 512));
+          const ar = await fetch(
+            `/api/summary/${summaryId}/slide-decks/upload`,
+            { method: "POST", body: fd },
+          );
+          const aj = await ar.json().catch(() => ({}));
+          if (ar.ok) {
+            onSlideDecksChanged?.();
+          } else if (aj?.error) {
+            setImproveErr(
+              `Could not save a copy to Slide decks: ${aj.error} (file was still downloaded).`,
+            );
+          }
+        } catch {
+          /* optional archive failed; download already succeeded */
+        }
+      }
     } catch (e) {
       setImproveErr(e.message || String(e));
     } finally {
@@ -559,47 +713,9 @@ const [themeSearchErr, setThemeSearchErr] = useState("");
     }
   }
 
-  async function handleImprovePreview() {
-    setImproveErr("");
-    if (!parsedSlides?.length) {
-      setImproveErr("Upload a .pptx file and wait until slides finish loading.");
-      return;
-    }
-    if (!improveInstructions.trim()) {
-      setImproveErr("Describe what you want to improve.");
-      return;
-    }
-    setImprovePreviewLoading(true);
-    try {
-      const res = await fetch("/api/improve-ppt/preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          instructions: improveInstructions.trim(),
-          model: aiModel,
-          slides: parsedSlides,
-          adjustments: planAdjustments || [],
-          // Preview in-browser doesn't currently render fetched images.
-          addStockImages: false,
-          additiveImprove,
-          detailLevel: improveDetailLevel,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Preview failed");
-
-      setImprovePreviewData(data);
-      setImprovePreviewOpen(true);
-    } catch (e) {
-      setImproveErr(e.message || String(e));
-    } finally {
-      setImprovePreviewLoading(false);
-    }
-  }
-
   return (
     <>
-    <style>{`
+      <style>{`
       @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap');
       @keyframes overlayIn { from { opacity:0; } to { opacity:1; } }
       @keyframes modalIn   { from { opacity:0; transform:scale(.96) translateY(14px); } to { opacity:1; transform:none; } }
@@ -769,6 +885,7 @@ const [themeSearchErr, setThemeSearchErr] = useState("");
       }
       .btn-create:hover { box-shadow: 0 6px 22px rgba(99,102,241,.52); transform: translateY(-1px); }
       .btn-create:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+      .sl-foot .btn-create:only-of-type { flex: 1; justify-content: center; max-width: 100%; }
       .mini-spin { width: 13px; height: 13px; border: 2px solid rgba(255,255,255,.25); border-top-color: white; border-radius: 50%; animation: spin .7s linear infinite; }
 
       .sl-tabs { display: flex; gap: 8px; padding: 0 22px 14px; border-bottom: 1px solid rgba(255,255,255,.07); flex-shrink: 0; }
@@ -804,6 +921,65 @@ const [themeSearchErr, setThemeSearchErr] = useState("");
       .create-prompt-area::placeholder { color: rgba(255,255,255,.28); }
       .create-prompt-area:focus { border-color: rgba(99,102,241,.4); box-shadow: 0 0 0 3px rgba(99,102,241,.08); }
       .create-prompt-hint { font-size: 10.5px; color: rgba(255,255,255,.32); margin-top: 6px; }
+      .quick-requests-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 8px 0 10px;
+      }
+      .quick-requests {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 7px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 4px;
+        scrollbar-width: none;
+        flex: 1;
+        -ms-overflow-style: none;
+      }
+      .quick-requests::-webkit-scrollbar { display: none; }
+      .quick-request-chip {
+        border: 1px solid rgba(255,255,255,.12);
+        background: rgba(255,255,255,.04);
+        color: rgba(255,255,255,.72);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-family: 'Sora',sans-serif;
+        font-size: 11px;
+        line-height: 1.2;
+        cursor: pointer;
+        transition: all .15s;
+        flex: 0 0 auto;
+        white-space: nowrap;
+      }
+      .quick-request-chip:hover {
+        border-color: rgba(99,102,241,.45);
+        background: rgba(99,102,241,.16);
+        color: #c7d2fe;
+      }
+      .quick-requests-nav {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        border: none;
+        background: rgba(255,255,255,.1);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        color: rgba(255,255,255,.75);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        line-height: 1;
+        transition: all .15s;
+        flex: 0 0 auto;
+      }
+      .quick-requests-nav:hover {
+        background: rgba(99,102,241,.18);
+        color: #c7d2fe;
+      }
       .archive-note { font-size: 11px; color: #a5b4fc; margin-top: 10px; line-height: 1.4; }
 
       .slides-modal-light.sl-overlay {
@@ -894,6 +1070,30 @@ const [themeSearchErr, setThemeSearchErr] = useState("");
         background: rgba(0, 0, 0, 0.06);
       }
       .slides-modal-light .archive-note { color: #4338ca; }
+      .slides-modal-light .quick-request-chip {
+        border-color: rgba(0,0,0,.12);
+        background: rgba(0,0,0,.03);
+        color: rgba(0,0,0,.68);
+      }
+      .slides-modal-light .quick-request-chip:hover {
+        border-color: rgba(99,102,241,.42);
+        background: rgba(99,102,241,.12);
+        color: #3730a3;
+      }
+      .slides-modal-light .quick-requests-nav {
+        border: none;
+        background: rgba(255,255,255,.42);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        color: rgba(0,0,0,.68);
+      }
+      .slides-modal-light .quick-requests-nav:hover {
+        background: rgba(99,102,241,.12);
+        color: #3730a3;
+      }
+      .slides-modal-light .quick-requests::-webkit-scrollbar {
+        display: none;
+      }
       .slides-modal-light .improve-search-hint { color: rgba(0, 0, 0, 0.55); }
 
       @media (max-width: 900px) {
@@ -942,534 +1142,833 @@ const [themeSearchErr, setThemeSearchErr] = useState("");
       }
     `}</style>
 
-    <div className={`sl-overlay${isDark ? "" : " slides-modal-light"}`} onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="sl-modal">
-
-        {/* ── Header ── */}
-        <div className="sl-head">
-          <div className="sl-title">
-            <SlidesIco/> Presentation Slides
-          </div>
-          <button className="sl-close" onClick={onClose}><CloseIco/></button>
-        </div>
-
-        <div className="sl-tabs">
-          <button type="button" className={`sl-tab ${slideTab === "create" ? "on" : ""}`} onClick={() => setSlideTab("create")}>
-            Create from summary
-          </button>
-          <button type="button" className={`sl-tab ${slideTab === "improve" ? "on" : ""}`} onClick={() => setSlideTab("improve")}>
-            Improve existing PPT
-          </button>
-        </div>
-
-        {/* ── Scrollable body (2-col grid) ── */}
-        <div className="sl-body">
-
-          {slideTab === "improve" && (
-          <div className="improve-wrap">
-            <SectionHead>Upload presentation</SectionHead>
-            <FieldLabel>.pptx only. Legacy .ppt is not supported.</FieldLabel>
-            <input ref={pptxInputRef} type="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" style={{ display: "none" }}
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                setImproveFile(f || null);
-                setParsedSlides(null);
-                setPlanAdjustments([]);
-                setPlanError("");
-                setPickedUserImages([]);
-                setImproveTargetSlide(1);
-                setImproveImgResults([]);
-                setImproveImgSearchHint("");
-                e.target.value = "";
-                if (!f) return;
-                const reqId = ++parseRequestIdRef.current;
-                setParseLoading(true);
-                setImproveErr("");
-                void (async () => {
-                  try {
-                    const fd = new FormData();
-                    fd.append("file", f);
-                    const res = await fetch("/api/improve-ppt/parse", { method: "POST", body: fd });
-                    const data = await res.json().catch(() => ({}));
-                    if (reqId !== parseRequestIdRef.current) return;
-                    if (!res.ok) throw new Error(data.error || "Could not read slides");
-                    setParsedSlides(Array.isArray(data.slides) ? data.slides : []);
-                  } catch (err) {
-                    if (reqId !== parseRequestIdRef.current) return;
-                    setImproveErr(err?.message || String(err));
-                    setParsedSlides(null);
-                  } finally {
-                    if (reqId === parseRequestIdRef.current) setParseLoading(false);
-                  }
-                })();
-              }}/>
-            <button type="button" className="upload-zone" style={{ minHeight: 72 }} onClick={() => pptxInputRef.current?.click()}>
-              <UploadCloudIco/>
-              <div className="upload-zone-text">
-                {improveFile ? improveFile.name : "Click to select a .pptx file"}
-              </div>
+      <div
+        className={`sl-overlay${isDark ? "" : " slides-modal-light"}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sl-modal">
+          {/* ── Header ── */}
+          <div className="sl-head">
+            <div className="sl-title">
+              <SlidesIco /> Presentation Slides
+            </div>
+            <button className="sl-close" onClick={onClose}>
+              <CloseIco />
             </button>
+          </div>
 
-            {improveFile && !addStockImages && (
-              <div className="improve-image-panel" style={{ marginTop: 14 }}>
-                <SectionHead>Add images to slides</SectionHead>
-                {parseLoading ? (
-                  <FieldLabel style={{ marginBottom: 0 }}>
-                    Reading slides from your file…
-                  </FieldLabel>
-                ) : !parsedSlides?.length ? (
-                  <FieldLabel style={{ marginBottom: 0 }}>
-                    Could not load slides from this file. Try another .pptx or check the error above.
-                  </FieldLabel>
-                ) : (
-                  <>
-                    {improveImageProvider && (
-                      <div
-                        style={{
-                          fontSize: 11.5,
-                          fontWeight: 600,
-                          color:
-                            improveImageProvider === "none"
-                              ? isDark
-                                ? "rgba(251,191,36,.95)"
-                                : "#b45309"
-                              : isDark
-                                ? "rgba(165,180,252,.95)"
-                                : "#4338ca",
-                          marginBottom: 8,
-                        }}
-                      >
-                        Image search:{" "}
-                        {improveImageProvider === "unsplash"
-                          ? "Unsplash"
-                          : "not configured (set UNSPLASH_ACCESS_KEY on the server)"}
-                      </div>
-                    )}
-                    <FieldLabel>
-                      Pick a slide, search, then click a thumbnail to attach. Or paste a direct <code style={{ fontSize: 10.5 }}>http(s)://</code> image URL. Max 10 images.
-                    </FieldLabel>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 8 }}>
-                      <span style={{ fontSize: 11, color: isDark ? "rgba(255,255,255,.5)" : "rgba(0,0,0,.55)" }}>Target slide</span>
-                      <select
-                        className="txt-inp"
-                        style={{ width: "auto", minWidth: 120, height: 32, padding: "0 8px" }}
-                        value={improveTargetSlide}
-                        onChange={(e) => setImproveTargetSlide(Number(e.target.value))}
-                      >
-                        {parsedSlides.map((s) => (
-                          <option key={s.index} value={s.index}>
-                            Slide {s.index}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                      <input
-                        className="txt-inp"
-                        placeholder="Search images…"
-                        value={improveImgQuery}
-                        onChange={(e) => setImproveImgQuery(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && handleImproveImageSearch()}
-                        style={{ flex: 1, minWidth: 0 }}
-                      />
-                      <button
-                        type="button"
-                        className="btn-prev"
-                        style={{ height: 34, flexShrink: 0 }}
-                        disabled={improveImgSearchLoading || !improveImgQuery.trim()}
-                        onClick={() => void handleImproveImageSearch()}
-                      >
-                        {improveImgSearchLoading ? "…" : "Search"}
-                      </button>
-                    </div>
-                    {improveImgSearchHint && (
-                      <div
-                        className={improveImgResults.length ? "improve-search-hint" : "improve-err"}
-                        style={{ marginBottom: 8 }}
-                      >
-                        {improveImgSearchHint}
-                      </div>
-                    )}
-                    {improveImgResults.length > 0 && (
-                      <div className="improve-img-grid">
-                        {improveImgResults.map((it, idx) => (
-                          <button
-                            key={`${it.link || idx}-${idx}`}
-                            type="button"
-                            className="improve-img-hit"
-                            title={it.title || "Add to slide"}
-                            onClick={() => addPickedImageFromUrl(it.link, it.thumbnailLink)}
+          {/* ── Scrollable body (2-col grid) ── */}
+          <div className="sl-body">
+            {false && (
+              <div className="improve-wrap">
+                <SectionHead>Upload presentation</SectionHead>
+                <FieldLabel>
+                  .pptx only. Legacy .ppt is not supported.
+                </FieldLabel>
+                <input
+                  ref={pptxInputRef}
+                  type="file"
+                  accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    setImproveFile(f || null);
+                    setParsedSlides(null);
+                    setPlanAdjustments([]);
+                    setPlanError("");
+                    setPickedUserImages([]);
+                    setImproveTargetSlide(1);
+                    setImproveImgResults([]);
+                    setImproveImgSearchHint("");
+                    e.target.value = "";
+                    if (!f) return;
+                    const reqId = ++parseRequestIdRef.current;
+                    setParseLoading(true);
+                    setImproveErr("");
+                    void (async () => {
+                      try {
+                        const fd = new FormData();
+                        fd.append("file", f);
+                        const res = await fetch("/api/improve-ppt/parse", {
+                          method: "POST",
+                          body: fd,
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (reqId !== parseRequestIdRef.current) return;
+                        if (!res.ok)
+                          throw new Error(
+                            data.error || "Could not read slides",
+                          );
+                        setParsedSlides(
+                          Array.isArray(data.slides) ? data.slides : [],
+                        );
+                      } catch (err) {
+                        if (reqId !== parseRequestIdRef.current) return;
+                        setImproveErr(err?.message || String(err));
+                        setParsedSlides(null);
+                      } finally {
+                        if (reqId === parseRequestIdRef.current)
+                          setParseLoading(false);
+                      }
+                    })();
+                  }}
+                />
+                <button
+                  type="button"
+                  className="upload-zone"
+                  style={{ minHeight: 72 }}
+                  onClick={() => pptxInputRef.current?.click()}
+                >
+                  <UploadCloudIco />
+                  <div className="upload-zone-text">
+                    {improveFile
+                      ? improveFile.name
+                      : "Click to select a .pptx file"}
+                  </div>
+                </button>
+
+                {improveFile && !addStockImages && (
+                  <div
+                    className="improve-image-panel"
+                    style={{ marginTop: 14 }}
+                  >
+                    <SectionHead>Add images to slides</SectionHead>
+                    {parseLoading ? (
+                      <FieldLabel style={{ marginBottom: 0 }}>
+                        Reading slides from your file…
+                      </FieldLabel>
+                    ) : !parsedSlides?.length ? (
+                      <FieldLabel style={{ marginBottom: 0 }}>
+                        Could not load slides from this file. Try another .pptx
+                        or check the error above.
+                      </FieldLabel>
+                    ) : (
+                      <>
+                        {improveImageProvider && (
+                          <div
+                            style={{
+                              fontSize: 11.5,
+                              fontWeight: 600,
+                              color:
+                                improveImageProvider === "none"
+                                  ? isDark
+                                    ? "rgba(251,191,36,.95)"
+                                    : "#b45309"
+                                  : isDark
+                                    ? "rgba(165,180,252,.95)"
+                                    : "#4338ca",
+                              marginBottom: 8,
+                            }}
                           >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={it.thumbnailLink || it.link} alt="" />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    <FieldLabel style={{ marginTop: 10 }}>Or paste a direct image URL</FieldLabel>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <input
-                        className="txt-inp"
-                        placeholder="https://…"
-                        value={improvePasteUrl}
-                        onChange={(e) => setImprovePasteUrl(e.target.value)}
-                        style={{ flex: 1 }}
-                      />
-                      <button
-                        type="button"
-                        className="btn-prev"
-                        style={{ height: 34 }}
-                        onClick={() => {
-                          addPickedImageFromUrl(improvePasteUrl.trim(), "");
-                          setImprovePasteUrl("");
-                        }}
-                      >
-                        Add
-                      </button>
-                    </div>
-                    {pickedUserImages.length > 0 && (
-                      <div className="improve-picked-list">
-                        {pickedUserImages.map((p) => (
-                          <div key={p.slideIndex} className="improve-picked-chip">
-                            <span>Slide {p.slideIndex}</span>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            {p.thumb ? <img src={p.thumb} alt="" className="improve-picked-thumb" /> : null}
-                            <button type="button" className="improve-picked-x" onClick={() => removePickedImage(p.slideIndex)} aria-label="Remove">×</button>
+                            Image search:{" "}
+                            {improveImageProvider === "unsplash"
+                              ? "Unsplash"
+                              : "not configured (set UNSPLASH_ACCESS_KEY on the server)"}
                           </div>
-                        ))}
-                      </div>
+                        )}
+                        <FieldLabel>
+                          Pick a slide, search, then click a thumbnail to
+                          attach. Or paste a direct{" "}
+                          <code style={{ fontSize: 10.5 }}>http(s)://</code>{" "}
+                          image URL. Max 10 images.
+                        </FieldLabel>
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 8,
+                            alignItems: "center",
+                            marginBottom: 8,
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 11,
+                              color: isDark
+                                ? "rgba(255,255,255,.5)"
+                                : "rgba(0,0,0,.55)",
+                            }}
+                          >
+                            Target slide
+                          </span>
+                          <select
+                            className="txt-inp"
+                            style={{
+                              width: "auto",
+                              minWidth: 120,
+                              height: 32,
+                              padding: "0 8px",
+                            }}
+                            value={improveTargetSlide}
+                            onChange={(e) =>
+                              setImproveTargetSlide(Number(e.target.value))
+                            }
+                          >
+                            {parsedSlides.map((s) => (
+                              <option key={s.index} value={s.index}>
+                                Slide {s.index}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div
+                          style={{ display: "flex", gap: 8, marginBottom: 8 }}
+                        >
+                          <input
+                            className="txt-inp"
+                            placeholder="Search images…"
+                            value={improveImgQuery}
+                            onChange={(e) => setImproveImgQuery(e.target.value)}
+                            onKeyDown={(e) =>
+                              e.key === "Enter" && handleImproveImageSearch()
+                            }
+                            style={{ flex: 1, minWidth: 0 }}
+                          />
+                          <button
+                            type="button"
+                            className="btn-prev"
+                            style={{ height: 34, flexShrink: 0 }}
+                            disabled={
+                              improveImgSearchLoading || !improveImgQuery.trim()
+                            }
+                            onClick={() => void handleImproveImageSearch()}
+                          >
+                            {improveImgSearchLoading ? "…" : "Search"}
+                          </button>
+                        </div>
+                        {improveImgSearchHint && (
+                          <div
+                            className={
+                              improveImgResults.length
+                                ? "improve-search-hint"
+                                : "improve-err"
+                            }
+                            style={{ marginBottom: 8 }}
+                          >
+                            {improveImgSearchHint}
+                          </div>
+                        )}
+                        {improveImgResults.length > 0 && (
+                          <div className="improve-img-grid">
+                            {improveImgResults.map((it, idx) => (
+                              <button
+                                key={`${it.link || idx}-${idx}`}
+                                type="button"
+                                className="improve-img-hit"
+                                title={it.title || "Add to slide"}
+                                onClick={() =>
+                                  addPickedImageFromUrl(
+                                    it.link,
+                                    it.thumbnailLink,
+                                  )
+                                }
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={it.thumbnailLink || it.link} alt="" />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <FieldLabel style={{ marginTop: 10 }}>
+                          Or paste a direct image URL
+                        </FieldLabel>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <input
+                            className="txt-inp"
+                            placeholder="https://…"
+                            value={improvePasteUrl}
+                            onChange={(e) => setImprovePasteUrl(e.target.value)}
+                            style={{ flex: 1 }}
+                          />
+                          <button
+                            type="button"
+                            className="btn-prev"
+                            style={{ height: 34 }}
+                            onClick={() => {
+                              addPickedImageFromUrl(improvePasteUrl.trim(), "");
+                              setImprovePasteUrl("");
+                            }}
+                          >
+                            Add
+                          </button>
+                        </div>
+                        {pickedUserImages.length > 0 && (
+                          <div className="improve-picked-list">
+                            {pickedUserImages.map((p) => (
+                              <div
+                                key={p.slideIndex}
+                                className="improve-picked-chip"
+                              >
+                                <span>Slide {p.slideIndex}</span>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                {p.thumb ? (
+                                  <img
+                                    src={p.thumb}
+                                    alt=""
+                                    className="improve-picked-thumb"
+                                  />
+                                ) : null}
+                                <button
+                                  type="button"
+                                  className="improve-picked-x"
+                                  onClick={() =>
+                                    removePickedImage(p.slideIndex)
+                                  }
+                                  aria-label="Remove"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
                     )}
+                  </div>
+                )}
+
+                <label
+                  className="chk-row"
+                  style={{ marginTop: 4 }}
+                  onClick={() => setAdditiveImprove((v) => !v)}
+                >
+                  <div className={`chk-box ${additiveImprove ? "on" : ""}`}>
+                    {additiveImprove && <span className="chk-tick">✓</span>}
+                  </div>
+                  Improve in place (neutral layout, no extra cover slide; keep
+                  original wording unless you ask otherwise)
+                </label>
+
+                <FieldLabel style={{ marginTop: 10 }}>
+                  Detail level (for generated deck)
+                </FieldLabel>
+                <Dropdown
+                  value={
+                    improveDetailLevel === "concise"
+                      ? "Concise"
+                      : improveDetailLevel === "deep"
+                        ? "Deep (lecture+)"
+                        : "Lecture (default)"
+                  }
+                  onChange={(v) => {
+                    const m = {
+                      Concise: "concise",
+                      "Lecture (default)": "lecture",
+                      "Deep (lecture+)": "deep",
+                    };
+                    setImproveDetailLevel(m[v] || "lecture");
+                  }}
+                  options={["Concise", "Lecture (default)", "Deep (lecture+)"]}
+                  width={160}
+                />
+                {/* ── 2slides Theme Search ── */}
+                <SectionHead>Find a design template (optional)</SectionHead>
+                <FieldLabel>
+                  Search for a visual style — the generator will try to match it
+                  using pptxGenJS.
+                </FieldLabel>
+                <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                  <input
+                    className="txt-inp"
+                    placeholder="e.g. modern dark, minimal blue, corporate..."
+                    value={themeQuery}
+                    onChange={(e) => setThemeQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleThemeSearch()}
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    className="btn-prev"
+                    style={{ height: 34, flexShrink: 0 }}
+                    disabled={themeSearchLoading || !themeQuery.trim()}
+                    onClick={() => void handleThemeSearch()}
+                  >
+                    {themeSearchLoading ? "…" : "Search"}
+                  </button>
+                </div>
+                {themeSearchErr && (
+                  <div className="improve-err" style={{ marginBottom: 8 }}>
+                    {themeSearchErr}
+                  </div>
+                )}
+                {themeResults.length > 0 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 8,
+                      marginBottom: 10,
+                    }}
+                  >
+                    {themeResults.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={async () => {
+                          setSelectedThemeId(t.id);
+                          // If we already fetched this theme's spec, use it directly
+                          if (t._templateSpec) {
+                            setSelectedTemplateSpec(t._templateSpec);
+                            return;
+                          }
+                          // Otherwise fetch it now (only for non-top results)
+                          setThemeSearchLoading(true);
+                          try {
+                            const baseQ = (themeResultsQuery || themeQuery).trim() || t.name;
+                            const params = new URLSearchParams({
+                              q: baseQ,
+                              model: aiModel,
+                              themeId: String(t.id),
+                              themeName: t.name || "",
+                            });
+                            const res = await fetch(
+                              `/api/improve-ppt/theme-search?${params.toString()}`,
+                            );
+                            const data = await res.json().catch(() => ({}));
+                            if (data.templateSpec) {
+                              t._templateSpec = data.templateSpec; // cache it on the object
+                              setSelectedTemplateSpec(data.templateSpec);
+                            }
+                          } catch (e) {
+                            setThemeSearchErr(e?.message || String(e));
+                          } finally {
+                            setThemeSearchLoading(false);
+                          }
+                        }}
+                        style={{
+                          padding: "5px 10px",
+                          borderRadius: 8,
+                          fontSize: 11,
+                          border: `1px solid ${selectedThemeId === t.id ? "rgba(99,102,241,.7)" : "rgba(255,255,255,.12)"}`,
+                          background:
+                            selectedThemeId === t.id
+                              ? "rgba(99,102,241,.2)"
+                              : "rgba(255,255,255,.04)",
+                          color:
+                            selectedThemeId === t.id
+                              ? "#c7d2fe"
+                              : "rgba(255,255,255,.6)",
+                          cursor: "pointer",
+                        }}
+                        title={t.description}
+                      >
+                        {t.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {selectedTemplateSpec && (
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "rgba(165,180,252,.9)",
+                      marginBottom: 10,
+                    }}
+                  >
+                    ✓ Using style:{" "}
+                    <strong>{selectedTemplateSpec._themeName}</strong> —{" "}
+                    {selectedTemplateSpec._summary}
+                  </div>
+                )}
+
+                <SectionHead>What should change?</SectionHead>
+                <textarea
+                  className="improve-area"
+                  rows={4}
+                  placeholder={
+                    'Examples:\n• "Expand speaker notes; keep on-slide bullets close to the original."\n• "Switch to a green theme and add relevant pictures."\n• "Tighten bullets for clarity and refresh the deck visuals."'
+                  }
+                  value={improveInstructions}
+                  onChange={(e) => setImproveInstructions(e.target.value)}
+                />
+
+                <SectionHead>AI model</SectionHead>
+                <Dropdown
+                  value={aiModel}
+                  onChange={setAiModel}
+                  options={["ChatGPT", "DeepSeek", "Gemini"]}
+                  width={130}
+                />
+
+                <label
+                  className="chk-row"
+                  style={{ marginTop: 8 }}
+                  onClick={() => setAddStockImages((v) => !v)}
+                >
+                  <div className={`chk-box ${addStockImages ? "on" : ""}`}>
+                    {addStockImages && <span className="chk-tick">✓</span>}
+                  </div>
+                  Auto-add stock images from each slide’s keywords (title,
+                  bullets, original text) using Unsplash. Requires
+                  UNSPLASH_ACCESS_KEY. Uncheck this to use the manual Unsplash
+                  search panel.
+                </label>
+
+                {improveErr && <div className="improve-err">{improveErr}</div>}
+
+                {parsedSlides?.length > 0 &&
+                  improveInstructions.trim() &&
+                  planLoading && (
+                    <div
+                      style={{ fontSize: 11.5, color: "#a5b4fc", marginTop: 4 }}
+                    >
+                      Planning adjustments…
+                    </div>
+                  )}
+                {planError && (
+                  <div className="improve-err" style={{ marginTop: 4 }}>
+                    {planError}
+                  </div>
+                )}
+
+                {planAdjustments.length > 0 && (
+                  <>
+                    <SectionHead>Planned adjustments</SectionHead>
+                    <div className="plan-list">
+                      {planAdjustments.map((adj, i) => (
+                        <div key={i} className="plan-item">
+                          <strong style={{ color: "#a5b4fc" }}>
+                            Slide {adj.slideIndex}
+                          </strong>{" "}
+                          ({adj.type})<br />
+                          {adj.description}
+                          {adj.before && (
+                            <>
+                              <br />
+                              <span style={{ opacity: 0.75 }}>
+                                Before: {String(adj.before).slice(0, 200)}
+                                {String(adj.before).length > 200 ? "…" : ""}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </>
                 )}
-              </div>
-            )}
-
-            <label className="chk-row" style={{ marginTop: 4 }} onClick={() => setAdditiveImprove((v) => !v)}>
-              <div className={`chk-box ${additiveImprove ? "on" : ""}`}>
-                {additiveImprove && <span className="chk-tick">✓</span>}
-              </div>
-              Improve in place (neutral layout, no extra cover slide; keep original wording unless you ask otherwise)
-            </label>
-
-            <FieldLabel style={{ marginTop: 10 }}>Detail level (for generated deck)</FieldLabel>
-            <Dropdown
-              value={improveDetailLevel === "concise" ? "Concise" : improveDetailLevel === "deep" ? "Deep (lecture+)" : "Lecture (default)"}
-              onChange={(v) => {
-                const m = { Concise: "concise", "Lecture (default)": "lecture", "Deep (lecture+)": "deep" };
-                setImproveDetailLevel(m[v] || "lecture");
-              }}
-              options={["Concise", "Lecture (default)", "Deep (lecture+)"]}
-              width={160}
-            />
-{/* ── 2slides Theme Search ── */}
-<SectionHead>Find a design template (optional)</SectionHead>
-<FieldLabel>Search for a visual style — the generator will try to match it using pptxGenJS.</FieldLabel>
-<div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-  <input
-    className="txt-inp"
-    placeholder="e.g. modern dark, minimal blue, corporate..."
-    value={themeQuery}
-    onChange={(e) => setThemeQuery(e.target.value)}
-    onKeyDown={(e) => e.key === "Enter" && handleThemeSearch()}
-    style={{ flex: 1 }}
-  />
-  <button
-    type="button"
-    className="btn-prev"
-    style={{ height: 34, flexShrink: 0 }}
-    disabled={themeSearchLoading || !themeQuery.trim()}
-    onClick={() => void handleThemeSearch()}
-  >
-    {themeSearchLoading ? "…" : "Search"}
-  </button>
-</div>
-{themeSearchErr && <div className="improve-err" style={{ marginBottom: 8 }}>{themeSearchErr}</div>}
-{themeResults.length > 0 && (
-  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
-    {themeResults.map((t) => (
-      <button
-        key={t.id}
-        type="button"
-        onClick={() => {
-          // Re-fetch this theme's spec when user picks a non-top result
-          setThemeQuery(t.name);
-          void handleThemeSearch();
-        }}
-        style={{
-          padding: "5px 10px", borderRadius: 8, fontSize: 11,
-          border: `1px solid ${selectedTemplateSpec?._themeId === t.id ? "rgba(99,102,241,.7)" : "rgba(255,255,255,.12)"}`,
-          background: selectedTemplateSpec?._themeId === t.id ? "rgba(99,102,241,.2)" : "rgba(255,255,255,.04)",
-          color: selectedTemplateSpec?._themeId === t.id ? "#c7d2fe" : "rgba(255,255,255,.6)",
-          cursor: "pointer",
-        }}
-        title={t.description}
-      >
-        {t.name}
-      </button>
-    ))}
-  </div>
-)}
-{selectedTemplateSpec && (
-  <div style={{ fontSize: 11, color: "rgba(165,180,252,.9)", marginBottom: 10 }}>
-    ✓ Using style: <strong>{selectedTemplateSpec._themeName}</strong> — {selectedTemplateSpec._summary}
-  </div>
-)}
-
-            <SectionHead>What should change?</SectionHead>
-            <textarea
-              className="improve-area"
-              rows={4}
-              placeholder={'Examples:\n• "Expand speaker notes; keep on-slide bullets close to the original."\n• "Switch to a green theme and add relevant pictures."\n• "Tighten bullets for clarity and refresh the deck visuals."'}
-              value={improveInstructions}
-              onChange={(e) => setImproveInstructions(e.target.value)}
-            />
-
-            <SectionHead>AI model</SectionHead>
-            <Dropdown value={aiModel} onChange={setAiModel} options={["ChatGPT","DeepSeek","Gemini"]} width={130}/>
-
-            <label className="chk-row" style={{ marginTop: 8 }} onClick={() => setAddStockImages(v => !v)}>
-              <div className={`chk-box ${addStockImages ? "on" : ""}`}>
-                {addStockImages && <span className="chk-tick">✓</span>}
-              </div>
-              Auto-add stock images from each slide’s keywords (title, bullets, original text) using Unsplash. Requires UNSPLASH_ACCESS_KEY. Uncheck this to use the manual Unsplash search panel.
-            </label>
-
-            {improveErr && <div className="improve-err">{improveErr}</div>}
-
-            {parsedSlides?.length > 0 && improveInstructions.trim() && planLoading && (
-              <div style={{ fontSize: 11.5, color: "#a5b4fc", marginTop: 4 }}>Planning adjustments…</div>
-            )}
-            {planError && (
-              <div className="improve-err" style={{ marginTop: 4 }}>{planError}</div>
-            )}
-
-            {planAdjustments.length > 0 && (
-              <>
-                <SectionHead>Planned adjustments</SectionHead>
-                <div className="plan-list">
-                  {planAdjustments.map((adj, i) => (
-                    <div key={i} className="plan-item">
-                      <strong style={{ color: "#a5b4fc" }}>Slide {adj.slideIndex}</strong> ({adj.type})<br/>
-                      {adj.description}
-                      {adj.before && <><br/><span style={{ opacity: 0.75 }}>Before: {String(adj.before).slice(0, 200)}{String(adj.before).length > 200 ? "…" : ""}</span></>}
+                {parsedSlides?.length > 0 &&
+                  improveInstructions.trim() &&
+                  !planLoading &&
+                  !planError &&
+                  planAdjustments.length === 0 && (
+                    <div
+                      className="plan-list"
+                      style={{ color: "rgba(255,255,255,.4)" }}
+                    >
+                      No specific adjustments listed — the deck may already
+                      match your request, or try different instructions.
                     </div>
-                  ))}
+                  )}
+              </div>
+            )}
+
+            {true && (
+              <>
+                <div className="create-prompt-row">
+                  <SectionHead>Custom instructions (optional)</SectionHead>
+                  <FieldLabel>
+                    Describe focus, audience, pacing, or must-cover topics — the
+                    generator will try to follow this together with your
+                    summary.
+                  </FieldLabel>
+                  <div className="quick-requests-wrap">
+                    <button
+                      type="button"
+                      className="quick-requests-nav"
+                      aria-label="Scroll quick requests left"
+                      onClick={() => scrollQuickRequests("left")}
+                    >
+                      ‹
+                    </button>
+                    <div className="quick-requests" ref={quickRequestsRef}>
+                      {quickInstructionPresets.map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          className="quick-request-chip"
+                          onClick={() => applyQuickInstruction(preset)}
+                          title={preset}
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      className="quick-requests-nav"
+                      aria-label="Scroll quick requests right"
+                      onClick={() => scrollQuickRequests("right")}
+                    >
+                      ›
+                    </button>
+                  </div>
+                  <textarea
+                    className="create-prompt-area"
+                    rows={4}
+                    maxLength={4000}
+                    placeholder='Examples: "Emphasize definitions and one worked example per concept." / "Final slide must list 5 review questions." / "Assume first-year undergrads; avoid jargon."'
+                    value={slideUserPrompt}
+                    onChange={(e) => setSlideUserPrompt(e.target.value)}
+                  />
+                  <div className="create-prompt-hint">
+                    {slideUserPrompt.length} / 4000
+                  </div>
                 </div>
+
+                {/* ══ LEFT COLUMN ══ */}
+                <div className="col-left">
+                  {/* Slide Length & Detail */}
+                  <SectionHead>Slide Length &amp; Detail</SectionHead>
+                  <FieldLabel>
+                    Main Title of the slide (optional, will be auto-generated if
+                    left empty):
+                  </FieldLabel>
+                  <input
+                    className="txt-inp"
+                    placeholder="Title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    style={{ marginBottom: 12 }}
+                  />
+
+                  <FieldLabel>Slide length:</FieldLabel>
+                  <div className="radio-group" style={{ marginBottom: 12 }}>
+                    {[
+                      "Short (summary)",
+                      "Medium (lecture-ready)",
+                      "Long (detailed)",
+                    ].map((opt) => (
+                      <label
+                        key={opt}
+                        className={`radio-opt ${slideLength === opt ? "on" : ""}`}
+                        onClick={() => setSlideLength(opt)}
+                      >
+                        <div
+                          className={`radio-dot ${slideLength === opt ? "on" : ""}`}
+                        />
+                        {opt}
+                      </label>
+                    ))}
+                  </div>
+
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 10 }}
+                  >
+                    <FieldLabel
+                      style={{ marginBottom: 0, whiteSpace: "nowrap" }}
+                    >
+                      Max Slides Limit (optional):
+                    </FieldLabel>
+                    <input
+                      className="num-inp"
+                      type="number"
+                      min={1}
+                      max={100}
+                      placeholder=""
+                      value={maxSlides}
+                      onChange={(e) => setMaxSlides(e.target.value)}
+                    />
+                  </div>
+
+                  <Divider />
+
+                  {/* Slide Design & Layout */}
+                  <SectionHead>Slide Design &amp; Layout Settings</SectionHead>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 10,
+                      alignItems: "flex-start",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div>
+                      <FieldLabel>Template Selection:</FieldLabel>
+                      <Dropdown
+                        value={template}
+                        onChange={setTemplate}
+                        options={[
+                          "Academic",
+                          "Professional",
+                          "Creative",
+                          "Minimal",
+                          "Corporate",
+                        ]}
+                        width={110}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel>Font Size Preferences:</FieldLabel>
+                      <Dropdown
+                        value={fontSize}
+                        onChange={setFontSize}
+                        options={["Small", "Normal", "Large"]}
+                        width={100}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel>Text Density:</FieldLabel>
+                      <Dropdown
+                        value={textDensity}
+                        onChange={setTextDensity}
+                        options={["Compact", "Balanced", "Spacious"]}
+                        width={100}
+                      />
+                    </div>
+                  </div>
+                </div>
+                {/* /col-left */}
+
+                {/* ══ RIGHT COLUMN ══ */}
+                <div className="col-right">
+                  <div className="tag-hint" style={{ marginTop: 8 }}>
+                    Slides are generated by Alai from your summary and the
+                    options here. Use the Improve tab to add images to an
+                    existing deck.
+                  </div>
+
+                  <Divider />
+
+                  {/* AI Model & Processing Settings */}
+                  <SectionHead>AI Model &amp; Processing Settings</SectionHead>
+
+                  <FieldLabel>AI Model Selection:</FieldLabel>
+                  <Dropdown
+                    value={aiModel}
+                    onChange={setAiModel}
+                    options={["ChatGPT", "DeepSeek", "Gemini"]}
+                    width={130}
+                  />
+
+                  <div style={{ marginTop: 12 }}>
+                    <FieldLabel>Summarization Strictness:</FieldLabel>
+                    <Dropdown
+                      value={strictness}
+                      onChange={setStrictness}
+                      options={["Strict", "Moderate", "Loose"]}
+                      width={110}
+                    />
+                  </div>
+
+                  <Divider />
+
+                  {/* Content Style Settings */}
+                  <SectionHead>Content Style Settings</SectionHead>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 12,
+                      alignItems: "flex-start",
+                      marginBottom: 14,
+                    }}
+                  >
+                    <div>
+                      <FieldLabel>Slide Text Style:</FieldLabel>
+                      <Dropdown
+                        value={textStyle}
+                        onChange={setTextStyle}
+                        options={[
+                          "Academic",
+                          "Casual",
+                          "Technical",
+                          "Narrative",
+                        ]}
+                        width={110}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel>Bullet-point Limit per Slide</FieldLabel>
+                      <input
+                        className="num-inp"
+                        type="number"
+                        min={1}
+                        max={20}
+                        placeholder=""
+                        value={bulletLimit}
+                        onChange={(e) => setBulletLimit(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <FieldLabel>Keywords Highlighting</FieldLabel>
+                  <label
+                    className="chk-row"
+                    onClick={() => setHighlightDefs((v) => !v)}
+                  >
+                    <div className={`chk-box ${highlightDefs ? "on" : ""}`}>
+                      {highlightDefs && <span className="chk-tick">✓</span>}
+                    </div>
+                    Highlight definitions
+                  </label>
+                  <label
+                    className="chk-row"
+                    onClick={() => setBoldKeywords((v) => !v)}
+                  >
+                    <div className={`chk-box ${boldKeywords ? "on" : ""}`}>
+                      {boldKeywords && <span className="chk-tick">✓</span>}
+                    </div>
+                    Enable bold keywords
+                  </label>
+
+                  {generateErr && (
+                    <div className="improve-err" style={{ marginTop: 12 }}>
+                      {generateErr}
+                    </div>
+                  )}
+                  {generateProgress && (
+                    <div
+                      style={{
+                        fontSize: 11.5,
+                        color: "#a5b4fc",
+                        marginTop: 12,
+                      }}
+                    >
+                      {generateProgress}
+                    </div>
+                  )}
+                  {archiveNote ? (
+                    <div className="archive-note">{archiveNote}</div>
+                  ) : null}
+                </div>
+                {/* /col-right */}
               </>
             )}
-            {parsedSlides?.length > 0 &&
-              improveInstructions.trim() &&
-              !planLoading &&
-              !planError &&
-              planAdjustments.length === 0 && (
-              <div className="plan-list" style={{ color: "rgba(255,255,255,.4)" }}>
-                No specific adjustments listed — the deck may already match your request, or try different instructions.
-              </div>
-            )}
           </div>
-          )}
+          {/* /sl-body */}
 
-          {slideTab === "create" && (<>
-          <div className="create-prompt-row">
-            <SectionHead>Custom instructions (optional)</SectionHead>
-            <FieldLabel>
-              Describe focus, audience, pacing, or must-cover topics — the generator will try to follow this together with your summary.
-            </FieldLabel>
-            <textarea
-              className="create-prompt-area"
-              rows={4}
-              maxLength={4000}
-              placeholder='Examples: "Emphasize definitions and one worked example per concept." / "Final slide must list 5 review questions." / "Assume first-year undergrads; avoid jargon."'
-              value={slideUserPrompt}
-              onChange={(e) => setSlideUserPrompt(e.target.value)}
-            />
-            <div className="create-prompt-hint">{slideUserPrompt.length} / 4000</div>
+          {/* ── Footer ── */}
+          <div className="sl-foot">
+            <button
+              type="button"
+              className="btn-create"
+              onClick={handleCreate}
+              disabled={generating}
+            >
+              {generating ? <div className="mini-spin" /> : <SlidesIco />}
+              Generate {generating && generateProgress ? "" : "Slides"}
+            </button>
           </div>
-
-          {/* ══ LEFT COLUMN ══ */}
-          <div className="col-left">
-
-            {/* Slide Length & Detail */}
-            <SectionHead>Slide Length &amp; Detail</SectionHead>
-            <FieldLabel>Main Title of the slide (optional, will be auto-generated if left empty):</FieldLabel>
-            <input className="txt-inp" placeholder="Title" value={title} onChange={e=>setTitle(e.target.value)} style={{ marginBottom:12 }}/>
-
-            <FieldLabel>Slide length:</FieldLabel>
-            <div className="radio-group" style={{ marginBottom:12 }}>
-              {["Short (summary)", "Medium (lecture-ready)", "Long (detailed)"].map(opt => (
-                <label key={opt} className={`radio-opt ${slideLength===opt?"on":""}`} onClick={()=>setSlideLength(opt)}>
-                  <div className={`radio-dot ${slideLength===opt?"on":""}`}/>
-                  {opt}
-                </label>
-              ))}
-            </div>
-
-            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-              <FieldLabel style={{ marginBottom:0, whiteSpace:"nowrap" }}>Max Slides Limit (optional):</FieldLabel>
-              <input className="num-inp" type="number" min={1} max={100}
-                placeholder="" value={maxSlides} onChange={e=>setMaxSlides(e.target.value)}/>
-            </div>
-
-            <Divider/>
-
-            {/* Slide Design & Layout */}
-            <SectionHead>Slide Design &amp; Layout Settings</SectionHead>
-            <div style={{ display:"flex", gap:10, alignItems:"flex-start", flexWrap:"wrap" }}>
-              <div>
-                <FieldLabel>Template Selection:</FieldLabel>
-                <Dropdown value={template} onChange={setTemplate} options={["Academic","Professional","Creative","Minimal","Corporate"]} width={110}/>
-              </div>
-              <div>
-                <FieldLabel>Font Size Preferences:</FieldLabel>
-                <Dropdown value={fontSize} onChange={setFontSize} options={["Small","Normal","Large"]} width={100}/>
-              </div>
-              <div>
-                <FieldLabel>Text Density:</FieldLabel>
-                <Dropdown value={textDensity} onChange={setTextDensity} options={["Compact","Balanced","Spacious"]} width={100}/>
-              </div>
-            </div>
-
-          </div>{/* /col-left */}
-
-          {/* ══ RIGHT COLUMN ══ */}
-          <div className="col-right">
-
-            <div className="tag-hint" style={{ marginTop: 8 }}>
-              Slides are generated by Alai from your summary and the options here. Use the Improve tab to add images to an existing deck.
-            </div>
-
-            <Divider/>
-
-            {/* AI Model & Processing Settings */}
-            <SectionHead>AI Model &amp; Processing Settings</SectionHead>
-
-            <FieldLabel>AI Model Selection:</FieldLabel>
-            <Dropdown value={aiModel} onChange={setAiModel}
-              options={["ChatGPT","DeepSeek","Gemini"]} width={130}/>
-
-            <div style={{ marginTop: 12 }}>
-              <FieldLabel>Summarization Strictness:</FieldLabel>
-              <Dropdown value={strictness} onChange={setStrictness}
-                options={["Strict","Moderate","Loose"]} width={110}/>
-            </div>
-
-            <Divider/>
-
-            {/* Content Style Settings */}
-            <SectionHead>Content Style Settings</SectionHead>
-
-            <div style={{ display:"flex", gap:12, alignItems:"flex-start", marginBottom:14 }}>
-              <div>
-                <FieldLabel>Slide Text Style:</FieldLabel>
-                <Dropdown value={textStyle} onChange={setTextStyle}
-                  options={["Academic","Casual","Technical","Narrative"]} width={110}/>
-              </div>
-              <div>
-                <FieldLabel>Bullet-point Limit per Slide</FieldLabel>
-                <input className="num-inp" type="number" min={1} max={20}
-                  placeholder="" value={bulletLimit} onChange={e=>setBulletLimit(e.target.value)}/>
-              </div>
-            </div>
-
-            <FieldLabel>Keywords Highlighting</FieldLabel>
-            <label className="chk-row" onClick={()=>setHighlightDefs(v=>!v)}>
-              <div className={`chk-box ${highlightDefs?"on":""}`}>
-                {highlightDefs && <span className="chk-tick">✓</span>}
-              </div>
-              Highlight definitions
-            </label>
-            <label className="chk-row" onClick={()=>setBoldKeywords(v=>!v)}>
-              <div className={`chk-box ${boldKeywords?"on":""}`}>
-                {boldKeywords && <span className="chk-tick">✓</span>}
-              </div>
-              Enable bold keywords
-            </label>
-
-            {generateErr && <div className="improve-err" style={{ marginTop: 12 }}>{generateErr}</div>}
-            {generateProgress && <div style={{ fontSize: 11.5, color: "#a5b4fc", marginTop: 12 }}>{generateProgress}</div>}
-            {archiveNote ? <div className="archive-note">{archiveNote}</div> : null}
-
-          </div>{/* /col-right */}
-          </>)}
-
-        </div>{/* /sl-body */}
-
-        {/* ── Footer ── */}
-        <div className="sl-foot">
-          {slideTab === "improve" ? (
-            <>
-              <button
-                className="btn-prev"
-                onClick={handleImprovePreview}
-                disabled={
-                  improvePreviewLoading ||
-                  parseLoading ||
-                  !parsedSlides?.length ||
-                  !improveInstructions.trim()
-                }
-              >
-                {improvePreviewLoading ? <div className="mini-spin"/> : <EyeIco/>}
-                Preview slides
-              </button>
-              <button
-                className="btn-create"
-                onClick={handleImproveGenerate}
-                disabled={
-                  improveGenLoading ||
-                  parseLoading ||
-                  !parsedSlides?.length ||
-                  !improveInstructions.trim()
-                }
-              >
-                {improveGenLoading ? <div className="mini-spin"/> : <SlidesIco/>}
-                Build improved PPTX
-              </button>
-            </>
-          ) : (
-            <>
-              <button className="btn-prev" onClick={handlePreview} disabled={previewing}>
-                {previewing ? <div className="mini-spin"/> : <EyeIco/>}
-                Preview Slide
-              </button>
-              <button type="button" className="btn-create" onClick={handleCreate} disabled={generating}>
-                {generating ? <div className="mini-spin"/> : <SlidesIco/>}
-                Generate {generating && generateProgress ? "" : "Slides"}
-              </button>
-            </>
-          )}
         </div>
-
       </div>
-    </div>
 
-    {improvePreviewOpen && improvePreviewData && (
-      <SlidePreviewModal
-        onClose={() => setImprovePreviewOpen(false)}
-        title={improvePreviewData.title}
-        subtitle={improvePreviewData.subtitle}
-        theme={improvePreviewData.theme}
-        slides={improvePreviewData.slides}
-        totalPages={improvePreviewData.slides?.length || 0}
-      />
-    )}
-
-    {alaiPreviewOpen && (
-      <AlaiSlidesPreviewModal
-        onClose={() => setAlaiPreviewOpen(false)}
-        previewUrl={alaiPreviewUrl}
-        remotePptUrl={alaiRemotePptUrl}
-        title="Create Presentation Slides..."
-        subtitle="Your presentation slides is ready.."
-        onDownload={(() => {
-          const fn = slideDownloadRef.current;
-          return typeof fn === "function"
-            ? async () => {
-                await fn();
-              }
-            : undefined;
-        })()}
-      />
-    )}
+      {alaiPreviewOpen && (
+        <AlaiSlidesPreviewModal
+          onClose={() => setAlaiPreviewOpen(false)}
+          previewUrl={alaiPreviewUrl}
+          remotePptUrl={alaiRemotePptUrl}
+          title="Create Presentation Slides..."
+          subtitle="Your presentation slides is ready.."
+          onDownload={(() => {
+            const fn = slideDownloadRef.current;
+            return typeof fn === "function"
+              ? async () => {
+                  await fn();
+                }
+              : undefined;
+          })()}
+        />
+      )}
     </>
   );
 }

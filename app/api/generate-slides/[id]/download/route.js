@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { extractPptxUrlFromAlaiGenerationJson } from "@/lib/alaiSlidePptx";
 
 export async function GET(req, context) {
   const session = await getServerSession(authOptions);
@@ -49,12 +50,7 @@ export async function GET(req, context) {
     });
   }
 
-  const pptUrl =
-    statusData?.formats?.ppt?.url ||
-    statusData?.formats?.pptx?.url ||
-    statusData?.download_url ||
-    statusData?.downloadUrl ||
-    null;
+  const pptUrl = extractPptxUrlFromAlaiGenerationJson(statusData);
 
   if (!pptUrl) {
     return new Response(JSON.stringify({ error: "PPT export URL not available." }), {

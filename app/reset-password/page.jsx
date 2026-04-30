@@ -2,12 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ChevronDownIcon,
-  MailIcon,
-  SlidesIcon,
-  UserCircleIcon,
-} from "../components/icons";
+import { MailIcon } from "../components/icons";
+import AuthMarketingNav from "../components/AuthMarketingNav";
+import AuthPageChrome from "../components/AuthPageChrome";
 
 export default function ResetPassword() {
   const router = useRouter();
@@ -47,21 +44,6 @@ export default function ResetPassword() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap');
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: #0e0e12; }
-        .s2n { min-height: 100vh; background: #0e0e12; font-family: 'Sora', sans-serif; position: relative; overflow: hidden; }
-        .blob1 { position: fixed; top: -15%; right: -8%; width: 650px; height: 650px; background: radial-gradient(circle, rgba(99,102,241,0.16) 0%, transparent 65%); pointer-events: none; z-index: 0; }
-        .blob2 { position: fixed; bottom: -10%; left: -5%; width: 520px; height: 520px; background: radial-gradient(circle, rgba(20,184,166,0.1) 0%, transparent 65%); pointer-events: none; z-index: 0; }
-        .navbar { position: relative; z-index: 10; display: flex; align-items: center; justify-content: space-between; padding: 0 36px; height: 60px; background: rgba(14,14,18,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,0.055); }
-        .navbar-logo { display: flex; align-items: center; gap: 10px; }
-        .logo-badge { width: 34px; height: 34px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 9px; display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 4px 14px rgba(99,102,241,0.45); }
-        .logo-text { font-family: 'Fraunces', serif; font-size: 17px; font-weight: 600; background: linear-gradient(90deg, #e8e8f0, #a5b4fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.02em; }
-        .navbar-user-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); display: flex; align-items: center; justify-content: center; cursor: pointer; color: #8080a0; transition: all 0.2s; }
-        .navbar-user-btn:hover { border-color: rgba(99,102,241,0.45); background: rgba(99,102,241,0.1); color: #a5b4fc; }
-        .subnav { position: relative; z-index: 10; display: flex; align-items: center; justify-content: flex-end; padding: 0 36px; height: 42px; background: rgba(16,16,22,0.75); backdrop-filter: blur(8px); border-bottom: 1px solid rgba(255,255,255,0.035); }
-        .subnav-item { display: flex; align-items: center; gap: 5px; padding: 0 16px; height: 42px; font-size: 12.5px; font-family: 'Sora', sans-serif; font-weight: 400; color: #52526e; cursor: pointer; border: none; background: none; transition: color 0.2s; letter-spacing: 0.025em; }
-        .subnav-item:hover { color: #9090b8; }
         .main { position: relative; z-index: 5; display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 102px); padding: 48px 16px; }
         .card { width: 100%; max-width: 400px; position: relative; background: rgba(20,20,28,0.9); border: 1px solid rgba(255,255,255,0.075); border-radius: 22px; padding: 40px 40px 36px; backdrop-filter: blur(24px); box-shadow: 0 0 0 1px rgba(99,102,241,0.08), 0 32px 64px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06); animation: cardIn 0.55s cubic-bezier(0.16,1,0.3,1) both; }
         @keyframes cardIn { from { opacity: 0; transform: translateY(24px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
@@ -85,22 +67,7 @@ export default function ResetPassword() {
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
 
-      <div className="s2n">
-        <div className="blob1" /><div className="blob2" />
-
-        <nav className="navbar">
-          <div className="navbar-logo">
-            <div className="logo-badge"><SlidesIcon /></div>
-            <span className="logo-text">Slide2Notes</span>
-          </div>
-          <button className="navbar-user-btn"><UserCircleIcon /></button>
-        </nav>
-
-        <div className="subnav">
-          <button className="subnav-item">Text 1 <ChevronDownIcon /></button>
-          <button className="subnav-item">Text 2 <ChevronDownIcon /></button>
-        </div>
-
+      <AuthPageChrome header={<AuthMarketingNav />} blobCount={2}>
         <main className="main">
           <div className="card">
             <div className="card-glow" />
@@ -137,7 +104,7 @@ export default function ResetPassword() {
             </button>
           </div>
         </main>
-      </div>
+      </AuthPageChrome>
     </>
   );
 }

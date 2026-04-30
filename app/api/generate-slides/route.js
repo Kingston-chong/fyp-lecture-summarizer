@@ -44,6 +44,24 @@ export async function POST(req) {
     if (body.strictness) {
       instructions += `Fidelity to source summary: ${String(body.strictness)}\n`;
     }
+    if (body.highlightDefs === true) {
+      instructions +=
+        "Formatting: Call out important definitions and technical terms on slides (e.g. bold, colored text, or a short callout) so they are easy to spot.\n";
+    }
+    if (body.boldKeywords === true) {
+      instructions +=
+        "Formatting: Bold or otherwise emphasize essential keywords and section labels where it helps readability.\n";
+    }
+    const bl = String(body?.bulletLimit ?? "").trim();
+    if (bl) {
+      instructions += `Bullet budget: aim for at most ${bl} bullet points per slide unless the summary clearly needs more.\n`;
+    }
+    if (body.fontSize) {
+      instructions += `Relative font size preference for body text: ${String(body.fontSize)}\n`;
+    }
+    if (body.textDensity) {
+      instructions += `Layout density / whitespace: ${String(body.textDensity)}\n`;
+    }
     const userExtra = String(body?.slideUserPrompt || body?.userPrompt || "")
       .trim()
       .slice(0, MAX_SLIDE_USER_PROMPT_CHARS);
