@@ -897,11 +897,13 @@ export default function Dashboard() {
           max-width: min(1680px, 99vw);
           width: 100%;
           max-height: 96vh;
+          height: 96vh;
           min-height: 0;
           display: flex;
           flex-direction: column;
           gap: 10px;
           margin: auto;
+          overflow: hidden;
         }
         .doc-preview-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-shrink: 0; }
         .doc-preview-title { font-size: 14px; font-weight: 600; color: #e2e8f0; }
@@ -916,9 +918,9 @@ export default function Dashboard() {
         .doc-preview-hint { font-size: 10.5px; color: rgba(255,255,255,0.38); line-height: 1.45; max-width: 52rem; }
         .doc-preview-frame-wrap {
           position: relative;
-          flex: 1 1 auto;
-          min-height: 88vh;
-          height: 88vh;
+          flex: 1 1 0;
+          min-height: 0;
+          height: auto;
           border-radius: 10px;
           overflow: hidden;
           border: 1px solid rgba(255,255,255,0.1);
@@ -1176,7 +1178,7 @@ export default function Dashboard() {
         .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
         .modal-backdrop.doc-preview-backdrop { padding: 6px; align-items: stretch; justify-content: center; }
         .modal-box { background: rgba(22,22,32,0.98); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 24px; max-width: 400px; width: 100%; box-shadow: 0 24px 48px rgba(0,0,0,0.5); }
-        .modal-box.doc-preview-panel { max-width: min(1800px, 98vw); width: 98vw; padding: 12px; }
+        .modal-box.doc-preview-panel { max-width: min(1800px, 98vw); width: 98vw; max-height: 96vh; height: 96vh; padding: 12px; }
         .modal-title { font-size: 15px; font-weight: 600; color: #e0e0f0; margin-bottom: 8px; }
         .modal-desc { font-size: 12.5px; color: rgba(255,255,255,0.5); margin-bottom: 18px; line-height: 1.5; }
         .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
@@ -2038,7 +2040,7 @@ export default function Dashboard() {
               <div className="improve-err" style={{ margin: 0 }}>{docPreviewSetupErr}</div>
             ) : (
               <p className="doc-preview-hint">
-                PDFs and images use the built-in viewer below. PowerPoint, Word, and Excel use Microsoft&apos;s viewer (needs a <strong>public https</strong> URL — localhost may fail). Use <strong>Open in new tab</strong> for a full-page view.
+                PDFs and images use the built-in viewer below. PowerPoint, Word, and Excel use Microsoft&apos;s viewer
               </p>
             )}
             <div
