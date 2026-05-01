@@ -6,6 +6,17 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
+
+function isValidEmail(email) {
+  const e = normalizeEmail(email);
+  // Practical validation (not full RFC): requires local@domain.tld, no spaces.
+  // Rejects values like `test@123`.
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
+}
+
 export async function POST(req) {
   try {
     const { email, username, password, role } = await req.json();
@@ -18,8 +29,16 @@ export async function POST(req) {
       );
     }
 
+    const emailNorm = normalizeEmail(email);
+    if (!isValidEmail(emailNorm)) {
+      return NextResponse.json(
+        { error: "Invalid email format. Please use a valid email address (e.g. name@example.com)." },
+        { status: 400 }
+      );
+    }
+
     // Check if email already exists
-    const existing = await prisma.user.findUnique({ where: { email } });
+    const existing = await prisma.user.findUnique({ where: { email: emailNorm } });
     if (existing) {
       return NextResponse.json(
         { error: "Email already registered" },
@@ -32,7 +51,7 @@ export async function POST(req) {
 
     // Save user
     await prisma.user.create({
-      data: { email, username, passwordHash, role }
+      data: { email: emailNorm, username, passwordHash, role }
     });
 
     return NextResponse.json({ success: true }, { status: 201 });
