@@ -643,6 +643,7 @@ export default function GenerateSlidesModal({
         sourceName: improveFile?.name || "",
         additiveImprove,
         detailLevel: improveDetailLevel,
+        themeId: selectedThemeId || undefined,
         templateSpec: selectedTemplateSpec ?? undefined,
         userImageRefs: pickedUserImages.map((p) => ({
           slideIndex: p.slideIndex,

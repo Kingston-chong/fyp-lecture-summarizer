@@ -3,6 +3,7 @@ import { getRequestUser } from "@/lib/apiAuth";
 import { runChat } from "@/lib/llmServer";
 import { parseJsonFromLlm } from "@/lib/jsonExtract";
 import { uiModelToKey } from "@/lib/improvePptModel";
+import { normalizeTemplateSpec } from "@/lib/pptxTemplateSpec";
 
 /**
  * GET /api/improve-ppt/theme-search?q=modern+dark+tech&model=Gemini
@@ -56,19 +57,18 @@ async function searchTwoSlidesThemes(query, limit = 6) {
   // API returns { success: true, data: { total, themes: [...] } }
   const themes = Array.isArray(data?.data?.themes) ? data.data.themes : [];
 
+  // Per the 2slides API docs, the theme object contains only:
+  // id, name, description, tags, themeURL
+  // There is NO preview image field — themeURL is a link to the theme page, not an image.
   return themes.map((t) => ({
     id: String(t.id || ""),
     name: String(t.name || ""),
     description: String(t.description || ""),
-    tags: String(t.tags || ""),
+    // tags is an array per the API docs — normalise to a comma string for the UI
+    tags: Array.isArray(t.tags) ? t.tags.join(", ") : String(t.tags || ""),
     themeURL: String(t.themeURL || ""),
-    // 2slides exposes a preview image at /api/v1/themes/{id}/preview or
-    // embeds it in the theme object — use whichever is available.
-    previewImageUrl: t.previewImageUrl
-      ? String(t.previewImageUrl)
-      : t.themeURL
-      ? `${TWOSLIDES_BASE}/api/v1/themes/${t.id}/preview`
-      : null,
+    // No preview image available from the 2slides API.
+    previewImageUrl: null,
   }));
 }
 
@@ -76,10 +76,15 @@ async function searchTwoSlidesThemes(query, limit = 6) {
  * Fetch the preview image for a theme and return it as a base64 data URL.
  * Used to pass the image to the LLM for visual analysis.
  */
-async function fetchPreviewAsBase64(previewUrl) {
-  if (!previewUrl) return null;
+async function fetchPreviewAsBase64(themeId, previewUrl) {
+  if (!themeId && !previewUrl) return null;
   try {
-    const res = await fetch(previewUrl, {
+    const fallbackUrl = `${TWOSLIDES_BASE}/api/v1/themes/${encodeURIComponent(String(themeId || ""))}/preview`;
+    const targetUrl = previewUrl || fallbackUrl;
+    const res = await fetch(targetUrl, {
+      headers: process.env.TWOSLIDES_API_KEY
+        ? { Authorization: `Bearer ${process.env.TWOSLIDES_API_KEY}` }
+        : undefined,
       signal: AbortSignal.timeout(8_000),
     });
     if (!res.ok) return null;
@@ -197,7 +202,7 @@ function buildTemplateSpecFromStyle(styleSpec, theme) {
         ? [
             {
               type: "rect",
-              x: 0, y: 0, w: 3.5, h: "100%",
+              x: 0, y: 0, w: 0.35, h: 1,
               fill: accent, opacity: 0.15,
             },
           ]
@@ -205,7 +210,7 @@ function buildTemplateSpecFromStyle(styleSpec, theme) {
         ? [
             {
               type: "rect",
-              x: 0, y: 0, w: "100%", h: "100%",
+              x: 0, y: 0, w: 1, h: 1,
               fill: bg,
             },
           ]
@@ -213,12 +218,12 @@ function buildTemplateSpecFromStyle(styleSpec, theme) {
       // Accent line under title
       {
         type: "rect",
-        x: 0.5, y: 3.2, w: 1.2, h: 0.06,
+        x: 0.05, y: 0.57, w: 0.12, h: 0.012,
         fill: accent,
       },
     ],
     title: {
-      x: 0.5, y: 1.8, w: 8.5, h: 1.2,
+      x: 0.05, y: 0.32, w: 0.85, h: 0.21,
       fontSize: 40, bold: true,
       color: titleText,
       fontFace: fontTitle,
@@ -226,7 +231,7 @@ function buildTemplateSpecFromStyle(styleSpec, theme) {
       valign: "middle",
     },
     subtitle: {
-      x: 0.5, y: 3.4, w: 8.5, h: 0.8,
+      x: 0.05, y: 0.60, w: 0.85, h: 0.15,
       fontSize: 18, bold: false,
       color: text,
       fontFace: fontBody,
@@ -239,8 +244,8 @@ function buildTemplateSpecFromStyle(styleSpec, theme) {
   const isCentered = layout === "centered";
   const isGrid = layout === "grid";
 
-  const contentX = isRightSplit ? 0.4 : layout === "split-left" ? 4.8 : 0.5;
-  const contentW = isCentered ? 9 : isGrid ? 9 : 4.6;
+  const contentX = isRightSplit ? 0.04 : layout === "split-left" ? 0.48 : 0.05;
+  const contentW = isCentered ? 0.90 : isGrid ? 0.90 : 0.46;
 
   const content = {
     background: bg,
@@ -248,25 +253,25 @@ function buildTemplateSpecFromStyle(styleSpec, theme) {
       // Panel background for content area
       {
         type: "rect",
-        x: isRightSplit ? 5.0 : layout === "split-left" ? 0 : 0,
+        x: isRightSplit ? 0.50 : 0,
         y: 0,
-        w: isCentered || isGrid ? "100%" : 4.6,
-        h: "100%",
+        w: isCentered || isGrid ? 1 : 0.46,
+        h: 1,
         fill: panel,
         opacity: isCentered || isGrid ? 0 : 1,
       },
       // Top accent bar
       {
         type: "rect",
-        x: 0, y: 0, w: "100%", h: 0.12,
+        x: 0, y: 0, w: 1, h: 0.021,
         fill: accent,
       },
     ],
     title: {
-      x: 0.4,
-      y: 0.18,
-      w: 9.1,
-      h: 0.7,
+      x: 0.04,
+      y: 0.10,
+      w: 0.91,
+      h: 0.14,
       fontSize: 22,
       bold: true,
       color: titleText,
@@ -276,9 +281,9 @@ function buildTemplateSpecFromStyle(styleSpec, theme) {
     },
     body: {
       x: contentX,
-      y: 1.05,
+      y: 0.27,
       w: contentW,
-      h: 5.5,
+      h: 0.64,
       fontSize: 14,
       color: text,
       fontFace: fontBody,
@@ -288,7 +293,7 @@ function buildTemplateSpecFromStyle(styleSpec, theme) {
     },
   };
 
-  return {
+  const normalized = normalizeTemplateSpec({
     // Metadata so the frontend can display what was used
     _source: "2slides",
     _themeId: theme.id,
@@ -297,7 +302,9 @@ function buildTemplateSpecFromStyle(styleSpec, theme) {
     _summary: styleSpec?.summary || theme.description,
     cover,
     content,
-  };
+  });
+
+  return normalized.ok ? normalized.spec : null;
 }
 
 // ── Route handler ─────────────────────────────────────────────────────────────
@@ -366,7 +373,7 @@ export async function GET(req) {
       }
     }
 
-    const previewDataUrl = await fetchPreviewAsBase64(chosenTheme.previewImageUrl);
+    const previewDataUrl = await fetchPreviewAsBase64(chosenTheme.id, chosenTheme.previewImageUrl);
 
     // 3. Ask LLM (vision) to extract the style spec from the preview
     let styleSpec = null;

@@ -5,18 +5,23 @@ import { fetchVercelBlobBuffer } from "@/lib/fetchVercelBlobBuffer";
 import { parseJsonFromLlm } from "@/lib/jsonExtract";
 import { runChat } from "@/lib/llmServer";
 import { uiModelToKey } from "@/lib/improvePptModel";
-import { buildImprovedPptx } from "@/lib/pptxGenerate";
 import { extractThemeFromPptx } from "@/lib/pptxThemePatch";
 import { fetchUnsplashImageUrl } from "@/lib/unsplashStock";
 import { fetchRemoteImageBuffer } from "@/lib/fetchRemoteImage";
 import { buildStockPhotoQueryFromSlide } from "@/lib/improvePptStockKeywords";
 import { panelFromBackground } from "@/lib/themeColors";
 import { enrichSlidesWithWebSearch, buildEnrichmentBlock } from "@/lib/improvePptWebSearch";
+import { selectSafeTemplateSpec } from "@/lib/improvePptTemplateSpecGuard";
+import {
+  generatePptxWithTwoSlides,
+  improvedSlidesToTwoSlidesUserInput,
+} from "@/lib/twoSlidesGenerate";
 import {
   BUILTIN_SPECS,
   selectBuiltinSpec,
   buildTemplateSpecPrompt,
   TEMPLATE_SPEC_SYSTEM_PROMPT,
+  normalizeTemplateSpec,
 } from "@/lib/pptxTemplateSpec";
 
 
@@ -83,7 +88,7 @@ async function fetchStockImageUrlForQuery(query) {
 async function resolveTemplateSpec(modelKey, theme, instructions) {
   // Try built-in first — fast and reliable
   const builtinKey = selectBuiltinSpec(theme, instructions);
-  const builtin = BUILTIN_SPECS[builtinKey];
+  const builtin = BUILTIN_SPECS[builtinKey] ?? BUILTIN_SPECS.diagonal_burst;
 
   // Generate a custom LLM spec if the request contains creative keywords
   // suggesting the user wants something unique beyond the built-ins
@@ -99,17 +104,9 @@ async function resolveTemplateSpec(modelKey, theme, instructions) {
       [{ role: "user", content: buildTemplateSpecPrompt(instructions, theme) }]
     );
     const parsed = parseJsonFromLlm(raw);
-    // Validate minimal structure
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      parsed.cover?.shapes && Array.isArray(parsed.cover.shapes) &&
-      parsed.cover?.title &&
-      parsed.content?.shapes && Array.isArray(parsed.content.shapes) &&
-      parsed.content?.title &&
-      parsed.content?.body
-    ) {
-      return { spec: parsed, key: "ai_generated", source: "llm" };
+    const normalized = normalizeTemplateSpec(parsed);
+    if (normalized.ok && normalized.spec) {
+      return { spec: normalized.spec, key: "ai_generated", source: "llm" };
     }
   } catch (e) {
     console.warn("resolveTemplateSpec LLM failed (non-fatal):", e?.message);
@@ -181,6 +178,7 @@ export async function POST(req) {
     const incomingTemplateSpec = body?.templateSpec && typeof body.templateSpec === "object"
       ? body.templateSpec
       : null;
+    const incomingThemeId = String(body?.themeId || "").trim();
 
     const documentId = Number(body?.documentId);
     const hasUploadedFile =
@@ -411,18 +409,49 @@ Rules:
     // Resolve template spec:
     // Priority 1 — spec passed in from theme-search (2slides-derived), use as-is.
     // Priority 2 — fall back to built-in / LLM-generated spec.
-    const templateSpec = incomingTemplateSpec
-      ?? (await resolveTemplateSpec(modelKey, effectiveTheme, instructions)).spec;
-
-    const buffer = await buildImprovedPptx({
-      title, subtitle, theme: effectiveTheme,
-      slides: outSlides,
-      images,
-      skipCoverSlide: additiveImprove,
-      references,
-      templateSpec,
-      instructions,
+    const resolved = await resolveTemplateSpec(modelKey, effectiveTheme, instructions);
+    const builtinFallbackKey = selectBuiltinSpec(effectiveTheme, instructions);
+    const builtinFallbackSpec = BUILTIN_SPECS[builtinFallbackKey] ?? BUILTIN_SPECS.diagonal_burst;
+    const safeTemplate = selectSafeTemplateSpec({
+      incomingSpec: incomingTemplateSpec,
+      resolvedSpec: resolved.spec,
+      builtinFallback: builtinFallbackSpec,
     });
+    const templateSpec = safeTemplate.spec ?? builtinFallbackSpec;
+
+    // ── Build PPTX via 2slides (preferred) ───────────────────────────────────
+    // We keep the old templateSpec logic only to (a) choose a 2slides themeId
+    // from theme-search metadata and (b) provide a safe fallback if a user
+    // didn't pick a 2slides theme.
+    const themeIdFromTemplateSpec =
+      (incomingTemplateSpec && String(incomingTemplateSpec?._themeId || "").trim()) ||
+      (templateSpec && String(templateSpec?._themeId || "").trim()) ||
+      "";
+
+    const effectiveThemeId = incomingThemeId || themeIdFromTemplateSpec;
+
+    let buffer;
+    if (process.env.TWOSLIDES_API_KEY && effectiveThemeId) {
+      const userInput = improvedSlidesToTwoSlidesUserInput({
+        title,
+        subtitle,
+        slides: outSlides,
+        references,
+      });
+      buffer = await generatePptxWithTwoSlides({
+        userInput,
+        themeId: effectiveThemeId,
+        responseLanguage: "Auto",
+        mode: "sync",
+      });
+    } else {
+      // If 2slides isn't configured or the user didn't select a 2slides theme,
+      // return a clear error so the UI can guide them to pick one.
+      const missing = !process.env.TWOSLIDES_API_KEY
+        ? "TWOSLIDES_API_KEY is not configured on the server."
+        : "No 2slides theme selected. Run Theme Search and pick a template first.";
+      return NextResponse.json({ error: missing }, { status: 503 });
+    }
 
     return new NextResponse(buffer, {
       status: 200,

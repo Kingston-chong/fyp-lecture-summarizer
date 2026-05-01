@@ -58,6 +58,25 @@ function isOfficePreviewName(name) {
   return OFFICE_PREVIEW_EXT.has(ext);
 }
 
+const DASH_PROMPT_SUGGESTIONS = {
+  summarize: [
+    "Focus on key concepts and definitions. Keep it structured with headings.",
+    "Extract formulas/theorems and explain what each variable means.",
+    "Give a 10-bullet executive summary, then a detailed explanation.",
+    "List likely exam questions + model answers based on the notes.",
+    "Create a glossary of important terms with simple explanations.",
+    "Highlight common mistakes/misconceptions and clarify them.",
+  ],
+  improve: [
+    "Tighten bullets for clarity. Use parallel phrasing and remove repetition.",
+    "Make the design modern: consistent typography, spacing, and alignment.",
+    "Add relevant visuals/icons (but avoid clutter). Keep 1 key image per slide max.",
+    "Turn dense paragraphs into concise bullets and add speaker notes for details.",
+    "Improve slide flow: add section dividers and stronger slide titles.",
+    "Fix contrast/readability: bigger fonts, fewer colors, consistent theme.",
+  ],
+};
+
 function getDefaultVariant(providerId) {
   const p = MODEL_PROVIDERS.find((m) => m.id === providerId);
   return p?.variants?.[0]?.id ?? "gpt-4o";
@@ -163,6 +182,7 @@ export default function Dashboard() {
   const [selectedThemeId, setSelectedThemeId]                 = useState(null);
   const [selectedTemplateSpec, setSelectedTemplateSpec]       = useState(null);
   const [themeSearchErr, setThemeSearchErr]                   = useState("");
+  const [templatePickerOpen, setTemplatePickerOpen]           = useState(false);
   const [improveGenLoading, setImproveGenLoading]             = useState(false);
   const [improveErr, setImproveErr]                           = useState("");
   const [improveAiModel, setImproveAiModel]                   = useState("Gemini");
@@ -740,6 +760,37 @@ export default function Dashboard() {
     }
   }
 
+  async function handleThemeSelect(t) {
+    if (!t?.id) return;
+    setSelectedThemeId(t.id);
+    if (t._templateSpec) {
+      setSelectedTemplateSpec(t._templateSpec);
+      return;
+    }
+    setThemeSearchLoading(true);
+    setThemeSearchErr("");
+    try {
+      const baseQ = (themeResultsQuery || themeQuery).trim() || t.name;
+      const params = new URLSearchParams({
+        q: baseQ,
+        model: improveAiModel,
+        themeId: String(t.id),
+        themeName: t.name || "",
+      });
+      const res = await fetch(`/api/improve-ppt/theme-search?${params.toString()}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Theme fetch failed");
+      if (data.templateSpec) {
+        t._templateSpec = data.templateSpec;
+        setSelectedTemplateSpec(data.templateSpec);
+      }
+    } catch (e) {
+      setThemeSearchErr(e?.message || String(e));
+    } finally {
+      setThemeSearchLoading(false);
+    }
+  }
+
   async function handleImproveImageSearch() {
     const q = improveImgQuery.trim();
     setImproveImgSearchHint("");
@@ -805,6 +856,7 @@ export default function Dashboard() {
           : {}),
         additiveImprove,
         detailLevel: improveDetailLevel,
+        themeId: selectedThemeId || undefined,
         templateSpec: selectedTemplateSpec ?? undefined,
         userImageRefs: pickedUserImages.map((p) => ({ slideIndex: p.slideIndex, url: p.url })),
       };
@@ -1045,6 +1097,21 @@ export default function Dashboard() {
         .prompt-area { flex: 1; resize: none; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 12px; font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 300; color: #c0c0d8; outline: none; transition: border-color 0.2s, box-shadow 0.2s; line-height: 1.65; min-height: 180px; }
         .prompt-area::placeholder { color: rgba(255,255,255,0.15); font-style: italic; }
         .prompt-area:focus { border-color: rgba(99,102,241,0.4); box-shadow: 0 0 0 3px rgba(99,102,241,0.08); }
+        .prompt-sugs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; margin-bottom: 10px; }
+        .prompt-sug {
+          font-size: 10.5px;
+          font-family: 'Sora', sans-serif;
+          padding: 6px 10px;
+          border-radius: 999px;
+          border: 1px solid rgba(99,102,241,0.25);
+          background: rgba(99,102,241,0.08);
+          color: rgba(225,225,255,0.78);
+          cursor: pointer;
+          transition: all 0.15s;
+          text-align: left;
+        }
+        .prompt-sug:hover { border-color: rgba(99,102,241,0.45); background: rgba(99,102,241,0.14); color: rgba(240,240,255,0.9); }
+        .prompt-sug:active { transform: translateY(1px); }
         .prompt-count { font-size: 10.5px; color: rgba(255,255,255,0.18); }
 
         /* OUTPUT PANEL */
@@ -1208,7 +1275,7 @@ export default function Dashboard() {
         .improve-dropdown:focus { border-color: rgba(99,102,241,.55); box-shadow: 0 0 0 3px rgba(99,102,241,.12); }
         .improve-dropdown option { background: #1a1a28; color: #dde; }
         .improve-btn-row { display: flex; gap: 8px; margin-top: 4px; }
-        .improve-btn-secondary { flex: 1; height: 36px; border-radius: 9px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 500; color: rgba(255,255,255,.65); cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .improve-btn-secondary { flex: 1; height: 44px; border-radius: 9px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 500; color: rgba(255,255,255,.65); cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; gap: 6px; }
         .improve-btn-secondary:hover:not(:disabled) { border-color: rgba(255,255,255,.22); color: rgba(255,255,255,.9); }
         .improve-btn-secondary:disabled { opacity: .45; cursor: not-allowed; }
         .improve-btn-primary { flex: 1; height: 36px; border-radius: 9px; border: none; background: linear-gradient(135deg,#5258ee,#8b5cf6); font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 600; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 3px 12px rgba(99,102,241,.3); transition: all .15s; }
@@ -1254,6 +1321,32 @@ export default function Dashboard() {
         .modal-btn.secondary:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); }
         .modal-btn.primary { border: none; background: linear-gradient(135deg, #5f60f0 0%, #8b5cf6 100%); color: white; }
         .modal-btn.primary:hover { filter: brightness(1.08); }
+        .template-picker-modal { max-width: min(980px, 94vw); width: 94vw; max-height: 88vh; display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+        .template-picker-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .template-picker-search-row { display: flex; gap: 8px; }
+        .template-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; overflow-y: auto; padding-right: 4px; min-height: 220px; }
+        .template-picker-empty { grid-column: 1 / -1; border: 1px dashed rgba(255,255,255,.16); border-radius: 10px; color: rgba(255,255,255,.45); font-size: 12px; padding: 16px; text-align: center; background: rgba(255,255,255,.02); }
+        .template-card { text-align: left; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.03); padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: border-color .15s, transform .15s, background .15s; color: inherit; font-family: 'Sora', sans-serif; }
+        .template-card:hover { border-color: rgba(99,102,241,.52); transform: translateY(-1px); background: rgba(99,102,241,.07); }
+        .template-card.on { border-color: rgba(99,102,241,.7); background: rgba(99,102,241,.18); }
+        .template-card-preview-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; background: linear-gradient(135deg, rgba(99,102,241,.18) 0%, rgba(30,30,60,.55) 100%); border: 1px solid rgba(255,255,255,.08); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; padding: 8px; }
+        .template-card-preview { width: 100%; height: 100%; object-fit: cover; display: block; position: absolute; inset: 0; }
+        .template-card-preview-icon { font-size: 22px; line-height: 1; }
+        .template-card-preview-label { font-size: 10px; font-weight: 600; color: rgba(255,255,255,.7); text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .template-card-preview-tags { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; }
+        .template-card-preview-tag { font-size: 9px; background: rgba(99,102,241,.25); border-radius: 4px; padding: 1px 5px; color: rgba(165,180,252,.9); white-space: nowrap; }
+        .template-card-view-link { font-size: 9.5px; color: rgba(99,102,241,.8); text-decoration: none; margin-top: 2px; }
+        .template-card-view-link:hover { color: #a5b4fc; text-decoration: underline; }
+        .template-card-name { font-size: 12px; font-weight: 600; color: #e5e7ff; line-height: 1.3; }
+        .template-card-desc { font-size: 10.5px; color: rgba(255,255,255,.55); line-height: 1.35; max-height: 2.7em; overflow: hidden; }
+        html[data-theme="light"] .template-picker-empty { border-color: rgba(0,0,0,.14); color: rgba(0,0,0,.5); background: rgba(0,0,0,.02); }
+        html[data-theme="light"] .template-card { border-color: rgba(0,0,0,.12); background: rgba(0,0,0,.02); }
+        html[data-theme="light"] .template-card:hover { border-color: rgba(99,102,241,.45); background: rgba(99,102,241,.07); }
+        html[data-theme="light"] .template-card.on { border-color: rgba(99,102,241,.62); background: rgba(99,102,241,.12); }
+        html[data-theme="light"] .template-card-preview-wrap { border-color: rgba(0,0,0,.09); background: rgba(0,0,0,.07); }
+        html[data-theme="light"] .template-card-preview-fallback { color: rgba(0,0,0,.45); }
+        html[data-theme="light"] .template-card-name { color: #111827; }
+        html[data-theme="light"] .template-card-desc { color: rgba(0,0,0,.58); }
 
         /* ── Mobile layout (match AppShell 1023px breakpoint; single scroll = shell-content) ── */
         @media (max-width: 1023px) {
@@ -1411,6 +1504,8 @@ export default function Dashboard() {
           color: #111827;
         }
         html[data-theme="light"] .prompt-area::placeholder { color: rgba(0,0,0,0.35); }
+        html[data-theme="light"] .prompt-sug { border-color: rgba(99,102,241,0.28); background: rgba(99,102,241,0.08); color: rgba(17,24,39,0.78); }
+        html[data-theme="light"] .prompt-sug:hover { border-color: rgba(99,102,241,0.45); background: rgba(99,102,241,0.14); color: rgba(17,24,39,0.92); }
         html[data-theme="light"] .prompt-count { color: rgba(0,0,0,0.35); }
         html[data-theme="light"] .prompt-area:focus { border-color: rgba(99,102,241,0.40); box-shadow: 0 0 0 3px rgba(99,102,241,0.10); }
 
@@ -1766,6 +1861,25 @@ export default function Dashboard() {
                     <div className="panel-title">What should change?</div>
                     <div className="panel-sub">Describe design/content improvements for the lecture slides</div>
                   </div>
+                  <div className="prompt-sugs" aria-label="Improve suggestions">
+                    {DASH_PROMPT_SUGGESTIONS.improve.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        className="prompt-sug"
+                        onClick={() =>
+                          setImproveInstructions((prev) => {
+                            const cur = (prev || "").trim();
+                            if (!cur) return s.slice(0, 500);
+                            const next = `${cur}\n- ${s}`;
+                            return next.slice(0, 500);
+                          })
+                        }
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
                   <textarea
                     className="prompt-area"
                     placeholder={"e.g. Switch to a green theme and add images. Expand speaker notes, keep bullets concise. Tighten bullets for clarity."}
@@ -1807,6 +1921,25 @@ export default function Dashboard() {
                   <div>
                     <div className="panel-title">Additional Prompts</div>
                     <div className="panel-sub">Optional — refine the summary</div>
+                  </div>
+                  <div className="prompt-sugs" aria-label="Prompt suggestions">
+                    {DASH_PROMPT_SUGGESTIONS.summarize.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        className="prompt-sug"
+                        onClick={() =>
+                          setPrompt((prev) => {
+                            const cur = (prev || "").trim();
+                            if (!cur) return s.slice(0, 500);
+                            const next = `${cur}\n- ${s}`;
+                            return next.slice(0, 500);
+                          })
+                        }
+                      >
+                        {s}
+                      </button>
+                    ))}
                   </div>
                   <textarea
                     className="prompt-area"
@@ -1945,10 +2078,8 @@ export default function Dashboard() {
 
               {/* ── Improve mode ── */}
               {dashMode === "improve" && (
-                <div className="improve-panel centered">
+                <div className="improve-panel">
                   <div className="improve-controls">
-                
-
                   <div className="improve-section-head">Detail Level</div>
                   <select
                     className="improve-dropdown"
@@ -1962,55 +2093,14 @@ export default function Dashboard() {
                   </select>
 
                   <div className="improve-section-head">Find a Design Template <span style={{ fontWeight: 400, textTransform: "none", fontSize: 10 }}>(optional)</span></div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <input
-                      className="improve-txt-inp"
-                      placeholder="e.g. modern dark, minimal blue…"
-                      value={themeQuery}
-                      onChange={(e) => setThemeQuery(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleThemeSearch()}
-                      style={{ flex: 1 }}
-                    />
-                    <button
-                      type="button"
-                      className="improve-btn-secondary"
-                      style={{ flex: "none", width: 60 }}
-                      disabled={themeSearchLoading || !themeQuery.trim()}
-                      onClick={() => void handleThemeSearch()}
-                    >
-                      {themeSearchLoading ? <span className="improve-mini-spin" /> : "Search"}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    className="improve-btn-secondary"
+                    onClick={() => setTemplatePickerOpen(true)}
+                  >
+                    {themeSearchLoading ? <span className="improve-mini-spin" /> : "Choose template..."}
+                  </button>
                   {themeSearchErr && <div className="improve-err">{themeSearchErr}</div>}
-                  {themeResults.length > 0 && (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      {themeResults.map((t) => (
-                        <button
-                          key={t.id}
-                          type="button"
-                          className="improve-theme-chip"
-                          style={{
-                            border: `1px solid ${selectedThemeId === t.id ? "rgba(99,102,241,.7)" : "rgba(255,255,255,.12)"}`,
-                            background: selectedThemeId === t.id ? "rgba(99,102,241,.2)" : "rgba(255,255,255,.04)",
-                            color: selectedThemeId === t.id ? "#c7d2fe" : "rgba(255,255,255,.6)",
-                          }}
-                          onClick={async () => {
-                            setSelectedThemeId(t.id);
-                            if (t._templateSpec) { setSelectedTemplateSpec(t._templateSpec); return; }
-                            setThemeSearchLoading(true);
-                            try {
-                              const baseQ = (themeResultsQuery || themeQuery).trim() || t.name;
-                              const params = new URLSearchParams({ q: baseQ, model: improveAiModel, themeId: String(t.id), themeName: t.name || "" });
-                              const res = await fetch(`/api/improve-ppt/theme-search?${params.toString()}`);
-                              const data = await res.json().catch(() => ({}));
-                              if (data.templateSpec) { t._templateSpec = data.templateSpec; setSelectedTemplateSpec(data.templateSpec); }
-                            } catch (e) { setThemeSearchErr(e?.message || String(e)); }
-                            finally { setThemeSearchLoading(false); }
-                          }}
-                        >{t.name}</button>
-                      ))}
-                    </div>
-                  )}
                   {selectedTemplateSpec && (
                     <div style={{ fontSize: 11, color: "rgba(165,180,252,.9)" }}>
                       ✓ Using: <strong>{selectedTemplateSpec._themeName}</strong> — {selectedTemplateSpec._summary}
@@ -2134,6 +2224,93 @@ export default function Dashboard() {
                   }}
                 />
               ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {templatePickerOpen && (
+        <div className="modal-backdrop" onClick={() => setTemplatePickerOpen(false)}>
+          <div className="modal-box template-picker-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="template-picker-head">
+              <div className="modal-title" style={{ marginBottom: 0 }}>Choose design template</div>
+              <button
+                type="button"
+                className="file-remove"
+                aria-label="Close template picker"
+                onClick={() => setTemplatePickerOpen(false)}
+              >
+                <CloseIcon />
+              </button>
+            </div>
+            <div className="template-picker-search-row">
+              <input
+                className="improve-txt-inp"
+                placeholder="Search template style (e.g. dark green modular roadmap)..."
+                value={themeQuery}
+                onChange={(e) => setThemeQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleThemeSearch()}
+              />
+              <button
+                type="button"
+                className="improve-btn-secondary"
+                style={{ flex: "none", width: 86 }}
+                disabled={themeSearchLoading || !themeQuery.trim()}
+                onClick={() => void handleThemeSearch()}
+              >
+                {themeSearchLoading ? <span className="improve-mini-spin" /> : "Search"}
+              </button>
+            </div>
+            {themeSearchErr && <div className="improve-err" style={{ marginTop: 8 }}>{themeSearchErr}</div>}
+
+            <div className="template-picker-grid">
+              {themeResults.length === 0 ? (
+                <div className="template-picker-empty">Search to see template previews.</div>
+              ) : (
+                themeResults.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className={`template-card ${selectedThemeId === t.id ? "on" : ""}`}
+                    onClick={() => void handleThemeSelect(t)}
+                  >
+                    <div className="template-card-preview-wrap">
+                      {/* Fallback text content shown while image loads or if it fails */}
+                      <div className="template-card-preview-icon">🎨</div>
+                      <div className="template-card-preview-label">{t.name || "Template"}</div>
+                      {t.tags && (
+                        <div className="template-card-preview-tags">
+                          {String(t.tags).split(",").slice(0, 3).map((tag) => tag.trim()).filter(Boolean).map((tag) => (
+                            <span key={tag} className="template-card-preview-tag">{tag}</span>
+                          ))}
+                        </div>
+                      )}
+                      {t.themeURL && (
+                        <a
+                          href={t.themeURL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="template-card-view-link"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          View ↗
+                        </a>
+                      )}
+                      {/* Overlay real preview image on top — hides fallback when it loads */}
+                      {t.themeURL && (
+                        <img
+                          src={`/api/improve-ppt/theme-preview?url=${encodeURIComponent(t.themeURL)}`}
+                          alt={t.name || "Template preview"}
+                          className="template-card-preview"
+                          onError={(e) => { e.currentTarget.style.display = "none"; }}
+                        />
+                      )}
+                    </div>
+                    <div className="template-card-name">{t.name || "Untitled template"}</div>
+                    {t.description ? <div className="template-card-desc">{t.description}</div> : null}
+                  </button>
+                ))
+              )}
             </div>
           </div>
         </div>
