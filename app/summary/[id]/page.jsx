@@ -10,7 +10,7 @@ import {
   useCallback,
 } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { markdownToHtml } from "@/lib/markdown";
 import { buildChatSuggestions } from "@/lib/chatSuggestionsFromSummary";
 import GenerateSlidesModal from "@/app/components/GenerateSlidesModal";
@@ -381,11 +381,14 @@ export default function SummaryView() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const summaryId = params?.id;
 
   const [summary, setSummary] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [summaryError, setSummaryError] = useState("");
+  const [summarizing, setSummarizing] = useState(false);
+  const [summarizeError, setSummarizeError] = useState("");
 
   const [messages, setMessages] = useState([]);
   const [inputVal, setInputVal] = useState("");
@@ -555,6 +558,103 @@ export default function SummaryView() {
       cancelled = true;
     };
   }, [status, summaryId]);
+
+  // Auto-start live summarization stream when coming from dashboard redirect (?autostart=1)
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    if (!summaryId) return;
+    if (!summary) return;
+    if (summarizing) return;
+    if (searchParams?.get("autostart") !== "1") return;
+    if (typeof summary.output === "string" && summary.output.trim().length > 0) return;
+
+    let cancelled = false;
+    async function run() {
+      setSummarizeError("");
+      setSummarizing(true);
+      try {
+        const res = await fetch("/api/summarize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            summaryId: Number(summaryId),
+            stream: true,
+          }),
+        });
+
+        const contentType = res.headers.get("content-type") || "";
+        if (!contentType.includes("text/event-stream") || !res.body) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data?.error || "Failed to start stream");
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+        let streamError = "";
+
+        const applySseBlock = (block) => {
+          const lines = block.split(/\r?\n/);
+          let event = "message";
+          const dataLines = [];
+          for (const ln of lines) {
+            if (!ln) continue;
+            if (ln.startsWith("event:")) event = ln.slice(6).trim();
+            else if (ln.startsWith("data:")) dataLines.push(ln.slice(5).trimStart());
+          }
+          if (!dataLines.length) return;
+          let payload = {};
+          try {
+            payload = JSON.parse(dataLines.join("\n"));
+          } catch {
+            payload = {};
+          }
+
+          if (event === "chunk" && payload?.text) {
+            setSummary((prev) => {
+              if (!prev) return prev;
+              return { ...prev, output: String(prev.output || "") + payload.text };
+            });
+          } else if (event === "error") {
+            streamError = payload?.error || "Summarization failed";
+          }
+        };
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let splitIdx = buffer.indexOf("\n\n");
+          while (splitIdx !== -1) {
+            const block = buffer.slice(0, splitIdx);
+            buffer = buffer.slice(splitIdx + 2);
+            applySseBlock(block);
+            splitIdx = buffer.indexOf("\n\n");
+          }
+          if (cancelled) break;
+        }
+
+        if (!cancelled && buffer.trim()) applySseBlock(buffer.trim());
+        if (!cancelled && streamError) throw new Error(streamError);
+
+        // Refresh summary once done (ensures DB output is in sync)
+        if (!cancelled) {
+          const r = await fetch(`/api/summary/${summaryId}`);
+          const d = await r.json().catch(() => ({}));
+          if (r.ok && d?.summary) setSummary(d.summary);
+        }
+      } catch (e) {
+        if (!cancelled) setSummarizeError(e?.message ?? "Summarization failed");
+      } finally {
+        if (!cancelled) setSummarizing(false);
+      }
+    }
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, summaryId, summary, summarizing, searchParams]);
 
   // Load persisted chat turns (so refresh/resume keeps the conversation)
   useEffect(() => {
@@ -1205,11 +1305,16 @@ export default function SummaryView() {
   }
 
   const summaryBodyDangerousHtml = useMemo(() => {
-    const raw =
-      summaryHtml ||
-      markdownToHtml(summary?.output ?? "No summary output found.");
+    const hasOutput =
+      typeof summary?.output === "string" && summary.output.trim().length > 0;
+    const fallback = summarizing
+      ? "Generating summary…"
+      : summarizeError
+        ? `Error: ${summarizeError}`
+        : "No summary output found.";
+    const raw = summaryHtml || markdownToHtml(hasOutput ? summary.output : fallback);
     return { __html: raw };
-  }, [summaryHtml, summary?.output]);
+  }, [summaryHtml, summary?.output, summarizing, summarizeError]);
 
   const chatSuggestions = useMemo(() => {
     if (aiChatSuggestions.length > 0) return aiChatSuggestions;

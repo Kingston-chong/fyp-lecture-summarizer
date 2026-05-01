@@ -398,86 +398,19 @@ export default function Dashboard() {
         return;
       }
 
+      // Create a pending summary row, redirect immediately, then stream generation on the summary page.
       const res = await fetch("/api/summarize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentIds, model, modelVariant, summarizeFor, prompt, stream: true }),
+        body: JSON.stringify({ documentIds, model, modelVariant, summarizeFor, prompt, initOnly: true }),
       });
-      const contentType = res.headers.get("content-type") || "";
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to start summarization");
 
-      if (contentType.includes("text/event-stream") && res.body) {
-        setSummaryOutput({
-          id: null,
-          model: modelVariant ? `${model}:${modelVariant}` : model,
-          summarizeFor,
-          output: "",
-        });
-
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder("utf-8");
-        let buffer = "";
-        let finalSummary = null;
-        let streamError = "";
-
-        const applySseBlock = (block) => {
-          const lines = block.split(/\r?\n/);
-          let event = "message";
-          const dataLines = [];
-          for (const ln of lines) {
-            if (!ln) continue;
-            if (ln.startsWith("event:")) {
-              event = ln.slice(6).trim();
-            } else if (ln.startsWith("data:")) {
-              dataLines.push(ln.slice(5).trimStart());
-            }
-          }
-          if (!dataLines.length) return;
-          let payload = {};
-          try {
-            payload = JSON.parse(dataLines.join("\n"));
-          } catch {
-            payload = {};
-          }
-
-          if (event === "chunk" && payload?.text) {
-            setSummaryOutput((prev) => {
-              if (!prev) return prev;
-              return { ...prev, output: (prev.output || "") + payload.text };
-            });
-          } else if (event === "done" && payload?.summary) {
-            finalSummary = payload.summary;
-          } else if (event === "error") {
-            streamError = payload?.error || "Summarization failed";
-          }
-        };
-
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          let splitIdx = buffer.indexOf("\n\n");
-          while (splitIdx !== -1) {
-            const block = buffer.slice(0, splitIdx);
-            buffer = buffer.slice(splitIdx + 2);
-            applySseBlock(block);
-            splitIdx = buffer.indexOf("\n\n");
-          }
-        }
-
-        if (buffer.trim()) applySseBlock(buffer.trim());
-        if (streamError) throw new Error(streamError);
-        if (!finalSummary) throw new Error("Summarization stream ended unexpectedly");
-
-        setSummaryOutput(finalSummary);
-        if (finalSummary?.id != null) router.push(`/summary/${finalSummary.id}`);
-        fetchHistory();
-      } else {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Summarization failed");
-        setSummaryOutput(data.summary);
-        if (data?.summary?.id != null) router.push(`/summary/${data.summary.id}`);
-        fetchHistory();
-      }
+      const sid = data?.summaryId;
+      if (sid == null) throw new Error("Missing summaryId from server");
+      router.push(`/summary/${sid}?autostart=1`);
+      fetchHistory();
     } catch (err) {
       setError(err.message);
     } finally {
