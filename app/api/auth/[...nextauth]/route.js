@@ -3,8 +3,13 @@ import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, getClientIp, pruneRateLimitBuckets } from "@/lib/rateLimit";
 
 // const prisma = new PrismaClient();
+
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
 
 export const authOptions = {
   providers: [
@@ -16,17 +21,16 @@ export const authOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Email and password are required");
+          throw new Error("Invalid email or password.");
         }
 
+        const emailNorm = normalizeEmail(credentials.email);
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email: emailNorm },
         });
 
         if (!user) {
-          throw new Error(
-            "No account found for this email. If you signed up with Google, please use the 'Continue with Google' button."
-          );
+          throw new Error("Invalid email or password.");
         }
 
         if (user.passwordHash === "google-oauth") {
@@ -40,7 +44,7 @@ export const authOptions = {
           user.passwordHash
         );
         if (!valid) {
-          throw new Error("Incorrect password.");
+          throw new Error("Invalid email or password.");
         }
 
         return {
@@ -107,4 +111,38 @@ export const authOptions = {
 };
 
 const handler = NextAuth(authOptions);
-export { handler as GET, handler as POST };
+
+export async function GET(req) {
+  pruneRateLimitBuckets();
+  const ip = getClientIp(req);
+  const rl = checkRateLimit({
+    key: `auth:nextauth:get:${ip}`,
+    limit: 120,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!rl.ok) {
+    return new Response("Too many requests", {
+      status: 429,
+      headers: { "Retry-After": String(rl.retryAfterSeconds) },
+    });
+  }
+  return handler(req);
+}
+
+export async function POST(req) {
+  // This POST includes credentials sign-in attempts.
+  pruneRateLimitBuckets();
+  const ip = getClientIp(req);
+  const rl = checkRateLimit({
+    key: `auth:nextauth:post:${ip}`,
+    limit: 30,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!rl.ok) {
+    return new Response("Too many requests", {
+      status: 429,
+      headers: { "Retry-After": String(rl.retryAfterSeconds) },
+    });
+  }
+  return handler(req);
+}

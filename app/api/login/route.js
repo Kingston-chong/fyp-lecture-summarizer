@@ -1,20 +1,47 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { checkRateLimit, getClientIp, pruneRateLimitBuckets } from "@/lib/rateLimit";
 
 const prisma = new PrismaClient();
+
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
 
 export async function POST(req) {
   try {
     const { email, password } = await req.json();
 
+    pruneRateLimitBuckets();
+    const ip = getClientIp(req);
+    const rl = checkRateLimit({
+      key: `auth:login:${ip}`,
+      limit: 20,
+      windowMs: 10 * 60 * 1000, // 10 minutes
+    });
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } }
+      );
+    }
+
+    if (!email || !password) {
+      return NextResponse.json(
+        { error: "Invalid email or password." },
+        { status: 401 }
+      );
+    }
+
     // Find user
-    const user = await prisma.user.findUnique({ where: { email } });
+    const emailNorm = normalizeEmail(email);
+    const user = await prisma.user.findUnique({ where: { email: emailNorm } });
     if (!user) {
       return NextResponse.json(
         {
           error:
-            "No account found for this email. If you signed up with Google, please use the 'Continue with Google' button.",
+            "Invalid email or password.",
         },
         { status: 401 }
       );
@@ -25,7 +52,7 @@ export async function POST(req) {
       return NextResponse.json(
         {
           error:
-            "This account is linked to Google sign-in. Please use the 'Continue with Google' button or reset your password first.",
+            "Please sign in with Google, or reset your password to set one.",
         },
         { status: 401 }
       );
@@ -35,7 +62,7 @@ export async function POST(req) {
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
       return NextResponse.json(
-        { error: "Incorrect password." },
+        { error: "Invalid email or password." },
         { status: 401 }
       );
     }

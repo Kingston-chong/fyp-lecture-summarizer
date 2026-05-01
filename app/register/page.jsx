@@ -47,6 +47,7 @@ export default function Slide2NotesRegister() {
   const [loading, setLoading] = useState(false);
 
   async function handleSignUp() {
+    if (!canSubmit) return;
     setLoading(true);
     setError("");
 
@@ -57,6 +58,7 @@ export default function Slide2NotesRegister() {
         email: form.email,
         username: form.username,
         password: form.password,
+        confirm: form.confirm,
         role,
       }),
     });
@@ -85,6 +87,11 @@ export default function Slide2NotesRegister() {
   const allRulesMet = rules.length && rules.symbol && rules.alpha;
   const passwordMatch =
     form.password && form.confirm && form.password === form.confirm;
+  const canSubmit =
+    !loading &&
+    Boolean(form.email && form.username && role && form.password && form.confirm) &&
+    allRulesMet &&
+    passwordMatch;
 
   return (
     <>
@@ -395,7 +402,7 @@ export default function Slide2NotesRegister() {
               <button
                 className="btn-signup"
                 onClick={handleSignUp}
-                disabled={loading}
+                disabled={!canSubmit}
               >
                 {loading ? "Signing up..." : "Sign Up"}
               </button>
