@@ -48,9 +48,16 @@ export async function POST(req) {
     const { email, username, password, confirm, role } = await req.json();
 
     // Check all fields present
-    if (!email || !username || !password || !confirm || !role) {
+    const missing = [];
+    if (!email) missing.push("email");
+    if (!username) missing.push("username");
+    if (!password) missing.push("password");
+    if (!confirm) missing.push("confirm");
+    if (!role) missing.push("role");
+
+    if (missing.length) {
       return NextResponse.json(
-        { error: "All fields are required" },
+        { error: `All fields are required. Missing: ${missing.join(", ")}.` },
         { status: 400 }
       );
     }
