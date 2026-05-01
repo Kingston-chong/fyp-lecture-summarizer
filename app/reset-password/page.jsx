@@ -30,6 +30,11 @@ export default function ResetPassword() {
       if (res.ok) {
         // Save email to sessionStorage for next steps
         sessionStorage.setItem("resetEmail", email);
+        if (data?.expiresAt) {
+          sessionStorage.setItem("resetOtpExpiresAt", data.expiresAt);
+        } else {
+          sessionStorage.removeItem("resetOtpExpiresAt");
+        }
         router.push("/reset-password/verify-otp");
       } else {
         setError(data.error || "Email not found. Please try again.");

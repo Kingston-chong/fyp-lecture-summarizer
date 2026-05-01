@@ -12,21 +12,33 @@ export default function VerifyOTP() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [email, setEmail] = useState("");
-  const [countdown, setCountdown] = useState(120);
+  const [expiresAtMs, setExpiresAtMs] = useState(null);
+  const [countdown, setCountdown] = useState(0);
   const [resending, setResending] = useState(false);
   const inputRefs = useRef([]);
 
   useEffect(() => {
     const savedEmail = sessionStorage.getItem("resetEmail");
+    const savedExpiresAt = sessionStorage.getItem("resetOtpExpiresAt");
     if (!savedEmail) { router.push("/reset-password"); return; }
     setEmail(savedEmail);
+    if (savedExpiresAt) {
+      const ms = Date.parse(savedExpiresAt);
+      if (!Number.isNaN(ms)) setExpiresAtMs(ms);
+    }
   }, []);
 
   useEffect(() => {
-    if (countdown <= 0) return;
-    const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [countdown]);
+    // Keep countdown in sync with the server-provided expiresAt.
+    if (!expiresAtMs) return;
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((expiresAtMs - Date.now()) / 1000));
+      setCountdown(remaining);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [expiresAtMs]);
 
   const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
@@ -56,6 +68,10 @@ export default function VerifyOTP() {
   async function handleVerify() {
     const otpValue = otp.join("");
     if (otpValue.length < 6) { setError("Please enter the complete 6-digit OTP."); return; }
+    if (expiresAtMs && Date.now() > expiresAtMs) {
+      setError("OTP has expired. Please request a new one.");
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -87,12 +103,17 @@ export default function VerifyOTP() {
     setResending(true);
     setError("");
     try {
-      await fetch("/api/forgot-password", {
+      const res = await fetch("/api/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
-      setCountdown(120);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.expiresAt) {
+        sessionStorage.setItem("resetOtpExpiresAt", data.expiresAt);
+        const ms = Date.parse(data.expiresAt);
+        if (!Number.isNaN(ms)) setExpiresAtMs(ms);
+      }
       setOtp(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
     } finally {
@@ -177,7 +198,11 @@ export default function VerifyOTP() {
 
             {error && <div className="error-msg">{error}</div>}
 
-            <button className="btn-verify" onClick={handleVerify} disabled={loading || otp.join("").length < 6}>
+            <button
+              className="btn-verify"
+              onClick={handleVerify}
+              disabled={loading || otp.join("").length < 6 || countdown <= 0}
+            >
               {loading && <span className="spinner" />}
               {loading ? "Verifying..." : "Verify OTP"}
             </button>

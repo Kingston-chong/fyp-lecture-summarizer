@@ -64,6 +64,7 @@ export const authOptions = {
     async signIn({ user, account }) {
       if (account.provider === "google") {
         try {
+          if (!user?.email) return false;
           // Check if user already exists
           const existing = await prisma.user.findUnique({
             where: { email: user.email },
@@ -90,6 +91,7 @@ export const authOptions = {
     },
 
     async session({ session, token }) {
+      if (!session?.user?.email) return session;
       // Attach user info to session
       const dbUser = await prisma.user.findUnique({
         where: { email: session.user.email },

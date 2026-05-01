@@ -47,7 +47,20 @@ export default function Slide2NotesRegister() {
   const [loading, setLoading] = useState(false);
 
   async function handleSignUp() {
-    if (!canSubmit) return;
+    // Show a clear message instead of silently blocking.
+    if (!form.email || !form.username || !role || !form.password || !form.confirm) {
+      setError("Please fill in all fields (email, password, confirm password, username, and role).");
+      return;
+    }
+    if (!allRulesMet) {
+      setError("Password must be at least 8 characters and include at least one letter and one symbol.");
+      return;
+    }
+    if (!passwordMatch) {
+      setError("Passwords do not match.");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -402,7 +415,7 @@ export default function Slide2NotesRegister() {
               <button
                 className="btn-signup"
                 onClick={handleSignUp}
-                disabled={!canSubmit}
+                disabled={loading}
               >
                 {loading ? "Signing up..." : "Sign Up"}
               </button>

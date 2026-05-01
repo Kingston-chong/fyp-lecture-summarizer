@@ -46,5 +46,5 @@ export async function POST(req) {
       `),
   });
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, expiresAt: expiresAt.toISOString() });
 }
