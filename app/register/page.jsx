@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { ChevronDownIcon, EyeIcon, EyeOffIcon } from "../components/icons";
 import AuthMarketingNav from "../components/AuthMarketingNav";
 import AuthPageChrome from "../components/AuthPageChrome";
@@ -80,7 +81,20 @@ export default function Slide2NotesRegister() {
     setLoading(false);
 
     if (res.ok) {
-      router.push("/"); // redirect to login
+      const loginResult = await signIn("credentials", {
+        redirect: false,
+        email: form.email,
+        password: form.password,
+        callbackUrl: "/dashboard",
+      });
+
+      if (loginResult?.error) {
+        setError("Account created, but automatic sign in failed. Please sign in manually.");
+        router.push("/login");
+        return;
+      }
+
+      router.replace("/dashboard");
     } else {
       setError(data.error);
     }

@@ -170,11 +170,18 @@ export default function HomePage() {
         .btn-ghost, .btn-primary, .btn-hero, .btn-hero-outline {
           font-family: var(--sans);
           cursor: pointer;
+          box-sizing: border-box;
+          appearance: none;
+          -webkit-appearance: none;
+          margin: 0;
+          vertical-align: middle;
         }
         .btn-ghost {
           height: 36px; padding: 0 18px; border-radius: 9px;
-          border: 1px solid var(--border2); background: transparent;
-          font-size: 13px; font-weight: 500; color: var(--muted); transition: all .2s;
+          border: 1px solid rgba(99,102,241,.55);
+          background: linear-gradient(135deg, rgba(99,102,241,.22), rgba(139,92,246,.18));
+          font-size: 13px; font-weight: 600; color: #e8ebff; transition: all .2s;
+          box-shadow: 0 4px 16px rgba(99,102,241,.28), inset 0 0 0 1px rgba(255,255,255,.06);
           white-space: nowrap;
           line-height: 1;
           display: inline-flex;
@@ -182,9 +189,16 @@ export default function HomePage() {
           justify-content: center;
           vertical-align: middle;
         }
-        .btn-ghost:hover { border-color: rgba(255,255,255,.24); color: var(--text); background: rgba(255,255,255,.04); }
+        .btn-ghost:hover {
+          border-color: rgba(129,140,248,.82);
+          color: #ffffff;
+          background: linear-gradient(135deg, rgba(99,102,241,.36), rgba(139,92,246,.3));
+          transform: translateY(-1px);
+          box-shadow: 0 8px 24px rgba(99,102,241,.45);
+        }
         .btn-primary {
           height: 36px; padding: 0 20px; border-radius: 9px; border: none;
+          border: 1px solid transparent;
           background: linear-gradient(135deg, #5258ee, #8b5cf6);
           font-size: 13px; font-weight: 500; color: white;
           box-shadow: 0 4px 16px rgba(99,102,241,.35); transition: all .2s;
@@ -243,7 +257,7 @@ export default function HomePage() {
           flex-wrap: wrap; margin-bottom: 64px; animation: fadeUp .8s .48s ease both;
         }
         .btn-hero {
-          height: 50px; padding: 0 32px; border-radius: 12px; border: none;
+          height: 50px; padding: 0 32px; border-radius: 12px; border: 1px solid transparent;
           background: linear-gradient(135deg, #5258ee, #8b5cf6, #6366f1); background-size: 200% 200%;
           font-size: 15px; font-weight: 500; color: white; letter-spacing: .01em;
           box-shadow: 0 6px 24px rgba(99,102,241,.42), 0 0 0 1px rgba(99,102,241,.3);
@@ -253,11 +267,19 @@ export default function HomePage() {
         .btn-hero:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(99,102,241,.6); }
         .btn-hero-outline {
           height: 50px; padding: 0 28px; border-radius: 12px;
-          border: 1px solid var(--border2); background: rgba(255,255,255,.04);
-          font-size: 15px; font-weight: 400; color: var(--muted); transition: all .22s;
+          border: 1px solid rgba(99,102,241,.55);
+          background: linear-gradient(135deg, rgba(99,102,241,.24), rgba(139,92,246,.2));
+          font-size: 15px; font-weight: 500; color: #e8ebff; transition: all .22s;
+          box-shadow: 0 6px 20px rgba(99,102,241,.25);
           display: flex; align-items: center; gap: 8px;
         }
-        .btn-hero-outline:hover { border-color: rgba(255,255,255,.28); color: var(--text); background: rgba(255,255,255,.07); }
+        .btn-hero-outline:hover {
+          border-color: rgba(129,140,248,.82);
+          color: #ffffff;
+          background: linear-gradient(135deg, rgba(99,102,241,.38), rgba(139,92,246,.32));
+          transform: translateY(-1.5px);
+          box-shadow: 0 10px 28px rgba(99,102,241,.42);
+        }
         .hero-mock { width: 100%; max-width: 820px; margin: 0 auto; position: relative; animation: fadeUp .9s .6s ease both; }
         .hero-mock-glow { position: absolute; inset: -40px; z-index: 0; background: radial-gradient(ellipse at 50% 60%, rgba(99,102,241,.18) 0%, transparent 65%); }
         .hero-mock-card {

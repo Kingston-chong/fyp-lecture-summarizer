@@ -135,6 +135,7 @@ export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
   const [aiModel, setAiModel] = useState("Gemini");
   const [generationMode, setGenerationMode] = useState("Strict");
   const [questionTypes, setQuestionTypes] = useState(["MCQ"]);
+  const [questionCountAuto, setQuestionCountAuto] = useState(false);
   const [numQuestions, setNumQuestions] = useState(10);
   const [difficulty, setDifficulty] = useState("Medium");
   const [focusAreas, setFocusAreas] = useState(["Important concepts"]);
