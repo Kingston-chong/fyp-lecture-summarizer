@@ -52,7 +52,16 @@ export default function Slide2NotesLogin() {
       });
 
       if (result?.error) {
-        setError(result.error);
+        const raw = String(result.error);
+        const looksLikeDbOrNetwork =
+          /prisma|turbopack|can't reach database|P1001|P1002|ECONNREFUSED|ETIMEDOUT|ENOTFOUND/i.test(
+            raw,
+          );
+        setError(
+          looksLikeDbOrNetwork
+            ? "We couldn't connect. Check your internet connection and try again."
+            : raw,
+        );
         return;
       }
 

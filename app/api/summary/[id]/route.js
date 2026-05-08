@@ -93,6 +93,11 @@ export async function DELETE(_req, ctx) {
 
     const id = await getIdFromParams(ctx.params);
 
+    // Ensure link-table rows are removed first (prevents FK constraint failures)
+    await prisma.summaryDocument.deleteMany({
+      where: { summaryId: id },
+    });
+
     const deleted = await prisma.summary.deleteMany({
       where: { id, userId: user.id },
     });

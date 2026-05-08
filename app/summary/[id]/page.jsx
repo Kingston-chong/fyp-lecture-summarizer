@@ -592,6 +592,7 @@ export default function SummaryView() {
         const decoder = new TextDecoder("utf-8");
         let buffer = "";
         let streamError = "";
+        let gotDone = false;
 
         const applySseBlock = (block) => {
           const lines = block.split(/\r?\n/);
@@ -615,6 +616,8 @@ export default function SummaryView() {
               if (!prev) return prev;
               return { ...prev, output: String(prev.output || "") + payload.text };
             });
+          } else if (event === "done") {
+            gotDone = true;
           } else if (event === "error") {
             streamError = payload?.error || "Summarization failed";
           }
@@ -636,12 +639,22 @@ export default function SummaryView() {
 
         if (!cancelled && buffer.trim()) applySseBlock(buffer.trim());
         if (!cancelled && streamError) throw new Error(streamError);
+        if (!cancelled && !gotDone) {
+          // If the stream ended unexpectedly, force a refresh to reflect any persisted output.
+          // (Still treat it as success if output got saved.)
+        }
 
         // Refresh summary once done (ensures DB output is in sync)
         if (!cancelled) {
           const r = await fetch(`/api/summary/${summaryId}`);
           const d = await r.json().catch(() => ({}));
           if (r.ok && d?.summary) setSummary(d.summary);
+        }
+
+        // Remove the autostart query so refresh doesn't re-trigger.
+        if (!cancelled) {
+          const sid = String(summaryId);
+          router.replace(`/summary/${encodeURIComponent(sid)}`);
         }
       } catch (e) {
         if (!cancelled) setSummarizeError(e?.message ?? "Summarization failed");
@@ -654,7 +667,7 @@ export default function SummaryView() {
     return () => {
       cancelled = true;
     };
-  }, [status, summaryId, summary, summarizing, searchParams]);
+  }, [status, summaryId, summary, summarizing, searchParams, router]);
 
   // Load persisted chat turns (so refresh/resume keeps the conversation)
   useEffect(() => {

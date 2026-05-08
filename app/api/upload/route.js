@@ -4,6 +4,19 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRequestUser } from "@/lib/apiAuth";
 
+const ALLOWED_EXTENSIONS = new Set([
+  "PDF",
+  "PPTX",
+  "PPT",
+  "DOCX",
+  "DOC",
+  "TXT",
+  "XLSX",
+  "XLS",
+  "CSV",
+  "MD",
+]);
+
 // Generates a new unique name if duplicate exists
 // lu1-tutorial.pdf → lu1-tutorial (1).pdf → lu1-tutorial (2).pdf
 function generateRenamedFile(originalName, existingNames) {
@@ -53,6 +66,10 @@ export async function POST(req) {
       const file       = files[i];
       const shouldRename = renameFlags[i] === true;
 
+      if (!file || typeof file === "string") {
+        return NextResponse.json({ error: "Invalid file upload payload" }, { status: 400 });
+      }
+
       let finalName = file.name;
 
       if (shouldRename && existingNames.has(file.name)) {
@@ -63,6 +80,16 @@ export async function POST(req) {
       existingNames.add(finalName);
 
       const ext = finalName.split(".").pop().toUpperCase();
+      if (!ALLOWED_EXTENSIONS.has(ext)) {
+        return NextResponse.json(
+          {
+            error:
+              `Unsupported file type: .${String(ext || "").toLowerCase()}. ` +
+              "Supported: pdf, pptx, ppt, docx, doc, txt, xlsx, xls, csv, md.",
+          },
+          { status: 415 },
+        );
+      }
 
       // Upload to Vercel Blob
       const blob = await put(
