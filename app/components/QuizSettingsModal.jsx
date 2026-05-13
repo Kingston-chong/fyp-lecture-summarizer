@@ -2,23 +2,7 @@
 
 import { useState } from "react";
 import { useTheme } from "./ThemeProvider.jsx";
-
-// ─── Icons ────────────────────────────────────────────────
-const CloseIco = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-  </svg>
-);
-const ChevDownIco = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="6 9 12 15 18 9"/>
-  </svg>
-);
-const QuizIco = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-  </svg>
-);
+import { ChevronDownIcon, CloseIcon, QuizIco } from "./icons";
 
 // ─── Reusable Components ──────────────────────────────────
 function Dropdown({ value, onChange, options, width = 120 }) {
@@ -40,7 +24,7 @@ function Dropdown({ value, onChange, options, width = 120 }) {
           cursor: "pointer", gap: 6, transition: "all .18s",
         }}
       >
-        {value} <ChevDownIco/>
+        {value} <ChevronDownIcon size={12} />
       </button>
       {open && (
         <div style={{
@@ -385,7 +369,7 @@ export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
           <div className="sl-title">
             <QuizIco/> Quiz Generation Settings..
           </div>
-          <button className="sl-close" onClick={onClose}><CloseIco/></button>
+          <button className="sl-close" onClick={onClose}><CloseIcon size={14} /></button>
         </div>
 
         <div

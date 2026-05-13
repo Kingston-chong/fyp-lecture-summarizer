@@ -1,17 +1,14 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { checkRateLimit, getClientIp, pruneRateLimitBuckets } from "@/lib/rateLimit";
+import { prisma } from "@/lib/prisma";
+import { normalizeEmail } from "@/lib/authUtils";
 
-
-
-const prisma = new PrismaClient();
-
-const ROLES = new Set(["Student", "Lecturer", "Rather not say"]);
-
-function normalizeEmail(email) {
-  return String(email || "").trim().toLowerCase();
-}
+const ROLE_LABEL_TO_ENUM = {
+  Student: "Student",
+  Lecturer: "Lecturer",
+  "Rather not say": "RatherNotSay",
+};
 
 function isValidEmail(email) {
   const e = normalizeEmail(email);
@@ -33,7 +30,7 @@ export async function POST(req) {
   try {
     pruneRateLimitBuckets();
     const ip = getClientIp(req);
-    const rl = checkRateLimit({
+    const rl = await checkRateLimit({
       key: `auth:register:${ip}`,
       limit: 10,
       windowMs: 10 * 60 * 1000, // 10 minutes
@@ -79,7 +76,8 @@ export async function POST(req) {
     }
 
     const roleNorm = String(role).trim();
-    if (!ROLES.has(roleNorm)) {
+    const roleEnum = ROLE_LABEL_TO_ENUM[roleNorm];
+    if (!roleEnum) {
       return NextResponse.json(
         { error: "Invalid role." },
         { status: 400 }
@@ -124,7 +122,7 @@ export async function POST(req) {
 
     // Save user
     await prisma.user.create({
-      data: { email: emailNorm, username: usernameNorm, passwordHash, role: roleNorm }
+      data: { email: emailNorm, username: usernameNorm, passwordHash, role: roleEnum }
     });
 
     return NextResponse.json({ success: true }, { status: 201 });

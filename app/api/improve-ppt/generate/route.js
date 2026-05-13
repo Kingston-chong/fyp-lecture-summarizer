@@ -6,23 +6,9 @@ import { parseJsonFromLlm } from "@/lib/jsonExtract";
 import { runChat } from "@/lib/llmServer";
 import { uiModelToKey } from "@/lib/improvePptModel";
 import { extractThemeFromPptx } from "@/lib/pptxThemePatch";
-import { fetchUnsplashImageUrl } from "@/lib/unsplashStock";
-import { fetchRemoteImageBuffer } from "@/lib/fetchRemoteImage";
-import { buildStockPhotoQueryFromSlide } from "@/lib/improvePptStockKeywords";
 import { panelFromBackground } from "@/lib/themeColors";
 import { enrichSlidesWithWebSearch, buildEnrichmentBlock } from "@/lib/improvePptWebSearch";
-import { selectSafeTemplateSpec } from "@/lib/improvePptTemplateSpecGuard";
-import {
-  generatePptxWithTwoSlides,
-  improvedSlidesToTwoSlidesUserInput,
-} from "@/lib/twoSlidesGenerate";
-import {
-  BUILTIN_SPECS,
-  selectBuiltinSpec,
-  buildTemplateSpecPrompt,
-  TEMPLATE_SPEC_SYSTEM_PROMPT,
-  normalizeTemplateSpec,
-} from "@/lib/pptxTemplateSpec";
+import { downloadPptxBuffer, getAlaiPptxUrlWithPoll } from "@/lib/alaiSlidePptx";
 
 
 // ── FIX: Raise the serverless function timeout so Tavily + LLM can finish.
@@ -71,48 +57,100 @@ function titleFromSourceFilename(sourceName) {
     .slice(0, 200);
 }
 
-async function fetchStockImageUrlForQuery(query) {
-  const q = String(query || "").trim();
-  if (!q || !process.env.UNSPLASH_ACCESS_KEY) return null;
-  return fetchUnsplashImageUrl(q);
+function capText(v, maxChars) {
+  return String(v || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxChars);
 }
 
-/**
- * Resolve the best template spec for content mode.
- * 1. Try to find a curated built-in by keyword/theme match.
- * 2. If no good match AND the request sounds creative/unusual, ask the LLM.
- * 3. Fallback: use the best built-in.
- *
- * Returns a spec object compatible with pptxTemplateSpec.BUILTIN_SPECS format.
- */
-async function resolveTemplateSpec(modelKey, theme, instructions) {
-  // Try built-in first — fast and reliable
-  const builtinKey = selectBuiltinSpec(theme, instructions);
-  const builtin = BUILTIN_SPECS[builtinKey] ?? BUILTIN_SPECS.diagonal_burst;
+function buildAlaiInputText({
+  instructions,
+  title,
+  subtitle,
+  theme,
+  slides,
+  references,
+  templateHints,
+}) {
+  const deckTitle = capText(title, 200);
+  const deckSubtitle = capText(subtitle, 260);
 
-  // Generate a custom LLM spec if the request contains creative keywords
-  // suggesting the user wants something unique beyond the built-ins
-  const wantsCustom = /custom|unique|creative|special|unusual|design|artistic|different|original|innovative|futur|retro|vintage|fantasy|sci.?fi|abstract|minimal|luxur|elegant/i.test(instructions);
+  const bg = capText(theme?.background, 20);
+  const accent = capText(theme?.accent, 20);
+  const text = capText(theme?.text, 20);
+  const panel = capText(theme?.panel, 20);
 
-  if (!wantsCustom) return { spec: builtin, key: builtinKey, source: "builtin" };
+  const vibe = capText(templateHints?._summary || templateHints?.description, 500);
+  const imagePlacement = capText(templateHints?.image_placement, 50);
+  const fontTitle = capText(templateHints?.fonts?.title, 50);
+  const fontBody = capText(templateHints?.fonts?.body, 50);
 
-  try {
-    const raw = await runChat(
-      modelKey,
-      null,
-      TEMPLATE_SPEC_SYSTEM_PROMPT,
-      [{ role: "user", content: buildTemplateSpecPrompt(instructions, theme) }]
-    );
-    const parsed = parseJsonFromLlm(raw);
-    const normalized = normalizeTemplateSpec(parsed);
-    if (normalized.ok && normalized.spec) {
-      return { spec: normalized.spec, key: "ai_generated", source: "llm" };
-    }
-  } catch (e) {
-    console.warn("resolveTemplateSpec LLM failed (non-fatal):", e?.message);
-  }
+  const cappedSlides = (slides || []).map((s) => {
+    const slideIdx = Number(s?.index);
+    const slideTitle = capText(s?.title, 200);
+    const bullets = Array.isArray(s?.lines) ? s.lines : [];
+    const cappedBullets = bullets
+      .map((b) => capText(b, 240))
+      .filter(Boolean)
+      .slice(0, 10);
+    const notes = capText(s?.notes, 3200);
+    return { slideIdx, slideTitle, cappedBullets, notes };
+  });
 
-  return { spec: builtin, key: builtinKey, source: "builtin_fallback" };
+  const cappedRefs = (references || [])
+    .map((r) => ({ title: capText(r?.title, 140), url: capText(r?.url, 260) }))
+    .filter((r) => r.title || r.url)
+    .slice(0, 12);
+
+  const refBlock = cappedRefs.length
+    ? "\nReferences:\n" +
+      cappedRefs
+        .map((r, i) => `- [${i + 1}] ${r.title}${r.url ? ` — ${r.url}` : ""}`)
+        .join("\n") +
+      "\n"
+    : "";
+
+  const templateLines = [
+    vibe ? `Style vibe: ${vibe}` : "",
+    imagePlacement ? `Image placement preference: ${imagePlacement}` : "",
+    fontTitle || fontBody
+      ? `Font preference: title=${fontTitle || "default"}, body=${fontBody || "default"}`
+      : "",
+  ].filter(Boolean);
+  const templateSection = templateLines.length ? `\n${templateLines.join("\n")}` : "";
+
+  const slideBlock = cappedSlides
+    .filter((s) => Number.isFinite(s.slideIdx) && s.slideIdx > 0)
+    .map((s) => {
+      const bulletsText = s.cappedBullets.length
+        ? s.cappedBullets.map((b) => `- ${b}`).join("\n")
+        : "- (no bullets provided)";
+      const notesText = s.notes || "(no speaker notes provided)";
+      return `Slide ${s.slideIdx}:\nTitle: ${s.slideTitle}\nBullets:\n${bulletsText}\nSpeaker notes:\n${notesText}`;
+    })
+    .join("\n\n");
+
+  const subtitleLine = deckSubtitle ? `\nSubtitle: ${deckSubtitle}` : "";
+
+  return `Create a 16:9 PowerPoint deck using the exact slide outline below.
+
+Theme colors:
+- background: ${bg}
+- accent: ${accent}
+- text: ${text}
+- panel: ${panel}
+
+${templateSection}
+Deck title: ${deckTitle}${subtitleLine}
+
+User instructions:
+${capText(instructions, 2000)}
+
+${refBlock}
+Slide outline (render in this exact order):
+${slideBlock}
+`;
 }
 
 function normalizeContentTheme(t, additiveImprove) {
@@ -168,17 +206,15 @@ export async function POST(req) {
     const modelLabel           = String(body?.model || "Gemini");
     const slidesIn             = Array.isArray(body?.slides)      ? body.slides      : [];
     const adjustments          = Array.isArray(body?.adjustments) ? body.adjustments : [];
-    const addStockImages       = Boolean(body?.addStockImages);
     const sourceName           = String(body?.sourceName || "").trim();
     const additiveImprove      = body?.additiveImprove !== false;
     const detailLevelRaw       = String(body?.detailLevel || "lecture").toLowerCase();
     const detailLevel          = ["concise","lecture","deep"].includes(detailLevelRaw) ? detailLevelRaw : "lecture";
     // Optional: a pre-extracted templateSpec from /api/improve-ppt/theme-search.
-    // When provided, skip resolveTemplateSpec() and use it directly.
+    // When provided, we use its summary/fonts as style hints for Alai.
     const incomingTemplateSpec = body?.templateSpec && typeof body.templateSpec === "object"
       ? body.templateSpec
       : null;
-    const incomingThemeId = String(body?.themeId || "").trim();
 
     const documentId = Number(body?.documentId);
     const hasUploadedFile =
@@ -344,47 +380,7 @@ Rules:
       }
     }
 
-    const imageQueriesFromLlm = Array.isArray(parsed?.imageQueries) ? parsed.imageQueries : [];
-
-    // 5. Fetch stock images
-    const images = [];
-    if (addStockImages && process.env.UNSPLASH_ACCESS_KEY) {
-      const slideToQuery = new Map();
-      for (const s of outSlides) {
-        const src   = slidesIn.find((x) => Number(x.index) === s.index);
-        const fromKw = buildStockPhotoQueryFromSlide(s, src);
-        const llmQ   = String(imageQueriesFromLlm.find((q) => Number(q?.slideIndex) === s.index)?.query || "").trim();
-        const query  = fromKw || llmQ;
-        if (query) slideToQuery.set(s.index, query.slice(0, 120));
-      }
-      for (const [slideIndex, query] of slideToQuery) {
-        const url  = await fetchStockImageUrlForQuery(query);
-        if (!url) continue;
-        const data = await fetchRemoteImageBuffer(url);
-        if (data) images.push({ slideIndex, data });
-      }
-    }
-
-    for (const ref of (Array.isArray(body?.userImageRefs) ? body.userImageRefs : [])) {
-      const slideIndex = Number(ref?.slideIndex);
-      const url        = String(ref?.url || "").trim();
-      if (!Number.isFinite(slideIndex) || slideIndex <= 0 || !url) continue;
-      const buf = await fetchRemoteImageBuffer(url);
-      if (!buf) continue;
-      const ix = images.findIndex((im) => im.slideIndex === slideIndex);
-      if (ix >= 0) images[ix] = { slideIndex, data: buf };
-      else images.push({ slideIndex, data: buf });
-    }
-
-    // 6. Build PPTX
-    // FIX: Removed patchPptxTextContent — it cannot add new slides (only patch existing ones),
-    // which means requests like "add a scenario slide" were broken by design.
-    //
-    // Correct approach for additiveImprove:
-    //   - The LLM already returns the correct slides[] including any new ones
-    //   - We use buildImprovedPptx (full rebuild) for all content mode requests
-    //   - BUT if the original file was uploaded, we extract its theme colors first
-    //     so the rebuilt deck matches the original design as closely as possible
+    // 5. Build PPTX via Alai
     const references = allWebSources.map((s) => ({ title: s.title, url: s.url }));
 
     // Try to extract original PPTX theme to preserve its look (PDF has no PPTX theme)
@@ -406,54 +402,80 @@ Rules:
       }
     }
 
-    // Resolve template spec:
-    // Priority 1 — spec passed in from theme-search (2slides-derived), use as-is.
-    // Priority 2 — fall back to built-in / LLM-generated spec.
-    const resolved = await resolveTemplateSpec(modelKey, effectiveTheme, instructions);
-    const builtinFallbackKey = selectBuiltinSpec(effectiveTheme, instructions);
-    const builtinFallbackSpec = BUILTIN_SPECS[builtinFallbackKey] ?? BUILTIN_SPECS.diagonal_burst;
-    const safeTemplate = selectSafeTemplateSpec({
-      incomingSpec: incomingTemplateSpec,
-      resolvedSpec: resolved.spec,
-      builtinFallback: builtinFallbackSpec,
-    });
-    const templateSpec = safeTemplate.spec ?? builtinFallbackSpec;
-
-    // ── Build PPTX via 2slides (preferred) ───────────────────────────────────
-    // We keep the old templateSpec logic only to (a) choose a 2slides themeId
-    // from theme-search metadata and (b) provide a safe fallback if a user
-    // didn't pick a 2slides theme.
-    const themeIdFromTemplateSpec =
-      (incomingTemplateSpec && String(incomingTemplateSpec?._themeId || "").trim()) ||
-      (templateSpec && String(templateSpec?._themeId || "").trim()) ||
-      "";
-
-    const effectiveThemeId = incomingThemeId || themeIdFromTemplateSpec;
-
-    let buffer;
-    if (process.env.TWOSLIDES_API_KEY && effectiveThemeId) {
-      const userInput = improvedSlidesToTwoSlidesUserInput({
-        title,
-        subtitle,
-        slides: outSlides,
-        references,
-      });
-      buffer = await generatePptxWithTwoSlides({
-        userInput,
-        themeId: effectiveThemeId,
-        responseLanguage: "Auto",
-        mode: "sync",
-      });
-    } else {
-      // If 2slides isn't configured or the user didn't select a 2slides theme,
-      // return a clear error so the UI can guide them to pick one.
-      const missing = !process.env.TWOSLIDES_API_KEY
-        ? "TWOSLIDES_API_KEY is not configured on the server."
-        : "No 2slides theme selected. Run Theme Search and pick a template first.";
-      return NextResponse.json({ error: missing }, { status: 503 });
+    if (!process.env.ALAI_API_KEY) {
+      return NextResponse.json(
+        { error: "ALAI_API_KEY is not configured on the server." },
+        { status: 500 }
+      );
     }
 
-    return new NextResponse(buffer, {
+    const input_text = buildAlaiInputText({
+      instructions,
+      title,
+      subtitle,
+      theme: effectiveTheme,
+      slides: outSlides,
+      references,
+      templateHints: incomingTemplateSpec || null,
+    });
+
+    const payload = {
+      input_text,
+      export_formats: ["ppt"],
+      presentation_options: title ? { title: String(title) } : undefined,
+    };
+
+    const startRes = await fetch(
+      "https://slides-api.getalai.com/api/v1/generations",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.ALAI_API_KEY}`,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const startData = await startRes.json().catch(() => ({}));
+    if (!startRes.ok) {
+      return NextResponse.json(
+        {
+          error:
+            startData?.error ||
+            startData?.message ||
+            "Failed to start Alai PPTX generation",
+        },
+        { status: startRes.status || 502 }
+      );
+    }
+
+    const generationId = startData.id || startData.generation_id;
+    if (!generationId) {
+      return NextResponse.json(
+        { error: "Alai did not return a generation id." },
+        { status: 502 }
+      );
+    }
+
+    const urlResult = await getAlaiPptxUrlWithPoll(String(generationId), {
+      maxAttempts: 60,
+      pollIntervalMs: 2500,
+    });
+
+    if (!urlResult.ok) {
+      return NextResponse.json(
+        { error: urlResult.error || "Failed to resolve Alai PPTX export URL." },
+        { status: 502 }
+      );
+    }
+
+    const dl = await downloadPptxBuffer(urlResult.pptUrl);
+    if (!dl.ok) {
+      return NextResponse.json({ error: dl.error }, { status: 502 });
+    }
+
+    return new NextResponse(dl.buffer, {
       status: 200,
       headers: {
         "Content-Type":        "application/vnd.openxmlformats-officedocument.presentationml.presentation",

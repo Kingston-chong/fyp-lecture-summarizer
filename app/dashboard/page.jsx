@@ -5,109 +5,28 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { markdownToHtml } from "@/lib/markdown";
 import {
+  ACCEPTED,
+  DASH_PROMPT_SUGGESTIONS,
+  getDefaultVariant,
+  IMPROVE_ACCEPT,
+  isImproveSourceType,
+  isOfficePreviewName,
+  MODEL_PROVIDERS,
+  modelDisplayName,
+  formatBytes,
+  timeAgo,
+} from "./helpers";
+import {
   ChevronDownIcon,
   CopyIcon,
   FileIcon,
-  HistoryIcon,
   SparkleIcon,
   UploadIcon,
   CloseIcon,
 } from "../components/icons";
-
-// Provider = which API (ChatGPT / DeepSeek / Gemini). Variant = exact model (e.g. gpt-4o, gemini-2.0-flash).
-const MODEL_PROVIDERS = [
-  {
-    id: "chatgpt",
-    label: "ChatGPT",
-    variants: [
-      { id: "gpt-4o", label: "GPT-4o" },
-      { id: "gpt-4o-mini", label: "GPT-4o mini" },
-      { id: "gpt-4", label: "GPT-4" },
-    ],
-  },
-  {
-    id: "deepseek",
-    label: "DeepSeek",
-    variants: [
-      { id: "deepseek-chat", label: "DeepSeek Chat (V3)" },
-    ],
-  },
-  {
-    id: "gemini",
-    label: "Gemini",
-    variants: [
-      { id: "gemini-3-flash-preview", label: "3 Flash (Preview)", desc: "Fast & capable — best for quick, everyday tasks" },
-      { id: "gemini-3.1-flash-lite-preview", label: "3.1 Flash Lite (Preview)", desc: "Lightweight & efficient — ideal for simple, high-volume tasks" },
-      { id: "gemini-2.5-flash", label: "2.5 Flash", desc: "Balanced speed & intelligence — great for general-purpose use" },
-      { id: "gemini-2.5-pro", label: "2.5 Pro", desc: "Highest quality & deep reasoning — best for complex analysis" },
-    ],
-  },
-];
-const ACCEPTED = ".pdf,.pptx,.ppt,.docx,.doc,.txt,.xlsx,.xls,.csv,.md";
-const IMPROVE_ACCEPT = ".pptx,.pdf";
-
-function isImproveSourceType(type) {
-  const u = String(type || "").toUpperCase();
-  return u === "PPTX" || u === "PDF";
-}
-
-const OFFICE_PREVIEW_EXT = new Set(["pptx", "ppt", "docx", "doc", "xlsx", "xls"]);
-
-function isOfficePreviewName(name) {
-  const ext = String(name || "").split(".").pop()?.toLowerCase() || "";
-  return OFFICE_PREVIEW_EXT.has(ext);
-}
-
-const DASH_PROMPT_SUGGESTIONS = {
-  summarize: [
-    "Focus on key concepts and definitions. Keep it structured with headings.",
-    "Extract formulas/theorems and explain what each variable means.",
-    "Give a 10-bullet executive summary, then a detailed explanation.",
-    "List likely exam questions + model answers based on the notes.",
-    "Create a glossary of important terms with simple explanations.",
-    "Highlight common mistakes/misconceptions and clarify them.",
-  ],
-  improve: [
-    "Tighten bullets for clarity. Use parallel phrasing and remove repetition.",
-    "Make the design modern: consistent typography, spacing, and alignment.",
-    "Add relevant visuals/icons (but avoid clutter). Keep 1 key image per slide max.",
-    "Turn dense paragraphs into concise bullets and add speaker notes for details.",
-    "Improve slide flow: add section dividers and stronger slide titles.",
-    "Fix contrast/readability: bigger fonts, fewer colors, consistent theme.",
-  ],
-};
-
-function getDefaultVariant(providerId) {
-  const p = MODEL_PROVIDERS.find((m) => m.id === providerId);
-  return p?.variants?.[0]?.id ?? "gpt-4o";
-}
-
-function modelDisplayName(saved) {
-  if (!saved) return "";
-  const [providerId, variantId] = saved.split(":");
-  const prov = MODEL_PROVIDERS.find((m) => m.id === providerId);
-  if (!variantId) return prov?.label ?? saved;
-  const variant = prov?.variants?.find((v) => v.id === variantId);
-  return variant ? `${prov?.label ?? providerId} · ${variant.label}` : saved;
-}
-
-function timeAgo(date) {
-  const diff = Date.now() - new Date(date).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
-}
-
-function formatBytes(bytes) {
-  if (!bytes) return "";
-  if (bytes < 1024) return bytes + " B";
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + " KB";
-  return (bytes / 1024 / 1024).toFixed(1) + " MB";
-}
+import DashboardSidebar from "./components/DashboardSidebar";
+import DocumentPreviewModal from "./components/DocumentPreviewModal";
+import TemplatePickerModal from "./components/TemplatePickerModal";
 
 // ── Main Component ─────────────────────────────────────────
 export default function Dashboard() {
@@ -1557,127 +1476,30 @@ export default function Dashboard() {
             <span>{sidebarOpen ? "Hide panel" : "Show panel"}</span>
           </button>
 
-          {/* ── SIDEBAR ── */}
-          <aside className="sidebar" style={{ width: sidebarWidth }}>
-
-            {/* History */}
-            <div className="sidebar-header" onClick={() => setSidebarSection(s => ({ ...s, history: !s.history }))}>
-              <span className="sidebar-title"><HistoryIcon /> History</span>
-              <span className={`sidebar-chev ${sidebarSection.history ? "open" : ""}`}><ChevronDownIcon /></span>
-            </div>
-
-            {sidebarSection.history && (
-              historyLoading ? (
-                <div className="sidebar-loading"><div className="mini-spinner" /> Loading...</div>
-              ) : history.length === 0 ? (
-                <div className="sidebar-empty">No summaries yet</div>
-              ) : history.map(h => (
-                <div key={h.id}>
-                  <div
-                    className={`history-item ${expandedHistory === h.id ? "active" : ""}`}
-                    onClick={() => {
-                      setExpandedHistory(expandedHistory === h.id ? null : h.id);
-                      // Use the dedicated summary page for display
-                      router.push(`/summary/${h.id}`);
-                    }}
-                  >
-                    <div className="history-name" title={h.title}>{h.title}</div>
-                    <div className="history-meta">
-                      {h.files.length} file{h.files.length !== 1 ? "s" : ""} · {timeAgo(h.createdAt)}
-                    </div>
-                  </div>
-                  {expandedHistory === h.id && h.files.map(f => (
-                    <div className="history-file-chip" key={f.id}>
-                      <FileIcon type={f.type} />
-                      <span title={f.name} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
-                    </div>
-                  ))}
-                </div>
-              ))
-            )}
-
-            <div className="sidebar-divider" />
-
-            {/* Previous Uploads */}
-            <div className="sidebar-header" onClick={() => setSidebarSection(s => ({ ...s, prev: !s.prev }))}>
-              <span className="sidebar-title"><UploadIcon /> Previous Uploaded</span>
-              <span className={`sidebar-chev ${sidebarSection.prev ? "open" : ""}`}><ChevronDownIcon /></span>
-            </div>
-
-            {sidebarSection.prev && (
-              prevLoading ? (
-                <div className="sidebar-loading"><div className="mini-spinner" /> Loading...</div>
-              ) : prevUploads.length === 0 ? (
-                <div className="sidebar-empty">No uploads yet</div>
-              ) : <>
-                <div className="prev-controls">
-                  <label className="prev-select-all">
-                    <input
-                      type="checkbox"
-                      checked={prevUploads.length > 0 && selectedPrevDocIds.length === prevUploads.length}
-                      onChange={toggleSelectAllPrevDocs}
-                    />
-                    Select all
-                  </label>
-                  <button
-                    type="button"
-                    className="prev-bulk-remove"
-                    onClick={handleRemoveSelectedDocuments}
-                    disabled={bulkRemoving || removingDocId != null || selectedPrevDocIds.length === 0}
-                    title="Delete selected files"
-                  >
-                    {bulkRemoving
-                      ? "Deleting..."
-                      : `Delete selected (${selectedPrevDocIds.length})`}
-                  </button>
-                </div>
-                {prevUploads.map(doc => {
-                const isAdded = selectedFiles.some(f => f.name === doc.name);
-                const isRemoving = removingDocId === doc.id;
-                return (
-                  <div className="prev-item" key={doc.id}>
-                    <input
-                      type="checkbox"
-                      className="prev-check"
-                      checked={selectedPrevDocIds.includes(doc.id)}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={() => togglePrevDocSelection(doc.id)}
-                      aria-label={`Select ${doc.name}`}
-                    />
-                    <div className="prev-item-main" onClick={() => addPrevFile(doc)}>
-                      <FileIcon type={doc.type} />
-                      <div className="prev-info">
-                        <div className="prev-name" title={doc.name}>{doc.name}</div>
-                        <div className="prev-meta">{formatBytes(doc.size)} · {timeAgo(doc.createdAt)}</div>
-                      </div>
-                    </div>
-                    <div className="prev-actions">
-                      <button
-                        type="button"
-                        className="prev-peek"
-                        title="Preview file"
-                        disabled={bulkRemoving}
-                        onClick={(e) => openDocFilePreview(doc, e)}
-                      >
-                        ⧉
-                      </button>
-                      <button
-                        type="button"
-                        className="prev-remove"
-                        title="Remove from server"
-                        disabled={isRemoving || bulkRemoving}
-                        onClick={(e) => { e.stopPropagation(); handleRemoveDocument(doc); }}
-                      >
-                        {isRemoving ? <span className="mini-spinner" /> : "×"}
-                      </button>
-                      <div className={`prev-add ${isAdded ? "added" : ""}`} onClick={(e) => { e.stopPropagation(); addPrevFile(doc); }}>{isAdded ? "✓" : "+"}</div>
-                    </div>
-                  </div>
-                );
-              })}
-              </>
-            )}
-          </aside>
+          <DashboardSidebar
+            sidebarWidth={sidebarWidth}
+            sidebarSection={sidebarSection}
+            setSidebarSection={setSidebarSection}
+            historyLoading={historyLoading}
+            history={history}
+            expandedHistory={expandedHistory}
+            setExpandedHistory={setExpandedHistory}
+            onHistoryNavigate={(id) => { router.push(`/summary/${id}`); }}
+            timeAgo={timeAgo}
+            prevLoading={prevLoading}
+            prevUploads={prevUploads}
+            selectedPrevDocIds={selectedPrevDocIds}
+            toggleSelectAllPrevDocs={toggleSelectAllPrevDocs}
+            handleRemoveSelectedDocuments={handleRemoveSelectedDocuments}
+            bulkRemoving={bulkRemoving}
+            removingDocId={removingDocId}
+            selectedFiles={selectedFiles}
+            addPrevFile={addPrevFile}
+            togglePrevDocSelection={togglePrevDocSelection}
+            openDocFilePreview={openDocFilePreview}
+            handleRemoveDocument={handleRemoveDocument}
+            formatBytes={formatBytes}
+          />
 
           <div
             className="splitter-v sidebar-splitter-desktop"
@@ -2103,151 +1925,33 @@ export default function Dashboard() {
       </div>
 
       {docPreviewOpen && docPreviewDoc && (
-        <div className="modal-backdrop doc-preview-backdrop" onClick={closeDocPreview}>
-          <div className="modal-box doc-preview-panel" onClick={(e) => e.stopPropagation()}>
-            <div className="doc-preview-head">
-              <div>
-                <div className="doc-preview-title">{docPreviewDoc.name}</div>
-                <div className="doc-preview-meta">
-                  {docPreviewDoc.type} · {formatBytes(docPreviewDoc.size)}
-                </div>
-              </div>
-              <button type="button" className="file-remove" aria-label="Close preview" onClick={closeDocPreview}>
-                <CloseIcon />
-              </button>
-            </div>
-            <div className="doc-preview-toolbar">
-              <a
-                className="doc-preview-open-tab"
-                href={docPreviewTabHref || `/api/documents/${docPreviewDoc.id}/view`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Open in new tab
-              </a>
-            </div>
-            {docPreviewSetupErr ? (
-              <div className="improve-err" style={{ margin: 0 }}>{docPreviewSetupErr}</div>
-            ) : (
-              <p className="doc-preview-hint">
-                PDFs and images use the built-in viewer below. PowerPoint, Word, and Excel use Microsoft&apos;s viewer
-              </p>
-            )}
-            <div
-              className={`doc-preview-frame-wrap${
-                docPreviewTokenLoading || (docPreviewSrc && docPreviewIframeLoading) ? " doc-preview-frame-busy" : ""
-              }`}
-            >
-              {(docPreviewTokenLoading || (docPreviewSrc && docPreviewIframeLoading)) && (
-                <div className="doc-preview-frame-overlay">
-                  <div className="sidebar-loading" style={{ padding: 0 }}>
-                    <div className="mini-spinner" />{" "}
-                    {docPreviewTokenLoading ? "Preparing preview…" : "Loading preview…"}
-                  </div>
-                </div>
-              )}
-              {docPreviewSrc && !docPreviewSetupErr ? (
-                <iframe
-                  className="doc-preview-frame"
-                  title={`Preview: ${docPreviewDoc.name}`}
-                  src={docPreviewSrc}
-                  onLoad={() => {
-                    // Office viewer can accept queued clicks if enabled too early.
-                    setTimeout(() => setDocPreviewIframeLoading(false), 650);
-                  }}
-                />
-              ) : null}
-            </div>
-          </div>
-        </div>
+        <DocumentPreviewModal
+          doc={docPreviewDoc}
+          onClose={closeDocPreview}
+          formatBytes={formatBytes}
+          docPreviewTabHref={docPreviewTabHref}
+          docPreviewSrc={docPreviewSrc}
+          docPreviewTokenLoading={docPreviewTokenLoading}
+          docPreviewIframeLoading={docPreviewIframeLoading}
+          docPreviewSetupErr={docPreviewSetupErr}
+          onPreviewIframeLoad={() => {
+            setTimeout(() => setDocPreviewIframeLoading(false), 650);
+          }}
+        />
       )}
 
-      {templatePickerOpen && (
-        <div className="modal-backdrop" onClick={() => setTemplatePickerOpen(false)}>
-          <div className="modal-box template-picker-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="template-picker-head">
-              <div className="modal-title" style={{ marginBottom: 0 }}>Choose design template</div>
-              <button
-                type="button"
-                className="file-remove"
-                aria-label="Close template picker"
-                onClick={() => setTemplatePickerOpen(false)}
-              >
-                <CloseIcon />
-              </button>
-            </div>
-            <div className="template-picker-search-row">
-              <input
-                className="improve-txt-inp"
-                placeholder="Search template style (e.g. dark green modular roadmap)..."
-                value={themeQuery}
-                onChange={(e) => setThemeQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleThemeSearch()}
-              />
-              <button
-                type="button"
-                className="improve-btn-secondary"
-                style={{ flex: "none", width: 86 }}
-                disabled={themeSearchLoading || !themeQuery.trim()}
-                onClick={() => void handleThemeSearch()}
-              >
-                {themeSearchLoading ? <span className="improve-mini-spin" /> : "Search"}
-              </button>
-            </div>
-            {themeSearchErr && <div className="improve-err" style={{ marginTop: 8 }}>{themeSearchErr}</div>}
-
-            <div className="template-picker-grid">
-              {themeResults.length === 0 ? (
-                <div className="template-picker-empty">Search to see template previews.</div>
-              ) : (
-                themeResults.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    className={`template-card ${selectedThemeId === t.id ? "on" : ""}`}
-                    onClick={() => void handleThemeSelect(t)}
-                  >
-                    <div className="template-card-preview-wrap">
-                      {/* Fallback text content shown while image loads or if it fails */}
-                      <div className="template-card-preview-icon">🎨</div>
-                      <div className="template-card-preview-label">{t.name || "Template"}</div>
-                      {t.tags && (
-                        <div className="template-card-preview-tags">
-                          {String(t.tags).split(",").slice(0, 3).map((tag) => tag.trim()).filter(Boolean).map((tag) => (
-                            <span key={tag} className="template-card-preview-tag">{tag}</span>
-                          ))}
-                        </div>
-                      )}
-                      {t.themeURL && (
-                        <a
-                          href={t.themeURL}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="template-card-view-link"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          View ↗
-                        </a>
-                      )}
-                      {/* Overlay real preview image on top — hides fallback when it loads */}
-                      {t.themeURL && (
-                        <img
-                          src={`/api/improve-ppt/theme-preview?url=${encodeURIComponent(t.themeURL)}`}
-                          alt={t.name || "Template preview"}
-                          className="template-card-preview"
-                          onError={(e) => { e.currentTarget.style.display = "none"; }}
-                        />
-                      )}
-                    </div>
-                    <div className="template-card-name">{t.name || "Untitled template"}</div>
-                    {t.description ? <div className="template-card-desc">{t.description}</div> : null}
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <TemplatePickerModal
+        open={templatePickerOpen}
+        onClose={() => setTemplatePickerOpen(false)}
+        themeQuery={themeQuery}
+        onThemeQueryChange={setThemeQuery}
+        onSearch={handleThemeSearch}
+        themeSearchLoading={themeSearchLoading}
+        themeSearchErr={themeSearchErr}
+        themeResults={themeResults}
+        selectedThemeId={selectedThemeId}
+        onSelectTheme={handleThemeSelect}
+      />
 
       {useExistingDialog && (        <div className="modal-backdrop" onClick={() => setUseExistingDialog(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>

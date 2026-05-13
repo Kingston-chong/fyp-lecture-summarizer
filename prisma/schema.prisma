@@ -22,12 +22,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  Student
+  Lecturer
+  RatherNotSay @map("Rather not say")
+}
+
 model User {
   id           Int      @id @default(autoincrement())
   email        String   @unique
   username     String   @unique
   passwordHash String
-  role         String
+  role         UserRole @default(Student)
   createdAt    DateTime @default(now())
   documents    Document[]
   summaries    Summary[]

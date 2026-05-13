@@ -2,28 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useTheme } from "../components/ThemeProvider.jsx";
-
-// ─── Icons ────────────────────────────────────────────────
-const CloseIco = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-  </svg>
-);
-const ChevRightIco = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="9 18 15 12 9 6"/>
-  </svg>
-);
-const CheckIco = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="20 6 9 17 4 12"/>
-  </svg>
-);
-const InfoIco = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
-  </svg>
-);
+import { ChevRight, CheckIcon, CloseIcon, InfoIcon } from "./icons";
 
 function SectionHead({ children, isDark }) {
   return (
@@ -334,7 +313,7 @@ export default function QuizViewModal({
               onClick={requestClose}
               aria-label={isFinished ? "Close" : "Exit quiz"}
             >
-              <CloseIco />
+              <CloseIcon size={14} />
             </button>
           </div>
         </div>
@@ -410,7 +389,7 @@ export default function QuizViewModal({
               {showExplanation && (
                 <div className="expl-box">
                   <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#818cf8", fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
-                    <InfoIco/> Explanation
+                    <InfoIcon /> Explanation
                   </div>
                   <div style={{ fontSize: 13.5, color: isDark ? "rgba(255,255,255,.7)" : "rgba(0,0,0,.65)", lineHeight: 1.6 }}>
                     {currentQuestion.explanation}
@@ -482,7 +461,7 @@ export default function QuizViewModal({
               </div>
               {showExplanation ? (
                 <button className="btn-submit" onClick={handleNext}>
-                  {currentIdx === totalQuestions - 1 ? "Finish Quiz" : "Next Question"} <ChevRightIco/>
+                  {currentIdx === totalQuestions - 1 ? "Finish Quiz" : "Next Question"} <ChevRight />
                 </button>
               ) : (
                 <button 
@@ -490,7 +469,7 @@ export default function QuizViewModal({
                   onClick={handleSubmit}
                   disabled={!userAnswers[currentIdx]}
                 >
-                  Submit Answer <CheckIco/>
+                  Submit Answer <CheckIcon />
                 </button>
               )}
             </>

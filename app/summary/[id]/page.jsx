@@ -8,16 +8,29 @@ import {
   useLayoutEffect,
   useMemo,
   useCallback,
+  memo,
 } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { markdownToHtml } from "@/lib/markdown";
 import { buildChatSuggestions } from "@/lib/chatSuggestionsFromSummary";
-import GenerateSlidesModal from "@/app/components/GenerateSlidesModal";
-import AlaiSlidesPreviewModal from "@/app/components/AlaiSlidesPreviewModal";
-import QuizSettingsModal from "@/app/components/QuizSettingsModal";
-import QuizViewModal from "@/app/components/QuizViewModal";
 import Button from "@/app/components/ui/Button";
+import DocumentPreviewModal from "@/app/dashboard/components/DocumentPreviewModal";
+import { formatBytes, isOfficePreviewName } from "@/app/dashboard/helpers";
+import SummaryModalStack from "./components/SummaryModalStack";
+import {
+  DEFAULT_HL_HEX,
+  fmtDate,
+  formatSlideDeckSavedAt,
+  formatSummaryModelLabel,
+  HIGHLIGHT_PRESETS,
+  settingsFromQuizSet,
+} from "./helpers";
+import {
+  unwrapHighlightMarks,
+  applyHighlightBlockStyle,
+  wrapQuoteInRoot,
+} from "./hooks/useSummaryHighlights";
 import {
   Chevron,
   Spinner,
@@ -35,176 +48,16 @@ import {
   ClipIco,
 } from "@/app/components/icons";
 
+// ─── Stable chat bubble content ──────────────────────────────────────────────
+// Memoized so that React never replaces the DOM nodes when parent state changes
+// (e.g. chatSelectionDraft). Replacing the node destroys the browser's text
+// selection highlight even though window.getSelection() still holds the range.
+const ChatBubbleContent = memo(function ChatBubbleContent({ mdSrc }) {
+  const html = useMemo(() => markdownToHtml(mdSrc), [mdSrc]);
+  return <div dangerouslySetInnerHTML={{ __html: html }} />;
+});
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-function timeAgo(iso) {
-  const m = Math.floor((Date.now() - new Date(iso)) / 60000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
-function fmtDate(iso) {
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}, ${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function formatSlideDeckSavedAt(iso) {
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "";
-    return d.toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return "";
-  }
-}
-
-/** Build QuizViewModal settings from persisted QuizSet.settings (and defaults for older rows). */
-function settingsFromQuizSet(quizSet) {
-  const s =
-    quizSet?.settings && typeof quizSet.settings === "object"
-      ? quizSet.settings
-      : {};
-  return {
-    answerShowMode: s.answerShowMode ?? "Immediately",
-    quizMode: s.quizMode ?? "Practice",
-    timeLimit:
-      typeof s.timeLimit === "number" && !Number.isNaN(s.timeLimit)
-        ? s.timeLimit
-        : 0,
-  };
-}
-
-/** Display label for stored summary model e.g. `gemini:gemini-2.0-flash` → Gemini */
-function formatSummaryModelLabel(stored) {
-  if (!stored) return "—";
-  const s = String(stored);
-  const i = s.indexOf(":");
-  const key = (i === -1 ? s : s.slice(0, i)).toLowerCase();
-  const map = { chatgpt: "ChatGPT", deepseek: "DeepSeek", gemini: "Gemini" };
-  return map[key] || key;
-}
-
-const HIGHLIGHT_PRESETS = [
-  { hex: "#fef08a", label: "Yellow" },
-  { hex: "#fca5a5", label: "Red" },
-  { hex: "#86efac", label: "Green" },
-  { hex: "#93c5fd", label: "Blue" },
-  { hex: "#f0abfc", label: "Magenta" },
-  { hex: "#fdba74", label: "Orange" },
-  { hex: "#67e8f9", label: "Cyan" },
-];
-
-const DEFAULT_HL_HEX = HIGHLIGHT_PRESETS[0].hex;
-
-function hexToRgba(hex, alpha) {
-  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex ?? "").trim());
-  if (!m) return `rgba(254, 240, 138, ${alpha})`;
-  const n = parseInt(m[1], 16);
-  const r = (n >> 16) & 255;
-  const g = (n >> 8) & 255;
-  const b = n & 255;
-  return `rgba(${r},${g},${b},${alpha})`;
-}
-
-function unwrapHighlightMarks(root) {
-  if (!root) return;
-  root.querySelectorAll("mark.s2n-hl").forEach((m) => {
-    const parent = m.parentNode;
-    if (!parent) return;
-    while (m.firstChild) parent.insertBefore(m.firstChild, m);
-    parent.removeChild(m);
-  });
-}
-
-/** Translucent fill + inherited text color so overlapping <mark>s stack like Edge / PDF highlighters */
-function applyHighlightBlockStyle(mark, colorHex) {
-  const color =
-    colorHex && /^#[0-9a-f]{6}$/i.test(colorHex) ? colorHex : DEFAULT_HL_HEX;
-  const fill = hexToRgba(color, 0.38);
-  mark.style.background = "none";
-  mark.style.backgroundColor = fill;
-  mark.style.color = "inherit";
-  mark.style.boxDecorationBreak = "clone";
-  mark.style.webkitBoxDecorationBreak = "clone";
-  mark.style.padding = "0.12em 0.14em";
-  mark.style.borderRadius = "2px";
-}
-
-function collectTextNodesInOrder(root) {
-  const nodes = [];
-  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
-  let n;
-  while ((n = w.nextNode())) {
-    if (n.parentElement?.closest?.("script,style")) continue;
-    nodes.push(n);
-  }
-  return nodes;
-}
-
-/** Map first occurrence of quote to a Range (may span multiple text nodes / cross <mark> boundaries). */
-function findRangeForSubstring(root, quote) {
-  if (!root || !quote) return null;
-  const nodes = collectTextNodesInOrder(root);
-  if (!nodes.length) return null;
-  const big = nodes.map((node) => node.textContent ?? "").join("");
-  const idx = big.indexOf(quote);
-  if (idx === -1) return null;
-  const endIdx = idx + quote.length;
-  let pos = 0;
-  let startNode = null;
-  let startOff = 0;
-  let endNode = null;
-  let endOff = 0;
-  for (const node of nodes) {
-    const t = node.textContent ?? "";
-    const len = t.length;
-    const a = pos;
-    const b = pos + len;
-    if (startNode === null && idx >= a && idx < b) {
-      startNode = node;
-      startOff = idx - a;
-    }
-    if (endIdx > a && endIdx <= b) {
-      endNode = node;
-      endOff = endIdx - a;
-    }
-    pos = b;
-  }
-  if (!startNode || endNode == null) return null;
-  const range = document.createRange();
-  range.setStart(startNode, startOff);
-  range.setEnd(endNode, endOff);
-  return range;
-}
-
-/** Wrap first occurrence of quote; supports overlaps via extractContents + insertNode (not surroundContents). */
-function wrapQuoteInRoot(root, quote, hlId, colorHex, pending) {
-  if (!root || !quote) return false;
-  const color =
-    colorHex && /^#[0-9a-f]{6}$/i.test(colorHex) ? colorHex : DEFAULT_HL_HEX;
-  const range = findRangeForSubstring(root, quote);
-  if (!range) return false;
-  const mark = document.createElement("mark");
-  mark.className = pending ? "s2n-hl s2n-hl-pending" : "s2n-hl";
-  mark.dataset.hlId = String(hlId);
-  mark.dataset.hlColor = color;
-  applyHighlightBlockStyle(mark, color);
-  try {
-    const contents = range.extractContents();
-    mark.appendChild(contents);
-    range.insertNode(mark);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 const MODELS = ["ChatGPT", "DeepSeek", "Gemini"];
 const ACCEPTED = ".pdf,.pptx,.ppt,.docx,.doc,.txt,.xlsx,.xls,.csv,.md";
@@ -257,12 +110,12 @@ function downscaleImageFileToJpegDataUrl(file) {
   });
 }
 
-/** @param {{ role: string, content?: string, imagePreviews?: string[] }} m */
+/** @param {{ role: string, content?: string, apiContent?: string, imagePreviews?: string[] }} m */
 function chatMessageToApiPayload(m) {
   if (m.role === "ai") {
     return { role: "assistant", content: m.content || "" };
   }
-  const text = (m.content || "").trim();
+  const text = ((m.apiContent ?? m.content) || "").trim();
   const urls = m.imagePreviews || [];
   if (urls.length === 0) {
     return { role: "user", content: text };
@@ -404,6 +257,10 @@ export default function SummaryView() {
   const [pendingSourceFiles, setPendingSourceFiles] = useState([]); // { clientId, file, name, type }
   /** Pasted screenshots for the next chat send — { clientId, dataUrl } */
   const [pendingPasteImages, setPendingPasteImages] = useState([]);
+  /** Temporary selected chat text waiting for explicit "Reply" click */
+  const [chatSelectionDraft, setChatSelectionDraft] = useState(null); // { text, messageId, x, y }
+  /** Selected chat excerpts queued as context for the next user send */
+  const [pendingChatReferences, setPendingChatReferences] = useState([]); // { id, text, messageId }
   const [headings, setHeadings] = useState([]);
   const [summaryHtml, setSummaryHtml] = useState("");
   const [copiedId, setCopiedId] = useState(null);
@@ -421,6 +278,16 @@ export default function SummaryView() {
   const [slideDeckRemotePptUrl, setSlideDeckRemotePptUrl] = useState("");
   const [slideDeckPreviewTitle, setSlideDeckPreviewTitle] = useState("");
   const slideDeckDlRef = useRef(null);
+  /** Sources panel: inline document preview (same flow as dashboard) */
+  const [sourcePreviewOpen, setSourcePreviewOpen] = useState(false);
+  const [sourcePreviewDoc, setSourcePreviewDoc] = useState(null);
+  const [sourcePreviewSrc, setSourcePreviewSrc] = useState("");
+  const [sourcePreviewTabHref, setSourcePreviewTabHref] = useState("");
+  const [sourcePreviewTokenLoading, setSourcePreviewTokenLoading] =
+    useState(false);
+  const [sourcePreviewSetupErr, setSourcePreviewSetupErr] = useState("");
+  const [sourcePreviewIframeLoading, setSourcePreviewIframeLoading] =
+    useState(true);
   const [quizSets, setQuizSets] = useState([]);
   const [quizSetsLoading, setQuizSetsLoading] = useState(false);
   const [quizSetOpeningId, setQuizSetOpeningId] = useState(null);
@@ -502,10 +369,129 @@ export default function SummaryView() {
     setPendingHighlights([]);
     setChatTitleEditing(false);
     setPendingPasteImages([]);
+    setChatSelectionDraft(null);
+    setPendingChatReferences([]);
     if (typeof window !== "undefined") {
       window.getSelection()?.removeAllRanges();
     }
   }, [summaryId]);
+
+  function queueChatReference(text, message) {
+    const cleaned = String(text || "").replace(/\s+/g, " ").trim();
+    if (!cleaned) return;
+    setPendingChatReferences((prev) => {
+      const alreadyAdded = prev.some(
+        (x) => x.text.toLowerCase() === cleaned.toLowerCase(),
+      );
+      if (alreadyAdded) return prev;
+      const next = [
+        ...prev,
+        {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          text: cleaned.slice(0, 500),
+          messageId: message?.id,
+        },
+      ];
+      return next.slice(-5);
+    });
+  }
+
+  function removePendingChatReference(refId) {
+    setPendingChatReferences((prev) => prev.filter((r) => r.id !== refId));
+  }
+
+  function addDraftChatReference() {
+    if (!chatSelectionDraft?.text) return;
+    queueChatReference(chatSelectionDraft.text, {
+      id: chatSelectionDraft.messageId,
+    });
+    setChatSelectionDraft(null);
+    window.getSelection()?.removeAllRanges();
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }
+
+  function openReplyPopoverFromSelection(selection, range, messageId, anchorPoint) {
+    const selectedText = selection.toString().trim();
+    if (!selectedText) return;
+    const rectList = Array.from(range.getClientRects()).filter(
+      (r) => r.width > 0 || r.height > 0,
+    );
+    if (rectList.length === 0) return;
+    // firstRect = the first line of the selection (topmost).
+    const firstRect = rectList[0];
+    if (firstRect.width < 1 && firstRect.height < 1) return;
+    const vw = window.innerWidth || 0;
+    const vh = window.innerHeight || 0;
+    const margin = 6;
+    const buttonWidth = 72;
+    const buttonHeight = 36;
+    // For X: center over the first line only.
+    // boundingRect spans the full container width for multi-line selections,
+    // which pushes the button far off the actual highlighted text.
+    const selectionCenterX = firstRect.left + firstRect.width / 2;
+    // For Y: always anchor to the top of the first line.
+    const selectionTopY = firstRect.top;
+    const nextX = Math.max(
+      margin,
+      Math.min(vw - buttonWidth - margin, selectionCenterX - buttonWidth / 2),
+    );
+    const prefersAbove = selectionTopY - buttonHeight - 6 >= margin;
+    const nextY = prefersAbove
+      ? selectionTopY - buttonHeight - 6
+      : Math.min(vh - buttonHeight - margin, selectionTopY + firstRect.height + 4);
+    setChatSelectionDraft({
+      text: selectedText.replace(/\s+/g, " ").trim().slice(0, 500),
+      messageId,
+      x: Number.isFinite(nextX) ? nextX : margin,
+      y: Number.isFinite(nextY) ? nextY : margin,
+    });
+  }
+
+  function handleChatBubbleMouseUp(e, message) {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed) return;
+    const bubbleEl = e.currentTarget;
+    const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+    if (!range) return;
+    const startInside = bubbleEl.contains(range.startContainer);
+    const endInside = bubbleEl.contains(range.endContainer);
+    if (!startInside || !endInside) return;
+    openReplyPopoverFromSelection(selection, range, message?.id, {
+      x: e?.clientX,
+      y: e?.clientY,
+    });
+  }
+
+  useEffect(() => {
+    if (!chatSelectionDraft) return;
+    function onPointerDown(ev) {
+      const target = ev.target;
+      if (target instanceof Element) {
+        if (target.closest(".chat-selection-popover")) return;
+        if (target.closest(".m-bub")) return;
+      }
+      setChatSelectionDraft(null);
+    }
+    function onEscape(ev) {
+      if (ev.key === "Escape") setChatSelectionDraft(null);
+    }
+    function onViewportMove(ev) {
+      // Ignore scrolls that happen inside the chat/summary scroll container —
+      // those are internal and should not dismiss the selection popover.
+      if (ev.target instanceof Element && ev.target.closest(".unified-scroll")) return;
+      setChatSelectionDraft(null);
+    }
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onEscape);
+    window.addEventListener("scroll", onViewportMove, true);
+    window.addEventListener("resize", onViewportMove);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onEscape);
+      window.removeEventListener("scroll", onViewportMove, true);
+      window.removeEventListener("resize", onViewportMove);
+    };
+  }, [chatSelectionDraft]);
 
   useEffect(() => {
     if (!chatTitleEditing) return;
@@ -768,14 +754,14 @@ export default function SummaryView() {
       pending: false,
     }));
     const sorted = [...pendingRows, ...savedRows].sort(
-      (a, b) => b.quote.length - a.quote.length,
+      (a, b) => a.quote.length - b.quote.length,
     );
     for (const h of sorted) {
       const c =
         h.color && /^#[0-9a-f]{6}$/i.test(h.color) ? h.color : DEFAULT_HL_HEX;
       wrapQuoteInRoot(root, h.quote, h.id, c, h.pending);
     }
-  }, [summaryHtml, summary?.output, highlights, pendingHighlights]);
+  }, [summaryHtml, highlights, pendingHighlights]);
 
   useEffect(() => {
     function onDocDown(e) {
@@ -960,8 +946,19 @@ export default function SummaryView() {
 
   async function sendMessage(text) {
     const msg = (text ?? inputVal).trim();
+    const refSnapshot = pendingChatReferences;
+    const referencesBlock =
+      refSnapshot.length > 0
+        ? `Referenced chat excerpts:\n${refSnapshot
+            .map((r, i) => `${i + 1}. "${r.text}"`)
+            .join("\n")}`
+        : "";
+    const apiContent = referencesBlock
+      ? `${referencesBlock}${msg ? `\n\nUser request: ${msg}` : ""}`
+      : msg;
     if (
       (!msg &&
+        refSnapshot.length === 0 &&
         pendingPasteImages.length === 0 &&
         pendingSourceFiles.length === 0) ||
       chatLoading ||
@@ -983,6 +980,8 @@ export default function SummaryView() {
     }
     setChatNotice("");
     setInputVal("");
+    setChatSelectionDraft(null);
+    setPendingChatReferences([]);
     const pasteSnapshot = pendingPasteImages.map((x) => x.dataUrl);
     const stagedDocSnapshot = pendingSourceFiles.map((f) => ({
       name: f.name,
@@ -993,6 +992,8 @@ export default function SummaryView() {
       id: Date.now(),
       role: "user",
       content: msg,
+      ...(refSnapshot.length > 0 ? { references: refSnapshot } : {}),
+      ...(apiContent ? { apiContent } : {}),
       ...(pasteSnapshot.length > 0 ? { imagePreviews: pasteSnapshot } : {}),
       ...(stagedDocSnapshot.length > 0
         ? { attachedFiles: stagedDocSnapshot }
@@ -1213,18 +1214,75 @@ export default function SummaryView() {
     setTimeout(() => setPdfLoading(false), 900);
   }
 
-  const handleSummarySelectionTrigger = useCallback(() => {
+  async function openSourceDocPreview(doc, e) {
+    e?.stopPropagation?.();
+    e?.preventDefault?.();
+    if (!doc?.id) return;
+    setMobileMoreOpen(false);
+    setSourcePreviewDoc(doc);
+    setSourcePreviewSetupErr("");
+    setSourcePreviewSrc("");
+    setSourcePreviewTabHref(
+      `${typeof window !== "undefined" ? window.location.origin : ""}/api/documents/${doc.id}/view`,
+    );
+    setSourcePreviewIframeLoading(true);
+    setSourcePreviewTokenLoading(true);
+    setSourcePreviewOpen(true);
+
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const basePath = `/api/documents/${doc.id}/view`;
+
+    try {
+      if (isOfficePreviewName(doc.name)) {
+        const res = await fetch(`/api/documents/${doc.id}/view-token`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Could not prepare preview");
+        const viewUrl = `${origin}${basePath}?t=${encodeURIComponent(data.token)}`;
+        const enc = encodeURIComponent(viewUrl);
+        setSourcePreviewSrc(
+          `https://view.officeapps.live.com/op/embed.aspx?src=${enc}`,
+        );
+        setSourcePreviewTabHref(
+          `https://view.officeapps.live.com/op/view.aspx?src=${enc}`,
+        );
+      } else {
+        setSourcePreviewSrc(`${origin}${basePath}?v=${Date.now()}`);
+        setSourcePreviewTabHref(`${origin}${basePath}`);
+      }
+    } catch (err) {
+      setSourcePreviewSetupErr(err?.message || String(err));
+      setSourcePreviewIframeLoading(false);
+    } finally {
+      setSourcePreviewTokenLoading(false);
+    }
+  }
+
+  function closeSourceDocPreview() {
+    setSourcePreviewOpen(false);
+    setSourcePreviewDoc(null);
+    setSourcePreviewSrc("");
+    setSourcePreviewTabHref("");
+    setSourcePreviewIframeLoading(true);
+    setSourcePreviewTokenLoading(false);
+    setSourcePreviewSetupErr("");
+  }
+
+  const handleSummarySelectionTrigger = useCallback((anchorPoint = null) => {
     const root = summaryBodyRef.current;
-    if (!root || !hlModeActive || hlSaving) return;
+    if (!root) return;
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
-    const text = sel.toString().trim();
+    const text = sel.toString().replace(/\s+/g, " ").trim();
     if (!text || text.length > 2000) return;
-    const anchor = sel.anchorNode;
-    if (!anchor || !root.contains(anchor)) return;
     const range = sel.getRangeAt(0);
-    const rect = range.getBoundingClientRect();
-    if (rect.width < 1 && rect.height < 1) return;
+    const startInside = root.contains(range.startContainer);
+    const endInside = root.contains(range.endContainer);
+    if (!startInside || !endInside) return;
+    if (!hlModeActive) {
+      openReplyPopoverFromSelection(sel, range, null, anchorPoint);
+      return;
+    }
+    if (hlSaving) return;
     const clientId = `p-${crypto.randomUUID()}`;
     setPendingHighlights((prev) => [
       { clientId, quote: text, color: hlColorHex },
@@ -1235,6 +1293,20 @@ export default function SummaryView() {
 
   const handleSummaryMouseUp = useCallback(
     (e) => {
+      const anchorPoint = {
+        x:
+          Number.isFinite(e?.clientX) && e.clientX > 0
+            ? e.clientX
+            : Number.isFinite(e?.changedTouches?.[0]?.clientX)
+              ? e.changedTouches[0].clientX
+              : null,
+        y:
+          Number.isFinite(e?.clientY) && e.clientY > 0
+            ? e.clientY
+            : Number.isFinite(e?.changedTouches?.[0]?.clientY)
+              ? e.changedTouches[0].clientY
+              : null,
+      };
       const now = Date.now();
       if (now - lastSelectionTriggerRef.current < 350) return;
       lastSelectionTriggerRef.current = now;
@@ -1244,9 +1316,9 @@ export default function SummaryView() {
 
       // On touch devices the selection can finalize slightly after the event.
       if (isTouch) {
-        setTimeout(() => handleSummarySelectionTrigger(), 0);
+        setTimeout(() => handleSummarySelectionTrigger(anchorPoint), 0);
       } else {
-        handleSummarySelectionTrigger();
+        handleSummarySelectionTrigger(anchorPoint);
       }
     },
     [handleSummarySelectionTrigger],
@@ -1995,7 +2067,7 @@ export default function SummaryView() {
       }
       .src-item {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         gap: 8px;
         padding: 7px 8px;
         border-radius: 8px;
@@ -2017,6 +2089,188 @@ export default function SummaryView() {
         font-size: 10px;
         color: rgba(255,255,255,.4);
         margin-top: 2px;
+      }
+      .src-preview-btn {
+        flex-shrink: 0;
+        height: 26px;
+        padding: 0 9px;
+        border-radius: 7px;
+        border: 1px solid rgba(99,102,241,.38);
+        background: rgba(99,102,241,.14);
+        color: #c7d2fe;
+        font-family: 'Sora', sans-serif;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s, color 0.15s;
+      }
+      .src-preview-btn:hover {
+        background: rgba(99,102,241,.24);
+        border-color: rgba(99,102,241,.55);
+        color: #e0e7ff;
+      }
+      .src-preview-btn:focus-visible {
+        outline: 2px solid rgba(99,102,241,.55);
+        outline-offset: 2px;
+      }
+
+      /* Document preview modal (sources) — mirrors dashboard */
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        z-index: 1400;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+      .modal-backdrop.doc-preview-backdrop {
+        padding: 6px;
+        align-items: stretch;
+        justify-content: center;
+      }
+      .modal-box {
+        background: rgba(22, 22, 32, 0.98);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        padding: 24px;
+        max-width: 400px;
+        width: 100%;
+        box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+      }
+      .modal-box.doc-preview-panel {
+        max-width: min(1800px, 98vw);
+        width: 98vw;
+        max-height: 96vh;
+        height: 96vh;
+        padding: 12px;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin: auto;
+        overflow: hidden;
+      }
+      .doc-preview-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        flex-shrink: 0;
+      }
+      .doc-preview-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #e2e8f0;
+      }
+      .doc-preview-meta {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.35);
+        margin-top: 4px;
+      }
+      .doc-preview-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        flex-shrink: 0;
+      }
+      .doc-preview-open-tab {
+        font-size: 11.5px;
+        font-family: 'Sora', sans-serif;
+        font-weight: 500;
+        padding: 6px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(99, 102, 241, 0.45);
+        background: rgba(99, 102, 241, 0.15);
+        color: #c7d2fe;
+        text-decoration: none;
+        transition: all 0.15s;
+      }
+      .doc-preview-open-tab:hover {
+        background: rgba(99, 102, 241, 0.28);
+        color: #e0e7ff;
+      }
+      .doc-preview-hint {
+        font-size: 10.5px;
+        color: rgba(255, 255, 255, 0.38);
+        line-height: 1.45;
+        max-width: 52rem;
+      }
+      .doc-preview-frame-wrap {
+        position: relative;
+        flex: 1 1 0;
+        min-height: 0;
+        height: auto;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: #0c0c12;
+      }
+      .doc-preview-frame {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+      }
+      .doc-preview-frame-busy .doc-preview-frame {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .doc-preview-frame-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(12, 12, 18, 0.92);
+        z-index: 1;
+      }
+      .file-remove {
+        width: 20px;
+        height: 20px;
+        border-radius: 5px;
+        border: none;
+        background: rgba(248, 113, 113, 0.08);
+        color: #f87171;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: background 0.15s;
+      }
+      .file-remove:hover {
+        background: rgba(248, 113, 113, 0.22);
+      }
+      .sidebar-loading {
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.2);
+      }
+      .mini-spinner {
+        width: 12px;
+        height: 12px;
+        border: 1.5px solid rgba(255, 255, 255, 0.15);
+        border-top-color: #6366f1;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        flex-shrink: 0;
+      }
+      .improve-err {
+        font-size: 11.5px;
+        color: #f87171;
+        padding: 8px 10px;
+        border-radius: 7px;
+        background: rgba(248, 113, 113, 0.08);
+        border: 1px solid rgba(248, 113, 113, 0.2);
       }
 
       /* ── action bar ── */
@@ -2083,8 +2337,10 @@ export default function SummaryView() {
       }
       .sum-hl-main:hover { border-color: rgba(255,255,255,.15); color: rgba(255,255,255,.85); background: rgba(255,255,255,.06); }
       .sum-hl-main.on {
-        border-color: rgba(250,204,21,.45); color: #fde047;
-        background: rgba(250,204,21,.12); box-shadow: inset 0 0 0 1px rgba(250,204,21,.15);
+        border-color: color-mix(in srgb, var(--hl-pick, #fef08a) 55%, transparent);
+        color: var(--hl-pick, #fde047);
+        background: color-mix(in srgb, var(--hl-pick, #fef08a) 12%, transparent);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hl-pick, #fef08a) 15%, transparent);
       }
       .sum-hl-chevron {
         height: 28px; width: 22px; padding: 0; border-radius: 0 7px 7px 0;
@@ -2208,6 +2464,7 @@ export default function SummaryView() {
       .sum-text td { color: var(--sum-table-td-text); line-height: 1.6; }
 
       .sum-selectable ::selection { background: rgba(99,102,241,.35); color: #f0f0ff; }
+      .m-bub ::selection { background: rgba(99,102,241,.35); color: #f0f0ff; }
       .hl-select-ctx.hl-mode-active .sum-selectable ::selection {
         background: color-mix(in srgb, var(--hl-pick, #fef08a) 72%, transparent);
         color: inherit;
@@ -2222,6 +2479,9 @@ export default function SummaryView() {
       }
       mark.s2n-hl {
         font-weight: 500;
+      }
+      mark.s2n-hl * {
+        background-color: transparent !important;
       }
       mark.s2n-hl-pending {
         outline: 1px dashed rgba(165,180,252,.65);
@@ -2322,9 +2582,65 @@ export default function SummaryView() {
         margin-bottom: 6px;
         color: var(--sum-text, #888);
       }
+      .chat-msg-references {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .chat-msg-reference-chip {
+        display: inline-flex;
+        align-items: center;
+        max-width: 100%;
+        border: 1px solid rgba(99,102,241,.28);
+        background: rgba(99,102,241,.08);
+        border-radius: 999px;
+        padding: 3px 9px;
+        font-size: 10.5px;
+        line-height: 1.25;
+      }
+      .chat-msg-reference-chip .ref-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 320px;
+      }
       .chat-paste-chip {
         border: 1px solid rgba(99,102,241,.28);
         background: rgba(99,102,241,.07);
+      }
+      .chat-reference-chip {
+        border: 1px solid rgba(99,102,241,.28);
+        background: rgba(99,102,241,.07);
+      }
+      .chat-reference-chip .chat-upload-badge {
+        background: rgba(99,102,241,.2);
+        border: 1px solid rgba(99,102,241,.4);
+        color: #c7d2fe;
+        font-weight: 700;
+      }
+      .chat-selection-popover {
+        position: fixed;
+        z-index: 70;
+      }
+      .chat-selection-reply {
+        min-height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 12px;
+        border-radius: 10px;
+        border: 1px solid #6366f1;
+        background: #6366f1;
+        color: #ffffff;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        box-shadow: 0 10px 22px rgba(0,0,0,.28);
+      }
+      .chat-selection-reply:hover {
+         background: #4f46e5;
+        border-color: #4f46e5;
       }
       .chat-paste-chip .chat-upload-badge {
         background: rgba(99,102,241,.18);
@@ -2866,6 +3182,36 @@ export default function SummaryView() {
       }
       html[data-theme="light"] .src-name { color: #111827; }
       html[data-theme="light"] .src-meta { color: rgba(0,0,0,0.5); }
+      html[data-theme="light"] .src-preview-btn {
+        border-color: rgba(99,102,241,0.45);
+        background: rgba(99,102,241,0.12);
+        color: #4338ca;
+      }
+      html[data-theme="light"] .src-preview-btn:hover {
+        background: rgba(99,102,241,0.2);
+        color: #312e81;
+      }
+      html[data-theme="light"] .modal-box {
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12);
+      }
+      html[data-theme="light"] .doc-preview-title { color: #111827; }
+      html[data-theme="light"] .doc-preview-meta { color: rgba(0, 0, 0, 0.45); }
+      html[data-theme="light"] .doc-preview-hint { color: rgba(0, 0, 0, 0.5); }
+      html[data-theme="light"] .doc-preview-frame-wrap {
+        border-color: rgba(0, 0, 0, 0.12);
+        background: #f3f4f6;
+      }
+      html[data-theme="light"] .doc-preview-open-tab {
+        border-color: rgba(99, 102, 241, 0.5);
+        background: rgba(99, 102, 241, 0.12);
+        color: #4338ca;
+      }
+      html[data-theme="light"] .doc-preview-open-tab:hover {
+        background: rgba(99, 102, 241, 0.2);
+        color: #312e81;
+      }
 
       html[data-theme="light"] .sum-copy-btn {
         border-color: rgba(0,0,0,0.1);
@@ -3282,6 +3628,9 @@ export default function SummaryView() {
                                 <div className="m-bub-col">
                                   <div
                                     className={`m-bub ${m.role} ${m.error ? "err" : ""} md`}
+                                    onMouseUp={(e) =>
+                                      handleChatBubbleMouseUp(e, m)
+                                    }
                                   >
                                     {m.role === "user" &&
                                       Array.isArray(m.attachedFiles) &&
@@ -3345,13 +3694,26 @@ export default function SummaryView() {
                                         return null;
                                       }
                                       return (
-                                        <div
-                                          dangerouslySetInnerHTML={{
-                                            __html: markdownToHtml(mdSrc),
-                                          }}
-                                        />
+                                        <ChatBubbleContent mdSrc={mdSrc} />
                                       );
                                     })()}
+                                    {m.role === "user" &&
+                                      Array.isArray(m.references) &&
+                                      m.references.length > 0 && (
+                                        <div className="chat-msg-references">
+                                          {m.references.map((r) => (
+                                            <div
+                                              key={r.id || `${m.id}-${r.text}`}
+                                              className="chat-msg-reference-chip"
+                                              title={r.text}
+                                            >
+                                              <span className="ref-text">
+                                                {r.text}
+                                              </span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
                                   </div>
                                   {m.role === "ai" &&
                                     m.modelLabel &&
@@ -3506,11 +3868,36 @@ export default function SummaryView() {
                     <span className="attach-divider" aria-hidden />
                     <div className="chatbox-main">
                       {(pendingSourceFiles.length > 0 ||
-                        pendingPasteImages.length > 0) && (
+                        pendingPasteImages.length > 0 ||
+                        pendingChatReferences.length > 0) && (
                         <div
                           className="chat-uploads"
-                          aria-label="Attached files"
+                          aria-label="Attached files and references"
                         >
+                          {pendingChatReferences.map((r, i) => (
+                            <div
+                              key={r.id}
+                              className="chat-upload-chip chat-reference-chip"
+                              title={r.text}
+                            >
+                              <div className="chat-upload-badge" aria-hidden>
+                                #
+                              </div>
+                              <div className="chat-upload-content">
+                                <span className="chat-upload-name">
+                                  {r.text}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                className="chat-upload-rm"
+                                onClick={() => removePendingChatReference(r.id)}
+                                aria-label={`Remove reference ${i + 1}`}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
                           {pendingPasteImages.map((p, pi) => (
                             <div
                               key={p.clientId}
@@ -3635,6 +4022,7 @@ export default function SummaryView() {
                         chatLoading ||
                         sourceUploadLoading ||
                         (!inputVal.trim() &&
+                          pendingChatReferences.length === 0 &&
                           pendingPasteImages.length === 0 &&
                           pendingSourceFiles.length === 0) ||
                         !summary?.output
@@ -3699,6 +4087,15 @@ export default function SummaryView() {
                         </div>
                         <div className="src-meta">{f.type}</div>
                       </div>
+                      <button
+                        type="button"
+                        className="src-preview-btn"
+                        onClick={(ev) => openSourceDocPreview(f, ev)}
+                        title="Preview file"
+                        aria-label={`Preview ${f.name}`}
+                      >
+                        Preview
+                      </button>
                     </div>
                   ));
                 })()}
@@ -4021,59 +4418,43 @@ export default function SummaryView() {
           </div>
         </div>
       </div>
-      {slidesModal && (
-        <GenerateSlidesModal
-          onClose={() => setSlidesModal(false)}
-          summaryText={summary?.output || ""}
-          summarizeFor={summary?.summarizeFor || "student"}
-          summaryId={(() => {
-            const n = Number.parseInt(String(summaryId ?? ""), 10);
-            return Number.isFinite(n) && n > 0 ? n : null;
-          })()}
-          onSlideDecksChanged={fetchSlideDecks}
-        />
-      )}
+      <SummaryModalStack
+        slidesModal={slidesModal}
+        setSlidesModal={setSlidesModal}
+        summary={summary}
+        summaryId={summaryId}
+        fetchSlideDecks={fetchSlideDecks}
+        slideDeckPreviewOpen={slideDeckPreviewOpen}
+        setSlideDeckPreviewOpen={setSlideDeckPreviewOpen}
+        slideDeckPreviewUrl={slideDeckPreviewUrl}
+        slideDeckRemotePptUrl={slideDeckRemotePptUrl}
+        slideDeckPreviewTitle={slideDeckPreviewTitle}
+        slideDeckDlRef={slideDeckDlRef}
+        quizModal={quizModal}
+        setQuizModal={setQuizModal}
+        setQuizData={setQuizData}
+        setQuizSettings={setQuizSettings}
+        setQuizView={setQuizView}
+        fetchQuizSets={fetchQuizSets}
+        quizView={quizView}
+        quizData={quizData}
+        quizSettings={quizSettings}
+        setQuizViewState={setQuizView}
+      />
 
-      {slideDeckPreviewOpen && (
-        <AlaiSlidesPreviewModal
-          onClose={() => setSlideDeckPreviewOpen(false)}
-          previewUrl={slideDeckPreviewUrl}
-          remotePptUrl={slideDeckRemotePptUrl}
-          title={slideDeckPreviewTitle}
-          subtitle="Saved slide deck"
-          onDownload={(() => {
-            const fn = slideDeckDlRef.current;
-            return typeof fn === "function"
-              ? async () => {
-                  await fn();
-                }
-              : undefined;
-          })()}
-        />
-      )}
-
-      {quizModal && (
-        <QuizSettingsModal
-          summaryId={summaryId}
-          onClose={() => setQuizModal(false)}
-          onGenerated={(quiz) => {
-            setQuizModal(false);
-            setQuizData(quiz);
-            setQuizSettings(settingsFromQuizSet(quiz));
-            setQuizView(true);
-            void fetchQuizSets();
+      {sourcePreviewOpen && sourcePreviewDoc && (
+        <DocumentPreviewModal
+          doc={sourcePreviewDoc}
+          onClose={closeSourceDocPreview}
+          formatBytes={formatBytes}
+          docPreviewTabHref={sourcePreviewTabHref}
+          docPreviewSrc={sourcePreviewSrc}
+          docPreviewTokenLoading={sourcePreviewTokenLoading}
+          docPreviewIframeLoading={sourcePreviewIframeLoading}
+          docPreviewSetupErr={sourcePreviewSetupErr}
+          onPreviewIframeLoad={() => {
+            setTimeout(() => setSourcePreviewIframeLoading(false), 650);
           }}
-        />
-      )}
-
-      {quizView && quizData && (
-        <QuizViewModal
-          key={quizData.id}
-          quizSet={quizData}
-          settings={quizSettings}
-          summaryId={summaryId}
-          onAttemptSaved={() => void fetchQuizSets()}
-          onClose={() => setQuizView(false)}
         />
       )}
 
@@ -4518,6 +4899,15 @@ export default function SummaryView() {
                           </div>
                           <div className="src-meta">{f.type}</div>
                         </div>
+                        <button
+                          type="button"
+                          className="src-preview-btn"
+                          onClick={(ev) => openSourceDocPreview(f, ev)}
+                          title="Preview file"
+                          aria-label={`Preview ${f.name}`}
+                        >
+                          Preview
+                        </button>
                       </div>
                     ));
                   })()}
@@ -4846,6 +5236,30 @@ export default function SummaryView() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Chat selection reply popover — rendered at the top level of the fragment,
+          OUTSIDE .card, so that position:fixed is relative to the viewport.
+          .card has backdrop-filter:blur() which creates a CSS containing block
+          and breaks fixed positioning for any descendants. */}
+      {chatSelectionDraft?.text && (
+        <div
+          className="chat-selection-popover"
+          style={{
+            left: chatSelectionDraft.x,
+            top: chatSelectionDraft.y,
+          }}
+        >
+          <button
+            type="button"
+            className="chat-selection-reply"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={addDraftChatReference}
+            aria-label="Reply with selected text"
+          >
+            Reply
+          </button>
         </div>
       )}
     </>
