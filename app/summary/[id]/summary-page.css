@@ -1,6 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap');
-      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-      html, body { height: 100%; background: var(--sum-page-bg); }
+      .wrap *, .wrap *::before, .wrap *::after { box-sizing: border-box; }
       @keyframes spin   { to { transform: rotate(360deg); } }
       @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       @keyframes msgIn  { from { opacity: 0; transform: translateY(5px) scale(.98); } to { opacity: 1; transform: none; } }
@@ -578,7 +576,7 @@
       /* ── summary + chat: one continuous scroll ── */
       .sum-head  { display: flex; align-items: flex-start; justify-content: space-between; padding: 16px 20px 10px; flex-shrink: 0; gap: 12px; border-bottom: 1px solid var(--sum-head-border); }
       .sum-left  { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-      .sum-title { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600; color: var(--sum-title); letter-spacing: -.01em; }
+      .sum-title { font-family: 'Fraunces', serif; font-size: 14.5px; font-weight: 600; color: #ddddf0; letter-spacing: 0; }
       .sum-tags  { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
       .tag       { font-size: 9.5px; font-weight: 600; padding: 2px 8px; border-radius: 5px; letter-spacing: .03em; }
       .tag-m     { background: rgba(251,146,60,.12); color: #fdba74; border: 1px solid rgba(251,146,60,.2); }
@@ -662,12 +660,12 @@
         border: none;
         cursor: pointer;
         border-radius: 8px;
-        font-family: 'Fraunces', Georgia, serif;
-        font-size: 15px;
+        font-family: 'Fraunces', serif;
+        font-size: 14.5px;
         font-weight: 600;
-        color: var(--sum-title);
-        letter-spacing: -0.02em;
-        line-height: 1.25;
+        color: #ddddf0;
+        letter-spacing: 0;
+        line-height: 1.35;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -692,12 +690,12 @@
         border-radius: 8px;
         border: 1px solid rgba(99, 102, 241, 0.35);
         background: rgba(12, 12, 20, 0.55);
-        font-family: 'Fraunces', Georgia, serif;
-        font-size: 15px;
+        font-family: 'Fraunces', serif;
+        font-size: 14.5px;
         font-weight: 600;
-        color: var(--sum-title);
-        letter-spacing: -0.02em;
-        line-height: 1.2;
+        color: #ddddf0;
+        letter-spacing: 0;
+        line-height: 1.35;
         outline: none;
       }
       .act-bar-chat-title-inp:focus {
@@ -709,11 +707,12 @@
       }
       .conv-label { font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.28); margin-bottom: 12px; }
       .chat-hint { font-size: 11.5px; color: rgba(255,255,255,.22); font-style: italic; margin-top: 10px; padding-bottom: 4px; }
-      .sum-text  { font-size: 13.5px; font-weight: 400; color: var(--sum-text); line-height: 1.8; font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-      .sum-text h1 { font-size: 1.5em; font-weight: 700; color: var(--sum-heading-1); margin: 0 0 14px; line-height: 1.35; letter-spacing: -0.01em; }
-      .sum-text h2 { font-size: 1.22em; font-weight: 600; color: var(--sum-heading-2); margin: 20px 0 10px; line-height: 1.4; }
-      .sum-text h3 { font-size: 1.08em; font-weight: 600; color: var(--sum-heading-3); margin: 16px 0 8px; line-height: 1.45; }
-      .sum-text h4, .sum-text h5, .sum-text h6 { font-size: 1em; font-weight: 600; color: var(--sum-heading-4); margin: 12px 0 6px; }
+      /* Match dashboard .output-text typography */
+      .sum-text  { font-size: 13.5px; font-weight: 400; color: #c8c8e0; line-height: 1.8; font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+      .sum-text h1 { font-size: 1.5em; font-weight: 700; color: #e8e8f5; margin: 0 0 14px; line-height: 1.35; font-family: 'Sora', sans-serif; }
+      .sum-text h2 { font-size: 1.22em; font-weight: 600; color: #ddddf0; margin: 20px 0 10px; line-height: 1.4; font-family: 'Sora', sans-serif; }
+      .sum-text h3 { font-size: 1.08em; font-weight: 600; color: #d0d0e8; margin: 16px 0 8px; line-height: 1.45; font-family: 'Sora', sans-serif; }
+      .sum-text h4, .sum-text h5, .sum-text h6 { font-size: 1em; font-weight: 600; color: #c8c8e0; margin: 12px 0 6px; font-family: 'Sora', sans-serif; }
       .sum-text ol, .sum-text ul { margin: 12px 0 14px 22px; padding-left: 8px; }
       .sum-text ol { list-style: decimal; }
       .sum-text ul { list-style-type: disc; }
@@ -801,7 +800,7 @@
         background: rgba(250,204,21,.08);
         border: 1px solid rgba(250,204,21,.2);
       }
-      .m-bub     { width: 100%; padding: 9px 13px; border-radius: 12px; font-size: 12.5px; font-weight: 300; line-height: 1.68; }
+      .m-bub     { width: 100%; padding: 9px 13px; border-radius: 12px; font-size: 13.5px; font-weight: 400; line-height: 1.8; font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
       .m-bub a {
         color: #93c5fd;
         text-decoration: underline;
@@ -960,12 +959,13 @@
       .md ul { list-style-type: disc; }
       .md ul ul { list-style-type: disc; }
       .md li { margin: 6px 0; }
-      .md h1, .md h2, .md h3, .md h4, .md h5, .md h6 { font-weight: 600; margin: 12px 0 6px; }
-      .md h1 { font-size: 1.25em; color: var(--sum-heading-1); }
-      .md h2 { font-size: 1.12em; color: var(--sum-heading-2); }
-      .md h3 { font-size: 1.06em; color: var(--sum-heading-3); }
-      .md h4, .md h5, .md h6 { color: var(--sum-heading-4); }
-      .md table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
+      .md { font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13.5px; font-weight: 400; line-height: 1.8; color: #c8c8e0; }
+      .md h1, .md h2, .md h3, .md h4, .md h5, .md h6 { font-weight: 600; margin: 12px 0 6px; font-family: 'Sora', sans-serif; }
+      .md h1 { font-size: 1.5em; font-weight: 700; color: #e8e8f5; margin: 0 0 14px; line-height: 1.35; }
+      .md h2 { font-size: 1.22em; color: #ddddf0; margin: 20px 0 10px; }
+      .md h3 { font-size: 1.08em; color: #d0d0e8; margin: 16px 0 8px; }
+      .md h4, .md h5, .md h6 { color: #c8c8e0; }
+      .md table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 12.5px; }
       .md th, .md td { border: 1px solid var(--sum-table-border); padding: 8px 12px; text-align: left; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
       .md th { background: var(--sum-table-th-bg); font-weight: 600; color: var(--sum-table-th-text); }
       .md td { line-height: 1.6; color: var(--sum-table-td-text); }
