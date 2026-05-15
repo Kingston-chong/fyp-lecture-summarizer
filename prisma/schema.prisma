@@ -142,14 +142,14 @@ model SummaryDocument {
 model QuizSet {
   id          Int            @id @default(autoincrement())
   userId      Int
-  summaryId   Int?
+  summaryId   Int
   title       String
   settings    Json?          // Store generation settings (difficulty, types, etc.)
   createdAt   DateTime       @default(now())
   questions   QuizQuestion[]
   attempts    QuizAttempt[]
   user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  summary     Summary?       @relation(fields: [summaryId], references: [id], onDelete: SetNull)
+  summary     Summary        @relation(fields: [summaryId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([summaryId])

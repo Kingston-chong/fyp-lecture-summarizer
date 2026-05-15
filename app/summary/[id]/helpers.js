@@ -1,3 +1,9 @@
+/** Parse route param to a positive integer summary id, or null. */
+export function parseNumericSummaryId(summaryId) {
+  const n = Number.parseInt(String(summaryId ?? ""), 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 export function fmtDate(iso) {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}, ${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

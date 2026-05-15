@@ -4,7 +4,7 @@ import GenerateSlidesModal from "@/app/components/GenerateSlidesModal";
 import AlaiSlidesPreviewModal from "@/app/components/AlaiSlidesPreviewModal";
 import QuizSettingsModal from "@/app/components/QuizSettingsModal";
 import QuizViewModal from "@/app/components/QuizViewModal";
-import { settingsFromQuizSet } from "../helpers";
+import { parseNumericSummaryId, settingsFromQuizSet } from "../helpers";
 
 export default function SummaryModalStack({
   slidesModal,
@@ -36,10 +36,7 @@ export default function SummaryModalStack({
           onClose={() => setSlidesModal(false)}
           summaryText={summary?.output || ""}
           summarizeFor={summary?.summarizeFor || "student"}
-          summaryId={(() => {
-            const n = Number.parseInt(String(summaryId ?? ""), 10);
-            return Number.isFinite(n) && n > 0 ? n : null;
-          })()}
+          summaryId={parseNumericSummaryId(summaryId)}
           onSlideDecksChanged={fetchSlideDecks}
         />
       )}

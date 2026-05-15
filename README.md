@@ -45,13 +45,14 @@ FYP Lecture Summarizer helps students and educators process lecture materials. T
 
 - **@google/generative-ai** — Gemini
 - **OpenAI** — Chat completions
-- **pdf-parse**, **Mammoth**, **pptx2json**, **xlsx**, **unpdf** — document parsing
+- **unpdf** — PDF text extraction
+- **Mammoth** — Word (DOCX/DOC) text extraction
+- **JSZip** — PPTX/PPT as OOXML (slide text for summarize/chat; structured parsing and theme extraction for improve-PPT)
+- **xlsx** — spreadsheet text extraction (XLSX/XLS)
 
 ### Presentations
 
-- **Alai API** — slide generation
-- **pptxgenjs** — PPTX building (improve-PPT and related flows)
-- **jsPDF**, **jszip**
+- **Alai API** — slide deck generation (server-side)
 
 ### Auth and tooling
 
