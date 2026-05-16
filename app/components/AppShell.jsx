@@ -303,7 +303,8 @@ export default function AppShell({
                     title="Dashboard"
                     onClick={() => router.push("/dashboard")}
                   >
-                    <ArrowLeftIcon /> <span className="shell-btn-text">Dashboard</span>
+                    <ArrowLeftIcon />{" "}
+                    <span className="shell-btn-text">Dashboard</span>
                   </button>
                 )}
                 <button
@@ -311,7 +312,8 @@ export default function AppShell({
                   title="Sign out"
                   onClick={() => signOut({ callbackUrl: "/" })}
                 >
-                  <LogoutIcon /> <span className="shell-btn-text">Sign out</span>
+                  <LogoutIcon />{" "}
+                  <span className="shell-btn-text">Sign out</span>
                 </button>
               </>
             }
@@ -354,4 +356,3 @@ export default function AppShell({
     </>
   );
 }
-

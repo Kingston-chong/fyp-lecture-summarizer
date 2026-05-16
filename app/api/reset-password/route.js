@@ -10,13 +10,13 @@ export async function POST(req) {
   if (!record || record.token !== token) {
     return NextResponse.json(
       { error: "Invalid or expired reset token." },
-      { status: 400 }
+      { status: 400 },
     );
   }
   if (new Date() > record.tokenExpiry) {
     return NextResponse.json(
       { error: "Reset session expired. Please start again." },
-      { status: 400 }
+      { status: 400 },
     );
   }
 

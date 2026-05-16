@@ -1,6 +1,7 @@
 "use client";
 
 import "./summary-page.css";
+import "./components/ReferencesPanel.css";
 
 import {
   Fragment,
@@ -14,6 +15,13 @@ import {
 import { useSession } from "next-auth/react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { markdownToHtml } from "@/lib/markdown";
+import { enrichSummaryBodyHtml } from "@/lib/citationHtml";
+import {
+  splitMarkdownBeforeReferences,
+  buildReferencesSectionHtml,
+  syntheticUploadReference,
+} from "@/lib/referenceDisplay";
+import CitationPreviewPopover from "./components/CitationPreviewPopover";
 import { buildChatSuggestions } from "@/lib/chatSuggestionsFromSummary";
 import Button from "@/app/components/ui/Button";
 import DocumentPreviewModal from "@/app/dashboard/components/DocumentPreviewModal";
@@ -28,11 +36,9 @@ import {
   parseNumericSummaryId,
   settingsFromQuizSet,
 } from "./helpers";
-import {
-  unwrapHighlightMarks,
-  wrapQuoteInRoot,
-} from "./hooks/highlightDom";
+import { unwrapHighlightMarks, wrapQuoteInRoot } from "./hooks/highlightDom";
 import ChatBubbleContent from "./components/ChatBubbleContent";
+import ChatSourcesList from "./components/ChatSourcesList";
 import ChatSelectionPopover from "./components/ChatSelectionPopover";
 import QuizAttemptDetailModal from "./components/QuizAttemptDetailModal";
 import SourcesSidebar from "./components/SourcesSidebar";
@@ -40,11 +46,7 @@ import MobileMoreSheet from "./components/MobileMoreSheet";
 import { useSourcesPanelResize } from "./hooks/useSourcesPanelResize";
 import { useSlideDecks } from "./hooks/useSlideDecks";
 import { useQuizSets } from "./hooks/useQuizSets";
-import {
-  MODELS,
-  ATTACH_ACCEPT,
-  SUMMARY_BODY_INNER_STYLE,
-} from "./constants";
+import { MODELS, ATTACH_ACCEPT, SUMMARY_BODY_INNER_STYLE } from "./constants";
 import {
   downscaleImageFileToJpegDataUrl,
   MAX_CHAT_PASTE_IMAGES,
@@ -130,14 +132,18 @@ export default function SummaryView() {
   const [sourcePreviewDoc, setSourcePreviewDoc] = useState(null);
   const [sourcePreviewSrc, setSourcePreviewSrc] = useState("");
   const [sourcePreviewTabHref, setSourcePreviewTabHref] = useState("");
-  const [sourcePreviewTokenLoading, setSourcePreviewTokenLoading] = useState(false);
-  const [sourcePreviewIframeLoading, setSourcePreviewIframeLoading] = useState(true);
+  const [sourcePreviewTokenLoading, setSourcePreviewTokenLoading] =
+    useState(false);
+  const [sourcePreviewIframeLoading, setSourcePreviewIframeLoading] =
+    useState(true);
   const [sourcePreviewSetupErr, setSourcePreviewSetupErr] = useState("");
+  const [summaryReferences, setSummaryReferences] = useState([]);
+  const [referencesLoading, setReferencesLoading] = useState(false);
+  const [activeCitationMarker, setActiveCitationMarker] = useState(null);
+  const [citationPreview, setCitationPreview] = useState(null);
+  const [referenceMutatingId, setReferenceMutatingId] = useState(null);
 
-  const {
-    sourcesWidth,
-    onSplitterMouseDown,
-  } = useSourcesPanelResize();
+  const { sourcesWidth, onSplitterMouseDown } = useSourcesPanelResize();
 
   const slideDecksApi = useSlideDecks({ summaryId, status });
   const {
@@ -150,15 +156,20 @@ export default function SummaryView() {
     slideDeckRemotePptUrl,
     slideDeckPreviewTitle,
     slideDeckDlRef,
+    slideDeckPdfDlRef,
     fetchSlideDecks,
     openSlideDeckPreview,
     downloadSlideDeck,
+    downloadSlideDeckPdf,
     deleteSlideDeck,
   } = slideDecksApi;
+
+  const isLecturerSummary = summary?.summarizeFor === "lecturer";
 
   const quizSetsApi = useQuizSets({
     summaryId,
     status,
+    summarizeFor: summary?.summarizeFor || "student",
     setQuizData,
     setQuizSettings,
     setQuizView,
@@ -212,13 +223,16 @@ export default function SummaryView() {
     setPendingPasteImages([]);
     setChatSelectionDraft(null);
     setPendingChatReferences([]);
+    setCitationPreview(null);
     if (typeof window !== "undefined") {
       window.getSelection()?.removeAllRanges();
     }
   }, [summaryId]);
 
   function queueChatReference(text, message) {
-    const cleaned = String(text || "").replace(/\s+/g, " ").trim();
+    const cleaned = String(text || "")
+      .replace(/\s+/g, " ")
+      .trim();
     if (!cleaned) return;
     setPendingChatReferences((prev) => {
       const alreadyAdded = prev.some(
@@ -251,7 +265,12 @@ export default function SummaryView() {
     requestAnimationFrame(() => inputRef.current?.focus());
   }
 
-  function openReplyPopoverFromSelection(selection, range, messageId, anchorPoint) {
+  function openReplyPopoverFromSelection(
+    selection,
+    range,
+    messageId,
+    anchorPoint,
+  ) {
     const selectedText = selection.toString().trim();
     if (!selectedText) return;
     const rectList = Array.from(range.getClientRects()).filter(
@@ -279,7 +298,10 @@ export default function SummaryView() {
     const prefersAbove = selectionTopY - buttonHeight - 6 >= margin;
     const nextY = prefersAbove
       ? selectionTopY - buttonHeight - 6
-      : Math.min(vh - buttonHeight - margin, selectionTopY + firstRect.height + 4);
+      : Math.min(
+          vh - buttonHeight - margin,
+          selectionTopY + firstRect.height + 4,
+        );
     setChatSelectionDraft({
       text: selectedText.replace(/\s+/g, " ").trim().slice(0, 500),
       messageId,
@@ -319,7 +341,8 @@ export default function SummaryView() {
     function onViewportMove(ev) {
       // Ignore scrolls that happen inside the chat/summary scroll container —
       // those are internal and should not dismiss the selection popover.
-      if (ev.target instanceof Element && ev.target.closest(".unified-scroll")) return;
+      if (ev.target instanceof Element && ev.target.closest(".unified-scroll"))
+        return;
       setChatSelectionDraft(null);
     }
     window.addEventListener("pointerdown", onPointerDown);
@@ -430,7 +453,8 @@ export default function SummaryView() {
           for (const ln of lines) {
             if (!ln) continue;
             if (ln.startsWith("event:")) event = ln.slice(6).trim();
-            else if (ln.startsWith("data:")) dataLines.push(ln.slice(5).trimStart());
+            else if (ln.startsWith("data:"))
+              dataLines.push(ln.slice(5).trimStart());
           }
           if (!dataLines.length) return;
           let payload = {};
@@ -443,7 +467,10 @@ export default function SummaryView() {
           if (event === "chunk" && payload?.text) {
             setSummary((prev) => {
               if (!prev) return prev;
-              return { ...prev, output: String(prev.output || "") + payload.text };
+              return {
+                ...prev,
+                output: String(prev.output || "") + payload.text,
+              };
             });
           } else if (event === "done") {
             gotDone = true;
@@ -474,6 +501,13 @@ export default function SummaryView() {
           const r = await fetch(`/api/summary/${summaryId}`);
           const d = await r.json().catch(() => ({}));
           if (r.ok && d?.summary) setSummary(d.summary);
+          void fetch(`/api/summary/${summaryId}/references`)
+            .then((rr) => rr.json())
+            .then((rd) => {
+              if (Array.isArray(rd?.references))
+                setSummaryReferences(rd.references);
+            })
+            .catch(() => {});
         }
 
         // Remove the autostart query so refresh doesn't re-trigger.
@@ -637,11 +671,13 @@ export default function SummaryView() {
       return;
     }
 
-    const md = summary.output;
+    const { body: bodyMd, referencesMarkdown } = splitMarkdownBeforeReferences(
+      summary.output,
+    );
     const found = [];
     const re = /^(#{1,3})\s+(.+)$/gm;
     let match;
-    while ((match = re.exec(md))) {
+    while ((match = re.exec(bodyMd))) {
       const level = match[1].length;
       const text = match[2].trim();
       const slugBase =
@@ -653,13 +689,30 @@ export default function SummaryView() {
       found.push({ id, level, text });
     }
 
-    let html = markdownToHtml(md);
+    let bodyHtml = markdownToHtml(bodyMd);
     found.forEach((h) => {
       const tag = `h${h.level}`;
       const escaped = h.text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const pattern = new RegExp(`<${tag}>${escaped}</${tag}>`);
-      html = html.replace(pattern, `<${tag} id="${h.id}">${h.text}</${tag}>`);
+      bodyHtml = bodyHtml.replace(
+        pattern,
+        `<${tag} id="${h.id}">${h.text}</${tag}>`,
+      );
     });
+
+    if (summary.summarizeFor === "lecturer") {
+      const maxMarker = summaryReferences.length
+        ? Math.max(...summaryReferences.map((r) => r.marker))
+        : 99;
+      bodyHtml = enrichSummaryBodyHtml(bodyHtml, maxMarker);
+    }
+
+    let html = bodyHtml;
+    if (summary.summarizeFor === "lecturer" && summaryReferences.length > 0) {
+      html += buildReferencesSectionHtml(summaryReferences);
+    } else if (referencesMarkdown) {
+      html += markdownToHtml(referencesMarkdown);
+    }
 
     setHeadings(found);
     setSummaryHtml(html);
@@ -669,7 +722,189 @@ export default function SummaryView() {
         new CustomEvent("s2n-summary-headings", { detail: found }),
       );
     }
-  }, [summary]);
+  }, [summary, summaryReferences]);
+
+  const fetchSummaryReferences = useCallback(async () => {
+    if (!summaryId || summary?.summarizeFor !== "lecturer") return;
+    setReferencesLoading(true);
+    try {
+      const res = await fetch(`/api/summary/${summaryId}/references`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(data.references)) {
+        setSummaryReferences(data.references);
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setReferencesLoading(false);
+    }
+  }, [summaryId, summary?.summarizeFor]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    if (summary?.summarizeFor !== "lecturer") {
+      setSummaryReferences([]);
+      return;
+    }
+    if (summarizing) {
+      setReferencesLoading(true);
+      return;
+    }
+    if (summary?.output?.trim()) {
+      void fetchSummaryReferences();
+    }
+  }, [
+    status,
+    summary?.summarizeFor,
+    summary?.output,
+    summarizing,
+    fetchSummaryReferences,
+  ]);
+
+  const scrollToId = useCallback((id) => {
+    if (!id) return;
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, []);
+
+  const handleSelectReference = useCallback(
+    (ref) => {
+      setActiveCitationMarker(ref.marker);
+      const anchor = ref.anchorIds?.[0];
+      if (anchor) scrollToId(anchor);
+      else {
+        const link = summaryBodyRef.current?.querySelector(
+          `.cite-marker[data-marker="${ref.marker}"]`,
+        );
+        link?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    },
+    [scrollToId],
+  );
+
+  const handleDeleteSummaryReference = useCallback(
+    async (ref) => {
+      if (!summaryId || !ref?.id) return;
+      const ok = window.confirm(
+        "Remove this entry from your reference list? It will disappear from the sidebar and the summary bibliography preview. Inline [n] markers in the saved summary text are unchanged until you edit the summary.",
+      );
+      if (!ok) return;
+      setReferenceMutatingId(ref.id);
+      try {
+        const res = await fetch(
+          `/api/summary/${summaryId}/references/${ref.id}`,
+          { method: "DELETE" },
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          window.alert(data?.error || "Could not remove reference");
+          return;
+        }
+        if (Array.isArray(data.references)) {
+          setSummaryReferences(data.references);
+        }
+        setCitationPreview((p) => (p?.marker === ref.marker ? null : p));
+        setActiveCitationMarker((m) => (m === ref.marker ? null : m));
+      } finally {
+        setReferenceMutatingId(null);
+      }
+    },
+    [summaryId],
+  );
+
+  const handleUpdateSummaryReference = useCallback(
+    async (ref) => {
+      if (!summaryId || !ref?.id) return false;
+      const title = ref.title?.trim();
+      if (!title) return false;
+
+      const yearRaw = ref.year;
+      const yearParsed =
+        yearRaw === "" || yearRaw == null
+          ? null
+          : parseInt(String(yearRaw), 10);
+      const year =
+        yearParsed != null && Number.isFinite(yearParsed) ? yearParsed : null;
+
+      setReferenceMutatingId(ref.id);
+      try {
+        const res = await fetch(
+          `/api/summary/${summaryId}/references/${ref.id}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title,
+              authors: ref.authors?.trim() || null,
+              year,
+              venue: ref.venue?.trim() || null,
+              doi: ref.doi?.trim() || null,
+              url: ref.url?.trim() || null,
+              abstract: ref.abstract?.trim() || null,
+            }),
+          },
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          window.alert(data?.error || "Could not save reference");
+          return false;
+        }
+        if (Array.isArray(data.references)) {
+          setSummaryReferences(data.references);
+        }
+        return true;
+      } finally {
+        setReferenceMutatingId(null);
+      }
+    },
+    [summaryId],
+  );
+
+  const openCitationPreview = useCallback(
+    (marker, anchorEl) => {
+      if (!Number.isFinite(marker) || !anchorEl) return;
+      const ref =
+        summaryReferences.find((r) => r.marker === marker) ??
+        syntheticUploadReference(marker, summary?.files);
+      setActiveCitationMarker(marker);
+      if (ref) {
+        setCitationPreview({
+          marker,
+          rect: anchorEl.getBoundingClientRect(),
+        });
+      } else {
+        setCitationPreview(null);
+        document
+          .getElementById(`ref-${marker}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    },
+    [summaryReferences, summary?.files],
+  );
+
+  useEffect(() => {
+    const root = summaryBodyRef.current;
+    if (!root) return;
+    const onClick = (e) => {
+      const cite = e.target.closest?.(".cite-marker");
+      if (cite) {
+        e.preventDefault();
+        const marker = parseInt(cite.getAttribute("data-marker") || "", 10);
+        if (!Number.isNaN(marker)) openCitationPreview(marker, cite);
+        return;
+      }
+      const bibItem = e.target.closest?.(".ref-biblio-item");
+      if (bibItem) {
+        const marker = parseInt(bibItem.getAttribute("data-marker") || "", 10);
+        if (!Number.isNaN(marker)) {
+          e.preventDefault();
+          openCitationPreview(marker, bibItem);
+        }
+      }
+    };
+    root.addEventListener("click", onClick);
+    return () => root.removeEventListener("click", onClick);
+  }, [summaryHtml, openCitationPreview]);
 
   // Handle jump-to-heading requests from sidebar
   useEffect(() => {
@@ -761,17 +996,27 @@ export default function SummaryView() {
     setPendingPasteImages((p) => p.filter((x) => x.clientId !== clientId));
   }
 
-  async function appendAssistantReplyGradually(reply, modelLabel, webSearch = null) {
+  async function appendAssistantReplyGradually(
+    reply,
+    modelLabel,
+    webSearch = null,
+    sources = null,
+  ) {
     const text = String(reply || "");
     const msgId = Date.now() + 1;
+    const sourceList = Array.isArray(sources) ? sources : [];
+    // One assistant bubble: loading dots live here until text replaces them.
+    setChatLoading(false);
     setMessages((p) => [
       ...p,
       {
         id: msgId,
         role: "ai",
         content: "",
+        streaming: true,
         modelLabel,
         ...(webSearch ? { webSearch } : {}),
+        ...(sourceList.length > 0 ? { sources: sourceList } : {}),
       },
     ]);
 
@@ -784,6 +1029,9 @@ export default function SummaryView() {
       );
       await new Promise((r) => setTimeout(r, 14));
     }
+    setMessages((p) =>
+      p.map((m) => (m.id === msgId ? { ...m, streaming: false } : m)),
+    );
   }
 
   async function sendMessage(text) {
@@ -908,7 +1156,8 @@ export default function SummaryView() {
         data?.webSearch && typeof data.webSearch === "object"
           ? data.webSearch
           : null;
-      await appendAssistantReplyGradually(reply, chatModel, ws);
+      const src = Array.isArray(data?.sources) ? data.sources : [];
+      await appendAssistantReplyGradually(reply, chatModel, ws, src);
     } catch (e) {
       setMessages((p) => [
         ...p,
@@ -978,7 +1227,8 @@ export default function SummaryView() {
         data?.webSearch && typeof data.webSearch === "object"
           ? data.webSearch
           : null;
-      await appendAssistantReplyGradually(reply, chatModel, ws);
+      const src = Array.isArray(data?.sources) ? data.sources : [];
+      await appendAssistantReplyGradually(reply, chatModel, ws, src);
     } catch (e) {
       setMessages((p) => [...p, removed]);
       setChatNotice(
@@ -1042,7 +1292,11 @@ export default function SummaryView() {
   function handlePDF() {
     if (!summary) return;
     setPdfLoading(true);
-    exportSummaryPdf(summary, messages, summaryBodyRef.current?.innerHTML || "");
+    exportSummaryPdf(
+      summary,
+      messages,
+      summaryBodyRef.current?.innerHTML || "",
+    );
     setTimeout(() => setPdfLoading(false), 900);
   }
 
@@ -1099,29 +1353,32 @@ export default function SummaryView() {
     setSourcePreviewSetupErr("");
   }
 
-  const handleSummarySelectionTrigger = useCallback((anchorPoint = null) => {
-    const root = summaryBodyRef.current;
-    if (!root) return;
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
-    const text = sel.toString().replace(/\s+/g, " ").trim();
-    if (!text || text.length > 2000) return;
-    const range = sel.getRangeAt(0);
-    const startInside = root.contains(range.startContainer);
-    const endInside = root.contains(range.endContainer);
-    if (!startInside || !endInside) return;
-    if (!hlModeActive) {
-      openReplyPopoverFromSelection(sel, range, null, anchorPoint);
-      return;
-    }
-    if (hlSaving) return;
-    const clientId = `p-${crypto.randomUUID()}`;
-    setPendingHighlights((prev) => [
-      { clientId, quote: text, color: hlColorHex },
-      ...prev,
-    ]);
-    window.getSelection()?.removeAllRanges();
-  }, [hlModeActive, hlSaving, hlColorHex]);
+  const handleSummarySelectionTrigger = useCallback(
+    (anchorPoint = null) => {
+      const root = summaryBodyRef.current;
+      if (!root) return;
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+      const text = sel.toString().replace(/\s+/g, " ").trim();
+      if (!text || text.length > 2000) return;
+      const range = sel.getRangeAt(0);
+      const startInside = root.contains(range.startContainer);
+      const endInside = root.contains(range.endContainer);
+      if (!startInside || !endInside) return;
+      if (!hlModeActive) {
+        openReplyPopoverFromSelection(sel, range, null, anchorPoint);
+        return;
+      }
+      if (hlSaving) return;
+      const clientId = `p-${crypto.randomUUID()}`;
+      setPendingHighlights((prev) => [
+        { clientId, quote: text, color: hlColorHex },
+        ...prev,
+      ]);
+      window.getSelection()?.removeAllRanges();
+    },
+    [hlModeActive, hlSaving, hlColorHex],
+  );
 
   const handleSummaryMouseUp = useCallback(
     (e) => {
@@ -1229,7 +1486,8 @@ export default function SummaryView() {
       : summarizeError
         ? `Error: ${summarizeError}`
         : "No summary output found.";
-    const raw = summaryHtml || markdownToHtml(hasOutput ? summary.output : fallback);
+    const raw =
+      summaryHtml || markdownToHtml(hasOutput ? summary.output : fallback);
     return { __html: raw };
   }, [summaryHtml, summary?.output, summarizing, summarizeError]);
 
@@ -1240,8 +1498,15 @@ export default function SummaryView() {
       headings,
       title: summary?.title || "",
       max: 4,
+      role: summary?.summarizeFor === "lecturer" ? "lecturer" : "student",
     });
-  }, [aiChatSuggestions, summary?.output, summary?.title, headings]);
+  }, [
+    aiChatSuggestions,
+    summary?.output,
+    summary?.title,
+    summary?.summarizeFor,
+    headings,
+  ]);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -1348,7 +1613,12 @@ export default function SummaryView() {
                 </div>
                 <div className="act-bar-btns">
                   <Button variant="quiz" onClick={() => setQuizModal(true)}>
-                    <QuizIco /> {compactActBar ? "Quiz" : "Generate Quiz"}
+                    <QuizIco />{" "}
+                    {compactActBar
+                      ? "Quiz"
+                      : isLecturerSummary
+                        ? "Generate class quiz"
+                        : "Generate Quiz"}
                   </Button>
                   <Button
                     variant="pdf"
@@ -1626,10 +1896,29 @@ export default function SummaryView() {
                                       ) {
                                         return null;
                                       }
+                                      if (
+                                        m.role === "ai" &&
+                                        m.streaming &&
+                                        !mdSrc.trim()
+                                      ) {
+                                        return (
+                                          <div className="dots">
+                                            <div className="dot" />
+                                            <div className="dot" />
+                                            <div className="dot" />
+                                          </div>
+                                        );
+                                      }
                                       return (
                                         <ChatBubbleContent mdSrc={mdSrc} />
                                       );
                                     })()}
+                                    {m.role === "ai" &&
+                                      !m.streaming &&
+                                      Array.isArray(m.sources) &&
+                                      m.sources.length > 0 && (
+                                        <ChatSourcesList sources={m.sources} />
+                                      )}
                                     {m.role === "user" &&
                                       Array.isArray(m.references) &&
                                       m.references.length > 0 && (
@@ -1650,7 +1939,8 @@ export default function SummaryView() {
                                   </div>
                                   {m.role === "ai" &&
                                     m.modelLabel &&
-                                    !m.error && (
+                                    !m.error &&
+                                    !m.streaming && (
                                       <div className="m-meta">
                                         Generated by {m.modelLabel}
                                       </div>
@@ -1696,20 +1986,23 @@ export default function SummaryView() {
                             </div>
                           );
                         })}
-                        {chatLoading && (
-                          <div className="m-row ai">
-                            <div className="m-ava ai">
-                              <BotIco />
-                            </div>
-                            <div className="m-bub ai">
-                              <div className="dots">
-                                <div className="dot" />
-                                <div className="dot" />
-                                <div className="dot" />
+                        {chatLoading &&
+                          !messages.some(
+                            (m) => m.role === "ai" && m.streaming,
+                          ) && (
+                            <div className="m-row ai">
+                              <div className="m-ava ai">
+                                <BotIco />
+                              </div>
+                              <div className="m-bub ai">
+                                <div className="dots">
+                                  <div className="dot" />
+                                  <div className="dot" />
+                                  <div className="dot" />
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )}
+                          )}
                       </div>
                     </div>
                   )}
@@ -1728,13 +2021,21 @@ export default function SummaryView() {
                     </>
                   )}
 
-                  {messages.length > 0 &&
-                    summary?.output &&
-                    chatSuggestions.length > 0 && (
+                  {summary?.output &&
+                    chatSuggestions.length > 0 &&
+                    !chatLoading && (
                       <div
-                        className="suggests suggests--end-chat"
+                        className={
+                          messages.length > 0
+                            ? "suggests suggests--end-chat"
+                            : "suggests"
+                        }
                         role="group"
-                        aria-label="Suggested questions from this summary"
+                        aria-label={
+                          summary?.summarizeFor === "lecturer"
+                            ? "Suggested lecturer prompts from this summary"
+                            : "Suggested questions from this summary"
+                        }
                       >
                         {chatSuggestions.map((s) => (
                           <button
@@ -1979,6 +2280,20 @@ export default function SummaryView() {
               summary={summary}
               extraSources={extraSources}
               onSourcePreview={openSourceDocPreview}
+              referencesProps={
+                summary?.summarizeFor === "lecturer"
+                  ? {
+                      references: summaryReferences,
+                      loading: referencesLoading || summarizing,
+                      activeMarker: activeCitationMarker,
+                      onSelectReference: handleSelectReference,
+                      onMarkerHover: setActiveCitationMarker,
+                      onDeleteReference: handleDeleteSummaryReference,
+                      onUpdateReference: handleUpdateSummaryReference,
+                      mutatingRefId: referenceMutatingId,
+                    }
+                  : null
+              }
               slideDecksProps={{
                 slideDecks,
                 slideDecksLoading,
@@ -1986,6 +2301,7 @@ export default function SummaryView() {
                 onRefresh: () => void fetchSlideDecks(),
                 onPreview: openSlideDeckPreview,
                 onDownload: downloadSlideDeck,
+                onDownloadPdf: downloadSlideDeckPdf,
                 onDelete: deleteSlideDeck,
               }}
               quizSetsProps={{
@@ -1995,6 +2311,7 @@ export default function SummaryView() {
                 quizHistoryOpenId,
                 quizHistoryLoading,
                 quizHistoryList,
+                isLecturer: isLecturerSummary,
                 onRefresh: () => void fetchQuizSets(),
                 onToggleHistory: toggleQuizHistoryPanel,
                 onOpenSet: openSavedQuizSet,
@@ -2026,6 +2343,7 @@ export default function SummaryView() {
         slideDeckRemotePptUrl={slideDeckRemotePptUrl}
         slideDeckPreviewTitle={slideDeckPreviewTitle}
         slideDeckDlRef={slideDeckDlRef}
+        slideDeckPdfDlRef={slideDeckPdfDlRef}
         quizModal={quizModal}
         setQuizModal={setQuizModal}
         setQuizData={setQuizData}
@@ -2066,6 +2384,20 @@ export default function SummaryView() {
         summary={summary}
         extraSources={extraSources}
         onSourcePreview={openSourceDocPreview}
+        referencesProps={
+          summary?.summarizeFor === "lecturer"
+            ? {
+                references: summaryReferences,
+                loading: referencesLoading || summarizing,
+                activeMarker: activeCitationMarker,
+                onSelectReference: handleSelectReference,
+                onMarkerHover: setActiveCitationMarker,
+                onDeleteReference: handleDeleteSummaryReference,
+                onUpdateReference: handleUpdateSummaryReference,
+                mutatingRefId: referenceMutatingId,
+              }
+            : null
+        }
         slideDecksProps={{
           slideDecks,
           slideDecksLoading,
@@ -2073,6 +2405,7 @@ export default function SummaryView() {
           onRefresh: () => void fetchSlideDecks(),
           onPreview: openSlideDeckPreview,
           onDownload: downloadSlideDeck,
+          onDownloadPdf: downloadSlideDeckPdf,
           onDelete: deleteSlideDeck,
         }}
         quizSetsProps={{
@@ -2082,6 +2415,7 @@ export default function SummaryView() {
           quizHistoryOpenId,
           quizHistoryLoading,
           quizHistoryList,
+          isLecturer: isLecturerSummary,
           onRefresh: () => void fetchQuizSets(),
           onToggleHistory: toggleQuizHistoryPanel,
           onOpenSet: openSavedQuizSet,
@@ -2107,6 +2441,20 @@ export default function SummaryView() {
         draft={chatSelectionDraft}
         onReply={addDraftChatReference}
       />
+
+      {citationPreview && summary?.summarizeFor === "lecturer" ? (
+        <CitationPreviewPopover
+          reference={
+            summaryReferences.find(
+              (r) => r.marker === citationPreview.marker,
+            ) ??
+            syntheticUploadReference(citationPreview.marker, summary?.files)
+          }
+          anchorRect={citationPreview.rect}
+          onClose={() => setCitationPreview(null)}
+          onViewInSidebar={handleSelectReference}
+        />
+      ) : null}
     </>
   );
 }

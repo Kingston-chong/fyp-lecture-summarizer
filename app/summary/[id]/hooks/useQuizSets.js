@@ -1,9 +1,21 @@
 "use client";
 
 import { Fragment, useState, useRef, useCallback, useEffect } from "react";
-import { formatSlideDeckSavedAt, parseNumericSummaryId, settingsFromQuizSet } from "../helpers";
+import {
+  formatSlideDeckSavedAt,
+  parseNumericSummaryId,
+  settingsFromQuizSet,
+} from "../helpers";
 
-export function useQuizSets({ summaryId, status, setQuizData, setQuizSettings, setQuizView }) {
+export function useQuizSets({
+  summaryId,
+  status,
+  summarizeFor = "student",
+  setQuizData,
+  setQuizSettings,
+  setQuizView,
+}) {
+  const isLecturer = summarizeFor === "lecturer";
   const numericSummaryId = parseNumericSummaryId(summaryId);
   const [quizSets, setQuizSets] = useState([]);
   const [quizSetsLoading, setQuizSetsLoading] = useState(false);

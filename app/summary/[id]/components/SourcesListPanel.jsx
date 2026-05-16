@@ -15,7 +15,10 @@ export default function SourcesListPanel({
   const all = [...base, ...extras];
 
   const list = (
-    <div className={listClassName} style={wrapInPanel ? { padding: 0 } : undefined}>
+    <div
+      className={listClassName}
+      style={wrapInPanel ? { padding: 0 } : undefined}
+    >
       {!all.length ? (
         <div className="src-empty">{emptyMessage}</div>
       ) : (

@@ -12,40 +12,76 @@ function Dropdown({ value, onChange, options, width = 120 }) {
   return (
     <div style={{ position: "relative", width }}>
       <button
-        onClick={() => setOpen(v => !v)}
+        onClick={() => setOpen((v) => !v)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         style={{
-          width: "100%", height: 32, padding: "0 10px",
+          width: "100%",
+          height: 32,
+          padding: "0 10px",
           background: isDark ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.04)",
           border: `1px solid ${isDark ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"}`,
-          borderRadius: 7, fontFamily: "'Sora',sans-serif", fontSize: 12,
+          borderRadius: 7,
+          fontFamily: "'Sora',sans-serif",
+          fontSize: 12,
           color: isDark ? "#c0c0d8" : "#4a4a5a",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          cursor: "pointer", gap: 6, transition: "all .18s",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          cursor: "pointer",
+          gap: 6,
+          transition: "all .18s",
         }}
       >
         {value} <ChevronDownIcon size={12} />
       </button>
       {open && (
-        <div style={{
-          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 200,
-          background: isDark ? "rgba(22,22,34,.98)" : "rgba(255,255,255,.98)",
-          border: `1px solid ${isDark ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"}`,
-          borderRadius: 8, padding: 4, boxShadow: isDark ? "0 12px 32px rgba(0,0,0,.5)" : "0 12px 32px rgba(0,0,0,.15)",
-        }}>
-          {options.map(o => (
-            <div key={o}
-              onMouseDown={() => { onChange(o); setOpen(false); }}
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            left: 0,
+            right: 0,
+            zIndex: 200,
+            background: isDark ? "rgba(22,22,34,.98)" : "rgba(255,255,255,.98)",
+            border: `1px solid ${isDark ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"}`,
+            borderRadius: 8,
+            padding: 4,
+            boxShadow: isDark
+              ? "0 12px 32px rgba(0,0,0,.5)"
+              : "0 12px 32px rgba(0,0,0,.15)",
+          }}
+        >
+          {options.map((o) => (
+            <div
+              key={o}
+              onMouseDown={() => {
+                onChange(o);
+                setOpen(false);
+              }}
               style={{
-                padding: "7px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12,
-                color: value === o ? "#6366f1" : (isDark ? "#b0b0cc" : "#555568"),
-                background: value === o ? "rgba(99,102,241,.18)" : "transparent",
+                padding: "7px 10px",
+                borderRadius: 6,
+                cursor: "pointer",
+                fontSize: 12,
+                color: value === o ? "#6366f1" : isDark ? "#b0b0cc" : "#555568",
+                background:
+                  value === o ? "rgba(99,102,241,.18)" : "transparent",
                 fontWeight: value === o ? 500 : 400,
                 transition: "background .12s",
               }}
-              onMouseEnter={e => { if (value !== o) e.currentTarget.style.background = isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.05)"; }}
-              onMouseLeave={e => { if (value !== o) e.currentTarget.style.background = "transparent"; }}
-            >{o}</div>
+              onMouseEnter={(e) => {
+                if (value !== o)
+                  e.currentTarget.style.background = isDark
+                    ? "rgba(255,255,255,.05)"
+                    : "rgba(0,0,0,.05)";
+              }}
+              onMouseLeave={(e) => {
+                if (value !== o)
+                  e.currentTarget.style.background = "transparent";
+              }}
+            >
+              {o}
+            </div>
           ))}
         </div>
       )}
@@ -76,7 +112,14 @@ function FieldLabel({ children, style }) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   return (
-    <div style={{ fontSize: 11.5, color: isDark ? "rgba(255,255,255,.45)" : "rgba(0,0,0,.5)", marginBottom: 8, ...style }}>
+    <div
+      style={{
+        fontSize: 11.5,
+        color: isDark ? "rgba(255,255,255,.45)" : "rgba(0,0,0,.5)",
+        marginBottom: 8,
+        ...style,
+      }}
+    >
       {children}
     </div>
   );
@@ -113,7 +156,39 @@ function HintMark({ title }) {
 }
 
 // ─── Main Modal ───────────────────────────────────────────
-export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
+const COPY = {
+  student: {
+    title: "Quiz Generation Settings..",
+    intro:
+      'All these options are optional. If you want to generate quiz straight away, click "Generate Quiz" to start generate random questions.',
+    answerSection: "Answer & Explanation Settings",
+    answerLabel: "Show correct answer:",
+    presentationSection: "Quiz Presentation Mode",
+    quizModeLabel: "Quiz mode",
+    timeLabel: "Time limit",
+    createBtn: "Generate Quiz",
+  },
+  lecturer: {
+    title: "Quiz builder for your class",
+    intro:
+      "Build a question set from this lecture summary. You can review the answer key and export or share it with students after generation.",
+    answerSection: "Student feedback (in-app quizzes)",
+    answerLabel: "When students take the quiz in this app:",
+    presentationSection: "Suggested settings for students",
+    quizModeLabel: "Use case",
+    timeLabel: "Suggested time limit for students",
+    createBtn: "Generate question set",
+  },
+};
+
+export default function QuizSettingsModal({
+  summaryId,
+  onClose,
+  onGenerated,
+  mode = "student",
+}) {
+  const isLecturer = mode === "lecturer";
+  const copy = COPY[isLecturer ? "lecturer" : "student"];
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const [aiModel, setAiModel] = useState("Gemini");
@@ -146,14 +221,14 @@ export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
   ];
 
   const toggleType = (id) => {
-    setQuestionTypes(prev => 
-      prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
+    setQuestionTypes((prev) =>
+      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
     );
   };
 
   const toggleFocus = (id) => {
-    setFocusAreas(prev => 
-      prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
+    setFocusAreas((prev) =>
+      prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id],
     );
   };
 
@@ -179,7 +254,7 @@ export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to generate quiz");
-      
+
       onGenerated(data.quizSet);
     } catch (e) {
       setError(e.message);
@@ -191,7 +266,7 @@ export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
   return (
     <div
       className={`sl-overlay${isDark ? "" : " quiz-modal-light"}`}
-      onClick={e => e.target === e.currentTarget && onClose()}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="sl-modal" style={{ maxWidth: 720 }}>
         <style>{`
@@ -367,9 +442,11 @@ export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
 
         <div className="sl-head">
           <div className="sl-title">
-            <QuizIco/> Quiz Generation Settings..
+            <QuizIco /> {copy.title}
           </div>
-          <button className="sl-close" onClick={onClose}><CloseIcon size={14} /></button>
+          <button className="sl-close" onClick={onClose}>
+            <CloseIcon size={14} />
+          </button>
         </div>
 
         <div
@@ -379,40 +456,77 @@ export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
             color: isDark ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.48)",
           }}
         >
-          All these options are optional. If you want to generate quiz straight away, click &quot;Generate Quiz&quot; to start generate random questions.
+          {copy.intro}
         </div>
 
-        <div className="sl-body" style={{ gridTemplateColumns: "1fr 1fr", gap: "0 32px" }}>
+        <div
+          className="sl-body"
+          style={{ gridTemplateColumns: "1fr 1fr", gap: "0 32px" }}
+        >
           <div className="col-left">
             <SectionHead>AI Model Selection</SectionHead>
-            <Dropdown value={aiModel} onChange={setAiModel} options={["ChatGPT", "DeepSeek", "Gemini"]} width={140}/>
+            <Dropdown
+              value={aiModel}
+              onChange={setAiModel}
+              options={["ChatGPT", "DeepSeek", "Gemini"]}
+              width={140}
+            />
 
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 4 }}>
-              <SectionHead style={{ marginBottom: 0, marginTop: 0 }}>Generation Mode</SectionHead>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 12,
+                marginTop: 4,
+              }}
+            >
+              <SectionHead style={{ marginBottom: 0, marginTop: 0 }}>
+                Generation Mode
+              </SectionHead>
               <HintMark
                 title={
                   "Strict — only facts from your summary. Creative — may add closely related ideas or examples not spelled out in the summary."
                 }
               />
             </div>
-            <Dropdown value={generationMode} onChange={setGenerationMode} options={["Strict", "Creative"]} width={140}/>
+            <Dropdown
+              value={generationMode}
+              onChange={setGenerationMode}
+              options={["Strict", "Creative"]}
+              width={140}
+            />
 
             <SectionHead>Question Types</SectionHead>
-            {QUESTION_TYPES.map(t => (
-              <label key={t.id} className="chk-row" onClick={() => toggleType(t.id)}>
-                <div className={`chk-box ${questionTypes.includes(t.id) ? "on" : ""}`}>
-                  {questionTypes.includes(t.id) && <span className="chk-tick">✓</span>}
+            {QUESTION_TYPES.map((t) => (
+              <label
+                key={t.id}
+                className="chk-row"
+                onClick={() => toggleType(t.id)}
+              >
+                <div
+                  className={`chk-box ${questionTypes.includes(t.id) ? "on" : ""}`}
+                >
+                  {questionTypes.includes(t.id) && (
+                    <span className="chk-tick">✓</span>
+                  )}
                 </div>
                 {t.label}
               </label>
             ))}
 
-            <SectionHead>Answer & Explanation Settings</SectionHead>
-            <FieldLabel>Show correct answer:</FieldLabel>
+            <SectionHead>{copy.answerSection}</SectionHead>
+            <FieldLabel>{copy.answerLabel}</FieldLabel>
             <div className="radio-group">
-              {["Immediately", "After submission"].map(opt => (
-                <label key={opt} className={`radio-opt ${answerShowMode === opt ? "on" : ""}`} onClick={() => setAnswerShowMode(opt)}>
-                  <div className={`radio-dot ${answerShowMode === opt ? "on" : ""}`}/>
+              {["Immediately", "After submission"].map((opt) => (
+                <label
+                  key={opt}
+                  className={`radio-opt ${answerShowMode === opt ? "on" : ""}`}
+                  onClick={() => setAnswerShowMode(opt)}
+                >
+                  <div
+                    className={`radio-dot ${answerShowMode === opt ? "on" : ""}`}
+                  />
                   {opt}
                 </label>
               ))}
@@ -427,10 +541,14 @@ export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
                 className={`radio-opt ${!questionCountAuto ? "on" : ""}`}
                 onClick={() => {
                   setQuestionCountAuto(false);
-                  setNumQuestions((n) => (Number.isFinite(n) && n >= 1 ? n : 10));
+                  setNumQuestions((n) =>
+                    Number.isFinite(n) && n >= 1 ? n : 10,
+                  );
                 }}
               >
-                <div className={`radio-dot ${!questionCountAuto ? "on" : ""}`}/>
+                <div
+                  className={`radio-dot ${!questionCountAuto ? "on" : ""}`}
+                />
                 Numbers:
                 <input
                   className="num-input"
@@ -442,67 +560,119 @@ export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
                   placeholder={questionCountAuto ? "Auto" : ""}
                   onChange={(e) => {
                     const v = parseInt(e.target.value, 10);
-                    setNumQuestions(Number.isFinite(v) ? Math.min(100, Math.max(1, v)) : 1);
+                    setNumQuestions(
+                      Number.isFinite(v) ? Math.min(100, Math.max(1, v)) : 1,
+                    );
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  style={{ marginLeft: 8, opacity: questionCountAuto ? 0.55 : 1 }}
+                  style={{
+                    marginLeft: 8,
+                    opacity: questionCountAuto ? 0.55 : 1,
+                  }}
                 />
               </label>
-              <label className={`radio-opt ${questionCountAuto ? "on" : ""}`} onClick={() => setQuestionCountAuto(true)}>
-                <div className={`radio-dot ${questionCountAuto ? "on" : ""}`}/>
+              <label
+                className={`radio-opt ${questionCountAuto ? "on" : ""}`}
+                onClick={() => setQuestionCountAuto(true)}
+              >
+                <div className={`radio-dot ${questionCountAuto ? "on" : ""}`} />
                 Auto
               </label>
             </div>
 
             <FieldLabel>Difficulty Level:</FieldLabel>
             <div className="radio-group" style={{ marginBottom: 16 }}>
-              {["Easy", "Medium", "Hard"].map(opt => (
-                <label key={opt} className={`radio-opt ${difficulty === opt ? "on" : ""}`} onClick={() => setDifficulty(opt)}>
-                  <div className={`radio-dot ${difficulty === opt ? "on" : ""}`}/>
+              {["Easy", "Medium", "Hard"].map((opt) => (
+                <label
+                  key={opt}
+                  className={`radio-opt ${difficulty === opt ? "on" : ""}`}
+                  onClick={() => setDifficulty(opt)}
+                >
+                  <div
+                    className={`radio-dot ${difficulty === opt ? "on" : ""}`}
+                  />
                   {opt}
                 </label>
               ))}
             </div>
 
             <SectionHead>Learning Objective Focus</SectionHead>
-            {FOCUS_AREAS.map(f => (
-              <label key={f.id} className="chk-row" onClick={() => toggleFocus(f.id)}>
-                <div className={`chk-box ${focusAreas.includes(f.id) ? "on" : ""}`}>
-                  {focusAreas.includes(f.id) && <span className="chk-tick">✓</span>}
+            {FOCUS_AREAS.map((f) => (
+              <label
+                key={f.id}
+                className="chk-row"
+                onClick={() => toggleFocus(f.id)}
+              >
+                <div
+                  className={`chk-box ${focusAreas.includes(f.id) ? "on" : ""}`}
+                >
+                  {focusAreas.includes(f.id) && (
+                    <span className="chk-tick">✓</span>
+                  )}
                 </div>
                 {f.label}
               </label>
             ))}
 
-            <SectionHead>Quiz Presentation Mode</SectionHead>
+            <SectionHead>{copy.presentationSection}</SectionHead>
             <div style={{ display: "flex", gap: 24 }}>
+              {!isLecturer && (
               <div>
-                <FieldLabel>Quiz mode</FieldLabel>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {["Practice (with hints)", "Assessment (no hints)"].map(opt => (
-                    <label key={opt} className={`radio-opt ${quizMode === (opt.includes("Practice") ? "Practice" : "Assessment") ? "on" : ""}`} onClick={() => setQuizMode(opt.includes("Practice") ? "Practice" : "Assessment")}>
-                      <div className={`radio-dot ${quizMode === (opt.includes("Practice") ? "Practice" : "Assessment") ? "on" : ""}`}/>
-                      {opt}
-                    </label>
-                  ))}
+                <FieldLabel>{copy.quizModeLabel}</FieldLabel>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 8 }}
+                >
+                  {["Practice (with hints)", "Assessment (no hints)"].map(
+                    (opt) => (
+                      <label
+                        key={opt}
+                        className={`radio-opt ${quizMode === (opt.includes("Practice") ? "Practice" : "Assessment") ? "on" : ""}`}
+                        onClick={() =>
+                          setQuizMode(
+                            opt.includes("Practice")
+                              ? "Practice"
+                              : "Assessment",
+                          )
+                        }
+                      >
+                        <div
+                          className={`radio-dot ${quizMode === (opt.includes("Practice") ? "Practice" : "Assessment") ? "on" : ""}`}
+                        />
+                        {opt}
+                      </label>
+                    ),
+                  )}
                 </div>
               </div>
+              )}
               <div>
-                <FieldLabel>Time limit</FieldLabel>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <label className={`radio-opt ${timeLimit === 0 ? "on" : ""}`} onClick={() => setTimeLimit(0)}>
-                    <div className={`radio-dot ${timeLimit === 0 ? "on" : ""}`}/>
+                <FieldLabel>{copy.timeLabel}</FieldLabel>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 8 }}
+                >
+                  <label
+                    className={`radio-opt ${timeLimit === 0 ? "on" : ""}`}
+                    onClick={() => setTimeLimit(0)}
+                  >
+                    <div
+                      className={`radio-dot ${timeLimit === 0 ? "on" : ""}`}
+                    />
                     No limit
                   </label>
-                  <label className={`radio-opt ${timeLimit > 0 ? "on" : ""}`} onClick={() => setTimeLimit(5)}>
-                    <div className={`radio-dot ${timeLimit > 0 ? "on" : ""}`}/>
+                  <label
+                    className={`radio-opt ${timeLimit > 0 ? "on" : ""}`}
+                    onClick={() => setTimeLimit(5)}
+                  >
+                    <div className={`radio-dot ${timeLimit > 0 ? "on" : ""}`} />
                     Custom time:
-                    <input 
-                      className="num-input" 
-                      type="number" 
-                      value={timeLimit || 0} 
-                      onChange={e => setTimeLimit(parseInt(e.target.value) || 0)}
-                      onClick={e => e.stopPropagation()}
+                    <input
+                      className="num-input"
+                      type="number"
+                      value={timeLimit || 0}
+                      onChange={(e) =>
+                        setTimeLimit(parseInt(e.target.value) || 0)
+                      }
+                      onClick={(e) => e.stopPropagation()}
                       style={{ marginLeft: 8, width: 40 }}
                     />
                     <span style={{ marginLeft: 4 }}>minutes</span>
@@ -527,18 +697,27 @@ export default function QuizSettingsModal({ summaryId, onClose, onGenerated }) {
         )}
 
         <div className="sl-foot">
-          <button className="btn-prev" onClick={() => {
-            setAiModel("Gemini");
-            setGenerationMode("Strict");
-            setQuestionTypes(["MCQ"]);
-            setQuestionCountAuto(false);
-            setNumQuestions(10);
-            setDifficulty("Medium");
-            setFocusAreas(["Important concepts"]);
-          }}>Reset Settings</button>
-          <button className="btn-create" onClick={handleCreate} disabled={loading}>
-            {loading ? <div className="mini-spin"/> : null}
-            Create Quiz!
+          <button
+            className="btn-prev"
+            onClick={() => {
+              setAiModel("Gemini");
+              setGenerationMode("Strict");
+              setQuestionTypes(["MCQ"]);
+              setQuestionCountAuto(false);
+              setNumQuestions(10);
+              setDifficulty("Medium");
+              setFocusAreas(["Important concepts"]);
+            }}
+          >
+            Reset Settings
+          </button>
+          <button
+            className="btn-create"
+            onClick={handleCreate}
+            disabled={loading}
+          >
+            {loading ? <div className="mini-spin" /> : null}
+            {copy.createBtn}
           </button>
         </div>
       </div>

@@ -30,6 +30,7 @@ export function SummaryPageProvider({ summary, children }) {
 
 export function useSummaryPage() {
   const ctx = useContext(SummaryPageContext);
-  if (!ctx) throw new Error("useSummaryPage must be used within SummaryPageProvider");
+  if (!ctx)
+    throw new Error("useSummaryPage must be used within SummaryPageProvider");
   return ctx;
 }

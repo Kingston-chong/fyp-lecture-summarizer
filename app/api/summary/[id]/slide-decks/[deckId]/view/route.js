@@ -34,12 +34,16 @@ export async function GET(req, context) {
         claims.summaryId !== summaryId ||
         claims.deckId !== deckId
       ) {
-        return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
+        return NextResponse.json(
+          { error: "Invalid or expired token" },
+          { status: 401 },
+        );
       }
       userIdForDeck = claims.userId;
     } else {
       const user = await getRequestUser();
-      if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      if (!user)
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       userIdForDeck = user.id;
     }
 
@@ -48,12 +52,21 @@ export async function GET(req, context) {
       select: { title: true, pptxUrl: true },
     });
     if (!deck) {
-      return NextResponse.json({ error: "Slide deck not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Slide deck not found" },
+        { status: 404 },
+      );
     }
 
-    const result = await get(deck.pptxUrl, { access: "private", useCache: true });
+    const result = await get(deck.pptxUrl, {
+      access: "private",
+      useCache: true,
+    });
     if (!result || result.statusCode !== 200 || !result.stream) {
-      return NextResponse.json({ error: "Failed to fetch file" }, { status: 502 });
+      return NextResponse.json(
+        { error: "Failed to fetch file" },
+        { status: 502 },
+      );
     }
 
     const fn = safeAsciiFilename(deck.title || "presentation");
@@ -75,4 +88,3 @@ export async function GET(req, context) {
     );
   }
 }
-

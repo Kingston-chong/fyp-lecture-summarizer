@@ -104,7 +104,8 @@ export function useSummaryData({ status, summaryId }) {
           for (const ln of lines) {
             if (!ln) continue;
             if (ln.startsWith("event:")) event = ln.slice(6).trim();
-            else if (ln.startsWith("data:")) dataLines.push(ln.slice(5).trimStart());
+            else if (ln.startsWith("data:"))
+              dataLines.push(ln.slice(5).trimStart());
           }
           if (!dataLines.length) return;
           let payload = {};
@@ -116,7 +117,10 @@ export function useSummaryData({ status, summaryId }) {
           if (event === "chunk" && payload?.text) {
             setSummary((prev) => {
               if (!prev) return prev;
-              return { ...prev, output: String(prev.output || "") + payload.text };
+              return {
+                ...prev,
+                output: String(prev.output || "") + payload.text,
+              };
             });
           } else if (event === "error") {
             streamError = payload?.error || "Summarization failed";
@@ -229,7 +233,8 @@ export function useSummaryData({ status, summaryId }) {
       : summarizeError
         ? `Error: ${summarizeError}`
         : "No summary output found.";
-    const raw = summaryHtml || markdownToHtml(hasOutput ? summary.output : fallback);
+    const raw =
+      summaryHtml || markdownToHtml(hasOutput ? summary.output : fallback);
     return { __html: raw };
   }, [summaryHtml, summary?.output, summarizing, summarizeError]);
 

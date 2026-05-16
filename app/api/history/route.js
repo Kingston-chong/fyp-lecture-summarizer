@@ -9,7 +9,8 @@ import { getRequestUser } from "@/lib/apiAuth";
 export async function GET(req) {
   try {
     const user = await getRequestUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const summaries = await prisma.summary.findMany({
       where: { userId: user.id },
@@ -49,6 +50,9 @@ export async function GET(req) {
     return NextResponse.json({ summaries: formatted });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: "Failed to fetch history" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch history" },
+      { status: 500 },
+    );
   }
 }

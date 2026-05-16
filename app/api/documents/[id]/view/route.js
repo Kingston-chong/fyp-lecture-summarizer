@@ -5,7 +5,11 @@ import { getRequestUser } from "@/lib/apiAuth";
 import { verifyDocumentViewToken } from "@/lib/documentViewToken";
 
 function contentTypeFromFilename(name) {
-  const ext = String(name || "").split(".").pop()?.toLowerCase() || "";
+  const ext =
+    String(name || "")
+      .split(".")
+      .pop()
+      ?.toLowerCase() || "";
   const m = {
     pdf: "application/pdf",
     pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -28,7 +32,9 @@ function contentTypeFromFilename(name) {
 }
 
 function safeAsciiFilename(name) {
-  return String(name || "file").replace(/[^\x20-\x7E]/g, "_").replace(/"/g, "");
+  return String(name || "file")
+    .replace(/[^\x20-\x7E]/g, "_")
+    .replace(/"/g, "");
 }
 
 /**
@@ -40,7 +46,10 @@ export async function GET(req, context) {
     const params = await Promise.resolve(context.params);
     const documentId = parseInt(String(params?.id ?? ""), 10);
     if (Number.isNaN(documentId)) {
-      return NextResponse.json({ error: "Invalid document id" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid document id" },
+        { status: 400 },
+      );
     }
 
     const urlObj = new URL(req.url);
@@ -50,7 +59,10 @@ export async function GET(req, context) {
     if (rawToken) {
       const claims = verifyDocumentViewToken(rawToken);
       if (!claims || claims.documentId !== documentId) {
-        return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
+        return NextResponse.json(
+          { error: "Invalid or expired token" },
+          { status: 401 },
+        );
       }
       userIdForDoc = claims.userId;
     } else {
@@ -66,12 +78,18 @@ export async function GET(req, context) {
       select: { name: true, url: true },
     });
     if (!doc) {
-      return NextResponse.json({ error: "Document not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Document not found" },
+        { status: 404 },
+      );
     }
 
     const result = await get(doc.url, { access: "private", useCache: true });
     if (!result || result.statusCode !== 200 || !result.stream) {
-      return NextResponse.json({ error: "Failed to fetch file" }, { status: 502 });
+      return NextResponse.json(
+        { error: "Failed to fetch file" },
+        { status: 502 },
+      );
     }
 
     const ct = contentTypeFromFilename(doc.name);

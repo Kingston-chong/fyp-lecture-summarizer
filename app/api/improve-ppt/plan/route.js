@@ -4,11 +4,7 @@ import { parsePptxBufferToSlides } from "@/lib/improvePptParse";
 import { runImprovePlanAdjustments } from "@/lib/improvePptPlanLlm";
 import { uiModelToKey } from "@/lib/improvePptModel";
 
-async function respondWithPlan({
-  instructions,
-  modelKey,
-  slides,
-}) {
+async function respondWithPlan({ instructions, modelKey, slides }) {
   let adjustments;
   try {
     adjustments = await runImprovePlanAdjustments(
@@ -18,7 +14,10 @@ async function respondWithPlan({
     );
   } catch {
     return NextResponse.json(
-      { error: "The model did not return valid JSON. Try again or switch model." },
+      {
+        error:
+          "The model did not return valid JSON. Try again or switch model.",
+      },
       { status: 502 },
     );
   }

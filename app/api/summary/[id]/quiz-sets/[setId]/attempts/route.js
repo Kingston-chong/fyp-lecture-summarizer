@@ -11,7 +11,8 @@ async function resolveIds(context) {
   const setRaw = resolved?.setId;
   const summaryId = Number.parseInt(String(summaryRaw), 10);
   const setId = Number.parseInt(String(setRaw), 10);
-  if (!Number.isFinite(summaryId) || summaryId <= 0) return { summaryId: null, setId: null };
+  if (!Number.isFinite(summaryId) || summaryId <= 0)
+    return { summaryId: null, setId: null };
   if (!Number.isFinite(setId) || setId <= 0) return { summaryId, setId: null };
   return { summaryId, setId };
 }
@@ -28,10 +29,16 @@ export async function GET(_req, context) {
   try {
     const { summaryId, setId } = await resolveIds(context);
     if (!summaryId) {
-      return NextResponse.json({ error: "Invalid summary id" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid summary id" },
+        { status: 400 },
+      );
     }
     if (!setId) {
-      return NextResponse.json({ error: "Invalid quiz set id" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid quiz set id" },
+        { status: 400 },
+      );
     }
 
     const user = await getRequestUser();
@@ -83,10 +90,16 @@ export async function POST(req, context) {
   try {
     const { summaryId, setId } = await resolveIds(context);
     if (!summaryId) {
-      return NextResponse.json({ error: "Invalid summary id" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid summary id" },
+        { status: 400 },
+      );
     }
     if (!setId) {
-      return NextResponse.json({ error: "Invalid quiz set id" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid quiz set id" },
+        { status: 400 },
+      );
     }
 
     const user = await getRequestUser();
@@ -104,8 +117,15 @@ export async function POST(req, context) {
     const score = Number(body?.score);
     let answers = body?.answers;
 
-    if (!Number.isFinite(totalQuestions) || totalQuestions < 1 || totalQuestions > 500) {
-      return NextResponse.json({ error: "Invalid totalQuestions" }, { status: 400 });
+    if (
+      !Number.isFinite(totalQuestions) ||
+      totalQuestions < 1 ||
+      totalQuestions > 500
+    ) {
+      return NextResponse.json(
+        { error: "Invalid totalQuestions" },
+        { status: 400 },
+      );
     }
     if (!Number.isFinite(score) || score < 0 || score > totalQuestions) {
       return NextResponse.json({ error: "Invalid score" }, { status: 400 });
@@ -114,10 +134,16 @@ export async function POST(req, context) {
     if (answers != null && typeof answers === "object") {
       const serialized = JSON.stringify(answers);
       if (serialized.length > MAX_ANSWERS_JSON_BYTES) {
-        return NextResponse.json({ error: "answers payload too large" }, { status: 413 });
+        return NextResponse.json(
+          { error: "answers payload too large" },
+          { status: 413 },
+        );
       }
     } else if (answers != null && answers !== undefined) {
-      return NextResponse.json({ error: "answers must be an object" }, { status: 400 });
+      return NextResponse.json(
+        { error: "answers must be an object" },
+        { status: 400 },
+      );
     } else {
       answers = undefined;
     }

@@ -78,10 +78,34 @@ model Summary {
   createdAt   DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id])
   documents   SummaryDocument[]
+  references  SummaryReference[]
   highlights  SummaryHighlight[]
   chatThreads ChatThread[]
   quizSets    QuizSet[]
   slideDecks  SlideDeck[]
+}
+
+model SummaryReference {
+  id         Int      @id @default(autoincrement())
+  summaryId  Int
+  marker     Int
+  kind       String   @db.VarChar(16)
+  title      String   @db.VarChar(512)
+  authors    String?  @db.VarChar(512)
+  year       Int?
+  venue      String?  @db.VarChar(256)
+  doi        String?  @db.VarChar(128)
+  url        String?  @db.VarChar(2048)
+  abstract   String?  @db.Text
+  provider   String?  @db.VarChar(32)
+  externalId String?  @db.VarChar(128)
+  anchorIds  Json?
+  createdAt  DateTime @default(now())
+
+  summary Summary @relation(fields: [summaryId], references: [id], onDelete: Cascade)
+
+  @@unique([summaryId, marker])
+  @@index([summaryId])
 }
 
 model SummaryHighlight {
@@ -145,6 +169,8 @@ model QuizSet {
   summaryId   Int
   title       String
   settings    Json?          // Store generation settings (difficulty, types, etc.)
+  published   Boolean        @default(false)
+  shareToken  String?        @unique @db.VarChar(64)
   createdAt   DateTime       @default(now())
   questions   QuizQuestion[]
   attempts    QuizAttempt[]
@@ -195,6 +221,8 @@ model SlideDeck {
   alaiGenerationId String   @db.VarChar(128)
   /** Public blob URL — required for in-browser Office preview */
   pptxUrl          String   @db.VarChar(2048)
+  /** Optional archived PDF export (Vercel Blob) */
+  pdfUrl           String?  @db.VarChar(2048)
   createdAt        DateTime @default(now())
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)

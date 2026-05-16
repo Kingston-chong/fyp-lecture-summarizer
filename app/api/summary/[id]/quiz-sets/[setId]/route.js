@@ -8,7 +8,8 @@ async function resolveIds(context) {
   const setRaw = resolved?.setId;
   const summaryId = Number.parseInt(String(summaryRaw), 10);
   const setId = Number.parseInt(String(setRaw), 10);
-  if (!Number.isFinite(summaryId) || summaryId <= 0) return { summaryId: null, setId: null };
+  if (!Number.isFinite(summaryId) || summaryId <= 0)
+    return { summaryId: null, setId: null };
   if (!Number.isFinite(setId) || setId <= 0) return { summaryId, setId: null };
   return { summaryId, setId };
 }
@@ -18,10 +19,16 @@ export async function GET(_req, context) {
   try {
     const { summaryId, setId } = await resolveIds(context);
     if (!summaryId) {
-      return NextResponse.json({ error: "Invalid summary id" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid summary id" },
+        { status: 400 },
+      );
     }
     if (!setId) {
-      return NextResponse.json({ error: "Invalid quiz set id" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid quiz set id" },
+        { status: 400 },
+      );
     }
 
     const user = await getRequestUser();

@@ -49,7 +49,7 @@ async function searchTwoSlidesThemes(query, limit = 6) {
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(
-      `2slides theme search failed (${res.status}): ${text.slice(0, 200)}`
+      `2slides theme search failed (${res.status}): ${text.slice(0, 200)}`,
     );
   }
 
@@ -202,37 +202,55 @@ function buildTemplateSpecFromStyle(styleSpec, theme) {
         ? [
             {
               type: "rect",
-              x: 0, y: 0, w: 0.35, h: 1,
-              fill: accent, opacity: 0.15,
+              x: 0,
+              y: 0,
+              w: 0.35,
+              h: 1,
+              fill: accent,
+              opacity: 0.15,
             },
           ]
         : styleSpec?.coverShape === "full-bleed"
-        ? [
-            {
-              type: "rect",
-              x: 0, y: 0, w: 1, h: 1,
-              fill: bg,
-            },
-          ]
-        : []),
+          ? [
+              {
+                type: "rect",
+                x: 0,
+                y: 0,
+                w: 1,
+                h: 1,
+                fill: bg,
+              },
+            ]
+          : []),
       // Accent line under title
       {
         type: "rect",
-        x: 0.05, y: 0.57, w: 0.12, h: 0.012,
+        x: 0.05,
+        y: 0.57,
+        w: 0.12,
+        h: 0.012,
         fill: accent,
       },
     ],
     title: {
-      x: 0.05, y: 0.32, w: 0.85, h: 0.21,
-      fontSize: 40, bold: true,
+      x: 0.05,
+      y: 0.32,
+      w: 0.85,
+      h: 0.21,
+      fontSize: 40,
+      bold: true,
       color: titleText,
       fontFace: fontTitle,
       align: "left",
       valign: "middle",
     },
     subtitle: {
-      x: 0.05, y: 0.60, w: 0.85, h: 0.15,
-      fontSize: 18, bold: false,
+      x: 0.05,
+      y: 0.6,
+      w: 0.85,
+      h: 0.15,
+      fontSize: 18,
+      bold: false,
       color: text,
       fontFace: fontBody,
       align: "left",
@@ -245,7 +263,7 @@ function buildTemplateSpecFromStyle(styleSpec, theme) {
   const isGrid = layout === "grid";
 
   const contentX = isRightSplit ? 0.04 : layout === "split-left" ? 0.48 : 0.05;
-  const contentW = isCentered ? 0.90 : isGrid ? 0.90 : 0.46;
+  const contentW = isCentered ? 0.9 : isGrid ? 0.9 : 0.46;
 
   const content = {
     background: bg,
@@ -253,7 +271,7 @@ function buildTemplateSpecFromStyle(styleSpec, theme) {
       // Panel background for content area
       {
         type: "rect",
-        x: isRightSplit ? 0.50 : 0,
+        x: isRightSplit ? 0.5 : 0,
         y: 0,
         w: isCentered || isGrid ? 1 : 0.46,
         h: 1,
@@ -263,13 +281,16 @@ function buildTemplateSpecFromStyle(styleSpec, theme) {
       // Top accent bar
       {
         type: "rect",
-        x: 0, y: 0, w: 1, h: 0.021,
+        x: 0,
+        y: 0,
+        w: 1,
+        h: 0.021,
         fill: accent,
       },
     ],
     title: {
       x: 0.04,
-      y: 0.10,
+      y: 0.1,
       w: 0.91,
       h: 0.14,
       fontSize: 22,
@@ -320,21 +341,22 @@ export async function GET(req) {
     const query = String(searchParams.get("q") ?? "").trim();
     const modelLabel = String(searchParams.get("model") ?? "Gemini");
     const limitRaw = parseInt(searchParams.get("limit") ?? "6", 10);
-    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 20) : 6;
+    const limit =
+      Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 20) : 6;
     const themeId = String(searchParams.get("themeId") ?? "").trim();
     const themeName = String(searchParams.get("themeName") ?? "").trim();
 
     if (!query) {
       return NextResponse.json(
         { error: "Query parameter 'q' is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!process.env.TWOSLIDES_API_KEY) {
       return NextResponse.json(
         { error: "TWOSLIDES_API_KEY is not configured on the server." },
-        { status: 503 }
+        { status: 503 },
       );
     }
 
@@ -373,13 +395,20 @@ export async function GET(req) {
       }
     }
 
-    const previewDataUrl = await fetchPreviewAsBase64(chosenTheme.id, chosenTheme.previewImageUrl);
+    const previewDataUrl = await fetchPreviewAsBase64(
+      chosenTheme.id,
+      chosenTheme.previewImageUrl,
+    );
 
     // 3. Ask LLM (vision) to extract the style spec from the preview
     let styleSpec = null;
     let templateSpec = null;
     try {
-      styleSpec = await extractStyleSpecFromPreview(modelKey, chosenTheme, previewDataUrl);
+      styleSpec = await extractStyleSpecFromPreview(
+        modelKey,
+        chosenTheme,
+        previewDataUrl,
+      );
       templateSpec = buildTemplateSpecFromStyle(styleSpec, chosenTheme);
     } catch (e) {
       console.warn("Style extraction failed (non-fatal):", e?.message);
@@ -412,7 +441,7 @@ export async function GET(req) {
     console.error("improve-ppt theme-search:", err);
     return NextResponse.json(
       { error: String(err?.message || err) },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

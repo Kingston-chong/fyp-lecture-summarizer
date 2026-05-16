@@ -4,4 +4,3 @@ import { openApiSpec } from "@/lib/openapi";
 export async function GET() {
   return NextResponse.json(openApiSpec);
 }
-

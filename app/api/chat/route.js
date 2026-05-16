@@ -4,24 +4,28 @@ import { prisma } from "@/lib/prisma";
 import { getRequestUser } from "@/lib/apiAuth";
 import { extractText as unpdfExtractText, getDocumentProxy } from "unpdf";
 import mammoth from "mammoth";
-import {
-  runChat,
-  normalizeModelKey,
-  parseSummaryModel,
-} from "@/lib/llmServer";
+import { runChat, normalizeModelKey, parseSummaryModel } from "@/lib/llmServer";
 import {
   fetchTavilyContextForChat,
   userRequestedBeyondSummaryWeb,
 } from "@/lib/tavilySearch";
+import {
+  userRequestedReferences,
+  fetchChatReferenceSources,
+  buildNumberedSourcesPrompt,
+  referenceCitationRules,
+  formatSourcesForClient,
+} from "@/lib/chatReferences";
+import { extractCitationMarkers } from "@/lib/referenceUtils";
 import { getRoleProfile, normalizeSummarizeRole } from "@/lib/roleProfiles";
 
 const MAX_CONTEXT_CHARS = Number.parseInt(
   process.env.CHAT_MAX_CONTEXT_CHARS || "24000",
-  10
+  10,
 );
 const MAX_ATTACHMENT_CONTEXT_CHARS = Number.parseInt(
   process.env.CHAT_MAX_ATTACHMENT_CONTEXT_CHARS || "12000",
-  10
+  10,
 );
 
 async function fetchBlobBuffer(url) {
@@ -56,7 +60,7 @@ async function extractDocumentText(url, type) {
       const zip = await JSZip.loadAsync(buffer);
       let text = "";
       const slideFiles = Object.keys(zip.files).filter(
-        (f) => f.startsWith("ppt/slides/slide") && f.endsWith(".xml")
+        (f) => f.startsWith("ppt/slides/slide") && f.endsWith(".xml"),
       );
       for (const slideFile of slideFiles) {
         const xml = await zip.files[slideFile].async("string");
@@ -83,7 +87,7 @@ async function extractDocumentText(url, type) {
 
 const MAX_CHAT_IMAGE_BYTES = Number.parseInt(
   process.env.CHAT_MAX_IMAGE_BYTES || "3500000",
-  10
+  10,
 );
 
 /** @param {unknown} content */
@@ -238,7 +242,11 @@ function sanitizeMessages(msgs) {
     const hasText = parts.some((p) => p.type === "text");
     const hasImg = parts.some((p) => p.type === "image_url");
     if (!hasText && !hasImg) continue;
-    out.push({ role: "user", content: parts.length === 1 && parts[0].type === "text" ? parts[0].text : parts });
+    out.push({
+      role: "user",
+      content:
+        parts.length === 1 && parts[0].type === "text" ? parts[0].text : parts,
+    });
   }
   if (out.length === 0) return null;
   if (out[out.length - 1].role !== "user") return null;
@@ -272,7 +280,10 @@ export async function POST(req) {
     const regenerate = body?.regenerate === true;
 
     if (!Number.isFinite(summaryId) || summaryId <= 0) {
-      return NextResponse.json({ error: "Invalid summary id" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid summary id" },
+        { status: 400 },
+      );
     }
     if (!modelKey) {
       return NextResponse.json({ error: "Invalid model" }, { status: 400 });
@@ -282,13 +293,19 @@ export async function POST(req) {
     if (!messages) {
       return NextResponse.json(
         { error: "Messages must be non-empty and end with a user message" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const summary = await prisma.summary.findFirst({
       where: { id: summaryId, userId: user.id },
-      select: { id: true, output: true, model: true, title: true, summarizeFor: true },
+      select: {
+        id: true,
+        output: true,
+        model: true,
+        title: true,
+        summarizeFor: true,
+      },
     });
 
     if (!summary) {
@@ -298,7 +315,8 @@ export async function POST(req) {
     const context = (summary.output || "").slice(0, MAX_CONTEXT_CHARS);
     const summarizeRole = normalizeSummarizeRole(summary.summarizeFor);
     const roleProfile = getRoleProfile(summarizeRole);
-    const { provider: summaryProvider, variant: summaryVariant } = parseSummaryModel(summary.model);
+    const { provider: summaryProvider, variant: summaryVariant } =
+      parseSummaryModel(summary.model);
 
     const useVariant =
       modelKey === summaryProvider && summaryVariant ? summaryVariant : null;
@@ -317,23 +335,30 @@ export async function POST(req) {
           if (!extracted) continue;
           const remaining = Math.max(
             0,
-            MAX_ATTACHMENT_CONTEXT_CHARS - attachmentContext.length
+            MAX_ATTACHMENT_CONTEXT_CHARS - attachmentContext.length,
           );
           attachmentContext += `\n\n=== ${doc.name} ===\n`;
           attachmentContext += extracted.slice(0, remaining);
         } catch (e) {
-          console.warn(`Could not extract chat attachment "${doc.name}":`, e?.message);
+          console.warn(
+            `Could not extract chat attachment "${doc.name}":`,
+            e?.message,
+          );
         }
       }
     }
 
     const lastUserMessage = messages[messages.length - 1];
-    const lastUserSearchText = userMessageTextForSearch(lastUserMessage.content);
+    const lastUserSearchText = userMessageTextForSearch(
+      lastUserMessage.content,
+    );
 
     const webSearchKeyOk = Boolean(process.env.TAVILY_API_KEY);
     const webSearchGloballyOff = process.env.CHAT_WEB_SEARCH === "0";
     const toggleOn = webSearchOverride === true;
-    const phraseOn = userRequestedBeyondSummaryWeb(lastUserSearchText);
+    const wantsReferences = userRequestedReferences(lastUserSearchText);
+    const phraseOn =
+      wantsReferences || userRequestedBeyondSummaryWeb(lastUserSearchText);
     const autoWebEnabled = webSearchKeyOk && !webSearchGloballyOff;
 
     let webSearchSkippedReason = null;
@@ -356,9 +381,11 @@ export async function POST(req) {
         .slice(0, 400);
     };
 
-    const roleSpecificRules = roleProfile.chatInstructions.map((line) => `- ${line}`).join("\n");
+    const roleSpecificRules = roleProfile.chatInstructions
+      .map((line) => `- ${line}`)
+      .join("\n");
     const lecturerCitationRules =
-      summarizeRole === "lecturer"
+      summarizeRole === "lecturer" && !wantsReferences
         ? `
 Citation requirements for lecturer mode:
 - Every meaningful factual claim should include one or more inline citation markers like [1], [2].
@@ -367,8 +394,13 @@ Citation requirements for lecturer mode:
 - If no source supports a claim, explicitly state uncertainty and do not fabricate references.
 `
         : "";
+    const onDemandRefRules = wantsReferences ? referenceCitationRules() : "";
 
-    const buildSystemPrompt = (webContext = "") => `You are a helpful assistant for Slide2Notes. The user is discussing a generated lecture/document summary.
+    const buildSystemPrompt = ({
+      webContext = "",
+      academicContext = "",
+      sourcesBlock = "",
+    } = {}) => `You are a helpful assistant for Slide2Notes. The user is discussing a generated lecture/document summary.
 Audience mode: ${summarizeRole}.
 
 The user may paste screenshots or diagrams into the chat; use what you see together with the summary when it is relevant.
@@ -386,44 +418,82 @@ If the summary and web excerpts disagree on lecture-specific claims, prefer the 
 Role-specific output rules:
 ${roleSpecificRules}
 ${lecturerCitationRules}
+${onDemandRefRules}
 
 --- Document title: ${summary.title || "Untitled"} ---
 
 --- Summary (context) ---
 ${context}
+${sourcesBlock ? `\n\n--- Numbered sources (cite with [n]) ---\n${sourcesBlock}` : ""}
 ${webContext ? `\n\n--- Web search excerpts ---\n${webContext}` : ""}
+${academicContext ? `\n\n--- Academic papers ---\n${academicContext}` : ""}
 ${attachmentContext ? `\n\n--- Attached Sources (uploaded by user) ---\n${attachmentContext}` : ""}`;
 
     let webContext = "";
+    let academicContext = "";
+    let sourcesBlock = "";
+    let chatSources = [];
     let webSearchAttempted = false;
+    let referenceSearchAttempted = false;
 
-    let reply = await runChat(
-      modelKey,
-      useVariant,
-      buildSystemPrompt(""),
-      messages
-    );
-    let trimmed = String(reply ?? "").trim();
-
-    const shouldTryWebFallback =
-      autoWebEnabled && (toggleOn || phraseOn || shouldFallbackToWeb(trimmed));
-
-    if (shouldTryWebFallback) {
+    if (wantsReferences) {
+      referenceSearchAttempted = true;
       webSearchAttempted = true;
-      webContext = await fetchTavilyContextForChat(buildSearchQuery());
-      if (String(webContext || "").trim()) {
-        reply = await runChat(
-          modelKey,
-          useVariant,
-          buildSystemPrompt(webContext),
-          messages
-        );
-        trimmed = String(reply ?? "").trim();
+      const bundle = await fetchChatReferenceSources({
+        userText: lastUserSearchText,
+        summaryTitle: summary.title || "",
+        summaryExcerpt: context.slice(0, 3000),
+      });
+      chatSources = bundle.sources;
+      webContext = bundle.webContext;
+      academicContext = bundle.academicContext;
+      sourcesBlock = buildNumberedSourcesPrompt(chatSources);
+    }
+
+    let reply;
+    let trimmed;
+
+    if (wantsReferences) {
+      reply = await runChat(
+        modelKey,
+        useVariant,
+        buildSystemPrompt({ webContext, academicContext, sourcesBlock }),
+        messages,
+      );
+      trimmed = String(reply ?? "").trim();
+    } else {
+      reply = await runChat(
+        modelKey,
+        useVariant,
+        buildSystemPrompt({}),
+        messages,
+      );
+      trimmed = String(reply ?? "").trim();
+
+      const shouldTryWebFallback =
+        autoWebEnabled &&
+        (toggleOn || phraseOn || shouldFallbackToWeb(trimmed));
+
+      if (shouldTryWebFallback) {
+        webSearchAttempted = true;
+        webContext = await fetchTavilyContextForChat(buildSearchQuery());
+        if (String(webContext || "").trim()) {
+          reply = await runChat(
+            modelKey,
+            useVariant,
+            buildSystemPrompt({ webContext }),
+            messages,
+          );
+          trimmed = String(reply ?? "").trim();
+        }
       }
     }
 
     if (!trimmed) {
-      return NextResponse.json({ error: "The model returned an empty reply" }, { status: 502 });
+      return NextResponse.json(
+        { error: "The model returned an empty reply" },
+        { status: 502 },
+      );
     }
 
     const webContextIncluded = Boolean(webContext && String(webContext).trim());
@@ -438,10 +508,36 @@ ${attachmentContext ? `\n\n--- Attached Sources (uploaded by user) ---\n${attach
             : {}),
         };
     const hasReferencesSection = /\n#{0,3}\s*references\s*\n/i.test(trimmed);
-    const finalReply =
-      summarizeRole === "lecturer" && !hasReferencesSection
-        ? `${trimmed}\n\n## References\n- No verifiable source references were produced for this response.`
-        : trimmed;
+    const citedInBody = new Set(extractCitationMarkers(trimmed));
+    let finalReply = trimmed;
+    if (wantsReferences && !hasReferencesSection) {
+      const refsForSection =
+        citedInBody.size > 0
+          ? chatSources.filter((s) => citedInBody.has(s.marker))
+          : [];
+      if (refsForSection.length > 0) {
+        const lines = refsForSection.map((s) => {
+          const link = s.url ? `[${s.title}](${s.url})` : s.title;
+          return `- [${s.marker}] ${link}`;
+        });
+        finalReply = `${trimmed}\n\n## References\n${lines.join("\n")}`;
+      } else {
+        finalReply = `${trimmed}\n\n## References\n- No verifiable sources were found for this query. Try rephrasing or check API keys (Tavily / academic search).`;
+      }
+    } else if (
+      summarizeRole === "lecturer" &&
+      !wantsReferences &&
+      !hasReferencesSection
+    ) {
+      finalReply = `${trimmed}\n\n## References\n- No verifiable source references were produced for this response.`;
+    }
+
+    const citedMarkers = new Set(extractCitationMarkers(finalReply));
+    const citedSources =
+      wantsReferences && citedMarkers.size > 0
+        ? chatSources.filter((s) => citedMarkers.has(s.marker))
+        : [];
+    const clientSources = formatSourcesForClient(citedSources);
 
     // Persist the newest turn so refresh/resume keeps conversation context.
     // NOTE: we use raw SQL to avoid depending on regenerated Prisma client models.
@@ -480,13 +576,12 @@ ${attachmentContext ? `\n\n--- Attached Sources (uploaded by user) ---\n${attach
             error:
               "Cannot regenerate this reply. Try sending your message again.",
           },
-          { status: 409 }
+          { status: 409 },
         );
       }
       const priorRaw = prior.content;
       const lastFp = userMessageSyncFingerprint(lastUserMessage.content);
-      let regenMatch =
-        userMessageSyncFingerprint(priorRaw) === lastFp;
+      let regenMatch = userMessageSyncFingerprint(priorRaw) === lastFp;
       if (
         !regenMatch &&
         typeof priorRaw === "string" &&
@@ -507,7 +602,7 @@ ${attachmentContext ? `\n\n--- Attached Sources (uploaded by user) ---\n${attach
             error:
               "Cannot regenerate: this chat is out of sync. Refresh the page.",
           },
-          { status: 409 }
+          { status: 409 },
         );
       }
       const assistantTurn = Number(latest.turn);
@@ -527,7 +622,9 @@ ${attachmentContext ? `\n\n--- Attached Sources (uploaded by user) ---\n${attach
       `;
       const nextTurn = Number(nextTurnRow?.[0]?.maxTurn) + 1;
 
-      const userRowContent = userMessageContentForDatabase(lastUserMessage.content);
+      const userRowContent = userMessageContentForDatabase(
+        lastUserMessage.content,
+      );
       await prisma.$executeRaw`
         INSERT INTO ChatMessage (threadId, turn, role, content, modelLabel, createdAt)
         VALUES
@@ -536,7 +633,15 @@ ${attachmentContext ? `\n\n--- Attached Sources (uploaded by user) ---\n${attach
       `;
     }
 
-    return NextResponse.json({ reply: finalReply, webSearch });
+    return NextResponse.json({
+      reply: finalReply,
+      webSearch: {
+        ...webSearch,
+        referencesRequested: wantsReferences,
+        referenceSearchAttempted,
+      },
+      sources: clientSources,
+    });
   } catch (err) {
     console.error("Chat error:", err);
     const msg = err?.message || "Chat failed";

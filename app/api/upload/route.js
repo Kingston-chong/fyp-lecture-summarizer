@@ -23,7 +23,7 @@ function generateRenamedFile(originalName, existingNames) {
   const dotIndex = originalName.lastIndexOf(".");
   const hasExt = dotIndex !== -1;
   const base = hasExt ? originalName.slice(0, dotIndex) : originalName;
-  const ext  = hasExt ? originalName.slice(dotIndex) : "";   // includes the dot
+  const ext = hasExt ? originalName.slice(dotIndex) : ""; // includes the dot
 
   let counter = 1;
   let newName = `${base} (${counter})${ext}`;
@@ -45,7 +45,7 @@ export async function POST(req) {
     }
 
     const formData = await req.formData();
-    const files     = formData.getAll("files");
+    const files = formData.getAll("files");
     // "rename" field is a JSON array of booleans — true means rename this file
     const renameFlags = JSON.parse(formData.get("renameFlags") || "[]");
 
@@ -58,16 +58,19 @@ export async function POST(req) {
       where: { userId: user.id },
       select: { name: true },
     });
-    const existingNames = new Set(existingDocs.map(d => d.name));
+    const existingNames = new Set(existingDocs.map((d) => d.name));
 
     const uploaded = [];
 
     for (let i = 0; i < files.length; i++) {
-      const file       = files[i];
+      const file = files[i];
       const shouldRename = renameFlags[i] === true;
 
       if (!file || typeof file === "string") {
-        return NextResponse.json({ error: "Invalid file upload payload" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Invalid file upload payload" },
+          { status: 400 },
+        );
       }
 
       let finalName = file.name;
@@ -95,17 +98,17 @@ export async function POST(req) {
       const blob = await put(
         `uploads/${user.id}/${Date.now()}-${finalName}`,
         file,
-        { access: "private" }
+        { access: "private" },
       );
 
       // Save to database with the (possibly renamed) name
       const doc = await prisma.document.create({
         data: {
           userId: user.id,
-          name:   finalName,
-          url:    blob.url,
-          type:   ext,
-          size:   file.size,
+          name: finalName,
+          url: blob.url,
+          type: ext,
+          size: file.size,
         },
       });
 
@@ -115,6 +118,9 @@ export async function POST(req) {
     return NextResponse.json({ success: true, documents: uploaded });
   } catch (err) {
     console.error("Upload error:", err);
-    return NextResponse.json({ error: "Upload failed: " + err.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Upload failed: " + err.message },
+      { status: 500 },
+    );
   }
 }

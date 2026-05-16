@@ -26,23 +26,35 @@ export default function NewPassword() {
   useEffect(() => {
     const savedToken = sessionStorage.getItem("resetToken");
     const savedEmail = sessionStorage.getItem("resetEmail");
-    if (!savedToken || !savedEmail) { router.push("/reset-password"); return; }
+    if (!savedToken || !savedEmail) {
+      router.push("/reset-password");
+      return;
+    }
     setToken(savedToken);
     setEmail(savedEmail);
   }, [router]);
 
-  const rules = useMemo(() => ({
-    length: password.length >= 8,
-    symbol: /[^a-zA-Z0-9]/.test(password),
-    alpha: /[a-zA-Z]/.test(password),
-  }), [password]);
+  const rules = useMemo(
+    () => ({
+      length: password.length >= 8,
+      symbol: /[^a-zA-Z0-9]/.test(password),
+      alpha: /[a-zA-Z]/.test(password),
+    }),
+    [password],
+  );
 
   const allValid = rules.length && rules.symbol && rules.alpha;
   const passwordMatch = password && confirm && password === confirm;
 
   async function handleReset() {
-    if (!allValid) { setError("Password does not meet requirements."); return; }
-    if (!passwordMatch) { setError("Passwords do not match."); return; }
+    if (!allValid) {
+      setError("Password does not meet requirements.");
+      return;
+    }
+    if (!passwordMatch) {
+      setError("Passwords do not match.");
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -146,9 +158,13 @@ export default function NewPassword() {
           <div className="card">
             <div className="card-glow" />
 
-            <div className="icon-wrap"><LockIcon /></div>
+            <div className="icon-wrap">
+              <LockIcon />
+            </div>
             <h1 className="card-title">New Password</h1>
-            <p className="card-desc">Choose a strong new password for your account.</p>
+            <p className="card-desc">
+              Choose a strong new password for your account.
+            </p>
 
             <div className="field-group">
               <label className="field-label">New Password</label>
@@ -158,9 +174,12 @@ export default function NewPassword() {
                   type={showPass ? "text" : "password"}
                   placeholder="Enter new password"
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
-                <button className="field-toggle" onClick={() => setShowPass(v => !v)}>
+                <button
+                  className="field-toggle"
+                  onClick={() => setShowPass((v) => !v)}
+                >
                   {showPass ? <EyeIcon /> : <EyeOffIcon />}
                 </button>
               </div>
@@ -174,7 +193,9 @@ export default function NewPassword() {
               ].map(({ met, label }) => (
                 <div className="rule-row" key={label}>
                   <CheckCircle met={met} />
-                  <span className={`rule-text ${met ? "met" : "unmet"}`}>{label}</span>
+                  <span className={`rule-text ${met ? "met" : "unmet"}`}>
+                    {label}
+                  </span>
                 </div>
               ))}
             </div>
@@ -187,9 +208,12 @@ export default function NewPassword() {
                   type={showConfirm ? "text" : "password"}
                   placeholder="Repeat new password"
                   value={confirm}
-                  onChange={e => setConfirm(e.target.value)}
+                  onChange={(e) => setConfirm(e.target.value)}
                 />
-                <button className="field-toggle" onClick={() => setShowConfirm(v => !v)}>
+                <button
+                  className="field-toggle"
+                  onClick={() => setShowConfirm((v) => !v)}
+                >
                   {showConfirm ? <EyeIcon /> : <EyeOffIcon />}
                 </button>
               </div>
@@ -197,7 +221,11 @@ export default function NewPassword() {
 
             {error && <div className="error-msg">{error}</div>}
 
-            <button className="btn-reset" onClick={handleReset} disabled={loading || !allValid || !passwordMatch}>
+            <button
+              className="btn-reset"
+              onClick={handleReset}
+              disabled={loading || !allValid || !passwordMatch}
+            >
               {loading && <span className="spinner" />}
               {loading ? "Resetting..." : "Reset Password"}
             </button>

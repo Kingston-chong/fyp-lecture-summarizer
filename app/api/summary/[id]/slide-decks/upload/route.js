@@ -17,7 +17,10 @@ export async function POST(req, context) {
   try {
     const summaryId = await resolveSummaryId(context);
     if (!summaryId) {
-      return NextResponse.json({ error: "Invalid summary id" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid summary id" },
+        { status: 400 },
+      );
     }
 
     const user = await getRequestUser();
@@ -60,13 +63,13 @@ export async function POST(req, context) {
     }
 
     const title =
-      titleRaw.slice(0, 512) ||
-      (summary.title || "Presentation").slice(0, 512);
+      titleRaw.slice(0, 512) || (summary.title || "Presentation").slice(0, 512);
 
-    const safeSlug = title
-      .replace(/[^a-z0-9]+/gi, "_")
-      .replace(/^_+|_+$/g, "")
-      .toLowerCase() || "slides";
+    const safeSlug =
+      title
+        .replace(/[^a-z0-9]+/gi, "_")
+        .replace(/^_+|_+$/g, "")
+        .toLowerCase() || "slides";
     const pathname = `slides/${user.id}/${summaryId}/${Date.now()}-${safeSlug}.pptx`;
 
     const blob = await put(pathname, buffer, {
@@ -76,10 +79,11 @@ export async function POST(req, context) {
     });
     const storedPptxUrl = blob.downloadUrl || blob.url;
 
-    const localId = `local:${Date.now()}-${Math.random().toString(36).slice(2, 11)}`.slice(
-      0,
-      128,
-    );
+    const localId =
+      `local:${Date.now()}-${Math.random().toString(36).slice(2, 11)}`.slice(
+        0,
+        128,
+      );
 
     const deck = await prisma.slideDeck.create({
       data: {

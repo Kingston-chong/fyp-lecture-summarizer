@@ -10,25 +10,25 @@ export async function POST(req) {
   if (!record) {
     return NextResponse.json(
       { error: "No OTP request found for this email." },
-      { status: 400 }
+      { status: 400 },
     );
   }
   if (record.used) {
     return NextResponse.json(
       { error: "This OTP has already been used." },
-      { status: 400 }
+      { status: 400 },
     );
   }
   if (new Date() > record.expiresAt) {
     return NextResponse.json(
       { error: "OTP has expired. Please request a new one." },
-      { status: 400 }
+      { status: 400 },
     );
   }
   if (record.otp !== otp) {
     return NextResponse.json(
       { error: "Invalid OTP. Please try again." },
-      { status: 400 }
+      { status: 400 },
     );
   }
 

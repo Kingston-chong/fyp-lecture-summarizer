@@ -49,12 +49,22 @@ export default function Slide2NotesRegister() {
 
   async function handleSignUp() {
     // Show a clear message instead of silently blocking.
-    if (!form.email || !form.username || !role || !form.password || !form.confirm) {
-      setError("Please fill in all fields (email, password, confirm password, username, and role).");
+    if (
+      !form.email ||
+      !form.username ||
+      !role ||
+      !form.password ||
+      !form.confirm
+    ) {
+      setError(
+        "Please fill in all fields (email, password, confirm password, username, and role).",
+      );
       return;
     }
     if (!allRulesMet) {
-      setError("Password must be at least 8 characters and include at least one letter and one symbol.");
+      setError(
+        "Password must be at least 8 characters and include at least one letter and one symbol.",
+      );
       return;
     }
     if (!passwordMatch) {
@@ -89,7 +99,9 @@ export default function Slide2NotesRegister() {
       });
 
       if (loginResult?.error) {
-        setError("Account created, but automatic sign in failed. Please sign in manually.");
+        setError(
+          "Account created, but automatic sign in failed. Please sign in manually.",
+        );
         router.push("/login");
         return;
       }
@@ -116,7 +128,9 @@ export default function Slide2NotesRegister() {
     form.password && form.confirm && form.password === form.confirm;
   const canSubmit =
     !loading &&
-    Boolean(form.email && form.username && role && form.password && form.confirm) &&
+    Boolean(
+      form.email && form.username && role && form.password && form.confirm,
+    ) &&
     allRulesMet &&
     passwordMatch;
 

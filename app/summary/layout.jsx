@@ -8,7 +8,11 @@ export default function SummaryLayout({ children }) {
   return (
     <>
       <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossOrigin="anonymous"
+      />
       <link href={FONTS_URL} rel="stylesheet" />
       <AppShell showBackToDashboard showSidebar hidePrevUploads>
         {children}

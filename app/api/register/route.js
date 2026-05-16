@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { checkRateLimit, getClientIp, pruneRateLimitBuckets } from "@/lib/rateLimit";
+import {
+  checkRateLimit,
+  getClientIp,
+  pruneRateLimitBuckets,
+} from "@/lib/rateLimit";
 import { prisma } from "@/lib/prisma";
 import { normalizeEmail } from "@/lib/authUtils";
 
@@ -38,7 +42,10 @@ export async function POST(req) {
     if (!rl.ok) {
       return NextResponse.json(
         { error: "Too many requests. Please try again later." },
-        { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } }
+        {
+          status: 429,
+          headers: { "Retry-After": String(rl.retryAfterSeconds) },
+        },
       );
     }
 
@@ -55,15 +62,18 @@ export async function POST(req) {
     if (missing.length) {
       return NextResponse.json(
         { error: `All fields are required. Missing: ${missing.join(", ")}.` },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const emailNorm = normalizeEmail(email);
     if (!isValidEmail(emailNorm)) {
       return NextResponse.json(
-        { error: "Invalid email format. Please use a valid email address (e.g. name@example.com)." },
-        { status: 400 }
+        {
+          error:
+            "Invalid email format. Please use a valid email address (e.g. name@example.com).",
+        },
+        { status: 400 },
       );
     }
 
@@ -71,30 +81,27 @@ export async function POST(req) {
     if (usernameNorm.length < 2 || usernameNorm.length > 32) {
       return NextResponse.json(
         { error: "Username must be between 2 and 32 characters." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const roleNorm = String(role).trim();
     const roleEnum = ROLE_LABEL_TO_ENUM[roleNorm];
     if (!roleEnum) {
-      return NextResponse.json(
-        { error: "Invalid role." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid role." }, { status: 400 });
     }
 
     if (typeof password !== "string" || typeof confirm !== "string") {
       return NextResponse.json(
         { error: "Invalid password format." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (password !== confirm) {
       return NextResponse.json(
         { error: "Passwords do not match." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -104,16 +111,18 @@ export async function POST(req) {
           error:
             "Password must be 8–72 characters and include at least one letter and one symbol.",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Check if email already exists
-    const existing = await prisma.user.findUnique({ where: { email: emailNorm } });
+    const existing = await prisma.user.findUnique({
+      where: { email: emailNorm },
+    });
     if (existing) {
       return NextResponse.json(
         { error: "Email already registered" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -122,16 +131,20 @@ export async function POST(req) {
 
     // Save user
     await prisma.user.create({
-      data: { email: emailNorm, username: usernameNorm, passwordHash, role: roleEnum }
+      data: {
+        email: emailNorm,
+        username: usernameNorm,
+        passwordHash,
+        role: roleEnum,
+      },
     });
 
     return NextResponse.json({ success: true }, { status: 201 });
-
   } catch (err) {
     console.error(err);
     return NextResponse.json(
       { error: "Something went wrong" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

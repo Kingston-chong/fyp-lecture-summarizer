@@ -78,11 +78,15 @@ ${summary.output}
 
 Generate the quiz now.`;
 
-    const aiResponse = await runChat(modelKey, null, systemPrompt, [{ role: "user", content: userPrompt }]);
+    const aiResponse = await runChat(modelKey, null, systemPrompt, [
+      { role: "user", content: userPrompt },
+    ]);
     const questions = parseJsonFromLlm(aiResponse);
 
     if (!Array.isArray(questions) || questions.length === 0) {
-      throw new Error("Invalid response from AI: Expected a JSON array of questions.");
+      throw new Error(
+        "Invalid response from AI: Expected a JSON array of questions.",
+      );
     }
 
     // Save to DB
@@ -100,8 +104,7 @@ Generate the quiz now.`;
             focusAreas: focusAreas ?? [],
             generationMode: generationMode || "Strict",
           };
-          if (answerShowMode != null)
-            s.answerShowMode = String(answerShowMode);
+          if (answerShowMode != null) s.answerShowMode = String(answerShowMode);
           if (quizMode != null) s.quizMode = String(quizMode);
           if (timeLimit != null && Number.isFinite(Number(timeLimit)))
             s.timeLimit = Math.max(0, Number(timeLimit));
@@ -114,18 +117,21 @@ Generate the quiz now.`;
             options: q.options,
             answer: q.answer,
             explanation: q.explanation,
-            order: idx
-          }))
-        }
+            order: idx,
+          })),
+        },
       },
       include: {
-        questions: true
-      }
+        questions: true,
+      },
     });
 
     return NextResponse.json({ success: true, quizSet });
   } catch (err) {
     console.error("Quiz generation error:", err);
-    return NextResponse.json({ error: err.message || "Failed to generate quiz" }, { status: 500 });
+    return NextResponse.json(
+      { error: err.message || "Failed to generate quiz" },
+      { status: 500 },
+    );
   }
 }

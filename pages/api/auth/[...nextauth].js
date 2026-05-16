@@ -1,6 +1,10 @@
 import NextAuth from "next-auth";
 import { authOptions } from "@/lib/authOptions";
-import { checkRateLimit, getClientIp, pruneRateLimitBuckets } from "@/lib/rateLimit";
+import {
+  checkRateLimit,
+  getClientIp,
+  pruneRateLimitBuckets,
+} from "@/lib/rateLimit";
 
 // Keep this Pages Router endpoint while NextAuth remains configured for v4 pages APIs.
 export default async function auth(req, res) {
@@ -22,4 +26,3 @@ export default async function auth(req, res) {
 
   return await NextAuth(req, res, authOptions);
 }
-

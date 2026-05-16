@@ -142,25 +142,25 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Available scripts
 
-| Command | Description |
-| -------- | ----------- |
-| `npm run dev` | Dev server with hot reload |
-| `npm run build` | Production build (runs Prisma generate) |
-| `npm start` | Start production server |
-| `npm run lint` | ESLint |
-| `npm run postinstall` | `prisma generate` |
+| Command               | Description                             |
+| --------------------- | --------------------------------------- |
+| `npm run dev`         | Dev server with hot reload              |
+| `npm run build`       | Production build (runs Prisma generate) |
+| `npm start`           | Start production server                 |
+| `npm run lint`        | ESLint                                  |
+| `npm run postinstall` | `prisma generate`                       |
 
 ## API overview
 
 Examples of first-party routes:
 
-| Method | Path | Purpose |
-| ------ | ---- | ------- |
-| `POST` | `/api/generate-slides` | Start Alai slide generation from summary/settings |
-| `GET` | `/api/generate-slides/[id]` | Poll status and obtain preview/download URLs |
-| `POST` | `/api/improve-ppt/parse` | Parse uploaded PPTX to slide JSON |
-| `POST` | `/api/improve-ppt/plan` | LLM plan of adjustments |
-| `POST` | `/api/improve-ppt/generate` | Build improved PPTX |
+| Method | Path                        | Purpose                                           |
+| ------ | --------------------------- | ------------------------------------------------- |
+| `POST` | `/api/generate-slides`      | Start Alai slide generation from summary/settings |
+| `GET`  | `/api/generate-slides/[id]` | Poll status and obtain preview/download URLs      |
+| `POST` | `/api/improve-ppt/parse`    | Parse uploaded PPTX to slide JSON                 |
+| `POST` | `/api/improve-ppt/plan`     | LLM plan of adjustments                           |
+| `POST` | `/api/improve-ppt/generate` | Build improved PPTX                               |
 
 More detail: [walkthrough.md](./walkthrough.md).
 

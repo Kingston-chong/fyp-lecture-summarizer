@@ -12,14 +12,13 @@ const DEFAULT_THEME = {
 };
 
 function normalizeTheme(t) {
-  if (!t || typeof t !== "object") return { ...DEFAULT_THEME, panel: undefined };
+  if (!t || typeof t !== "object")
+    return { ...DEFAULT_THEME, panel: undefined };
   const background = t.background || DEFAULT_THEME.background;
   const accent = t.accent || DEFAULT_THEME.accent;
   const text = t.text || DEFAULT_THEME.text;
 
-  const panel =
-    t.panel ||
-    `#${panelFromBackground(background, accent)}`;
+  const panel = t.panel || `#${panelFromBackground(background, accent)}`;
 
   return { background, accent, text, panel };
 }
@@ -50,7 +49,10 @@ function compactSlidesForLlm(slidesIn) {
       return {
         index: Number.isFinite(idx) ? idx : s?.index,
         // cap lines and lengths aggressively for preview prompt size
-        lines: lines.slice(0, 10).map((l) => String(l).slice(0, 280)).filter(Boolean),
+        lines: lines
+          .slice(0, 10)
+          .map((l) => String(l).slice(0, 280))
+          .filter(Boolean),
         text: text.slice(0, 1200),
       };
     })
@@ -69,13 +71,21 @@ export async function POST(req) {
     const instructions = String(body?.instructions || "").trim();
     const modelLabel = String(body?.model || "Gemini");
     const slidesIn = Array.isArray(body?.slides) ? body.slides : [];
-    const adjustments = Array.isArray(body?.adjustments) ? body.adjustments : [];
+    const adjustments = Array.isArray(body?.adjustments)
+      ? body.adjustments
+      : [];
 
     if (!instructions) {
-      return NextResponse.json({ error: "Instructions are required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Instructions are required" },
+        { status: 400 },
+      );
     }
     if (slidesIn.length === 0) {
-      return NextResponse.json({ error: "No slides payload. Run Plan first." }, { status: 400 });
+      return NextResponse.json(
+        { error: "No slides payload. Run Plan first." },
+        { status: 400 },
+      );
     }
 
     const modelKey = uiModelToKey(modelLabel);
@@ -123,7 +133,9 @@ Rules:
 4. theme.panel must be a subtle contrast from background for readability.
 5. Use hex colors with #.`;
 
-    const raw = await runChat(modelKey, null, systemPrompt, [{ role: "user", content: userContent }]);
+    const raw = await runChat(modelKey, null, systemPrompt, [
+      { role: "user", content: userContent },
+    ]);
     let parsed;
     try {
       parsed = parseJsonFromLlm(raw);
@@ -150,7 +162,10 @@ Rules:
           panel: `#${panelFromBackground("#f8fafc", "#64748b")}`,
         }
       : normalizeTheme(parsed?.theme);
-    const title = String(parsed?.title || "Improved presentation").slice(0, 200);
+    const title = String(parsed?.title || "Improved presentation").slice(
+      0,
+      200,
+    );
     const subtitle = additiveImprove
       ? ""
       : String(parsed?.subtitle || "").slice(0, 300);
@@ -164,7 +179,9 @@ Rules:
       .map((s) => ({
         index: Number(s.index),
         title: String(s.title || `Slide ${s.index}`).slice(0, 200),
-        lines: Array.isArray(s.lines) ? s.lines.map((l) => String(l).slice(0, 300)).filter(Boolean) : [],
+        lines: Array.isArray(s.lines)
+          ? s.lines.map((l) => String(l).slice(0, 300)).filter(Boolean)
+          : [],
         notes: String(s.notes || "").slice(0, 6000),
       }))
       .filter((s) => Number.isFinite(s.index) && s.index > 0)
@@ -173,7 +190,8 @@ Rules:
     for (const s of outSlides) {
       if (!s.notes.trim()) {
         const src = slidesIn.find((x) => Number(x.index) === s.index);
-        const fallback = src?.text || src?.lines?.join("\n") || s.lines.join("\n");
+        const fallback =
+          src?.text || src?.lines?.join("\n") || s.lines.join("\n");
         s.notes =
           String(fallback || "").trim() ||
           `Expand when presenting: explain each bullet on "${s.title}" and connect the takeaway to the deck.`;
@@ -188,6 +206,9 @@ Rules:
     });
   } catch (err) {
     console.error("improve-ppt preview:", err);
-    return NextResponse.json({ error: String(err?.message || err) }, { status: 500 });
+    return NextResponse.json(
+      { error: String(err?.message || err) },
+      { status: 500 },
+    );
   }
 }

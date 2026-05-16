@@ -6,7 +6,16 @@ import { ChevRight, CheckIcon, CloseIcon, InfoIcon } from "./icons";
 
 function SectionHead({ children, isDark }) {
   return (
-    <div style={{ fontSize: 13.5, fontWeight: 700, color: isDark ? "#ddddf0" : "#1a1a2e", marginBottom: 12, marginTop: 4, fontFamily: "'Sora', sans-serif" }}>
+    <div
+      style={{
+        fontSize: 13.5,
+        fontWeight: 700,
+        color: isDark ? "#ddddf0" : "#1a1a2e",
+        marginBottom: 12,
+        marginTop: 4,
+        fontFamily: "'Sora', sans-serif",
+      }}
+    >
       {children}
     </div>
   );
@@ -17,6 +26,7 @@ export default function QuizViewModal({
   settings,
   onClose,
   summaryId,
+  shareToken,
   onAttemptSaved,
 }) {
   const { theme } = useTheme();
@@ -25,6 +35,7 @@ export default function QuizViewModal({
   const [userAnswers, setUserAnswers] = useState({});
   const [showExplanation, setShowExplanation] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
+  const [gradedScore, setGradedScore] = useState(null);
   const initialTimeLeft = useMemo(
     () => (settings?.timeLimit ? settings.timeLimit * 60 : null),
     [settings?.timeLimit],
@@ -47,6 +58,7 @@ export default function QuizViewModal({
     setUserAnswers({});
     setShowExplanation(false);
     setIsFinished(false);
+    setGradedScore(null);
     setTimeLeft(initialTimeLeft);
     attemptPersistedRef.current = false;
   }, [initialTimeLeft]);
@@ -54,16 +66,16 @@ export default function QuizViewModal({
   useEffect(() => {
     // Opening a different quiz set should allow one new save at finish.
     attemptPersistedRef.current = false;
-  }, [quizSet?.id, summaryId]);
+  }, [quizSet?.id, summaryId, shareToken]);
 
   /** Persist finished quiz to server (AbortController avoids double POST under React Strict Mode). */
   useEffect(() => {
-    if (!isFinished || !quizSet?.id || summaryId == null || summaryId === "") {
-      return undefined;
-    }
+    if (!isFinished || !quizSet?.id) return undefined;
+    const token = shareToken ? String(shareToken).trim() : "";
+    const n = Number.parseInt(String(summaryId ?? ""), 10);
+    const useShare = token.length > 0;
+    if (!useShare && (!Number.isFinite(n) || n <= 0)) return undefined;
     if (attemptPersistedRef.current) return undefined;
-    const n = Number.parseInt(String(summaryId), 10);
-    if (!Number.isFinite(n) || n <= 0) return undefined;
 
     const qs = quizSet.questions || [];
     const total = qs.length;
@@ -85,7 +97,10 @@ export default function QuizViewModal({
     attemptPersistedRef.current = true;
     void (async () => {
       try {
-        const res = await fetch(`/api/summary/${n}/quiz-sets/${quizSet.id}/attempts`, {
+        const url = useShare
+          ? `/api/quiz/share/${encodeURIComponent(token)}/attempts`
+          : `/api/summary/${n}/quiz-sets/${quizSet.id}/attempts`;
+        const res = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           signal: ac.signal,
@@ -95,7 +110,11 @@ export default function QuizViewModal({
             answers,
           }),
         });
+        const data = await res.json().catch(() => ({}));
         if (!res.ok) return;
+        if (useShare && typeof data.score === "number") {
+          setGradedScore(data.score);
+        }
         onAttemptSavedRef.current?.();
       } catch (e) {
         attemptPersistedRef.current = false;
@@ -106,7 +125,7 @@ export default function QuizViewModal({
     })();
 
     return () => ac.abort();
-  }, [isFinished, quizSet, summaryId]);
+  }, [isFinished, quizSet, summaryId, shareToken]);
 
   useEffect(() => {
     if (timeLeft !== null && timeLeft > 0 && !isFinished) {
@@ -138,7 +157,7 @@ export default function QuizViewModal({
 
   const handleSelectAnswer = (ans) => {
     if (showExplanation) return;
-    setUserAnswers(prev => ({ ...prev, [currentIdx]: ans }));
+    setUserAnswers((prev) => ({ ...prev, [currentIdx]: ans }));
   };
 
   const handleSubmit = () => {
@@ -153,7 +172,7 @@ export default function QuizViewModal({
   const handleNext = () => {
     setShowExplanation(false);
     if (currentIdx < totalQuestions - 1) {
-      setCurrentIdx(prev => prev + 1);
+      setCurrentIdx((prev) => prev + 1);
     } else {
       setIsFinished(true);
     }
@@ -166,6 +185,7 @@ export default function QuizViewModal({
   };
 
   const getScore = () => {
+    if (gradedScore != null) return gradedScore;
     let score = 0;
     questions.forEach((q, idx) => {
       if (userAnswers[idx] === q.answer) score++;
@@ -217,7 +237,9 @@ export default function QuizViewModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Theme-aware CSS */}
-        <style dangerouslySetInnerHTML={{__html: `
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
           @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap');
 
           @keyframes overlayIn { from { opacity:0; } to { opacity:1; } }
@@ -226,17 +248,17 @@ export default function QuizViewModal({
 
           .sl-overlay {
             position: fixed; inset: 0; z-index: 1000;
-            background: ${isDark ? 'rgba(6,6,14,.72)' : 'rgba(0,0,20,.4)'}; backdrop-filter: blur(6px);
+            background: ${isDark ? "rgba(6,6,14,.72)" : "rgba(0,0,20,.4)"}; backdrop-filter: blur(6px);
             display: flex; align-items: center; justify-content: center;
             padding: 20px; animation: overlayIn .2s ease;
             font-family: 'Sora', sans-serif;
           }
           .sl-modal {
             width: 100%; max-width: 680px; max-height: 90vh;
-            background: ${isDark ? 'rgba(17,17,27,.97)' : 'rgba(255,255,255,.98)'};
-            border: 1px solid ${isDark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.1)'};
+            background: ${isDark ? "rgba(17,17,27,.97)" : "rgba(255,255,255,.98)"};
+            border: 1px solid ${isDark ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.1)"};
             border-radius: 18px;
-            box-shadow: ${isDark ? '0 32px 80px rgba(0,0,0,.7)' : '0 32px 80px rgba(0,0,0,.3)'}, 0 0 0 1px rgba(99,102,241,.08);
+            box-shadow: ${isDark ? "0 32px 80px rgba(0,0,0,.7)" : "0 32px 80px rgba(0,0,0,.3)"}, 0 0 0 1px rgba(99,102,241,.08);
             display: flex; flex-direction: column;
             animation: modalIn .28s cubic-bezier(.16,1,.3,1);
             overflow: hidden;
@@ -245,16 +267,16 @@ export default function QuizViewModal({
           .sl-head {
             display: flex; align-items: center; justify-content: space-between;
             padding: 18px 22px 14px;
-            border-bottom: 1px solid ${isDark ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.07)'};
+            border-bottom: 1px solid ${isDark ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.07)"};
             flex-shrink: 0;
           }
           .sl-title {
             font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600;
-            color: ${isDark ? '#e0e0f4' : '#1a1a2e'}; display: flex; align-items: center; gap: 8px;
+            color: ${isDark ? "#e0e0f4" : "#1a1a2e"}; display: flex; align-items: center; gap: 8px;
           }
           .sl-close {
-            width: 28px; height: 28px; border-radius: 8px; border: 1px solid ${isDark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.1)'};
-            background: ${isDark ? 'rgba(255,255,255,.05)' : 'rgba(0,0,0,.05)'}; color: ${isDark ? 'rgba(255,255,255,.5)' : 'rgba(0,0,0,.5)'};
+            width: 28px; height: 28px; border-radius: 8px; border: 1px solid ${isDark ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.1)"};
+            background: ${isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.05)"}; color: ${isDark ? "rgba(255,255,255,.5)" : "rgba(0,0,0,.5)"};
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; transition: all .18s;
           }
@@ -265,45 +287,54 @@ export default function QuizViewModal({
             padding: 20px 22px;
           }
           .sl-body::-webkit-scrollbar { width: 3px; }
-          .sl-body::-webkit-scrollbar-thumb { background: ${isDark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.15)'}; border-radius: 4px; }
+          .sl-body::-webkit-scrollbar-thumb { background: ${isDark ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.15)"}; border-radius: 4px; }
 
           .sl-foot {
             display: flex; align-items: center; justify-content: flex-end; gap: 9px;
-            padding: 14px 22px; border-top: 1px solid ${isDark ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.07)'}; flex-shrink: 0;
+            padding: 14px 22px; border-top: 1px solid ${isDark ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.07)"}; flex-shrink: 0;
           }
 
           .quiz-option {
-            padding: 14px 18px; border-radius: 12px; border: 1px solid ${isDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.08)'};
-            background: ${isDark ? 'rgba(255,255,255,.03)' : 'rgba(0,0,0,.03)'}; color: ${isDark ? '#c0c0d8' : '#4a4a5a'}; cursor: pointer; transition: all .2s;
+            padding: 14px 18px; border-radius: 12px; border: 1px solid ${isDark ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.08)"};
+            background: ${isDark ? "rgba(255,255,255,.03)" : "rgba(0,0,0,.03)"}; color: ${isDark ? "#c0c0d8" : "#4a4a5a"}; cursor: pointer; transition: all .2s;
             margin-bottom: 10px; font-size: 13.5px; line-height: 1.4; display: flex; align-items: center; gap: 12px;
           }
           .quiz-option:hover { background: rgba(99,102,241,.1); border-color: rgba(99,102,241,.3); }
-          .quiz-option.selected { background: rgba(99,102,241,.15); border-color: #6366f1; color: ${isDark ? '#fff' : '#1a1a2e'}; }
-          .quiz-option.correct { background: rgba(34,197,94,.15); border-color: #22c55e; color: ${isDark ? '#fff' : '#1a1a2e'}; }
-          .quiz-option.wrong { background: rgba(239,68,68,.15); border-color: #ef4444; color: ${isDark ? '#fff' : '#1a1a2e'}; }
+          .quiz-option.selected { background: rgba(99,102,241,.15); border-color: #6366f1; color: ${isDark ? "#fff" : "#1a1a2e"}; }
+          .quiz-option.correct { background: rgba(34,197,94,.15); border-color: #22c55e; color: ${isDark ? "#fff" : "#1a1a2e"}; }
+          .quiz-option.wrong { background: rgba(239,68,68,.15); border-color: #ef4444; color: ${isDark ? "#fff" : "#1a1a2e"}; }
 
           .btn-submit { height: 42px; padding: 0 24px; border-radius: 10px; border: none; background: #6366f1; color: white; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all .2s; }
           .btn-submit:hover { background: #4f46e5; transform: translateY(-1px); }
           .btn-submit:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
-          .expl-box { margin-top: 24px; padding: 20px; border-radius: 14px; background: ${isDark ? 'rgba(99,102,241,.06)' : 'rgba(99,102,241,.08)'}; border: 1px solid rgba(99,102,241,.2); animation: slideUp .3s ease; }
+          .expl-box { margin-top: 24px; padding: 20px; border-radius: 14px; background: ${isDark ? "rgba(99,102,241,.06)" : "rgba(99,102,241,.08)"}; border: 1px solid rgba(99,102,241,.2); animation: slideUp .3s ease; }
 
-          .review-card { padding: 18px; border-radius: 12px; background: ${isDark ? 'rgba(255,255,255,.02)' : 'rgba(0,0,0,.02)'}; border: 1px solid ${isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)'}; margin-bottom: 12px; }
+          .review-card { padding: 18px; border-radius: 12px; background: ${isDark ? "rgba(255,255,255,.02)" : "rgba(0,0,0,.02)"}; border: 1px solid ${isDark ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.06)"}; margin-bottom: 12px; }
 
           @media (max-width: 640px) {
             .sl-modal { max-height: 95vh; }
             .btn-submit { width: 100%; justify-content: center; }
           }
-        `}}
+        `,
+          }}
         />
 
         <div className="sl-head">
           <div className="sl-title" id="quiz-modal-title">
-            {isFinished ? "Quiz Results" : `Question ${currentIdx + 1} of ${totalQuestions}`}
+            {isFinished
+              ? "Quiz Results"
+              : `Question ${currentIdx + 1} of ${totalQuestions}`}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             {timeLeft !== null && !isFinished && (
-              <div style={{ fontSize: 13, fontWeight: 600, color: timeLeft < 30 ? "#fca5a5" : "#a5b4fc" }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: timeLeft < 30 ? "#fca5a5" : "#a5b4fc",
+                }}
+              >
                 Time: {formatTime(timeLeft)}
               </div>
             )}
@@ -318,67 +349,130 @@ export default function QuizViewModal({
           </div>
         </div>
 
-        <div className="sl-body" style={{ display: "block", overflowY: "auto" }}>
+        <div
+          className="sl-body"
+          style={{ display: "block", overflowY: "auto" }}
+        >
           {!isFinished ? (
             <div style={{ paddingBottom: 20 }}>
-              <div style={{ fontSize: 13, color: isDark ? "rgba(255,255,255,.4)" : "rgba(0,0,0,.4)", marginBottom: 8 }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  color: isDark ? "rgba(255,255,255,.4)" : "rgba(0,0,0,.4)",
+                  marginBottom: 8,
+                }}
+              >
                 {currentQuestion.type}
               </div>
-              <h2 style={{ fontSize: 18, color: isDark ? "#fff" : "#1a1a2e", lineHeight: 1.5, marginBottom: 24, fontWeight: 500 }}>
+              <h2
+                style={{
+                  fontSize: 18,
+                  color: isDark ? "#fff" : "#1a1a2e",
+                  lineHeight: 1.5,
+                  marginBottom: 24,
+                  fontWeight: 500,
+                }}
+              >
                 {currentQuestion.question}
               </h2>
 
               <div className="options-container">
-                {currentQuestion.type === "MCQ" && currentQuestion.options?.map((opt, i) => {
-                  const isSelected = userAnswers[currentIdx] === opt;
-                  const isCorrect = showExplanation && opt === currentQuestion.answer;
-                  const isWrong = showExplanation && isSelected && opt !== currentQuestion.answer;
+                {currentQuestion.type === "MCQ" &&
+                  currentQuestion.options?.map((opt, i) => {
+                    const isSelected = userAnswers[currentIdx] === opt;
+                    const isCorrect =
+                      showExplanation && opt === currentQuestion.answer;
+                    const isWrong =
+                      showExplanation &&
+                      isSelected &&
+                      opt !== currentQuestion.answer;
 
-                  return (
-                    <div
-                      key={i}
-                      className={`quiz-option ${isSelected ? "selected" : ""} ${isCorrect ? "correct" : ""} ${isWrong ? "wrong" : ""}`}
-                      onClick={() => handleSelectAnswer(opt)}
-                    >
-                      <div style={{
-                        width: 24, height: 24, borderRadius: "50%",
-                        background: isCorrect ? "#22c55e" : isWrong ? "#ef4444" : isSelected ? "#6366f1" : (isDark ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.1)"),
-                        display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 700
-                      }}>
-                        {String.fromCharCode(65 + i)}
+                    return (
+                      <div
+                        key={i}
+                        className={`quiz-option ${isSelected ? "selected" : ""} ${isCorrect ? "correct" : ""} ${isWrong ? "wrong" : ""}`}
+                        onClick={() => handleSelectAnswer(opt)}
+                      >
+                        <div
+                          style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: "50%",
+                            background: isCorrect
+                              ? "#22c55e"
+                              : isWrong
+                                ? "#ef4444"
+                                : isSelected
+                                  ? "#6366f1"
+                                  : isDark
+                                    ? "rgba(255,255,255,.1)"
+                                    : "rgba(0,0,0,.1)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "#fff",
+                            fontSize: 11,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {String.fromCharCode(65 + i)}
+                        </div>
+                        {opt}
                       </div>
-                      {opt}
-                    </div>
-                  );
-                })}
-                {(currentQuestion.type === "True/False") && ["True", "False"].map((opt, i) => {
-                  const isSelected = userAnswers[currentIdx] === opt;
-                  const isCorrect = showExplanation && opt === currentQuestion.answer;
-                  const isWrong = showExplanation && isSelected && opt !== currentQuestion.answer;
+                    );
+                  })}
+                {currentQuestion.type === "True/False" &&
+                  ["True", "False"].map((opt, i) => {
+                    const isSelected = userAnswers[currentIdx] === opt;
+                    const isCorrect =
+                      showExplanation && opt === currentQuestion.answer;
+                    const isWrong =
+                      showExplanation &&
+                      isSelected &&
+                      opt !== currentQuestion.answer;
 
-                  return (
-                    <div
-                      key={i}
-                      className={`quiz-option ${isSelected ? "selected" : ""} ${isCorrect ? "correct" : ""} ${isWrong ? "wrong" : ""}`}
-                      onClick={() => handleSelectAnswer(opt)}
-                    >
-                      {opt}
-                    </div>
-                  );
-                })}
-                {(currentQuestion.type === "FillInBlanks" || currentQuestion.type === "ShortAnswer") && (
+                    return (
+                      <div
+                        key={i}
+                        className={`quiz-option ${isSelected ? "selected" : ""} ${isCorrect ? "correct" : ""} ${isWrong ? "wrong" : ""}`}
+                        onClick={() => handleSelectAnswer(opt)}
+                      >
+                        {opt}
+                      </div>
+                    );
+                  })}
+                {(currentQuestion.type === "FillInBlanks" ||
+                  currentQuestion.type === "ShortAnswer") && (
                   <div style={{ marginBottom: 20 }}>
                     <input
                       type="text"
                       className="txt-inp"
-                      style={{ height: 44, fontSize: 14, background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.05)", color: isDark ? "#fff" : "#1a1a2e", border: `1px solid ${isDark ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.1)"}`, borderRadius: 8, padding: "0 12px", outline: "none" }}
+                      style={{
+                        height: 44,
+                        fontSize: 14,
+                        background: isDark
+                          ? "rgba(255,255,255,.05)"
+                          : "rgba(0,0,0,.05)",
+                        color: isDark ? "#fff" : "#1a1a2e",
+                        border: `1px solid ${isDark ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.1)"}`,
+                        borderRadius: 8,
+                        padding: "0 12px",
+                        outline: "none",
+                      }}
                       placeholder="Type your answer here..."
                       value={userAnswers[currentIdx] || ""}
                       onChange={(e) => handleSelectAnswer(e.target.value)}
                       disabled={showExplanation}
                     />
                     {showExplanation && (
-                      <div style={{ marginTop: 12, fontSize: 14, color: "#22c55e", fontWeight: 500 }}>
+                      <div
+                        style={{
+                          marginTop: 12,
+                          fontSize: 14,
+                          color: "#22c55e",
+                          fontWeight: 500,
+                        }}
+                      >
                         Correct Answer: {currentQuestion.answer}
                       </div>
                     )}
@@ -388,10 +482,28 @@ export default function QuizViewModal({
 
               {showExplanation && (
                 <div className="expl-box">
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#818cf8", fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      color: "#818cf8",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      marginBottom: 8,
+                    }}
+                  >
                     <InfoIcon /> Explanation
                   </div>
-                  <div style={{ fontSize: 13.5, color: isDark ? "rgba(255,255,255,.7)" : "rgba(0,0,0,.65)", lineHeight: 1.6 }}>
+                  <div
+                    style={{
+                      fontSize: 13.5,
+                      color: isDark
+                        ? "rgba(255,255,255,.7)"
+                        : "rgba(0,0,0,.65)",
+                      lineHeight: 1.6,
+                    }}
+                  >
                     {currentQuestion.explanation}
                   </div>
                 </div>
@@ -399,10 +511,23 @@ export default function QuizViewModal({
             </div>
           ) : (
             <div style={{ textAlign: "center", padding: "20px 0" }}>
-              <div style={{ fontSize: 48, fontWeight: 800, color: "#6366f1", marginBottom: 8 }}>
+              <div
+                style={{
+                  fontSize: 48,
+                  fontWeight: 800,
+                  color: "#6366f1",
+                  marginBottom: 8,
+                }}
+              >
                 {Math.round((getScore() / totalQuestions) * 100)}%
               </div>
-              <div style={{ fontSize: 16, color: isDark ? "rgba(255,255,255,.6)" : "rgba(0,0,0,.5)", marginBottom: 10 }}>
+              <div
+                style={{
+                  fontSize: 16,
+                  color: isDark ? "rgba(255,255,255,.6)" : "rgba(0,0,0,.5)",
+                  marginBottom: 10,
+                }}
+              >
                 You scored {getScore()} out of {totalQuestions} questions
               </div>
               <div
@@ -416,30 +541,90 @@ export default function QuizViewModal({
                   marginRight: "auto",
                 }}
               >
-                This result is saved to your account when you finish. Exiting before the end does not save a score. Use{" "}
-                <strong>Retake quiz</strong> for another attempt, or open this quiz again from Saved quizzes to see your latest score in the list.
+                This result is saved to your account when you finish. Exiting
+                before the end does not save a score. Use{" "}
+                <strong>Retake quiz</strong> for another attempt, or open this
+                quiz again from Saved quizzes to see your latest score in the
+                list.
               </div>
 
               <div style={{ textAlign: "left" }}>
                 <SectionHead isDark={isDark}>Review Questions</SectionHead>
                 {questions.map((q, idx) => (
                   <div key={idx} className="review-card">
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: isDark ? "rgba(255,255,255,.3)" : "rgba(0,0,0,.3)", textTransform: "uppercase" }}>Question {idx + 1}</span>
-                      <span style={{
-                        fontSize: 11, fontWeight: 700,
-                        color: userAnswers[idx] === q.answer ? "#22c55e" : "#ef4444"
-                      }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        marginBottom: 8,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: isDark
+                            ? "rgba(255,255,255,.3)"
+                            : "rgba(0,0,0,.3)",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        Question {idx + 1}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color:
+                            userAnswers[idx] === q.answer
+                              ? "#22c55e"
+                              : "#ef4444",
+                        }}
+                      >
                         {userAnswers[idx] === q.answer ? "CORRECT" : "WRONG"}
                       </span>
                     </div>
-                    <div style={{ fontSize: 14, color: isDark ? "#fff" : "#1a1a2e", marginBottom: 12 }}>{q.question}</div>
-                    <div style={{ fontSize: 12.5, color: isDark ? "rgba(255,255,255,.4)" : "rgba(0,0,0,.4)" }}>
-                      Your answer: <span style={{ color: userAnswers[idx] === q.answer ? "#22c55e" : "#ef4444" }}>{userAnswers[idx] || "No answer"}</span>
+                    <div
+                      style={{
+                        fontSize: 14,
+                        color: isDark ? "#fff" : "#1a1a2e",
+                        marginBottom: 12,
+                      }}
+                    >
+                      {q.question}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 12.5,
+                        color: isDark
+                          ? "rgba(255,255,255,.4)"
+                          : "rgba(0,0,0,.4)",
+                      }}
+                    >
+                      Your answer:{" "}
+                      <span
+                        style={{
+                          color:
+                            userAnswers[idx] === q.answer
+                              ? "#22c55e"
+                              : "#ef4444",
+                        }}
+                      >
+                        {userAnswers[idx] || "No answer"}
+                      </span>
                     </div>
                     {userAnswers[idx] !== q.answer && (
-                      <div style={{ fontSize: 12.5, color: isDark ? "rgba(255,255,255,.4)" : "rgba(0,0,0,.4)", marginTop: 4 }}>
-                        Correct answer: <span style={{ color: "#22c55e" }}>{q.answer}</span>
+                      <div
+                        style={{
+                          fontSize: 12.5,
+                          color: isDark
+                            ? "rgba(255,255,255,.4)"
+                            : "rgba(0,0,0,.4)",
+                          marginTop: 4,
+                        }}
+                      >
+                        Correct answer:{" "}
+                        <span style={{ color: "#22c55e" }}>{q.answer}</span>
                       </div>
                     )}
                   </div>
@@ -452,20 +637,35 @@ export default function QuizViewModal({
         <div className="sl-foot">
           {!isFinished ? (
             <>
-              <div style={{ flex: 1, height: 4, background: "rgba(255,255,255,.05)", borderRadius: 2, marginRight: 20 }}>
-                <div style={{ 
-                  height: "100%", background: "#6366f1", borderRadius: 2, 
-                  width: `${((currentIdx + (showExplanation ? 1 : 0)) / totalQuestions) * 100}%`,
-                  transition: "width .4s cubic-bezier(.16,1,.3,1)" 
-                }}/>
+              <div
+                style={{
+                  flex: 1,
+                  height: 4,
+                  background: "rgba(255,255,255,.05)",
+                  borderRadius: 2,
+                  marginRight: 20,
+                }}
+              >
+                <div
+                  style={{
+                    height: "100%",
+                    background: "#6366f1",
+                    borderRadius: 2,
+                    width: `${((currentIdx + (showExplanation ? 1 : 0)) / totalQuestions) * 100}%`,
+                    transition: "width .4s cubic-bezier(.16,1,.3,1)",
+                  }}
+                />
               </div>
               {showExplanation ? (
                 <button className="btn-submit" onClick={handleNext}>
-                  {currentIdx === totalQuestions - 1 ? "Finish Quiz" : "Next Question"} <ChevRight />
+                  {currentIdx === totalQuestions - 1
+                    ? "Finish Quiz"
+                    : "Next Question"}{" "}
+                  <ChevRight />
                 </button>
               ) : (
-                <button 
-                  className="btn-submit" 
+                <button
+                  className="btn-submit"
                   onClick={handleSubmit}
                   disabled={!userAnswers[currentIdx]}
                 >
@@ -491,7 +691,9 @@ export default function QuizViewModal({
                   padding: "0 20px",
                   borderRadius: 10,
                   border: `1px solid ${isDark ? "rgba(255,255,255,.15)" : "rgba(0,0,0,.12)"}`,
-                  background: isDark ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.04)",
+                  background: isDark
+                    ? "rgba(255,255,255,.06)"
+                    : "rgba(0,0,0,.04)",
                   color: isDark ? "#e0e0f4" : "#1a1a2e",
                   fontWeight: 600,
                   cursor: "pointer",

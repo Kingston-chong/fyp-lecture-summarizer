@@ -7,17 +7,26 @@ import { getRequestUser } from "@/lib/apiAuth";
 export async function DELETE(req, context) {
   try {
     const user = await getRequestUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const params = await Promise.resolve(context.params);
     const id = params?.id;
     const documentId = parseInt(id ?? "", 10);
-    if (Number.isNaN(documentId)) return NextResponse.json({ error: "Invalid document id" }, { status: 400 });
+    if (Number.isNaN(documentId))
+      return NextResponse.json(
+        { error: "Invalid document id" },
+        { status: 400 },
+      );
 
     const doc = await prisma.document.findFirst({
       where: { id: documentId, userId: user.id },
     });
-    if (!doc) return NextResponse.json({ error: "Document not found" }, { status: 404 });
+    if (!doc)
+      return NextResponse.json(
+        { error: "Document not found" },
+        { status: 404 },
+      );
 
     // Delete blob from Vercel (ignore errors if already removed)
     try {
@@ -33,6 +42,9 @@ export async function DELETE(req, context) {
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: "Failed to delete document" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to delete document" },
+      { status: 500 },
+    );
   }
 }

@@ -19,7 +19,8 @@ async function getIdsFromParams(params) {
 export async function DELETE(_req, ctx) {
   try {
     const user = await getUserFromSession();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { summaryId, highlightId } = await getIdsFromParams(ctx.params);
 
@@ -42,6 +43,9 @@ export async function DELETE(_req, ctx) {
       return NextResponse.json({ error: msg }, { status: 400 });
     }
     console.error(err);
-    return NextResponse.json({ error: "Failed to delete highlight" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to delete highlight" },
+      { status: 500 },
+    );
   }
 }

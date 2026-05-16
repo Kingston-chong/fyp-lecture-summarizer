@@ -7,9 +7,14 @@ import { runChat } from "@/lib/llmServer";
 import { uiModelToKey } from "@/lib/improvePptModel";
 import { extractThemeFromPptx } from "@/lib/pptxThemePatch";
 import { panelFromBackground } from "@/lib/themeColors";
-import { enrichSlidesWithWebSearch, buildEnrichmentBlock } from "@/lib/improvePptWebSearch";
-import { downloadPptxBuffer, getAlaiPptxUrlWithPoll } from "@/lib/alaiSlidePptx";
-
+import {
+  enrichSlidesWithWebSearch,
+  buildEnrichmentBlock,
+} from "@/lib/improvePptWebSearch";
+import {
+  downloadPptxBuffer,
+  getAlaiPptxUrlWithPoll,
+} from "@/lib/alaiSlidePptx";
 
 // ── FIX: Raise the serverless function timeout so Tavily + LLM can finish.
 // Without this Next.js kills the function at 60s before any response is sent.
@@ -23,14 +28,14 @@ export const maxDuration = 300;
 //   gemini-2.5-flash ceiling    = 65,535 (but 24,576 leaves room for thinking tokens)
 const IMPROVE_PPT_MAX_TOKENS = {
   deepseek: 8000,
-  chatgpt:  16384,
-  gemini:   24576,
+  chatgpt: 16384,
+  gemini: 24576,
 };
 
 const DEFAULT_THEME = {
   background: "#0f172a",
-  accent:     "#6366f1",
-  text:       "#f1f5f9",
+  accent: "#6366f1",
+  text: "#f1f5f9",
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -81,7 +86,10 @@ function buildAlaiInputText({
   const text = capText(theme?.text, 20);
   const panel = capText(theme?.panel, 20);
 
-  const vibe = capText(templateHints?._summary || templateHints?.description, 500);
+  const vibe = capText(
+    templateHints?._summary || templateHints?.description,
+    500,
+  );
   const imagePlacement = capText(templateHints?.image_placement, 50);
   const fontTitle = capText(templateHints?.fonts?.title, 50);
   const fontBody = capText(templateHints?.fonts?.body, 50);
@@ -118,7 +126,9 @@ function buildAlaiInputText({
       ? `Font preference: title=${fontTitle || "default"}, body=${fontBody || "default"}`
       : "",
   ].filter(Boolean);
-  const templateSection = templateLines.length ? `\n${templateLines.join("\n")}` : "";
+  const templateSection = templateLines.length
+    ? `\n${templateLines.join("\n")}`
+    : "";
 
   const slideBlock = cappedSlides
     .filter((s) => Number.isFinite(s.slideIdx) && s.slideIdx > 0)
@@ -157,20 +167,29 @@ function normalizeContentTheme(t, additiveImprove) {
   const isHex = (v) => /^#[0-9a-f]{6}$/i.test(String(v || "").trim());
 
   if (additiveImprove) {
-    const bg = "#f8fafc", accent = "#334155", text = "#0f172a";
-    return { background: bg, accent, text, panel: `#${panelFromBackground(bg, accent)}` };
+    const bg = "#f8fafc",
+      accent = "#334155",
+      text = "#0f172a";
+    return {
+      background: bg,
+      accent,
+      text,
+      panel: `#${panelFromBackground(bg, accent)}`,
+    };
   }
-  const bg     = isHex(t?.background) ? t.background : DEFAULT_THEME.background;
-  const accent = isHex(t?.accent)     ? t.accent     : DEFAULT_THEME.accent;
-  const text   = isHex(t?.text)       ? t.text       : DEFAULT_THEME.text;
-  const panel  = isHex(t?.panel)      ? t.panel      : `#${panelFromBackground(bg, accent)}`;
+  const bg = isHex(t?.background) ? t.background : DEFAULT_THEME.background;
+  const accent = isHex(t?.accent) ? t.accent : DEFAULT_THEME.accent;
+  const text = isHex(t?.text) ? t.text : DEFAULT_THEME.text;
+  const panel = isHex(t?.panel)
+    ? t.panel
+    : `#${panelFromBackground(bg, accent)}`;
   return { background: bg, accent, text, panel };
 }
 
 function slidesFromOriginal(slides) {
   return slides.map((s) => {
     const lines = s.lines?.length ? s.lines : [s.text || ""].filter(Boolean);
-    const full  = String(s.text || lines.join("\n") || "").trim();
+    const full = String(s.text || lines.join("\n") || "").trim();
     return {
       index: s.index,
       title: `Slide ${s.index}`,
@@ -187,7 +206,8 @@ function slidesFromOriginal(slides) {
 export async function POST(req) {
   try {
     const user = await getRequestUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     // ── Parse request ──────────────────────────────────────────────────────────
     let body = {};
@@ -197,24 +217,33 @@ export async function POST(req) {
     if (ct.includes("multipart/form-data")) {
       const form = await req.formData();
       sourceFile = form.get("file");
-      try { body = JSON.parse(String(form.get("payload") || "{}")); } catch { body = {}; }
+      try {
+        body = JSON.parse(String(form.get("payload") || "{}"));
+      } catch {
+        body = {};
+      }
     } else {
       body = await req.json();
     }
 
-    const instructions         = String(body?.instructions || "").trim();
-    const modelLabel           = String(body?.model || "Gemini");
-    const slidesIn             = Array.isArray(body?.slides)      ? body.slides      : [];
-    const adjustments          = Array.isArray(body?.adjustments) ? body.adjustments : [];
-    const sourceName           = String(body?.sourceName || "").trim();
-    const additiveImprove      = body?.additiveImprove !== false;
-    const detailLevelRaw       = String(body?.detailLevel || "lecture").toLowerCase();
-    const detailLevel          = ["concise","lecture","deep"].includes(detailLevelRaw) ? detailLevelRaw : "lecture";
+    const instructions = String(body?.instructions || "").trim();
+    const modelLabel = String(body?.model || "Gemini");
+    const slidesIn = Array.isArray(body?.slides) ? body.slides : [];
+    const adjustments = Array.isArray(body?.adjustments)
+      ? body.adjustments
+      : [];
+    const sourceName = String(body?.sourceName || "").trim();
+    const additiveImprove = body?.additiveImprove !== false;
+    const detailLevelRaw = String(body?.detailLevel || "lecture").toLowerCase();
+    const detailLevel = ["concise", "lecture", "deep"].includes(detailLevelRaw)
+      ? detailLevelRaw
+      : "lecture";
     // Optional: a pre-extracted templateSpec from /api/improve-ppt/theme-search.
     // When provided, we use its summary/fonts as style hints for Alai.
-    const incomingTemplateSpec = body?.templateSpec && typeof body.templateSpec === "object"
-      ? body.templateSpec
-      : null;
+    const incomingTemplateSpec =
+      body?.templateSpec && typeof body.templateSpec === "object"
+        ? body.templateSpec
+        : null;
 
     const documentId = Number(body?.documentId);
     const hasUploadedFile =
@@ -231,7 +260,10 @@ export async function POST(req) {
         select: { url: true, name: true },
       });
       if (!blobDoc) {
-        return NextResponse.json({ error: "Document not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Document not found" },
+          { status: 404 },
+        );
       }
     }
 
@@ -246,31 +278,45 @@ export async function POST(req) {
       ""
     ).trim();
 
-    if (!instructions) return NextResponse.json({ error: "Instructions are required" }, { status: 400 });
-    if (!slidesIn.length) return NextResponse.json({ error: "No slides payload. Run Plan first." }, { status: 400 });
+    if (!instructions)
+      return NextResponse.json(
+        { error: "Instructions are required" },
+        { status: 400 },
+      );
+    if (!slidesIn.length)
+      return NextResponse.json(
+        { error: "No slides payload. Run Plan first." },
+        { status: 400 },
+      );
 
     const modelKey = uiModelToKey(modelLabel);
-    if (!modelKey) return NextResponse.json({ error: "Invalid model" }, { status: 400 });
+    if (!modelKey)
+      return NextResponse.json({ error: "Invalid model" }, { status: 400 });
 
     // FIX: Resolve per-model max token limit
     const maxTokens = IMPROVE_PPT_MAX_TOKENS[modelKey] ?? 8192;
 
     // LLM rebuild with optional web enrichment
     // 1. Web enrichment (now runs in parallel — see improvePptWebSearch.js fix)
-    let webEnrichment = [], allWebSources = [];
+    let webEnrichment = [],
+      allWebSources = [];
     if (process.env.TAVILY_API_KEY) {
       try {
         const result = await enrichSlidesWithWebSearch(slidesIn);
         webEnrichment = result.enriched;
         allWebSources = result.allSources;
-      } catch (e) { console.warn("Web enrichment failed (non-fatal):", e?.message); }
+      } catch (e) {
+        console.warn("Web enrichment failed (non-fatal):", e?.message);
+      }
     }
 
     // 2. Build prompt
     const detailBlock = {
-      concise: "Detail level: concise — 2+ bullets per slide; speaker notes ≥2 sentences.",
-      deep:    "Detail level: deep — 4–8 bullets; speaker notes ≥5 sentences with definitions, examples, misconceptions.",
-      lecture: "Detail level: lecture — 3–6 full-sentence bullets; speaker notes 3–5 sentences with examples.",
+      concise:
+        "Detail level: concise — 2+ bullets per slide; speaker notes ≥2 sentences.",
+      deep: "Detail level: deep — 4–8 bullets; speaker notes ≥5 sentences with definitions, examples, misconceptions.",
+      lecture:
+        "Detail level: lecture — 3–6 full-sentence bullets; speaker notes 3–5 sentences with examples.",
     }[detailLevel];
 
     // FIX: Strengthen additive prompt so LLM adds content instead of cutting it
@@ -331,25 +377,30 @@ Rules:
 
     // 3. Call LLM — FIX: pass per-model maxTokens instead of global 4096
     const raw = await runChat(
-      modelKey, null,
+      modelKey,
+      null,
       "You are an expert presentation designer. Output ONLY valid JSON — no markdown, no extra text.",
       [{ role: "user", content: userContent }],
-      { maxTokens }
+      { maxTokens },
     );
 
     let parsed;
-    try { parsed = parseJsonFromLlm(raw); }
-    catch {
+    try {
+      parsed = parseJsonFromLlm(raw);
+    } catch {
       return NextResponse.json(
-        { error: "The model did not return valid JSON. Try again or switch model." },
-        { status: 502 }
+        {
+          error:
+            "The model did not return valid JSON. Try again or switch model.",
+        },
+        { status: 502 },
       );
     }
 
     // 4. Normalise output
     const theme = normalizeContentTheme(parsed?.theme, additiveImprove);
 
-    let title    = String(parsed?.title    || "Improved presentation").slice(0, 200);
+    let title = String(parsed?.title || "Improved presentation").slice(0, 200);
     let subtitle = String(parsed?.subtitle || "").slice(0, 300);
     if (additiveImprove) {
       const fromFile = titleFromSourceFilename(effectiveSourceName);
@@ -375,13 +426,17 @@ Rules:
     for (const s of outSlides) {
       if (!s.notes.trim()) {
         const src = slidesIn.find((x) => x.index === s.index);
-        s.notes = String(src?.text || s.lines.join("\n") || "").trim() ||
+        s.notes =
+          String(src?.text || s.lines.join("\n") || "").trim() ||
           `Expand bullet points on "${s.title}" when presenting.`;
       }
     }
 
     // 5. Build PPTX via Alai
-    const references = allWebSources.map((s) => ({ title: s.title, url: s.url }));
+    const references = allWebSources.map((s) => ({
+      title: s.title,
+      url: s.url,
+    }));
 
     // Try to extract original PPTX theme to preserve its look (PDF has no PPTX theme)
     let effectiveTheme = theme;
@@ -398,14 +453,17 @@ Rules:
           if (originalTheme) effectiveTheme = originalTheme;
         }
       } catch (e) {
-        console.warn("Could not extract original theme, using default:", e?.message);
+        console.warn(
+          "Could not extract original theme, using default:",
+          e?.message,
+        );
       }
     }
 
     if (!process.env.ALAI_API_KEY) {
       return NextResponse.json(
         { error: "ALAI_API_KEY is not configured on the server." },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -434,7 +492,7 @@ Rules:
           Authorization: `Bearer ${process.env.ALAI_API_KEY}`,
         },
         body: JSON.stringify(payload),
-      }
+      },
     );
 
     const startData = await startRes.json().catch(() => ({}));
@@ -446,7 +504,7 @@ Rules:
             startData?.message ||
             "Failed to start Alai PPTX generation",
         },
-        { status: startRes.status || 502 }
+        { status: startRes.status || 502 },
       );
     }
 
@@ -454,7 +512,7 @@ Rules:
     if (!generationId) {
       return NextResponse.json(
         { error: "Alai did not return a generation id." },
-        { status: 502 }
+        { status: 502 },
       );
     }
 
@@ -466,7 +524,7 @@ Rules:
     if (!urlResult.ok) {
       return NextResponse.json(
         { error: urlResult.error || "Failed to resolve Alai PPTX export URL." },
-        { status: 502 }
+        { status: 502 },
       );
     }
 
@@ -478,13 +536,16 @@ Rules:
     return new NextResponse(dl.buffer, {
       status: 200,
       headers: {
-        "Content-Type":        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "Content-Type":
+          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         "Content-Disposition": `attachment; filename="${editedFilenameFromSource(effectiveSourceName, title)}"`,
       },
     });
-
   } catch (err) {
     console.error("improve-ppt generate:", err);
-    return NextResponse.json({ error: String(err?.message || err) }, { status: 500 });
+    return NextResponse.json(
+      { error: String(err?.message || err) },
+      { status: 500 },
+    );
   }
 }

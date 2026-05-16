@@ -7,41 +7,58 @@ import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { extractText as unpdfExtractText, getDocumentProxy } from "unpdf";
 import mammoth from "mammoth";
-import { getRoleProfile, normalizeSummarizeRole } from "@/lib/roleProfiles";
+import {
+  buildReferenceCatalog,
+  fetchRelatedPapers,
+} from "@/lib/academicSearch";
+import {
+  clampInvalidCitations,
+  finalizeLecturerReferences,
+  persistSummaryReferences,
+} from "@/lib/referenceUtils";
+import {
+  getLecturerSummaryCitationRules,
+  getRoleProfile,
+  normalizeSummarizeRole,
+} from "@/lib/roleProfiles";
 
 const MAX_MODEL_INPUT_CHARS = Number.parseInt(
   process.env.SUMMARY_MAX_INPUT_CHARS || "12000",
-  10
+  10,
 );
 const EXTRACT_CONCURRENCY = Math.max(
   1,
-  Number.parseInt(process.env.SUMMARY_EXTRACT_CONCURRENCY || "2", 10) || 2
+  Number.parseInt(process.env.SUMMARY_EXTRACT_CONCURRENCY || "2", 10) || 2,
 );
 
-const openaiClient =
-  process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+const openaiClient = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
 
-const deepseekClient =
-  process.env.DEEPSEEK_API_KEY
-    ? new OpenAI({
-        apiKey: process.env.DEEPSEEK_API_KEY,
-        baseURL: "https://api.deepseek.com",
-      })
-    : null;
+const deepseekClient = process.env.DEEPSEEK_API_KEY
+  ? new OpenAI({
+      apiKey: process.env.DEEPSEEK_API_KEY,
+      baseURL: "https://api.deepseek.com",
+    })
+  : null;
 
-const geminiClient =
-  process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
+const geminiClient = process.env.GEMINI_API_KEY
+  ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+  : null;
 
 // OpenRouter: one key, OpenAI-compatible API (https://openrouter.ai/docs)
 const openrouterClient = process.env.OPENROUTER_API_KEY
   ? new OpenAI({
       apiKey: process.env.OPENROUTER_API_KEY,
-      baseURL: process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
+      baseURL:
+        process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
       defaultHeaders: {
         ...(process.env.OPENROUTER_HTTP_REFERER && {
           "HTTP-Referer": process.env.OPENROUTER_HTTP_REFERER,
         }),
-        ...(process.env.OPENROUTER_APP_NAME && { "X-Title": process.env.OPENROUTER_APP_NAME }),
+        ...(process.env.OPENROUTER_APP_NAME && {
+          "X-Title": process.env.OPENROUTER_APP_NAME,
+        }),
       },
     })
   : null;
@@ -131,7 +148,7 @@ async function callOpenRouter(model, modelVariant, fullPrompt) {
   throw new Error(
     model === "gemini"
       ? `OpenRouter Gemini model unavailable. Last error: ${String(lastErr?.message || lastErr)}`
-      : `OpenRouter request failed: ${String(lastErr?.message || lastErr)}`
+      : `OpenRouter request failed: ${String(lastErr?.message || lastErr)}`,
   );
 }
 
@@ -186,7 +203,7 @@ async function* callOpenRouterStream(model, modelVariant, fullPrompt) {
   throw new Error(
     model === "gemini"
       ? `OpenRouter Gemini model unavailable. Last error: ${String(lastErr?.message || lastErr)}`
-      : `OpenRouter request failed: ${String(lastErr?.message || lastErr)}`
+      : `OpenRouter request failed: ${String(lastErr?.message || lastErr)}`,
   );
 }
 
@@ -232,7 +249,7 @@ async function extractText(url, type) {
       const zip = await JSZip.loadAsync(buffer);
       let text = "";
       const slideFiles = Object.keys(zip.files).filter(
-        (f) => f.startsWith("ppt/slides/slide") && f.endsWith(".xml")
+        (f) => f.startsWith("ppt/slides/slide") && f.endsWith(".xml"),
       );
       for (const slideFile of slideFiles) {
         const xml = await zip.files[slideFile].async("string");
@@ -346,7 +363,9 @@ async function callAI(model, modelVariant, systemPrompt, documentText) {
     let lastErr;
     for (const modelName of uniqueCandidates) {
       try {
-        const geminiModel = geminiClient.getGenerativeModel({ model: modelName });
+        const geminiModel = geminiClient.getGenerativeModel({
+          model: modelName,
+        });
         const res = await geminiModel.generateContent(fullPrompt);
         return res.response.text();
       } catch (err) {
@@ -360,7 +379,7 @@ async function callAI(model, modelVariant, systemPrompt, documentText) {
     }
 
     throw new Error(
-      `Gemini model unavailable. Last error: ${String(lastErr?.message || lastErr)}`
+      `Gemini model unavailable. Last error: ${String(lastErr?.message || lastErr)}`,
     );
   }
 
@@ -431,7 +450,9 @@ async function* callAIStream(model, modelVariant, systemPrompt, documentText) {
     let lastErr;
     for (const modelName of uniqueCandidates) {
       try {
-        const geminiModel = geminiClient.getGenerativeModel({ model: modelName });
+        const geminiModel = geminiClient.getGenerativeModel({
+          model: modelName,
+        });
         const stream = await geminiModel.generateContentStream(fullPrompt);
         for await (const chunk of stream.stream) {
           const text = chunk?.text?.() || "";
@@ -448,7 +469,7 @@ async function* callAIStream(model, modelVariant, systemPrompt, documentText) {
       }
     }
     throw new Error(
-      `Gemini model unavailable. Last error: ${String(lastErr?.message || lastErr)}`
+      `Gemini model unavailable. Last error: ${String(lastErr?.message || lastErr)}`,
     );
   }
 
@@ -484,14 +505,20 @@ export async function POST(req) {
     if (summaryId != null) {
       const sid = Number(summaryId);
       if (!Number.isFinite(sid) || sid <= 0) {
-        return NextResponse.json({ error: "Invalid summaryId" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Invalid summaryId" },
+          { status: 400 },
+        );
       }
       existingSummary = await prisma.summary.findFirst({
         where: { id: sid, userId: user.id },
         include: { documents: { include: { document: true } } },
       });
       if (!existingSummary) {
-        return NextResponse.json({ error: "Summary not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Summary not found" },
+          { status: 404 },
+        );
       }
       documents = (existingSummary.documents || [])
         .map((d) => d.document)
@@ -505,7 +532,10 @@ export async function POST(req) {
       }
     } else {
       if (!documentIds || documentIds.length === 0) {
-        return NextResponse.json({ error: "No documents selected" }, { status: 400 });
+        return NextResponse.json(
+          { error: "No documents selected" },
+          { status: 400 },
+        );
       }
 
       // Fetch documents from DB
@@ -515,20 +545,32 @@ export async function POST(req) {
       });
 
       if (documents.length === 0) {
-        return NextResponse.json({ error: "Documents not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Documents not found" },
+          { status: 404 },
+        );
       }
     }
 
     // Create an empty "pending" summary row and redirect before generating (dashboard flow)
     if (initOnly) {
       if (existingSummary) {
-        return NextResponse.json({ success: true, summaryId: existingSummary.id });
+        return NextResponse.json({
+          success: true,
+          summaryId: existingSummary.id,
+        });
       }
       if (!model) {
-        return NextResponse.json({ error: "Model is required" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Model is required" },
+          { status: 400 },
+        );
       }
       if (!summarizeFor) {
-        return NextResponse.json({ error: "summarizeFor is required" }, { status: 400 });
+        return NextResponse.json(
+          { error: "summarizeFor is required" },
+          { status: 400 },
+        );
       }
       const normalizedRole = normalizeSummarizeRole(summarizeFor);
       const title = documents[0].name.replace(/\.[^/.]+$/, "");
@@ -572,12 +614,7 @@ export async function POST(req) {
       effectiveVariant = i === -1 ? null : stored.slice(i + 1) || null;
     }
 
-    // Build system prompt based on summarizeFor
-    const systemPrompt = `You are a document summarization assistant.
-Target audience: ${roleProfile.label}.
-${roleProfile.summaryInstructions.map((line) => `- ${line}`).join("\n")}
-${effectivePrompt ? `\nAdditional instructions: ${effectivePrompt}` : ""}
-Format your response in clean markdown with clear sections.`;
+    const isLecturer = normalizedRole === "lecturer";
 
     // Extract text with limited concurrency, and stop early once we have enough characters
     const limit = createLimiter(EXTRACT_CONCURRENCY);
@@ -586,22 +623,109 @@ Format your response in clean markdown with clear sections.`;
         limit(async () => {
           const text = await extractText(doc.url, doc.type);
           return { doc, text: text || "" };
-        })
-      )
+        }),
+      ),
     );
 
     let combinedText = "";
     for (const { doc, text } of extracted) {
       if (combinedText.length >= MAX_MODEL_INPUT_CHARS) break;
       combinedText += `\n\n=== ${doc.name} ===\n`;
-      combinedText += text.slice(0, Math.max(0, MAX_MODEL_INPUT_CHARS - combinedText.length));
+      combinedText += text.slice(
+        0,
+        Math.max(0, MAX_MODEL_INPUT_CHARS - combinedText.length),
+      );
     }
+
+    let referenceCatalog = null;
+    let referenceCatalogMeta = {
+      uploadCount: documents.length,
+      maxMarker: documents.length,
+    };
+
+    if (isLecturer) {
+      try {
+        const papers = await fetchRelatedPapers(combinedText, documents);
+        const built = buildReferenceCatalog(documents, papers);
+        referenceCatalog = built.catalog;
+        referenceCatalogMeta = {
+          uploadCount: built.uploadCount,
+          maxMarker: built.maxMarker,
+        };
+      } catch (e) {
+        console.warn("Academic search skipped:", e?.message);
+        const built = buildReferenceCatalog(documents, []);
+        referenceCatalog = built.catalog;
+        referenceCatalogMeta = {
+          uploadCount: built.uploadCount,
+          maxMarker: built.maxMarker,
+        };
+      }
+    }
+
+    const lecturerCitationBlock = isLecturer
+      ? `\n\n${getLecturerSummaryCitationRules(referenceCatalogMeta.uploadCount)}`
+      : "";
+    const sourceListBlock =
+      isLecturer && referenceCatalog?.length
+        ? `\n\nNumbered sources (use ONLY these numbers for [n] citations):\n${referenceCatalog
+            .map((r) => {
+              if (r.kind === "upload")
+                return `[${r.marker}] (uploaded) ${r.title}`;
+              const parts = [`[${r.marker}] (paper) ${r.title}`];
+              if (r.authors) parts.push(`— ${r.authors}`);
+              if (r.year) parts.push(`(${r.year})`);
+              if (r.url) parts.push(`URL: ${r.url}`);
+              return parts.join(" ");
+            })
+            .join("\n")}`
+        : "";
+
+    const systemPrompt = `You are a document summarization assistant.
+Audience mode: ${normalizedRole}.
+${roleProfile.summaryInstructions.map((line) => `- ${line}`).join("\n")}${lecturerCitationBlock}${sourceListBlock}
+${effectivePrompt ? `\nAdditional instructions: ${effectivePrompt}` : ""}
+Format your response in clean markdown with clear sections.`;
+
+    const finalizeLecturerOutput = async (raw, summaryIdForRefs) => {
+      let out = String(raw || "").trim();
+      if (referenceCatalogMeta.maxMarker > 0) {
+        out = clampInvalidCitations(out, referenceCatalogMeta.maxMarker);
+      }
+      const { markdown, citedCatalog, anchorMap } = finalizeLecturerReferences(
+        out,
+        referenceCatalog,
+      );
+      if (summaryIdForRefs) {
+        if (citedCatalog.length > 0) {
+          await persistSummaryReferences(
+            prisma,
+            summaryIdForRefs,
+            citedCatalog,
+            anchorMap,
+          );
+        } else {
+          await prisma.summaryReference.deleteMany({
+            where: { summaryId: summaryIdForRefs },
+          });
+        }
+      }
+      return markdown;
+    };
+
+    const finalizeOutput = (raw) => {
+      if (!isLecturer) return String(raw || "").trim();
+      let out = clampInvalidCitations(raw, referenceCatalogMeta.maxMarker);
+      return finalizeLecturerReferences(out, referenceCatalog).markdown;
+    };
 
     if (streamOutput) {
       const encoder = new TextEncoder();
       const sendEvent = (controller, event, payload) => {
         controller.enqueue(
-          encoder.encode(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`)
+          encoder.encode(
+            `event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`,
+          ),
         );
       };
 
@@ -617,7 +741,7 @@ Format your response in clean markdown with clear sections.`;
               effectiveModel,
               effectiveVariant,
               systemPrompt,
-              combinedText
+              combinedText,
             )) {
               output += chunk;
               sendEvent(controller, "chunk", { text: chunk });
@@ -639,35 +763,45 @@ Format your response in clean markdown with clear sections.`;
               }
             }
 
-            if (existingSummary) {
-              await prisma.summary.updateMany({
-                where: { id: existingSummary.id, userId: user.id },
-                data: { output },
+            let summaryIdForRefs = existingSummary?.id;
+            if (!summaryIdForRefs) {
+              const title = documents[0].name.replace(/\.[^/.]+$/, "");
+              const modelForDb = effectiveVariant
+                ? `${effectiveModel}:${effectiveVariant}`
+                : effectiveModel;
+              const pending = await prisma.summary.create({
+                data: {
+                  userId: user.id,
+                  title,
+                  model: modelForDb,
+                  summarizeFor: normalizedRole,
+                  prompt: effectivePrompt || null,
+                  output: "",
+                  documents: {
+                    create: documents.map((doc) => ({ documentId: doc.id })),
+                  },
+                },
+                select: { id: true },
               });
-              sendEvent(controller, "done", { summaryId: existingSummary.id });
-              controller.close();
-              return;
+              summaryIdForRefs = pending.id;
             }
 
-            const title = documents[0].name.replace(/\.[^/.]+$/, "");
-            const modelForDb = effectiveVariant ? `${effectiveModel}:${effectiveVariant}` : effectiveModel;
+            const finalOutput = isLecturer
+              ? await finalizeLecturerOutput(output, summaryIdForRefs)
+              : finalizeOutput(output);
+            if (finalOutput.length > output.length) {
+              const suffix = finalOutput.slice(output.length);
+              sendEvent(controller, "chunk", { text: suffix });
+            }
 
-            const summary = await prisma.summary.create({
-              data: {
-                userId: user.id,
-                title,
-                model: modelForDb,
-                summarizeFor: normalizedRole,
-                prompt: effectivePrompt || null,
-                output,
-                documents: {
-                  create: documents.map((doc) => ({ documentId: doc.id })),
-                },
-              },
-              select: { id: true },
+            await prisma.summary.updateMany({
+              where: { id: summaryIdForRefs, userId: user.id },
+              data: { output: finalOutput },
             });
-
-            sendEvent(controller, "done", { summaryId: summary.id });
+            sendEvent(controller, "done", {
+              summaryId: summaryIdForRefs,
+              referencesReady: isLecturer,
+            });
             controller.close();
           } catch (err) {
             console.error("Summarize stream error:", err);
@@ -688,20 +822,31 @@ Format your response in clean markdown with clear sections.`;
       });
     }
 
-    // Call AI (model = provider, modelVariant = exact model id)
-    const output = await callAI(effectiveModel, effectiveVariant, systemPrompt, combinedText);
+    const rawOutput = await callAI(
+      effectiveModel,
+      effectiveVariant,
+      systemPrompt,
+      combinedText,
+    );
 
-    // Save summary to database (store "provider:variant" for display in history)
     if (existingSummary) {
+      const output = isLecturer
+        ? await finalizeLecturerOutput(rawOutput, existingSummary.id)
+        : finalizeOutput(rawOutput);
       await prisma.summary.updateMany({
         where: { id: existingSummary.id, userId: user.id },
         data: { output },
       });
-      return NextResponse.json({ success: true, summaryId: existingSummary.id });
+      return NextResponse.json({
+        success: true,
+        summaryId: existingSummary.id,
+      });
     }
 
-    const title = documents[0].name.replace(/\.[^/.]+$/, ""); // filename without ext
-    const modelForDb = effectiveVariant ? `${effectiveModel}:${effectiveVariant}` : effectiveModel;
+    const title = documents[0].name.replace(/\.[^/.]+$/, "");
+    const modelForDb = effectiveVariant
+      ? `${effectiveModel}:${effectiveVariant}`
+      : effectiveModel;
     const summary = await prisma.summary.create({
       data: {
         userId: user.id,
@@ -709,7 +854,7 @@ Format your response in clean markdown with clear sections.`;
         model: modelForDb,
         summarizeFor: normalizedRole,
         prompt: effectivePrompt || null,
-        output,
+        output: "",
         documents: {
           create: documents.map((doc) => ({ documentId: doc.id })),
         },
@@ -717,9 +862,21 @@ Format your response in clean markdown with clear sections.`;
       select: { id: true },
     });
 
+    const output = isLecturer
+      ? await finalizeLecturerOutput(rawOutput, summary.id)
+      : finalizeOutput(rawOutput);
+
+    await prisma.summary.updateMany({
+      where: { id: summary.id, userId: user.id },
+      data: { output },
+    });
+
     return NextResponse.json({ success: true, summaryId: summary.id });
   } catch (err) {
     console.error("Summarize error:", err);
-    return NextResponse.json({ error: "Summarization failed: " + err.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Summarization failed: " + err.message },
+      { status: 500 },
+    );
   }
 }

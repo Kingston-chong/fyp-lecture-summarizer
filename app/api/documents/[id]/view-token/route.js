@@ -14,7 +14,10 @@ export async function GET(_req, context) {
     const params = await Promise.resolve(context.params);
     const documentId = parseInt(String(params?.id ?? ""), 10);
     if (Number.isNaN(documentId)) {
-      return NextResponse.json({ error: "Invalid document id" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid document id" },
+        { status: 400 },
+      );
     }
 
     const doc = await prisma.document.findFirst({
@@ -22,7 +25,10 @@ export async function GET(_req, context) {
       select: { id: true },
     });
     if (!doc) {
-      return NextResponse.json({ error: "Document not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Document not found" },
+        { status: 404 },
+      );
     }
 
     let token;
@@ -31,7 +37,9 @@ export async function GET(_req, context) {
     } catch (e) {
       console.error("view-token sign:", e);
       return NextResponse.json(
-        { error: "Server missing DOCUMENT_VIEW_TOKEN_SECRET or NEXTAUTH_SECRET" },
+        {
+          error: "Server missing DOCUMENT_VIEW_TOKEN_SECRET or NEXTAUTH_SECRET",
+        },
         { status: 500 },
       );
     }

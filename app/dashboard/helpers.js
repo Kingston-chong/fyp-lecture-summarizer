@@ -45,16 +45,31 @@ export const MODEL_PROVIDERS = [
 export const ACCEPTED = ".pdf,.pptx,.ppt,.docx,.doc,.txt,.xlsx,.xls,.csv,.md";
 export const IMPROVE_ACCEPT = ".pptx,.pdf";
 
-const OFFICE_PREVIEW_EXT = new Set(["pptx", "ppt", "docx", "doc", "xlsx", "xls"]);
+const OFFICE_PREVIEW_EXT = new Set([
+  "pptx",
+  "ppt",
+  "docx",
+  "doc",
+  "xlsx",
+  "xls",
+]);
 
 export const DASH_PROMPT_SUGGESTIONS = {
-  summarize: [
+  summarizeStudent: [
     "Focus on key concepts and definitions. Keep it structured with headings.",
     "Extract formulas/theorems and explain what each variable means.",
     "Give a 10-bullet executive summary, then a detailed explanation.",
     "List likely exam questions + model answers based on the notes.",
     "Create a glossary of important terms with simple explanations.",
     "Highlight common mistakes/misconceptions and clarify them.",
+  ],
+  summarizeLecturer: [
+    "Use inline citation markers [n] for substantive claims and end with a ## References section.",
+    "Expand with lecturer-level depth: methods, assumptions, limitations, and implications.",
+    "Keep slide bullets tight; put elaboration and citations in speaker notes where helpful.",
+    "Flag thin or unsupported claims in the source materials instead of inventing detail.",
+    "Prioritize evidence-oriented phrasing suitable for a graduate-level lecture.",
+    "Map each major section to 1–2 related academic or authoritative sources when possible.",
   ],
   improve: [
     "Tighten bullets for clarity. Use parallel phrasing and remove repetition.",
@@ -72,7 +87,11 @@ export function isImproveSourceType(type) {
 }
 
 export function isOfficePreviewName(name) {
-  const ext = String(name || "").split(".").pop()?.toLowerCase() || "";
+  const ext =
+    String(name || "")
+      .split(".")
+      .pop()
+      ?.toLowerCase() || "";
   return OFFICE_PREVIEW_EXT.has(ext);
 }
 

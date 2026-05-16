@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/apiAuth";
 import { prisma } from "@/lib/prisma";
 import { fetchVercelBlobBuffer } from "@/lib/fetchVercelBlobBuffer";
-import { parsePptxBufferToSlides, parsePdfBufferToSlides } from "@/lib/improvePptParse";
+import {
+  parsePptxBufferToSlides,
+  parsePdfBufferToSlides,
+} from "@/lib/improvePptParse";
 
 function extFlags(name) {
   const n = String(name || "");
@@ -34,7 +37,10 @@ export async function POST(req) {
         select: { name: true, url: true },
       });
       if (!doc) {
-        return NextResponse.json({ error: "Document not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Document not found" },
+          { status: 404 },
+        );
       }
       name = doc.name || "upload";
       buf = await fetchVercelBlobBuffer(doc.url);
@@ -53,7 +59,10 @@ export async function POST(req) {
           select: { name: true, url: true },
         });
         if (!doc) {
-          return NextResponse.json({ error: "Document not found" }, { status: 404 });
+          return NextResponse.json(
+            { error: "Document not found" },
+            { status: 404 },
+          );
         }
         name = doc.name || "upload";
         buf = await fetchVercelBlobBuffer(doc.url);

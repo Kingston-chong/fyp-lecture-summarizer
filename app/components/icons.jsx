@@ -718,4 +718,3 @@ export const ArrowLeftIcon = ({ size = 16 }) => (
     <polyline points="12 19 5 12 12 5" />
   </svg>
 );
-

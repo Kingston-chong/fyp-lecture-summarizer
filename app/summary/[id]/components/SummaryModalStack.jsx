@@ -4,6 +4,7 @@ import GenerateSlidesModal from "@/app/components/GenerateSlidesModal";
 import AlaiSlidesPreviewModal from "@/app/components/AlaiSlidesPreviewModal";
 import QuizSettingsModal from "@/app/components/QuizSettingsModal";
 import QuizViewModal from "@/app/components/QuizViewModal";
+import LecturerQuizReviewModal from "@/app/components/LecturerQuizReviewModal";
 import { parseNumericSummaryId, settingsFromQuizSet } from "../helpers";
 
 export default function SummaryModalStack({
@@ -18,6 +19,7 @@ export default function SummaryModalStack({
   slideDeckRemotePptUrl,
   slideDeckPreviewTitle,
   slideDeckDlRef,
+  slideDeckPdfDlRef,
   quizModal,
   setQuizModal,
   setQuizData,
@@ -29,6 +31,9 @@ export default function SummaryModalStack({
   quizSettings,
   setQuizViewState,
 }) {
+  const isLecturer = summary?.summarizeFor === "lecturer";
+  const numericSummaryId = parseNumericSummaryId(summaryId);
+
   return (
     <>
       {slidesModal && (
@@ -36,7 +41,7 @@ export default function SummaryModalStack({
           onClose={() => setSlidesModal(false)}
           summaryText={summary?.output || ""}
           summarizeFor={summary?.summarizeFor || "student"}
-          summaryId={parseNumericSummaryId(summaryId)}
+          summaryId={numericSummaryId}
           onSlideDecksChanged={fetchSlideDecks}
         />
       )}
@@ -56,12 +61,21 @@ export default function SummaryModalStack({
                 }
               : undefined;
           })()}
+          onDownloadPdf={(() => {
+            const fn = slideDeckPdfDlRef?.current;
+            return typeof fn === "function"
+              ? async () => {
+                  await fn();
+                }
+              : undefined;
+          })()}
         />
       )}
 
       {quizModal && (
         <QuizSettingsModal
           summaryId={summaryId}
+          mode={isLecturer ? "lecturer" : "student"}
           onClose={() => setQuizModal(false)}
           onGenerated={(quiz) => {
             setQuizModal(false);
@@ -73,7 +87,21 @@ export default function SummaryModalStack({
         />
       )}
 
-      {quizView && quizData && (
+      {quizView && quizData && isLecturer && (
+        <LecturerQuizReviewModal
+          key={quizData.id}
+          quizSet={quizData}
+          summaryId={numericSummaryId}
+          onClose={() => setQuizViewState(false)}
+          onRegenerate={() => {
+            setQuizViewState(false);
+            setQuizModal(true);
+          }}
+          onPublishChange={() => void fetchQuizSets()}
+        />
+      )}
+
+      {quizView && quizData && !isLecturer && (
         <QuizViewModal
           key={quizData.id}
           quizSet={quizData}

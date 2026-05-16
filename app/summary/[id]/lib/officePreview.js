@@ -20,8 +20,7 @@ export async function fetchOfficePreviewUrls({
   viewBasePath,
   fileName,
 }) {
-  const origin =
-    typeof window !== "undefined" ? window.location.origin : "";
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
   const basePath = viewBasePath.startsWith("/")
     ? viewBasePath
     : `/${viewBasePath}`;

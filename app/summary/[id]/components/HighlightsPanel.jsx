@@ -14,6 +14,7 @@ export default function HighlightsPanel({
   onScrollTo,
   panelClassName = "hl-panel hl-panel--sources",
   onHighlightClick,
+  embedded = false,
 }) {
   const handleClick = (id) => {
     onScrollTo(id);
@@ -22,6 +23,7 @@ export default function HighlightsPanel({
 
   return (
     <div className={panelClassName} aria-label="Highlights">
+      {!embedded && (
       <div className="hl-head-row">
         <div className="hl-head">HIGHLIGHTS</div>
         <button
@@ -39,6 +41,7 @@ export default function HighlightsPanel({
           {hlSaving ? <Spinner size={12} /> : <SaveIco size={14} />}
         </button>
       </div>
+      )}
       {pendingHighlights.length > 0 && (
         <div className="hl-sub">
           {pendingHighlights.length} unsaved — click save. Leaving this page may

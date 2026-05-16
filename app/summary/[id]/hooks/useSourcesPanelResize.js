@@ -11,8 +11,9 @@ export function useSourcesPanelResize() {
     function onMove(e) {
       const drag = splitterRef.current;
       if (!drag) return;
+      // Panel is on the right: moving the splitter left widens sources, right narrows it.
       const dx = e.clientX - drag.startX;
-      const next = drag.startWidth + dx;
+      const next = drag.startWidth - dx;
       setSourcesWidth(Math.max(220, Math.min(420, next)));
     }
     function onUp() {

@@ -20,7 +20,10 @@ export default function VerifyOTP() {
   useEffect(() => {
     const savedEmail = sessionStorage.getItem("resetEmail");
     const savedExpiresAt = sessionStorage.getItem("resetOtpExpiresAt");
-    if (!savedEmail) { router.push("/reset-password"); return; }
+    if (!savedEmail) {
+      router.push("/reset-password");
+      return;
+    }
     setEmail(savedEmail);
     if (savedExpiresAt) {
       const ms = Date.parse(savedExpiresAt);
@@ -32,7 +35,10 @@ export default function VerifyOTP() {
     // Keep countdown in sync with the server-provided expiresAt.
     if (!expiresAtMs) return;
     const tick = () => {
-      const remaining = Math.max(0, Math.ceil((expiresAtMs - Date.now()) / 1000));
+      const remaining = Math.max(
+        0,
+        Math.ceil((expiresAtMs - Date.now()) / 1000),
+      );
       setCountdown(remaining);
     };
     tick();
@@ -40,7 +46,8 @@ export default function VerifyOTP() {
     return () => clearInterval(id);
   }, [expiresAtMs]);
 
-  const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+  const formatTime = (s) =>
+    `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   function handleOtpChange(index, value) {
     if (!/^\d*$/.test(value)) return;
@@ -58,16 +65,24 @@ export default function VerifyOTP() {
 
   function handlePaste(e) {
     e.preventDefault();
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const pasted = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 6);
     const newOtp = [...otp];
-    pasted.split("").forEach((char, i) => { newOtp[i] = char; });
+    pasted.split("").forEach((char, i) => {
+      newOtp[i] = char;
+    });
     setOtp(newOtp);
     inputRefs.current[Math.min(pasted.length, 5)]?.focus();
   }
 
   async function handleVerify() {
     const otpValue = otp.join("");
-    if (otpValue.length < 6) { setError("Please enter the complete 6-digit OTP."); return; }
+    if (otpValue.length < 6) {
+      setError("Please enter the complete 6-digit OTP.");
+      return;
+    }
     if (expiresAtMs && Date.now() > expiresAtMs) {
       setError("OTP has expired. Please request a new one.");
       return;
@@ -157,7 +172,9 @@ export default function VerifyOTP() {
           <div className="card">
             <div className="card-glow" />
 
-            <div className="icon-wrap"><ShieldIcon /></div>
+            <div className="icon-wrap">
+              <ShieldIcon />
+            </div>
             <h1 className="card-title">Enter OTP</h1>
             <p className="card-desc">We sent a 6-digit code to</p>
             <div style={{ textAlign: "center", marginBottom: "24px" }}>
@@ -168,29 +185,49 @@ export default function VerifyOTP() {
               {otp.map((digit, i) => (
                 <input
                   key={i}
-                  ref={el => inputRefs.current[i] = el}
+                  ref={(el) => (inputRefs.current[i] = el)}
                   className={`otp-input ${error ? "error" : digit ? "filled" : ""}`}
                   type="text"
                   inputMode="numeric"
                   maxLength={1}
                   value={digit}
-                  onChange={e => handleOtpChange(i, e.target.value)}
-                  onKeyDown={e => handleKeyDown(i, e)}
+                  onChange={(e) => handleOtpChange(i, e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(i, e)}
                 />
               ))}
             </div>
 
             <div className="countdown" style={{ marginTop: "12px" }}>
               {countdown > 0 ? (
-                <>Code expires in <span style={{ color: countdown <= 30 ? "#fca5a5" : "#a5b4fc" }}>{formatTime(countdown)}</span></>
+                <>
+                  Code expires in{" "}
+                  <span
+                    style={{ color: countdown <= 30 ? "#fca5a5" : "#a5b4fc" }}
+                  >
+                    {formatTime(countdown)}
+                  </span>
+                </>
               ) : (
-                <>Code expired. <button className="resend-btn" onClick={handleResend} disabled={resending}>{resending ? "Sending..." : "Resend OTP"}</button></>
+                <>
+                  Code expired.{" "}
+                  <button
+                    className="resend-btn"
+                    onClick={handleResend}
+                    disabled={resending}
+                  >
+                    {resending ? "Sending..." : "Resend OTP"}
+                  </button>
+                </>
               )}
             </div>
 
             {countdown > 0 && (
               <div style={{ textAlign: "center", marginBottom: "4px" }}>
-                <button className="resend-btn" onClick={handleResend} disabled={resending || countdown > 100}>
+                <button
+                  className="resend-btn"
+                  onClick={handleResend}
+                  disabled={resending || countdown > 100}
+                >
                   {resending ? "Sending..." : "Resend OTP"}
                 </button>
               </div>
@@ -207,7 +244,10 @@ export default function VerifyOTP() {
               {loading ? "Verifying..." : "Verify OTP"}
             </button>
 
-            <button className="back-link" onClick={() => router.push("/reset-password")}>
+            <button
+              className="back-link"
+              onClick={() => router.push("/reset-password")}
+            >
               ← Back
             </button>
           </div>

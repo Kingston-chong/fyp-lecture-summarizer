@@ -7,7 +7,8 @@ import { signSlideDeckViewToken } from "@/lib/slideDeckViewToken";
 export async function GET(_req, context) {
   try {
     const user = await getRequestUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const params = await Promise.resolve(context.params);
     const summaryId = parseInt(String(params?.id ?? ""), 10);
@@ -20,7 +21,11 @@ export async function GET(_req, context) {
       where: { id: deckId, summaryId, userId: user.id },
       select: { id: true },
     });
-    if (!deck) return NextResponse.json({ error: "Slide deck not found" }, { status: 404 });
+    if (!deck)
+      return NextResponse.json(
+        { error: "Slide deck not found" },
+        { status: 404 },
+      );
 
     let token;
     try {
@@ -28,7 +33,9 @@ export async function GET(_req, context) {
     } catch (e) {
       console.error("slide-deck view-token sign:", e);
       return NextResponse.json(
-        { error: "Server missing DOCUMENT_VIEW_TOKEN_SECRET or NEXTAUTH_SECRET" },
+        {
+          error: "Server missing DOCUMENT_VIEW_TOKEN_SECRET or NEXTAUTH_SECRET",
+        },
         { status: 500 },
       );
     }
@@ -42,4 +49,3 @@ export async function GET(_req, context) {
     );
   }
 }
-

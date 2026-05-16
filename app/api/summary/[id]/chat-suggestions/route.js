@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getRequestUser } from "@/lib/apiAuth";
 import { runChat, parseSummaryModel } from "@/lib/llmServer";
 import { buildChatSuggestions } from "@/lib/chatSuggestionsFromSummary";
+import { normalizeSummarizeRole } from "@/lib/roleProfiles";
 
 function parseId(raw) {
   const n = Number(raw);
@@ -73,7 +74,13 @@ export async function POST(req, ctx) {
 
     const summary = await prisma.summary.findFirst({
       where: { id: summaryId, userId: user.id },
-      select: { id: true, title: true, output: true, model: true },
+      select: {
+        id: true,
+        title: true,
+        output: true,
+        model: true,
+        summarizeFor: true,
+      },
     });
     if (!summary) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -81,11 +88,13 @@ export async function POST(req, ctx) {
 
     const markdown = String(summary.output || "").trim();
     const headings = extractHeadings(markdown);
+    const role = normalizeSummarizeRole(summary.summarizeFor);
     const fallback = buildChatSuggestions({
       markdown,
       headings,
       title: summary.title || "",
       max,
+      role,
     });
     if (!markdown) return NextResponse.json({ suggestions: fallback });
 
@@ -94,7 +103,15 @@ export async function POST(req, ctx) {
     const context = markdown.slice(0, 12000);
     const title = String(summary.title || "Untitled");
 
-    const prompt = `You generate short, useful follow-up chat questions for a student reviewing a summary.
+    const audienceLine =
+      role === "lecturer"
+        ? `You generate short follow-up chat prompts for a lecturer preparing or refining a lecture from this summary.
+           Favor: citations/references with links, evidence gaps, teaching angles, slide vs speaker-note split, graduate-level depth.
+           Include at least one prompt about finding sources or references when relevant.`
+        : `You generate short, useful follow-up chat questions for a student reviewing a summary.
+           Favor: simpler explanations, exam prep, key takeaways, examples, and study-oriented depth.`;
+
+    const prompt = `${audienceLine}
                     Return ONLY a JSON array of ${max} strings.
                     Rules:
                     - Each question must be specific to the summary topic.

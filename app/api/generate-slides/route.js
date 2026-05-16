@@ -5,10 +5,12 @@ import { getRoleProfile, normalizeSummarizeRole } from "@/lib/roleProfiles";
 
 const parsedMaxPrompt = Number.parseInt(
   process.env.SLIDES_MAX_USER_PROMPT_CHARS || "4000",
-  10
+  10,
 );
 const MAX_SLIDE_USER_PROMPT_CHARS =
-  Number.isFinite(parsedMaxPrompt) && parsedMaxPrompt > 0 ? parsedMaxPrompt : 4000;
+  Number.isFinite(parsedMaxPrompt) && parsedMaxPrompt > 0
+    ? parsedMaxPrompt
+    : 4000;
 
 export async function POST(req) {
   try {
@@ -21,13 +23,19 @@ export async function POST(req) {
     const summaryText = String(body?.summaryText || "").trim();
     const summarizeRole = normalizeSummarizeRole(body?.summarizeFor);
     const roleProfile = getRoleProfile(summarizeRole);
-    
+
     if (!summaryText) {
-      return NextResponse.json({ error: "Summary text is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Summary text is required" },
+        { status: 400 },
+      );
     }
 
     if (!process.env.ALAI_API_KEY) {
-      return NextResponse.json({ error: "ALAI_API_KEY is not configured on the server." }, { status: 500 });
+      return NextResponse.json(
+        { error: "ALAI_API_KEY is not configured on the server." },
+        { status: 500 },
+      );
     }
 
     // Combine user preferences into a robust prompt instruction to be sent as input_text
@@ -37,8 +45,10 @@ export async function POST(req) {
       .map((line) => `- ${line}`)
       .join("\n")}\n`;
     if (body.title) instructions += `Title: ${body.title}\n`;
-    if (body.slideLength) instructions += `Length/Detail: ${body.slideLength}\n`;
-    if (body.template) instructions += `Preferred Template/Style: ${body.template}\n`;
+    if (body.slideLength)
+      instructions += `Length/Detail: ${body.slideLength}\n`;
+    if (body.template)
+      instructions += `Preferred Template/Style: ${body.template}\n`;
     if (body.textStyle) instructions += `Tone/Text Style: ${body.textStyle}\n`;
     if (body.maxSlides) instructions += `Max Slides Limit: ${body.maxSlides}\n`;
     if (body.strictness) {
@@ -76,25 +86,38 @@ export async function POST(req) {
       // Alai uses export_formats: ['link', 'pdf', 'ppt'].
       // Request 'ppt' so the status endpoint returns a downloadable PPTX URL.
       // Also request 'link' so we can show an in-app preview before download.
-      export_formats: ["ppt", "link"],
-      presentation_options: body?.title ? { title: String(body.title) } : undefined,
+      export_formats: ["ppt", "link", "pdf"],
+      presentation_options: body?.title
+        ? { title: String(body.title) }
+        : undefined,
     };
 
     // Proxy request to Alai API
-    const res = await fetch("https://slides-api.getalai.com/api/v1/generations", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.ALAI_API_KEY}`,
+    const res = await fetch(
+      "https://slides-api.getalai.com/api/v1/generations",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.ALAI_API_KEY}`,
+        },
+        body: JSON.stringify(payload),
       },
-      body: JSON.stringify(payload),
-    });
+    );
 
     const data = await res.json().catch(() => ({}));
-    
+
     if (!res.ok) {
       console.error("Alai API Error:", data);
-      return NextResponse.json({ error: data.error || data.message || "Failed to generate slides with Alai API" }, { status: res.status });
+      return NextResponse.json(
+        {
+          error:
+            data.error ||
+            data.message ||
+            "Failed to generate slides with Alai API",
+        },
+        { status: res.status },
+      );
     }
 
     // Some APIs return id, other generation_id
@@ -104,7 +127,7 @@ export async function POST(req) {
     console.error("generate-slides proxy POST:", err);
     return NextResponse.json(
       { error: String(err?.message || err) },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

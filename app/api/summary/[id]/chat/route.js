@@ -16,7 +16,8 @@ async function getIdFromParams(params) {
 export async function GET(_req, ctx) {
   try {
     const user = await getUserFromSession();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const summaryId = await getIdFromParams(ctx.params);
 
@@ -24,7 +25,8 @@ export async function GET(_req, ctx) {
       where: { id: summaryId, userId: user.id },
       select: { id: true },
     });
-    if (!owned) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!owned)
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     // NOTE: use raw SQL to avoid depending on regenerated Prisma client models.
     const threadRows = await prisma.$queryRaw`
@@ -49,9 +51,9 @@ export async function GET(_req, ctx) {
     });
   } catch (err) {
     const msg = err?.message || "Failed to load chat";
-    if (msg === "Invalid id") return NextResponse.json({ error: msg }, { status: 400 });
+    if (msg === "Invalid id")
+      return NextResponse.json({ error: msg }, { status: 400 });
     console.error(err);
     return NextResponse.json({ error: "Failed to load chat" }, { status: 500 });
   }
 }
-

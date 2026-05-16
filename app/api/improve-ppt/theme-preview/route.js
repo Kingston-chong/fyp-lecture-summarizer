@@ -32,8 +32,7 @@ async function resolveOgImage(themeUrl) {
   try {
     const res = await fetch(themeUrl, {
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (compatible; ThemePreviewBot/1.0)",
+        "User-Agent": "Mozilla/5.0 (compatible; ThemePreviewBot/1.0)",
         Accept: "text/html",
       },
       signal: AbortSignal.timeout(8_000),
@@ -48,10 +47,18 @@ async function resolveOgImage(themeUrl) {
 
     // Extract og:image — handle both property="og:image" and name="og:image"
     const match =
-      html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
-      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i) ||
-      html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i) ||
-      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
+      html.match(
+        /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i,
+      ) ||
+      html.match(
+        /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i,
+      ) ||
+      html.match(
+        /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i,
+      ) ||
+      html.match(
+        /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i,
+      );
 
     const imageUrl = match ? match[1] : null;
     ogCache.set(themeUrl, { imageUrl, fetchedAt: now });
@@ -71,7 +78,7 @@ function isSafeImageUrl(raw) {
     return (
       (protocol === "https:" || protocol === "http:") &&
       ALLOWED_IMAGE_HOSTS.some(
-        (h) => hostname === h || hostname.endsWith(`.${h}`)
+        (h) => hostname === h || hostname.endsWith(`.${h}`),
       )
     );
   } catch {
@@ -92,7 +99,7 @@ export async function GET(req) {
     if (!themeUrl || !isSafeImageUrl(themeUrl)) {
       return NextResponse.json(
         { error: "Missing or invalid theme URL" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -102,20 +109,22 @@ export async function GET(req) {
     if (!imageUrl || !isSafeImageUrl(imageUrl)) {
       return NextResponse.json(
         { error: "No preview image found for this theme" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     // Step 2: proxy the image
     const imgRes = await fetch(imageUrl, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; ThemePreviewBot/1.0)" },
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; ThemePreviewBot/1.0)",
+      },
       signal: AbortSignal.timeout(10_000),
     });
 
     if (!imgRes.ok) {
       return NextResponse.json(
         { error: `Image fetch failed (${imgRes.status})` },
-        { status: imgRes.status }
+        { status: imgRes.status },
       );
     }
 
@@ -123,7 +132,7 @@ export async function GET(req) {
     if (!contentType.startsWith("image/")) {
       return NextResponse.json(
         { error: "Resolved URL is not an image" },
-        { status: 502 }
+        { status: 502 },
       );
     }
 
@@ -139,7 +148,7 @@ export async function GET(req) {
   } catch (err) {
     return NextResponse.json(
       { error: String(err?.message || err) },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

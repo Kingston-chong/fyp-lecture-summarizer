@@ -438,7 +438,9 @@ export default function Slide2NotesLogin() {
               <div className="auth-loading">
                 <div className="auth-spinner" />
                 <p className="auth-loading-text">
-                  {status === "authenticated" ? "Redirecting to dashboard..." : "Checking session..."}
+                  {status === "authenticated"
+                    ? "Redirecting to dashboard..."
+                    : "Checking session..."}
                 </p>
               </div>
             ) : (
@@ -450,7 +452,9 @@ export default function Slide2NotesLogin() {
 
                 {/* Email */}
                 <div className="field-group">
-                  <label className={`field-label ${emailFocused ? "focused" : ""}`}>
+                  <label
+                    className={`field-label ${emailFocused ? "focused" : ""}`}
+                  >
                     Email address
                   </label>
                   <div className="field-wrapper">
@@ -468,7 +472,9 @@ export default function Slide2NotesLogin() {
 
                 {/* Password */}
                 <div className="field-group">
-                  <label className={`field-label ${passFocused ? "focused" : ""}`}>
+                  <label
+                    className={`field-label ${passFocused ? "focused" : ""}`}
+                  >
                     Password
                   </label>
                   <div className="field-wrapper">
@@ -508,7 +514,9 @@ export default function Slide2NotesLogin() {
 
                 <button
                   className="btn-google"
-                  onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+                  onClick={() =>
+                    signIn("google", { callbackUrl: "/dashboard" })
+                  }
                 >
                   <GoogleIcon />
                   Continue with Google
@@ -518,7 +526,12 @@ export default function Slide2NotesLogin() {
                   <Link href="/register" className="footer-link cta">
                     New? Register an account
                   </Link>
-                  <button className="footer-link" onClick={() => router.push("/reset-password")}>Forgot password?</button>
+                  <button
+                    className="footer-link"
+                    onClick={() => router.push("/reset-password")}
+                  >
+                    Forgot password?
+                  </button>
                 </div>
               </>
             )}

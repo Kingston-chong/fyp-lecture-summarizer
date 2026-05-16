@@ -17,26 +17,39 @@ export default function SavedQuizzesPanel({
   onOpenAttempt,
   panelClassName = "hl-panel sd-panel sd-panel--sources",
   showHelpText = true,
+  embedded = false,
+  isLecturer = false,
 }) {
   return (
     <div className={panelClassName} aria-label="Saved quizzes">
-      <div className="hl-head-row">
-        <div className="hl-head">SAVED QUIZZES</div>
-        <button
-          type="button"
-          className="sd-refresh-btn"
-          title="Refresh saved quizzes"
-          disabled={quizSetsLoading}
-          onClick={onRefresh}
-        >
-          {quizSetsLoading ? <Spinner size={11} /> : "↻"}
-        </button>
-      </div>
-      {showHelpText && (
+      {!embedded && (
+        <div className="hl-head-row">
+          <div className="hl-head">SAVED QUIZZES</div>
+          <button
+            type="button"
+            className="sd-refresh-btn"
+            title="Refresh saved quizzes"
+            disabled={quizSetsLoading}
+            onClick={onRefresh}
+          >
+            {quizSetsLoading ? <Spinner size={11} /> : "↻"}
+          </button>
+        </div>
+      )}
+      {showHelpText && !embedded && (
         <div className="hl-sub" style={{ marginTop: -4, marginBottom: 6 }}>
-          Quiz questions stay saved here. When you <strong>finish</strong> a
-          quiz, that score is stored; exiting early does not save an attempt.
-          Use <strong>History</strong> below to see past scores for each quiz.
+          {isLecturer ? (
+            <>
+              Generated class quizzes are saved here. Open one to review questions,
+              export, or publish a share link for students.
+            </>
+          ) : (
+            <>
+              Quiz questions stay saved here. When you <strong>finish</strong> a
+              quiz, that score is stored; exiting early does not save an attempt.
+              Use <strong>History</strong> below to see past scores for each quiz.
+            </>
+          )}
         </div>
       )}
       <div className="sd-deck-list">
@@ -46,7 +59,9 @@ export default function SavedQuizzesPanel({
           </div>
         ) : quizSets.length === 0 ? (
           <div className="hl-empty">
-            None yet. Generate a quiz — it saves here automatically.
+            {isLecturer
+              ? "None yet. Generate a class quiz — it saves here automatically."
+              : "None yet. Generate a quiz — it saves here automatically."}
           </div>
         ) : (
           quizSets.map((q) => (
@@ -60,7 +75,9 @@ export default function SavedQuizzesPanel({
                   {typeof q._count?.questions === "number"
                     ? ` · ${q._count.questions} Q`
                     : ""}
-                  {q.latestAttempt ? (
+                  {isLecturer ? (
+                    q.published ? " · Published" : " · Draft"
+                  ) : q.latestAttempt ? (
                     <>
                       {" "}
                       · Last: {q.latestAttempt.score}/
@@ -74,25 +91,31 @@ export default function SavedQuizzesPanel({
                   )}
                 </div>
                 <div className="sd-deck-actions">
-                  <button
-                    type="button"
-                    className="sd-deck-btn"
-                    title="View past scores for this quiz"
-                    onClick={() => onToggleHistory(q.id)}
-                  >
-                    {quizHistoryOpenId === q.id ? "Hide" : "History"}
-                  </button>
+                  {!isLecturer && (
+                    <button
+                      type="button"
+                      className="sd-deck-btn"
+                      title="View past scores for this quiz"
+                      onClick={() => onToggleHistory(q.id)}
+                    >
+                      {quizHistoryOpenId === q.id ? "Hide" : "History"}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="sd-deck-btn"
                     disabled={quizSetOpeningId === q.id}
                     onClick={() => onOpenSet(q.id)}
                   >
-                    {quizSetOpeningId === q.id ? "…" : "Open"}
+                    {quizSetOpeningId === q.id
+                      ? "…"
+                      : isLecturer
+                        ? "Review"
+                        : "Open"}
                   </button>
                 </div>
               </div>
-              {quizHistoryOpenId === q.id && (
+              {!isLecturer && quizHistoryOpenId === q.id && (
                 <div
                   className="hl-sub"
                   style={{

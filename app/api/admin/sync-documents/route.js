@@ -73,8 +73,7 @@ export async function POST() {
     console.error("Sync documents error:", err);
     return NextResponse.json(
       { error: "Failed to sync documents: " + err.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

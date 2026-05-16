@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { del, put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
-import { downloadPptxBuffer, getAlaiPptxUrl } from "@/lib/alaiSlidePptx";
+import {
+  downloadPdfBuffer,
+  downloadPptxBuffer,
+  extractPdfUrlFromAlaiGenerationJson,
+  getAlaiPptxUrl,
+} from "@/lib/alaiSlidePptx";
 import { getRequestUser } from "@/lib/apiAuth";
 
 async function resolveSummaryId(context) {
@@ -17,7 +22,10 @@ export async function GET(req, context) {
   try {
     const summaryId = await resolveSummaryId(context);
     if (!summaryId) {
-      return NextResponse.json({ error: "Invalid summary id" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid summary id" },
+        { status: 400 },
+      );
     }
 
     const user = await getRequestUser();
@@ -41,6 +49,7 @@ export async function GET(req, context) {
         title: true,
         alaiGenerationId: true,
         pptxUrl: true,
+        pdfUrl: true,
         createdAt: true,
       },
     });
@@ -60,7 +69,10 @@ export async function POST(req, context) {
   try {
     const summaryId = await resolveSummaryId(context);
     if (!summaryId) {
-      return NextResponse.json({ error: "Invalid summary id" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid summary id" },
+        { status: 400 },
+      );
     }
 
     const user = await getRequestUser();
@@ -79,13 +91,15 @@ export async function POST(req, context) {
     const body = await req.json().catch(() => ({}));
     const alaiGenerationId = String(body?.alaiGenerationId || "").trim();
     if (!alaiGenerationId) {
-      return NextResponse.json({ error: "alaiGenerationId is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "alaiGenerationId is required" },
+        { status: 400 },
+      );
     }
 
     const titleRaw = String(body?.title || "").trim();
     const title =
-      titleRaw.slice(0, 512) ||
-      (summary.title || "Presentation").slice(0, 512);
+      titleRaw.slice(0, 512) || (summary.title || "Presentation").slice(0, 512);
 
     /** Same signed URL the client got when polling — avoids a racey second Alai GET. */
     const remotePptxUrl = String(body?.remotePptxUrl || "").trim();
@@ -116,10 +130,11 @@ export async function POST(req, context) {
       );
     }
 
-    const safeSlug = title
-      .replace(/[^a-z0-9]+/gi, "_")
-      .replace(/^_+|_+$/g, "")
-      .toLowerCase() || "slides";
+    const safeSlug =
+      title
+        .replace(/[^a-z0-9]+/gi, "_")
+        .replace(/^_+|_+$/g, "")
+        .toLowerCase() || "slides";
     const pathname = `slides/${user.id}/${summaryId}/${Date.now()}-${safeSlug}.pptx`;
 
     const blob = await put(pathname, dl.buffer, {
@@ -129,6 +144,36 @@ export async function POST(req, context) {
     });
     const storedPptxUrl = blob.downloadUrl || blob.url;
 
+    let storedPdfUrl = null;
+    const remotePdfUrl = String(body?.remotePdfUrl || "").trim();
+    let pdfDl = null;
+    if (/^https?:\/\//i.test(remotePdfUrl)) {
+      pdfDl = await downloadPdfBuffer(remotePdfUrl);
+    }
+    if (!pdfDl?.ok) {
+      const genRes = await fetch(
+        `https://slides-api.getalai.com/api/v1/generations/${encodeURIComponent(alaiGenerationId)}`,
+        {
+          method: "GET",
+          headers: { Authorization: `Bearer ${process.env.ALAI_API_KEY}` },
+          cache: "no-store",
+        },
+      );
+      const genData = await genRes.json().catch(() => ({}));
+      if (genRes.ok) {
+        const pdfFromAlai = extractPdfUrlFromAlaiGenerationJson(genData);
+        if (pdfFromAlai) pdfDl = await downloadPdfBuffer(pdfFromAlai);
+      }
+    }
+    if (pdfDl?.ok) {
+      const pdfPath = `slides/${user.id}/${summaryId}/${Date.now()}-${safeSlug}.pdf`;
+      const pdfBlob = await put(pdfPath, pdfDl.buffer, {
+        access: "private",
+        contentType: "application/pdf",
+      });
+      storedPdfUrl = pdfBlob.downloadUrl || pdfBlob.url;
+    }
+
     const deck = await prisma.slideDeck.create({
       data: {
         userId: user.id,
@@ -136,12 +181,14 @@ export async function POST(req, context) {
         title,
         alaiGenerationId: alaiGenerationId.slice(0, 128),
         pptxUrl: storedPptxUrl,
+        pdfUrl: storedPdfUrl,
       },
       select: {
         id: true,
         title: true,
         alaiGenerationId: true,
         pptxUrl: true,
+        pdfUrl: true,
         createdAt: true,
       },
     });
@@ -161,7 +208,10 @@ export async function DELETE(req, context) {
   try {
     const summaryId = await resolveSummaryId(context);
     if (!summaryId) {
-      return NextResponse.json({ error: "Invalid summary id" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid summary id" },
+        { status: 400 },
+      );
     }
 
     const user = await getRequestUser();
@@ -172,19 +222,26 @@ export async function DELETE(req, context) {
     const body = await req.json().catch(() => ({}));
     const deckId = Number.parseInt(String(body?.deckId || ""), 10);
     if (!Number.isFinite(deckId) || deckId <= 0) {
-      return NextResponse.json({ error: "deckId is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "deckId is required" },
+        { status: 400 },
+      );
     }
 
     const deck = await prisma.slideDeck.findFirst({
       where: { id: deckId, summaryId, userId: user.id },
-      select: { id: true, pptxUrl: true },
+      select: { id: true, pptxUrl: true, pdfUrl: true },
     });
     if (!deck) {
-      return NextResponse.json({ error: "Slide deck not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Slide deck not found" },
+        { status: 404 },
+      );
     }
 
     try {
       if (deck.pptxUrl) await del(deck.pptxUrl);
+      if (deck.pdfUrl) await del(deck.pdfUrl);
     } catch (e) {
       console.warn("Slide deck blob delete failed:", e?.message || e);
     }

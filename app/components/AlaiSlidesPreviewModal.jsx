@@ -3,16 +3,35 @@
 import { useEffect, useState } from "react";
 
 const CloseIco = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+  <svg
+    width="13"
+    height="13"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 );
 
 const DownloadIco = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-    <polyline points="7 10 12 15 17 10"/>
-    <line x1="12" y1="15" x2="12" y2="3"/>
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
   </svg>
 );
 
@@ -29,6 +48,7 @@ function officeViewSrc(pptUrl) {
 export default function AlaiSlidesPreviewModal({
   onClose,
   onDownload,
+  onDownloadPdf,
   previewUrl,
   /** Signed PPTX URL from Alai — used when there is no link/pdf preview */
   remotePptUrl = "",
@@ -36,6 +56,7 @@ export default function AlaiSlidesPreviewModal({
   subtitle = "Your presentation slides is ready..",
 }) {
   const [downloading, setDownloading] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [iframeLoading, setIframeLoading] = useState(true);
 
   // Prefer Office Online embed for the PPTX when we have a signed URL. Alai's own
@@ -68,6 +89,16 @@ export default function AlaiSlidesPreviewModal({
       await onDownload();
     } finally {
       setDownloading(false);
+    }
+  }
+
+  async function handleDownloadPdf() {
+    if (!onDownloadPdf) return;
+    setDownloadingPdf(true);
+    try {
+      await onDownloadPdf();
+    } finally {
+      setDownloadingPdf(false);
     }
   }
 
@@ -207,7 +238,10 @@ export default function AlaiSlidesPreviewModal({
         }
       `}</style>
 
-      <div className="alai-overlay" onClick={(e) => e.target === e.currentTarget && onClose?.()}>
+      <div
+        className="alai-overlay"
+        onClick={(e) => e.target === e.currentTarget && onClose?.()}
+      >
         <div className="alai-modal" onMouseDown={(e) => e.stopPropagation()}>
           <div className="alai-head">
             <div className="alai-head-left">
@@ -215,11 +249,25 @@ export default function AlaiSlidesPreviewModal({
               <div className="alai-sub">{subtitle}</div>
             </div>
             <div className="alai-actions">
-              <button className="alai-btn" onClick={handleDownload} disabled={!onDownload || downloading}>
+              <button
+                className="alai-btn"
+                onClick={handleDownload}
+                disabled={!onDownload || downloading || downloadingPdf}
+              >
                 <DownloadIco />
-                {downloading ? "Downloading..." : "Download Slide"}
+                {downloading ? "Downloading…" : "PPTX"}
               </button>
-              <button className="alai-close" onClick={onClose}><CloseIco /></button>
+              <button
+                className="alai-btn"
+                onClick={() => void handleDownloadPdf()}
+                disabled={!onDownloadPdf || downloadingPdf || downloading}
+              >
+                <DownloadIco />
+                {downloadingPdf ? "Saving…" : "PDF"}
+              </button>
+              <button className="alai-close" onClick={onClose}>
+                <CloseIco />
+              </button>
             </div>
           </div>
 
@@ -243,18 +291,31 @@ export default function AlaiSlidesPreviewModal({
                 />
               ) : (
                 <div className="alai-fallback">
-                  <div style={{ fontWeight: 600, color: "#ddddf0" }}>Preview link not available</div>
+                  <div style={{ fontWeight: 600, color: "#ddddf0" }}>
+                    Preview link not available
+                  </div>
                   <div style={{ fontSize: 12, opacity: 0.9 }}>
-                    You can still download the PPTX, or open the presentation in Alai.
+                    You can still download the PPTX, or open the presentation in
+                    Alai.
                   </div>
                 </div>
               )}
             </div>
             {openInTabHref && (
-              <div style={{ marginTop: 10, fontSize: 11.5, color: "rgba(255,255,255,.45)" }}>
-                If the embed is blocked, open in a new tab:
-                {" "}
-                <a className="alai-link" href={openInTabHref} target="_blank" rel="noreferrer">
+              <div
+                style={{
+                  marginTop: 10,
+                  fontSize: 11.5,
+                  color: "rgba(255,255,255,.45)",
+                }}
+              >
+                If the embed is blocked, open in a new tab:{" "}
+                <a
+                  className="alai-link"
+                  href={openInTabHref}
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   {openInTabHref}
                 </a>
               </div>
@@ -265,4 +326,3 @@ export default function AlaiSlidesPreviewModal({
     </>
   );
 }
-

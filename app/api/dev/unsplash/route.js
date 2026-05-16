@@ -7,14 +7,20 @@ export async function GET(req) {
     const query = searchParams.get("query");
 
     if (!query) {
-      return NextResponse.json({ error: "Missing query parameter" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing query parameter" },
+        { status: 400 },
+      );
     }
 
     const url = await fetchUnsplashImageUrl(query);
-    
+
     return NextResponse.json({ url });
   } catch (error) {
     console.error("Error testing Unsplash:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }

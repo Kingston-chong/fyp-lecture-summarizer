@@ -14,7 +14,10 @@ export default function ResetPassword() {
   const [focused, setFocused] = useState(false);
 
   async function handleSendOTP() {
-    if (!email) { setError("Please enter your email address."); return; }
+    if (!email) {
+      setError("Please enter your email address.");
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -77,29 +80,39 @@ export default function ResetPassword() {
           <div className="card">
             <div className="card-glow" />
 
-            <div className="icon-wrap"><MailIcon /></div>
+            <div className="icon-wrap">
+              <MailIcon />
+            </div>
 
             <h1 className="card-title">Reset Password</h1>
             <p className="card-desc">
-              Enter your registered email address.<br />
-              If the account is valid, you will receive an <span>OTP</span> that allows you to reset your password.
+              Enter your registered email address.
+              <br />
+              If the account is valid, you will receive an <span>OTP</span> that
+              allows you to reset your password.
             </p>
 
-            <label className={`field-label ${focused ? "focused" : ""}`}>Email Address</label>
+            <label className={`field-label ${focused ? "focused" : ""}`}>
+              Email Address
+            </label>
             <input
               className="field-input"
               type="email"
               placeholder="enter email address"
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value)}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
-              onKeyDown={e => e.key === "Enter" && handleSendOTP()}
+              onKeyDown={(e) => e.key === "Enter" && handleSendOTP()}
             />
 
             {error && <div className="error-msg">{error}</div>}
 
-            <button className="btn-send" onClick={handleSendOTP} disabled={loading}>
+            <button
+              className="btn-send"
+              onClick={handleSendOTP}
+              disabled={loading}
+            >
               {loading && <span className="spinner" />}
               {loading ? "Sending OTP..." : "Send OTP"}
             </button>

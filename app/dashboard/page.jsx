@@ -34,28 +34,31 @@ export default function Dashboard() {
   const router = useRouter();
 
   // State
-  const [sidebarOpen, setSidebarOpen]         = useState(false);
-  const [selectedFiles, setSelectedFiles]   = useState([]);  // {name, type, size, id?, file?, fromPrev?}
-  const [prompt, setPrompt]                 = useState("");
-  const [summarizeFor, setSummarizeFor]     = useState("lecturer");
-  const [model, setModel]                   = useState("chatgpt");           // provider: chatgpt | deepseek | gemini
-  const [modelVariant, setModelVariant]     = useState("gpt-4o");            // exact model id for API
-  const [modelOpen, setModelOpen]           = useState(false);
-  const [variantOpen, setVariantOpen]       = useState(false);
-  const [modeOpen, setModeOpen]             = useState(false);
-  const [dragging, setDragging]             = useState(false);
-  const [loading, setLoading]               = useState(false);  // summarizing
-  const [uploading, setUploading]           = useState(false);  // uploading files
-  const [summaryOutput, setSummaryOutput]   = useState(null);   // latest result
-  const [copied, setCopied]                 = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState([]); // {name, type, size, id?, file?, fromPrev?}
+  const [prompt, setPrompt] = useState("");
+  const [summarizeFor, setSummarizeFor] = useState("lecturer");
+  const [model, setModel] = useState("chatgpt"); // provider: chatgpt | deepseek | gemini
+  const [modelVariant, setModelVariant] = useState("gpt-4o"); // exact model id for API
+  const [modelOpen, setModelOpen] = useState(false);
+  const [variantOpen, setVariantOpen] = useState(false);
+  const [modeOpen, setModeOpen] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [loading, setLoading] = useState(false); // summarizing
+  const [uploading, setUploading] = useState(false); // uploading files
+  const [summaryOutput, setSummaryOutput] = useState(null); // latest result
+  const [copied, setCopied] = useState(false);
 
   // Sidebar data (from APIs)
-  const [history, setHistory]               = useState([]);
-  const [prevUploads, setPrevUploads]       = useState([]);
+  const [history, setHistory] = useState([]);
+  const [prevUploads, setPrevUploads] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
-  const [prevLoading, setPrevLoading]       = useState(true);
+  const [prevLoading, setPrevLoading] = useState(true);
   const [expandedHistory, setExpandedHistory] = useState(null);
-  const [sidebarSection, setSidebarSection] = useState({ history: true, prev: true });
+  const [sidebarSection, setSidebarSection] = useState({
+    history: true,
+    prev: true,
+  });
   const [sidebarWidth, setSidebarWidth] = useState(220);
   const sidebarDragRef = useRef({ active: false, startX: 0, startW: 220 });
 
@@ -73,45 +76,46 @@ export default function Dashboard() {
   const [dashMode, setDashMode] = useState(null);
 
   // ── Improve-PPT state ──
-  const [improveFile, setImproveFile]                         = useState(null);
+  const [improveFile, setImproveFile] = useState(null);
   /** When Improve uses a row from Previous Uploads (Vercel Blob), server loads bytes by id */
-  const [improveDocumentId, setImproveDocumentId]             = useState(null);
-  const [improveInstructions, setImproveInstructions]         = useState("");
-  const [parsedSlides, setParsedSlides]                       = useState(null);
-  const [parseLoading, setParseLoading]                       = useState(false);
-  const [planAdjustments, setPlanAdjustments]                 = useState([]);
-  const [planLoading, setPlanLoading]                         = useState(false);
-  const [planError, setPlanError]                             = useState("");
-  const parseRequestIdRef                                     = useRef(0);
-  const [addStockImages, setAddStockImages]                   = useState(true);
-  const [additiveImprove, setAdditiveImprove]                 = useState(true);
-  const [improveDetailLevel, setImproveDetailLevel]           = useState("lecture");
-  const [improveImgQuery, setImproveImgQuery]                 = useState("");
+  const [improveDocumentId, setImproveDocumentId] = useState(null);
+  const [improveInstructions, setImproveInstructions] = useState("");
+  const [parsedSlides, setParsedSlides] = useState(null);
+  const [parseLoading, setParseLoading] = useState(false);
+  const [planAdjustments, setPlanAdjustments] = useState([]);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [planError, setPlanError] = useState("");
+  const parseRequestIdRef = useRef(0);
+  const [addStockImages, setAddStockImages] = useState(true);
+  const [additiveImprove, setAdditiveImprove] = useState(true);
+  const [improveDetailLevel, setImproveDetailLevel] = useState("lecture");
+  const [improveImgQuery, setImproveImgQuery] = useState("");
   const [improveImgSearchLoading, setImproveImgSearchLoading] = useState(false);
-  const [improveImgResults, setImproveImgResults]             = useState([]);
-  const [improveImgSearchHint, setImproveImgSearchHint]       = useState("");
-  const [improveImageProvider, setImproveImageProvider]       = useState(null);
-  const [improveTargetSlide, setImproveTargetSlide]           = useState(1);
-  const [pickedUserImages, setPickedUserImages]               = useState([]);
-  const [improvePasteUrl, setImprovePasteUrl]                 = useState("");
-  const [themeQuery, setThemeQuery]                           = useState("");
-  const [themeSearchLoading, setThemeSearchLoading]           = useState(false);
-  const [themeResults, setThemeResults]                       = useState([]);
-  const [themeResultsQuery, setThemeResultsQuery]             = useState("");
-  const [selectedThemeId, setSelectedThemeId]                 = useState(null);
-  const [selectedTemplateSpec, setSelectedTemplateSpec]       = useState(null);
-  const [themeSearchErr, setThemeSearchErr]                   = useState("");
-  const [templatePickerOpen, setTemplatePickerOpen]           = useState(false);
-  const [improveGenLoading, setImproveGenLoading]             = useState(false);
-  const [improveErr, setImproveErr]                           = useState("");
-  const [improveAiModel, setImproveAiModel]                   = useState("Gemini");
-  const [improveModelOpen, setImproveModelOpen]               = useState(false);
+  const [improveImgResults, setImproveImgResults] = useState([]);
+  const [improveImgSearchHint, setImproveImgSearchHint] = useState("");
+  const [improveImageProvider, setImproveImageProvider] = useState(null);
+  const [improveTargetSlide, setImproveTargetSlide] = useState(1);
+  const [pickedUserImages, setPickedUserImages] = useState([]);
+  const [improvePasteUrl, setImprovePasteUrl] = useState("");
+  const [themeQuery, setThemeQuery] = useState("");
+  const [themeSearchLoading, setThemeSearchLoading] = useState(false);
+  const [themeResults, setThemeResults] = useState([]);
+  const [themeResultsQuery, setThemeResultsQuery] = useState("");
+  const [selectedThemeId, setSelectedThemeId] = useState(null);
+  const [selectedTemplateSpec, setSelectedTemplateSpec] = useState(null);
+  const [themeSearchErr, setThemeSearchErr] = useState("");
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [improveGenLoading, setImproveGenLoading] = useState(false);
+  const [improveErr, setImproveErr] = useState("");
+  const [improveAiModel, setImproveAiModel] = useState("Gemini");
+  const [improveModelOpen, setImproveModelOpen] = useState(false);
 
   const [useExistingDialog, setUseExistingDialog] = useState(null); // { names: string[] } when files already on server
   const [removingDocId, setRemovingDocId] = useState(null); // id of document being removed from server
   const [selectedPrevDocIds, setSelectedPrevDocIds] = useState([]); // selected docs for bulk delete
   const [bulkRemoving, setBulkRemoving] = useState(false);
   const fileInputRef = useRef();
+  const fileDragDepthRef = useRef(0);
 
   // ── Auth guard ─────────────────────────────────────────
   useEffect(() => {
@@ -125,8 +129,11 @@ export default function Dashboard() {
       const res = await fetch("/api/history");
       const data = await res.json();
       if (res.ok) setHistory(data.summaries || []);
-    } catch { /* silent */ }
-    finally { setHistoryLoading(false); }
+    } catch {
+      /* silent */
+    } finally {
+      setHistoryLoading(false);
+    }
   }, []);
 
   const fetchPrevUploads = useCallback(async () => {
@@ -135,8 +142,11 @@ export default function Dashboard() {
       const res = await fetch("/api/documents");
       const data = await res.json();
       if (res.ok) setPrevUploads(data.documents || []);
-    } catch { /* silent */ }
-    finally { setPrevLoading(false); }
+    } catch {
+      /* silent */
+    } finally {
+      setPrevLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -161,19 +171,26 @@ export default function Dashboard() {
     }
   }, [model]);
 
-
   // ── Improve-PPT side-effects (must be before any early return) ──
   useEffect(() => {
-    if (!parsedSlides?.length) { setImproveImageProvider(null); return; }
+    if (!parsedSlides?.length) {
+      setImproveImageProvider(null);
+      return;
+    }
     let cancelled = false;
     void (async () => {
       try {
         const res = await fetch("/api/improve-ppt/image-search");
         const data = await res.json().catch(() => ({}));
-        if (!cancelled && res.ok && data.provider) setImproveImageProvider(data.provider);
-      } catch { /* ignore */ }
+        if (!cancelled && res.ok && data.provider)
+          setImproveImageProvider(data.provider);
+      } catch {
+        /* ignore */
+      }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [parsedSlides]);
 
   useEffect(() => {
@@ -192,10 +209,12 @@ export default function Dashboard() {
   }, [dashMode]);
 
   // ── File helpers ───────────────────────────────────────
-  function getExt(name) { return name.split(".").pop().toUpperCase(); }
+  function getExt(name) {
+    return name.split(".").pop().toUpperCase();
+  }
 
   function addLocalFiles(newFiles) {
-    const arr = Array.from(newFiles).map(f => ({
+    const arr = Array.from(newFiles).map((f) => ({
       file: f,
       name: f.name,
       type: getExt(f.name),
@@ -215,48 +234,97 @@ export default function Dashboard() {
       return;
     }
 
-    setSelectedFiles(prev => {
-      const names = new Set(prev.map(f => f.name));
-      return [...prev, ...arr.filter(f => !names.has(f.name))];
+    setSelectedFiles((prev) => {
+      const names = new Set(prev.map((f) => f.name));
+      return [...prev, ...arr.filter((f) => !names.has(f.name))];
     });
   }
 
+  function resetFileDragState() {
+    fileDragDepthRef.current = 0;
+    setDragging(false);
+  }
+
+  function onFilePanelDragEnter(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!e.dataTransfer?.types?.includes("Files")) return;
+    fileDragDepthRef.current += 1;
+    setDragging(true);
+  }
+
+  function onFilePanelDragLeave(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    fileDragDepthRef.current -= 1;
+    if (fileDragDepthRef.current <= 0) resetFileDragState();
+  }
+
+  function onFilePanelDragOver(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+  }
+
+  function onFilePanelDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    resetFileDragState();
+    const files = e.dataTransfer?.files;
+    if (files?.length) addLocalFiles(files);
+  }
+
+  useEffect(() => {
+    const onDragEnd = () => resetFileDragState();
+    window.addEventListener("dragend", onDragEnd);
+    return () => window.removeEventListener("dragend", onDragEnd);
+  }, []);
+
+  function openFilePicker() {
+    fileInputRef.current?.click();
+  }
+
   function removeFile(name) {
-    setSelectedFiles(prev => prev.filter(f => f.name !== name));
+    setSelectedFiles((prev) => prev.filter((f) => f.name !== name));
   }
 
   function addPrevFile(doc) {
     if (dashMode === "improve") {
       if (!isImproveSourceType(doc.type)) return;
       setError("");
-      setSelectedFiles([{
+      setSelectedFiles([
+        {
+          id: doc.id,
+          name: doc.name,
+          type: doc.type,
+          size: formatBytes(doc.size),
+          fromPrev: true,
+        },
+      ]);
+      return;
+    }
+    if (selectedFiles.find((f) => f.name === doc.name)) return;
+    setSelectedFiles((prev) => [
+      ...prev,
+      {
         id: doc.id,
         name: doc.name,
         type: doc.type,
         size: formatBytes(doc.size),
         fromPrev: true,
-      }]);
-      return;
-    }
-    if (selectedFiles.find(f => f.name === doc.name)) return;
-    setSelectedFiles(prev => [...prev, {
-      id: doc.id,
-      name: doc.name,
-      type: doc.type,
-      size: formatBytes(doc.size),
-      fromPrev: true,
-    }]);
+      },
+    ]);
   }
 
   // ── Upload files to Vercel Blob via API ────────────────
   async function uploadNewFiles(files) {
     const list = files ?? selectedFiles;
-    const newFiles = list.filter(f => !f.fromPrev && f.file);
+    const newFiles = list.filter((f) => !f.fromPrev && f.file);
     if (newFiles.length === 0) return [];
 
     setUploading(true);
     const formData = new FormData();
-    newFiles.forEach(f => formData.append("files", f.file));
+    newFiles.forEach((f) => formData.append("files", f.file));
 
     const res = await fetch("/api/upload", { method: "POST", body: formData });
     const data = await res.json();
@@ -289,26 +357,41 @@ export default function Dashboard() {
 
       // Merge newly uploaded docs into state so retry won't re-upload (prevents duplicates)
       if (uploadedDocs.length > 0 && filesOverride === null) {
-        setSelectedFiles(prev => prev.map(f => {
-          if (f.fromPrev || !f.file) return f;
-          const doc = uploadedDocs.find(d => d.name === f.name);
-          if (!doc) return f;
-          return { id: doc.id, name: doc.name, type: doc.type, size: formatBytes(doc.size), fromPrev: true };
-        }));
+        setSelectedFiles((prev) =>
+          prev.map((f) => {
+            if (f.fromPrev || !f.file) return f;
+            const doc = uploadedDocs.find((d) => d.name === f.name);
+            if (!doc) return f;
+            return {
+              id: doc.id,
+              name: doc.name,
+              type: doc.type,
+              size: formatBytes(doc.size),
+              fromPrev: true,
+            };
+          }),
+        );
       }
       if (filesOverride !== null && uploadedDocs.length > 0) {
         // When called with override (e.g. after "Use existing"), we already replaced some entries; merge upload results into override list
-        const merged = files.map(f => {
+        const merged = files.map((f) => {
           if (f.fromPrev && f.id) return f;
-          const doc = uploadedDocs.find(d => d.name === f.name);
-          if (doc) return { id: doc.id, name: doc.name, type: doc.type, size: formatBytes(doc.size), fromPrev: true };
+          const doc = uploadedDocs.find((d) => d.name === f.name);
+          if (doc)
+            return {
+              id: doc.id,
+              name: doc.name,
+              type: doc.type,
+              size: formatBytes(doc.size),
+              fromPrev: true,
+            };
           return f;
         });
         setSelectedFiles(merged);
       }
 
-      const prevIds = files.filter(f => f.fromPrev && f.id).map(f => f.id);
-      const newIds  = uploadedDocs.map(d => d.id);
+      const prevIds = files.filter((f) => f.fromPrev && f.id).map((f) => f.id);
+      const newIds = uploadedDocs.map((d) => d.id);
       const documentIds = [...prevIds, ...newIds];
 
       if (documentIds.length === 0) {
@@ -321,10 +404,18 @@ export default function Dashboard() {
       const res = await fetch("/api/summarize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentIds, model, modelVariant, summarizeFor, prompt, initOnly: true }),
+        body: JSON.stringify({
+          documentIds,
+          model,
+          modelVariant,
+          summarizeFor,
+          prompt,
+          initOnly: true,
+        }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Failed to start summarization");
+      if (!res.ok)
+        throw new Error(data.error || "Failed to start summarization");
 
       const sid = data?.summaryId;
       if (sid == null) throw new Error("Missing summaryId from server");
@@ -341,11 +432,13 @@ export default function Dashboard() {
   async function handleSummarize() {
     if (!selectedFiles.length) return;
 
-    const newFiles = selectedFiles.filter(f => !f.fromPrev && f.file);
-    const alreadyOnServer = newFiles.filter(f => prevUploads.some(d => d.name === f.name));
+    const newFiles = selectedFiles.filter((f) => !f.fromPrev && f.file);
+    const alreadyOnServer = newFiles.filter((f) =>
+      prevUploads.some((d) => d.name === f.name),
+    );
 
     if (alreadyOnServer.length > 0) {
-      setUseExistingDialog({ names: alreadyOnServer.map(f => f.name) });
+      setUseExistingDialog({ names: alreadyOnServer.map((f) => f.name) });
       return;
     }
 
@@ -358,11 +451,17 @@ export default function Dashboard() {
     if (!dialog) return;
 
     if (useExisting) {
-      const resolved = selectedFiles.map(f => {
+      const resolved = selectedFiles.map((f) => {
         if (!dialog.names.includes(f.name)) return f;
-        const doc = prevUploads.find(d => d.name === f.name);
+        const doc = prevUploads.find((d) => d.name === f.name);
         if (!doc) return f;
-        return { id: doc.id, name: doc.name, type: doc.type, size: formatBytes(doc.size), fromPrev: true };
+        return {
+          id: doc.id,
+          name: doc.name,
+          type: doc.type,
+          size: formatBytes(doc.size),
+          fromPrev: true,
+        };
       });
       setSelectedFiles(resolved);
       doUploadAndSummarize(resolved);
@@ -381,7 +480,9 @@ export default function Dashboard() {
     try {
       const res = await fetch(`/api/documents/${doc.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to remove");
-      setSelectedFiles(prev => prev.filter(f => f.id !== doc.id && f.name !== doc.name));
+      setSelectedFiles((prev) =>
+        prev.filter((f) => f.id !== doc.id && f.name !== doc.name),
+      );
       setSelectedPrevDocIds((prev) => prev.filter((id) => id !== doc.id));
       fetchPrevUploads();
     } catch (e) {
@@ -393,7 +494,9 @@ export default function Dashboard() {
 
   function togglePrevDocSelection(docId) {
     setSelectedPrevDocIds((prev) =>
-      prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId],
+      prev.includes(docId)
+        ? prev.filter((id) => id !== docId)
+        : [...prev, docId],
     );
   }
 
@@ -406,8 +509,15 @@ export default function Dashboard() {
   }
 
   async function handleRemoveSelectedDocuments() {
-    if (bulkRemoving || removingDocId != null || selectedPrevDocIds.length === 0) return;
-    const docsToRemove = prevUploads.filter((doc) => selectedPrevDocIds.includes(doc.id));
+    if (
+      bulkRemoving ||
+      removingDocId != null ||
+      selectedPrevDocIds.length === 0
+    )
+      return;
+    const docsToRemove = prevUploads.filter((doc) =>
+      selectedPrevDocIds.includes(doc.id),
+    );
     const confirmed = window.confirm(
       `Delete ${docsToRemove.length} selected file${docsToRemove.length !== 1 ? "s" : ""} from server? This cannot be undone.`,
     );
@@ -419,7 +529,9 @@ export default function Dashboard() {
     try {
       for (const doc of docsToRemove) {
         try {
-          const res = await fetch(`/api/documents/${doc.id}`, { method: "DELETE" });
+          const res = await fetch(`/api/documents/${doc.id}`, {
+            method: "DELETE",
+          });
           if (!res.ok) throw new Error("Failed to remove");
         } catch {
           failed += 1;
@@ -449,13 +561,15 @@ export default function Dashboard() {
 
   const selectedProvider = MODEL_PROVIDERS.find((m) => m.id === model);
   const variants = selectedProvider?.variants ?? [];
-  const selectedVariant = variants.find((v) => v.id === modelVariant) ?? variants[0];
+  const selectedVariant =
+    variants.find((v) => v.id === modelVariant) ?? variants[0];
   const setModelAndVariant = (providerId) => {
     setModel(providerId);
     setModelVariant(getDefaultVariant(providerId));
   };
 
-  const selectedImproveSource = selectedFiles.find((f) => isImproveSourceType(f.type)) || null;
+  const selectedImproveSource =
+    selectedFiles.find((f) => isImproveSourceType(f.type)) || null;
   const selectedImproveSourceKey = selectedImproveSource
     ? selectedImproveSource.fromPrev
       ? `prev:${selectedImproveSource.id ?? selectedImproveSource.name}`
@@ -496,7 +610,9 @@ export default function Dashboard() {
         setImproveFile(null);
         setImproveDocumentId(null);
         setParseLoading(false);
-        setImproveErr("Pick a .pptx or .pdf from Previous Uploads, or upload a file locally.");
+        setImproveErr(
+          "Pick a .pptx or .pdf from Previous Uploads, or upload a file locally.",
+        );
         return;
       }
       const reqId = ++parseRequestIdRef.current;
@@ -534,7 +650,10 @@ export default function Dashboard() {
       try {
         const fd = new FormData();
         fd.append("file", f);
-        const res = await fetch("/api/improve-ppt/parse", { method: "POST", body: fd });
+        const res = await fetch("/api/improve-ppt/parse", {
+          method: "POST",
+          body: fd,
+        });
         const data = await res.json().catch(() => ({}));
         if (reqId !== parseRequestIdRef.current) return;
         if (!res.ok) throw new Error(data.error || "Could not read slides");
@@ -553,7 +672,10 @@ export default function Dashboard() {
     const onMove = (e) => {
       if (!sidebarDragRef.current.active) return;
       const dx = e.clientX - sidebarDragRef.current.startX;
-      const w = Math.min(440, Math.max(176, sidebarDragRef.current.startW + dx));
+      const w = Math.min(
+        440,
+        Math.max(176, sidebarDragRef.current.startW + dx),
+      );
       setSidebarWidth(w);
     };
     const onUp = () => {
@@ -570,12 +692,30 @@ export default function Dashboard() {
     };
   }, []);
 
-  if (status === "loading") return (
-    <div style={{ minHeight: "100vh", background: "var(--app-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ width: 32, height: 32, border: "3px solid rgba(99,102,241,0.3)", borderTopColor: "#6366f1", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-  );
+  if (status === "loading")
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "var(--app-bg)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            border: "3px solid rgba(99,102,241,0.3)",
+            borderTopColor: "#6366f1",
+            borderRadius: "50%",
+            animation: "spin 0.7s linear infinite",
+          }}
+        />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
 
   function addPickedImageFromUrl(url, thumb) {
     if (!url || pickedUserImages.length >= 10) return;
@@ -588,7 +728,9 @@ export default function Dashboard() {
   }
 
   function removePickedImage(slideIndex) {
-    setPickedUserImages((prev) => prev.filter((p) => p.slideIndex !== slideIndex));
+    setPickedUserImages((prev) =>
+      prev.filter((p) => p.slideIndex !== slideIndex),
+    );
   }
 
   async function handleThemeSearch() {
@@ -597,11 +739,14 @@ export default function Dashboard() {
     setThemeSearchLoading(true);
     setThemeSearchErr("");
     try {
-      const res = await fetch(`/api/improve-ppt/theme-search?q=${encodeURIComponent(q)}&model=${encodeURIComponent(improveAiModel)}`);
+      const res = await fetch(
+        `/api/improve-ppt/theme-search?q=${encodeURIComponent(q)}&model=${encodeURIComponent(improveAiModel)}`,
+      );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Theme search failed");
       const themes = Array.isArray(data.themes) ? data.themes : [];
-      if (themes.length > 0 && data.templateSpec) themes[0]._templateSpec = data.templateSpec;
+      if (themes.length > 0 && data.templateSpec)
+        themes[0]._templateSpec = data.templateSpec;
       setThemeResults(themes);
       setThemeResultsQuery(q);
       if (data.templateSpec) setSelectedTemplateSpec(data.templateSpec);
@@ -629,7 +774,9 @@ export default function Dashboard() {
         themeId: String(t.id),
         themeName: t.name || "",
       });
-      const res = await fetch(`/api/improve-ppt/theme-search?${params.toString()}`);
+      const res = await fetch(
+        `/api/improve-ppt/theme-search?${params.toString()}`,
+      );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Theme fetch failed");
       if (data.templateSpec) {
@@ -653,11 +800,15 @@ export default function Dashboard() {
     }
     setImproveImgSearchLoading(true);
     try {
-      const res = await fetch(`/api/improve-ppt/image-search?q=${encodeURIComponent(q.slice(0, 200))}`);
+      const res = await fetch(
+        `/api/improve-ppt/image-search?q=${encodeURIComponent(q.slice(0, 200))}`,
+      );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Image search failed");
       setImproveImgResults(Array.isArray(data.results) ? data.results : []);
-      setImproveImgSearchHint(data.hint || (data.results?.length ? "" : "No results found."));
+      setImproveImgSearchHint(
+        data.hint || (data.results?.length ? "" : "No results found."),
+      );
     } catch (e) {
       setImproveImgSearchHint(e?.message || String(e));
     } finally {
@@ -673,7 +824,11 @@ export default function Dashboard() {
       const res = await fetch("/api/improve-ppt/plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slides: parsedSlides, instructions: improveInstructions.trim(), model: improveAiModel }),
+        body: JSON.stringify({
+          slides: parsedSlides,
+          instructions: improveInstructions.trim(),
+          model: improveAiModel,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Planning failed");
@@ -691,8 +846,16 @@ export default function Dashboard() {
 
   async function handleImproveGenerate() {
     setImproveErr("");
-    if (!parsedSlides?.length) { setImproveErr("Upload a .pptx or .pdf file and wait until slides finish loading."); return; }
-    if (!improveInstructions.trim()) { setImproveErr("Describe what you want to improve."); return; }
+    if (!parsedSlides?.length) {
+      setImproveErr(
+        "Upload a .pptx or .pdf file and wait until slides finish loading.",
+      );
+      return;
+    }
+    if (!improveInstructions.trim()) {
+      setImproveErr("Describe what you want to improve.");
+      return;
+    }
     setImproveGenLoading(true);
     try {
       const adjustments = await runImprovePlanNow();
@@ -710,15 +873,24 @@ export default function Dashboard() {
         detailLevel: improveDetailLevel,
         themeId: selectedThemeId || undefined,
         templateSpec: selectedTemplateSpec ?? undefined,
-        userImageRefs: pickedUserImages.map((p) => ({ slideIndex: p.slideIndex, url: p.url })),
+        userImageRefs: pickedUserImages.map((p) => ({
+          slideIndex: p.slideIndex,
+          url: p.url,
+        })),
       };
       const fd = new FormData();
       if (improveFile) fd.append("file", improveFile);
       fd.append("payload", JSON.stringify(payload));
-      const res = await fetch("/api/improve-ppt/generate", { method: "POST", body: fd });
+      const res = await fetch("/api/improve-ppt/generate", {
+        method: "POST",
+        body: fd,
+      });
       if (!res.ok) {
         let msg = "Generate failed";
-        try { const err = await res.json(); if (err?.error) msg = err.error; } catch {}
+        try {
+          const err = await res.json();
+          if (err?.error) msg = err.error;
+        } catch {}
         throw new Error(msg);
       }
       const pptxBlob = await res.blob();
@@ -739,7 +911,11 @@ export default function Dashboard() {
 
   function onSidebarResizeStart(e) {
     e.preventDefault();
-    sidebarDragRef.current = { active: true, startX: e.clientX, startW: sidebarWidth };
+    sidebarDragRef.current = {
+      active: true,
+      startX: e.clientX,
+      startW: sidebarWidth,
+    };
     document.body.classList.add("no-select");
   }
 
@@ -749,7 +925,9 @@ export default function Dashboard() {
     setDocPreviewDoc(doc);
     setDocPreviewSetupErr("");
     setDocPreviewSrc("");
-    setDocPreviewTabHref(`${typeof window !== "undefined" ? window.location.origin : ""}/api/documents/${doc.id}/view`);
+    setDocPreviewTabHref(
+      `${typeof window !== "undefined" ? window.location.origin : ""}/api/documents/${doc.id}/view`,
+    );
     setDocPreviewIframeLoading(true);
     setDocPreviewTokenLoading(true);
     setDocPreviewOpen(true);
@@ -764,8 +942,12 @@ export default function Dashboard() {
         if (!res.ok) throw new Error(data.error || "Could not prepare preview");
         const viewUrl = `${origin}${basePath}?t=${encodeURIComponent(data.token)}`;
         const enc = encodeURIComponent(viewUrl);
-        setDocPreviewSrc(`https://view.officeapps.live.com/op/embed.aspx?src=${enc}`);
-        setDocPreviewTabHref(`https://view.officeapps.live.com/op/view.aspx?src=${enc}`);
+        setDocPreviewSrc(
+          `https://view.officeapps.live.com/op/embed.aspx?src=${enc}`,
+        );
+        setDocPreviewTabHref(
+          `https://view.officeapps.live.com/op/view.aspx?src=${enc}`,
+        );
       } else {
         setDocPreviewSrc(`${origin}${basePath}?v=${Date.now()}`);
         setDocPreviewTabHref(`${origin}${basePath}`);
@@ -925,10 +1107,21 @@ export default function Dashboard() {
         .panel-title { font-family: 'Fraunces', serif; font-size: 14.5px; font-weight: 600; color: #ddddf0; }
         .panel-sub { font-size: 11px; color: rgba(255,255,255,0.28); margin-top: 8px; }
 
-        .drop-zone { border: 1.5px dashed rgba(99,102,241,0.22); border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; background: rgba(99,102,241,0.02); }
+        .panel--drop-active {
+          border-color: rgba(99,102,241,0.45);
+          box-shadow: 0 0 0 2px rgba(99,102,241,0.12);
+          background: color-mix(in srgb, var(--dash-panel-bg) 92%, rgba(99,102,241,0.08));
+        }
+        .drop-zone {
+          border: 1.5px dashed rgba(99,102,241,0.22); border-radius: 10px; padding: 20px 16px;
+          text-align: center; cursor: pointer; transition: all 0.2s; background: rgba(99,102,241,0.02);
+          display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+          flex-shrink: 0;
+        }
+        .drop-zone--compact { flex-direction: row; padding: 12px 14px; min-height: 44px; gap: 10px; }
         .drop-zone:hover, .drop-zone.dragging { border-color: rgba(99,102,241,0.5); background: rgba(99,102,241,0.07); }
-        .drop-zone-text { font-size: 11.5px; color: rgba(255,255,255,0.28); margin-top: 6px; }
-        .drop-zone-link { color: #8080f8; }
+        .drop-zone-text { font-size: 11.5px; color: rgba(255,255,255,0.28); line-height: 1.45; }
+        .drop-zone-link { color: #8080f8; font-weight: 500; }
 
         .file-list { display: flex; flex-direction: column; gap: 7px; overflow-y: auto; max-height: 230px; }
         .file-list::-webkit-scrollbar { width: 3px; }
@@ -1013,6 +1206,11 @@ export default function Dashboard() {
           background: linear-gradient(135deg, rgba(22,163,74,0.30), rgba(21,128,61,0.22));
           box-shadow: 0 10px 26px rgba(22,163,74,0.30);
           transform: translateY(-1px);
+        }
+        .upload-btn--drag-active {
+          border-color: rgba(34,197,94,0.95);
+          background: linear-gradient(135deg, rgba(22,163,74,0.35), rgba(21,128,61,0.28));
+          box-shadow: 0 0 0 3px rgba(16,185,129,0.22), 0 10px 28px rgba(22,163,74,0.35);
         }
         .upload-hint { font-size: 10.5px; color: rgba(255,255,255,0.2); text-align: center; margin-bottom: 10px; }
 
@@ -1333,6 +1531,10 @@ export default function Dashboard() {
           color: #4338ca;
         }
 
+        html[data-theme="light"] .panel--drop-active {
+          border-color: rgba(79,70,229,0.4);
+          box-shadow: 0 0 0 2px rgba(99,102,241,0.1);
+        }
         html[data-theme="light"] .drop-zone-text { color: rgba(0,0,0,0.45); }
         html[data-theme="light"] .drop-zone-link { color: #4f46e5; }
 
@@ -1466,7 +1668,6 @@ export default function Dashboard() {
 
       <div className={`app ${sidebarOpen ? "app--sidebar-open" : ""}`}>
         <div className="body">
-
           <button
             type="button"
             className="sidebar-toggle"
@@ -1484,7 +1685,9 @@ export default function Dashboard() {
             history={history}
             expandedHistory={expandedHistory}
             setExpandedHistory={setExpandedHistory}
-            onHistoryNavigate={(id) => { router.push(`/summary/${id}`); }}
+            onHistoryNavigate={(id) => {
+              router.push(`/summary/${id}`);
+            }}
             timeAgo={timeAgo}
             prevLoading={prevLoading}
             prevUploads={prevUploads}
@@ -1513,12 +1716,17 @@ export default function Dashboard() {
           <main
             className="main"
             style={{
-              gridTemplateColumns: "minmax(320px, 1fr) minmax(320px, 1fr) 300px",
+              gridTemplateColumns:
+                "minmax(320px, 1fr) minmax(320px, 1fr) 300px",
             }}
           >
-
             {/* Panel 1 — Files */}
-            <div className="panel"
+            <div
+              className={`panel${dragging ? " panel--drop-active" : ""}`}
+              onDragEnter={onFilePanelDragEnter}
+              onDragLeave={onFilePanelDragLeave}
+              onDragOver={onFilePanelDragOver}
+              onDrop={onFilePanelDrop}
             >
               <div>
                 <div className="panel-title">
@@ -1535,7 +1743,10 @@ export default function Dashboard() {
                       : `${selectedFiles.length} document${selectedFiles.length !== 1 ? "s" : ""} selected`}
                   </div>
                   {dashMode === "improve" && (
-                    <span className="improve-slot-pill" title="Improve mode accepts one presentation only">
+                    <span
+                      className="improve-slot-pill"
+                      title="Improve mode accepts one presentation only"
+                    >
                       {selectedFiles.length >= 1 ? "1 / 1 slot" : "0 / 1 slot"}
                     </span>
                   )}
@@ -1544,47 +1755,77 @@ export default function Dashboard() {
 
               {dashMode === "improve" && (
                 <div className="improve-files-banner" role="status">
-                  <span aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }}>ⓘ</span>
+                  <span
+                    aria-hidden="true"
+                    style={{ flexShrink: 0, marginTop: 1 }}
+                  >
+                    ⓘ
+                  </span>
                   <span>
-                    <strong>Improve mode:</strong> choose exactly one .pptx or .pdf. Accepts 1 file only.
+                    <strong>Improve mode:</strong> choose exactly one .pptx or
+                    .pdf. Accepts 1 file only.
                   </span>
                 </div>
               )}
 
               {selectedFiles.length > 0 ? (
-                <div className={`file-list${dashMode === "improve" ? " improve-single" : ""}`}>
-                  {selectedFiles.map(f => (
+                <div
+                  className={`file-list${dashMode === "improve" ? " improve-single" : ""}`}
+                >
+                  {selectedFiles.map((f) => (
                     <div className="file-item" key={f.name}>
                       <FileIcon type={f.type} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="file-name" title={f.name}>{f.name}</div>
+                        <div className="file-name" title={f.name}>
+                          {f.name}
+                        </div>
                         <div className="file-size">
                           {f.size}
-                          {f.fromPrev && <span className="file-prev-tag"> · prev upload</span>}
+                          {f.fromPrev && (
+                            <span className="file-prev-tag">
+                              {" "}
+                              · prev upload
+                            </span>
+                          )}
                         </div>
                       </div>
                       <span className="file-badge">{f.type}</span>
-                      <button className="file-remove" onClick={() => removeFile(f.name)}><CloseIcon /></button>
+                      <button
+                        className="file-remove"
+                        onClick={() => removeFile(f.name)}
+                      >
+                        <CloseIcon />
+                      </button>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="empty-state">
                   <FileIcon type={dashMode === "improve" ? "PPTX" : "PDF"} />
-                  <span>{dashMode === "improve" ? "No presentation selected" : "No files selected"}</span>
                   <span>
                     {dashMode === "improve"
-                      ? "Upload one .pptx or .pdf below (only one file allowed)"
-                      : "Click upload below or pick from the sidebar"}
+                      ? "No presentation selected"
+                      : "No files selected"}
+                  </span>
+                  <span>
+                    {dashMode === "improve"
+                      ? "Click upload below or drag a file onto this panel"
+                      : "Click upload below, drag files here, or pick from the sidebar"}
                   </span>
                 </div>
               )}
 
               {(dashMode !== "improve" || selectedFiles.length === 0) && (
                 <>
-                  <button className="upload-btn" onClick={() => fileInputRef.current?.click()}>
+                  <button
+                    type="button"
+                    className={`upload-btn${dragging ? " upload-btn--drag-active" : ""}`}
+                    onClick={openFilePicker}
+                  >
                     <UploadIcon />{" "}
-                    {dashMode === "improve" ? "Upload .pptx / .pdf" : "Upload Documents"}
+                    {dashMode === "improve"
+                      ? "Upload .pptx / .pdf"
+                      : "Upload Documents"}
                   </button>
                   <input
                     ref={fileInputRef}
@@ -1614,7 +1855,10 @@ export default function Dashboard() {
                 <>
                   <div>
                     <div className="panel-title">What should change?</div>
-                    <div className="panel-sub">Describe design/content improvements for the lecture slides</div>
+                    <div className="panel-sub">
+                      Describe design/content improvements for the lecture
+                      slides
+                    </div>
                   </div>
                   <div className="prompt-sugs" aria-label="Improve suggestions">
                     {DASH_PROMPT_SUGGESTIONS.improve.map((s) => (
@@ -1637,11 +1881,17 @@ export default function Dashboard() {
                   </div>
                   <textarea
                     className="prompt-area"
-                    placeholder={"e.g. Switch to a green theme and add images. Expand speaker notes, keep bullets concise. Tighten bullets for clarity."}
+                    placeholder={
+                      "e.g. Switch to a green theme and add images. Expand speaker notes, keep bullets concise. Tighten bullets for clarity."
+                    }
                     value={improveInstructions}
-                    onChange={(e) => setImproveInstructions(e.target.value.slice(0, 500))}
+                    onChange={(e) =>
+                      setImproveInstructions(e.target.value.slice(0, 500))
+                    }
                   />
-                  <div className="prompt-count">{improveInstructions.length} / 500</div>
+                  <div className="prompt-count">
+                    {improveInstructions.length} / 500
+                  </div>
                 </>
               ) : summaryOutput ? (
                 <>
@@ -1649,17 +1899,29 @@ export default function Dashboard() {
                     <div>
                       <div className="panel-title">Summary Output</div>
                       <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-                        <span className={`status-badge ${summaryOutput.summarizeFor === "lecturer" ? "badge-lecturer" : "badge-student"}`}>
+                        <span
+                          className={`status-badge ${summaryOutput.summarizeFor === "lecturer" ? "badge-lecturer" : "badge-student"}`}
+                        >
                           {summaryOutput.summarizeFor}
                         </span>
-                        <span className="status-badge badge-model">{modelDisplayName(summaryOutput.model)}</span>
+                        <span className="status-badge badge-model">
+                          {modelDisplayName(summaryOutput.model)}
+                        </span>
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 6 }}>
-                      <button className={`copy-btn ${copied ? "copied" : ""}`} onClick={handleCopy}>
+                      <button
+                        className={`copy-btn ${copied ? "copied" : ""}`}
+                        onClick={handleCopy}
+                      >
                         <CopyIcon /> {copied ? "copied" : "Copy"}
                       </button>
-                      <button className="copy-btn" onClick={() => setSummaryOutput(null)}>New</button>
+                      <button
+                        className="copy-btn"
+                        onClick={() => setSummaryOutput(null)}
+                      >
+                        New
+                      </button>
                     </div>
                   </div>
                   <div className="output-area">
@@ -1675,10 +1937,15 @@ export default function Dashboard() {
                 <>
                   <div>
                     <div className="panel-title">Additional Prompts</div>
-                    <div className="panel-sub">Optional — refine the summary</div>
+                    <div className="panel-sub">
+                      Optional — refine the summary
+                    </div>
                   </div>
                   <div className="prompt-sugs" aria-label="Prompt suggestions">
-                    {DASH_PROMPT_SUGGESTIONS.summarize.map((s) => (
+                    {(summarizeFor === "lecturer"
+                      ? DASH_PROMPT_SUGGESTIONS.summarizeLecturer
+                      : DASH_PROMPT_SUGGESTIONS.summarizeStudent
+                    ).map((s) => (
                       <button
                         key={s}
                         type="button"
@@ -1698,9 +1965,11 @@ export default function Dashboard() {
                   </div>
                   <textarea
                     className="prompt-area"
-                    placeholder={"ex: focus on key concepts and definitions\nex: highlight any formulas or theorems\nex: point out the concept of Denormalization..."}
+                    placeholder={
+                      "ex: focus on key concepts and definitions\nex: highlight any formulas or theorems\nex: point out the concept of Denormalization..."
+                    }
                     value={prompt}
-                    onChange={e => setPrompt(e.target.value.slice(0, 500))}
+                    onChange={(e) => setPrompt(e.target.value.slice(0, 500))}
                   />
                   <div className="prompt-count">{prompt.length} / 500</div>
                 </>
@@ -1709,10 +1978,11 @@ export default function Dashboard() {
 
             {/* Panel 3 — Controls */}
             <div className="panel" style={{ minHeight: 340 }}>
-
               {/* ── Mode dropdown ── */}
               <div className="mode-dropdown-wrap">
-                <div className="mode-dropdown-label">What would you like to do?</div>
+                <div className="mode-dropdown-label">
+                  What would you like to do?
+                </div>
                 <div className="model-wrap">
                   <button
                     className={`model-btn ${modeOpen ? "open" : ""}`}
@@ -1721,7 +1991,11 @@ export default function Dashboard() {
                   >
                     <div className="model-left">
                       <div className="model-dot" />
-                      <span>{dashMode === "improve" ? "Improve Lecture Slides Design/Content" : "Summarize Notes"}</span>
+                      <span>
+                        {dashMode === "improve"
+                          ? "Improve Lecture Slides Design/Content"
+                          : "Summarize Notes"}
+                      </span>
                     </div>
                     <ChevronDownIcon />
                   </button>
@@ -1729,15 +2003,23 @@ export default function Dashboard() {
                     <div className="model-menu">
                       {[
                         { value: "summarize", label: "Summarize Notes" },
-                        { value: "improve",   label: "Improve Lecture Slides Design/Content" },
+                        {
+                          value: "improve",
+                          label: "Improve Lecture Slides Design/Content",
+                        },
                       ].map((opt) => (
                         <div
                           key={opt.value}
                           className={`model-opt ${(dashMode ?? "summarize") === opt.value ? "on" : ""}`}
-                          onMouseDown={() => { setDashMode(opt.value); setModeOpen(false); }}
+                          onMouseDown={() => {
+                            setDashMode(opt.value);
+                            setModeOpen(false);
+                          }}
                         >
                           <div className="model-opt-name">{opt.label}</div>
-                          {(dashMode ?? "summarize") === opt.value && <span className="model-check">✓</span>}
+                          {(dashMode ?? "summarize") === opt.value && (
+                            <span className="model-check">✓</span>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1746,176 +2028,309 @@ export default function Dashboard() {
               </div>
 
               {/* ── Summarize mode ── */}
-              {(dashMode === null || dashMode === "summarize") && (<>
-                <div>
-                  <div className="radio-label">Summarize for</div>
-                  {[
-                    { id: "lecturer", title: "Lecturer", sub: "Detailed & comprehensive" },
-                    { id: "student",  title: "Student",  sub: "Simplified, key points" },
-                  ].map(opt => (
-                    <div key={opt.id} className={`radio-option ${summarizeFor === opt.id ? "selected" : ""}`}
-                      onClick={() => setSummarizeFor(opt.id)}>
-                      <div className={`radio-dot ${summarizeFor === opt.id ? "on" : ""}`} />
-                      <div>
-                        <div className="radio-title">{opt.title}</div>
-                        <div className="radio-sub">{opt.sub}</div>
+              {(dashMode === null || dashMode === "summarize") && (
+                <>
+                  <div>
+                    <div className="radio-label">Summarize for</div>
+                    {[
+                      {
+                        id: "lecturer",
+                        title: "Lecturer",
+                        sub: "Detailed & comprehensive",
+                      },
+                      {
+                        id: "student",
+                        title: "Student",
+                        sub: "Simplified, key points",
+                      },
+                    ].map((opt) => (
+                      <div
+                        key={opt.id}
+                        className={`radio-option ${summarizeFor === opt.id ? "selected" : ""}`}
+                        onClick={() => setSummarizeFor(opt.id)}
+                      >
+                        <div
+                          className={`radio-dot ${summarizeFor === opt.id ? "on" : ""}`}
+                        />
+                        <div>
+                          <div className="radio-title">{opt.title}</div>
+                          <div className="radio-sub">{opt.sub}</div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div>
-                  <div className="model-label">Provider</div>
-                  <div className="model-wrap">
-                    <button className={`model-btn ${modelOpen ? "open" : ""}`}
-                      onClick={() => { setModelOpen((v) => !v); setVariantOpen(false); }}
-                      onBlur={() => setTimeout(() => setModelOpen(false), 150)}>
-                      <div className="model-left">
-                        <div className="model-dot" />
-                        <span>{selectedProvider?.label ?? model}</span>
-                      </div>
-                      <ChevronDownIcon />
-                    </button>
-                    {modelOpen && (
-                      <div className="model-menu">
-                        {MODEL_PROVIDERS.map((m) => (
-                          <div key={m.id} className={`model-opt ${model === m.id ? "on" : ""}`}
-                            onMouseDown={() => { setModelAndVariant(m.id); setModelOpen(false); }}>
-                            <div className="model-opt-name">{m.label}</div>
-                            {model === m.id && <span className="model-check">✓</span>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    ))}
                   </div>
-                </div>
-                <div>
-                  <div className="model-label">Model version</div>
-                  <div className="model-wrap">
-                    <button className={`model-btn ${variantOpen ? "open" : ""}`}
-                      onClick={() => { setVariantOpen((v) => !v); setModelOpen(false); }}
-                      onBlur={() => setTimeout(() => setVariantOpen(false), 150)}>
-                      <div className="model-left">
-                        <span>{selectedVariant?.label ?? modelVariant}</span>
-                      </div>
-                      <ChevronDownIcon />
-                    </button>
-                    {variantOpen && variants.length > 0 && (
-                      <div className="model-menu">
-                        {variants.map((v) => (
-                          <div key={v.id} className={`model-opt ${modelVariant === v.id ? "on" : ""}`}
-                            onMouseDown={() => { setModelVariant(v.id); setVariantOpen(false); }}>
-                            <div>
-                              <div className="model-opt-name">{v.label}</div>
-                              {v.desc && <div className="model-opt-desc">{v.desc}</div>}
+
+                  <div>
+                    <div className="model-label">Provider</div>
+                    <div className="model-wrap">
+                      <button
+                        className={`model-btn ${modelOpen ? "open" : ""}`}
+                        onClick={() => {
+                          setModelOpen((v) => !v);
+                          setVariantOpen(false);
+                        }}
+                        onBlur={() =>
+                          setTimeout(() => setModelOpen(false), 150)
+                        }
+                      >
+                        <div className="model-left">
+                          <div className="model-dot" />
+                          <span>{selectedProvider?.label ?? model}</span>
+                        </div>
+                        <ChevronDownIcon />
+                      </button>
+                      {modelOpen && (
+                        <div className="model-menu">
+                          {MODEL_PROVIDERS.map((m) => (
+                            <div
+                              key={m.id}
+                              className={`model-opt ${model === m.id ? "on" : ""}`}
+                              onMouseDown={() => {
+                                setModelAndVariant(m.id);
+                                setModelOpen(false);
+                              }}
+                            >
+                              <div className="model-opt-name">{m.label}</div>
+                              {model === m.id && (
+                                <span className="model-check">✓</span>
+                              )}
                             </div>
-                            {modelVariant === v.id && <span className="model-check">✓</span>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+                  <div>
+                    <div className="model-label">Model version</div>
+                    <div className="model-wrap">
+                      <button
+                        className={`model-btn ${variantOpen ? "open" : ""}`}
+                        onClick={() => {
+                          setVariantOpen((v) => !v);
+                          setModelOpen(false);
+                        }}
+                        onBlur={() =>
+                          setTimeout(() => setVariantOpen(false), 150)
+                        }
+                      >
+                        <div className="model-left">
+                          <span>{selectedVariant?.label ?? modelVariant}</span>
+                        </div>
+                        <ChevronDownIcon />
+                      </button>
+                      {variantOpen && variants.length > 0 && (
+                        <div className="model-menu">
+                          {variants.map((v) => (
+                            <div
+                              key={v.id}
+                              className={`model-opt ${modelVariant === v.id ? "on" : ""}`}
+                              onMouseDown={() => {
+                                setModelVariant(v.id);
+                                setVariantOpen(false);
+                              }}
+                            >
+                              <div>
+                                <div className="model-opt-name">{v.label}</div>
+                                {v.desc && (
+                                  <div className="model-opt-desc">{v.desc}</div>
+                                )}
+                              </div>
+                              {modelVariant === v.id && (
+                                <span className="model-check">✓</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-                {error && <div className="error-box">{error}</div>}
+                  {error && <div className="error-box">{error}</div>}
 
-                <button
-                  className="summarize-btn"
-                  onClick={handleSummarize}
-                  disabled={loading || uploading || selectedFiles.length === 0}
-                >
-                  {(loading || uploading)
-                    ? <><div className="spinner" />{uploading ? "Uploading..." : "Summarizing..."}</>
-                    : <><SparkleIcon /> Summarize</>
-                  }
-                </button>
-              </>)}
+                  <button
+                    className="summarize-btn"
+                    onClick={handleSummarize}
+                    disabled={
+                      loading || uploading || selectedFiles.length === 0
+                    }
+                  >
+                    {loading || uploading ? (
+                      <>
+                        <div className="spinner" />
+                        {uploading ? "Uploading..." : "Summarizing..."}
+                      </>
+                    ) : (
+                      <>
+                        <SparkleIcon /> Summarize
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
 
               {/* ── Improve mode ── */}
               {dashMode === "improve" && (
                 <div className="improve-panel">
                   <div className="improve-controls">
-                  <div className="improve-section-head">Detail Level</div>
-                  <select
-                    className="improve-dropdown"
-                    value={improveDetailLevel}
-                    onChange={(e) => setImproveDetailLevel(e.target.value)}
-                    style={{ width: "100%" }}
-                  >
-                    <option value="concise">Concise</option>
-                    <option value="lecture">Lecture (default)</option>
-                    <option value="deep">Deep (lecture+)</option>
-                  </select>
-
-                  <div className="improve-section-head">Find a Design Template <span style={{ fontWeight: 400, textTransform: "none", fontSize: 10 }}>(optional)</span></div>
-                  <button
-                    type="button"
-                    className="improve-btn-secondary"
-                    onClick={() => setTemplatePickerOpen(true)}
-                  >
-                    {themeSearchLoading ? <span className="improve-mini-spin" /> : "Choose template..."}
-                  </button>
-                  {themeSearchErr && <div className="improve-err">{themeSearchErr}</div>}
-                  {selectedTemplateSpec && (
-                    <div style={{ fontSize: 11, color: "rgba(165,180,252,.9)" }}>
-                      ✓ Using: <strong>{selectedTemplateSpec._themeName}</strong> — {selectedTemplateSpec._summary}
-                    </div>
-                  )}
-
-                  <div className="improve-section-head">AI Model</div>
-                  <div className="model-wrap">
-                    <button
-                      className={`model-btn ${improveModelOpen ? "open" : ""}`}
-                      onClick={() => setImproveModelOpen((v) => !v)}
-                      onBlur={() => setTimeout(() => setImproveModelOpen(false), 150)}
+                    <div className="improve-section-head">Detail Level</div>
+                    <select
+                      className="improve-dropdown"
+                      value={improveDetailLevel}
+                      onChange={(e) => setImproveDetailLevel(e.target.value)}
+                      style={{ width: "100%" }}
                     >
-                      <div className="model-left">
-                        <div className="model-dot" />
-                        <span>{improveAiModel}</span>
-                      </div>
-                      <ChevronDownIcon />
+                      <option value="concise">Concise</option>
+                      <option value="lecture">Lecture (default)</option>
+                      <option value="deep">Deep (lecture+)</option>
+                    </select>
+
+                    <div className="improve-section-head">
+                      Find a Design Template{" "}
+                      <span
+                        style={{
+                          fontWeight: 400,
+                          textTransform: "none",
+                          fontSize: 10,
+                        }}
+                      >
+                        (optional)
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="improve-btn-secondary"
+                      onClick={() => setTemplatePickerOpen(true)}
+                    >
+                      {themeSearchLoading ? (
+                        <span className="improve-mini-spin" />
+                      ) : (
+                        "Choose template..."
+                      )}
                     </button>
-                    {improveModelOpen && (
-                      <div className="model-menu">
-                        {["ChatGPT", "DeepSeek", "Gemini"].map((opt) => (
-                          <div
-                            key={opt}
-                            className={`model-opt ${improveAiModel === opt ? "on" : ""}`}
-                            onMouseDown={() => { setImproveAiModel(opt); setImproveModelOpen(false); }}
-                          >
-                            <div className="model-opt-name">{opt}</div>
-                            {improveAiModel === opt && <span className="model-check">✓</span>}
-                          </div>
-                        ))}
+                    {themeSearchErr && (
+                      <div className="improve-err">{themeSearchErr}</div>
+                    )}
+                    {selectedTemplateSpec && (
+                      <div
+                        style={{ fontSize: 11, color: "rgba(165,180,252,.9)" }}
+                      >
+                        ✓ Using:{" "}
+                        <strong>{selectedTemplateSpec._themeName}</strong> —{" "}
+                        {selectedTemplateSpec._summary}
                       </div>
                     )}
-                  </div>
 
-                  <label style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer", fontSize: 11.5, color: "rgba(255,255,255,.55)" }}
-                    onClick={() => setAdditiveImprove((v) => !v)}>
-                    <div style={{ width: 15, height: 15, borderRadius: 4, border: `1.5px solid ${additiveImprove ? "#818cf8" : "rgba(255,255,255,.2)"}`, background: additiveImprove ? "rgba(99,102,241,.3)" : "transparent", flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }}>
-                      {additiveImprove && "✓"}
+                    <div className="improve-section-head">AI Model</div>
+                    <div className="model-wrap">
+                      <button
+                        className={`model-btn ${improveModelOpen ? "open" : ""}`}
+                        onClick={() => setImproveModelOpen((v) => !v)}
+                        onBlur={() =>
+                          setTimeout(() => setImproveModelOpen(false), 150)
+                        }
+                      >
+                        <div className="model-left">
+                          <div className="model-dot" />
+                          <span>{improveAiModel}</span>
+                        </div>
+                        <ChevronDownIcon />
+                      </button>
+                      {improveModelOpen && (
+                        <div className="model-menu">
+                          {["ChatGPT", "DeepSeek", "Gemini"].map((opt) => (
+                            <div
+                              key={opt}
+                              className={`model-opt ${improveAiModel === opt ? "on" : ""}`}
+                              onMouseDown={() => {
+                                setImproveAiModel(opt);
+                                setImproveModelOpen(false);
+                              }}
+                            >
+                              <div className="model-opt-name">{opt}</div>
+                              {improveAiModel === opt && (
+                                <span className="model-check">✓</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    Improve in place (keep original wording unless you ask otherwise)
-                  </label>
 
-                  {planAdjustments.length > 0 && (
-                    <div style={{ fontSize: 11, color: "rgba(165,180,252,.85)", background: "rgba(99,102,241,.06)", borderRadius: 8, padding: "8px 10px", border: "1px solid rgba(99,102,241,.15)" }}>
-                      {planAdjustments.length} planned adjustment{planAdjustments.length !== 1 ? "s" : ""}
-                    </div>
-                  )}
-                  {planError && <div className="improve-err">{planError}</div>}
-                  {improveErr && <div className="improve-err">{improveErr}</div>}
-
-                  <div className="improve-btn-row">
-                    <button
-                      className="improve-btn-primary improve-btn-full"
-                      onClick={handleImproveGenerate}
-                      disabled={improveGenLoading || parseLoading || !parsedSlides?.length || !improveInstructions.trim()}
+                    <label
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 8,
+                        cursor: "pointer",
+                        fontSize: 11.5,
+                        color: "rgba(255,255,255,.55)",
+                      }}
+                      onClick={() => setAdditiveImprove((v) => !v)}
                     >
-                      {improveGenLoading ? <span className="improve-mini-spin" /> : "✦"} Build PPTX
-                    </button>
-                  </div>
+                      <div
+                        style={{
+                          width: 15,
+                          height: 15,
+                          borderRadius: 4,
+                          border: `1.5px solid ${additiveImprove ? "#818cf8" : "rgba(255,255,255,.2)"}`,
+                          background: additiveImprove
+                            ? "rgba(99,102,241,.3)"
+                            : "transparent",
+                          flexShrink: 0,
+                          marginTop: 1,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 10,
+                        }}
+                      >
+                        {additiveImprove && "✓"}
+                      </div>
+                      Improve in place (keep original wording unless you ask
+                      otherwise)
+                    </label>
+
+                    {planAdjustments.length > 0 && (
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: "rgba(165,180,252,.85)",
+                          background: "rgba(99,102,241,.06)",
+                          borderRadius: 8,
+                          padding: "8px 10px",
+                          border: "1px solid rgba(99,102,241,.15)",
+                        }}
+                      >
+                        {planAdjustments.length} planned adjustment
+                        {planAdjustments.length !== 1 ? "s" : ""}
+                      </div>
+                    )}
+                    {planError && (
+                      <div className="improve-err">{planError}</div>
+                    )}
+                    {improveErr && (
+                      <div className="improve-err">{improveErr}</div>
+                    )}
+
+                    <div className="improve-btn-row">
+                      <button
+                        className="improve-btn-primary improve-btn-full"
+                        onClick={handleImproveGenerate}
+                        disabled={
+                          improveGenLoading ||
+                          parseLoading ||
+                          !parsedSlides?.length ||
+                          !improveInstructions.trim()
+                        }
+                      >
+                        {improveGenLoading ? (
+                          <span className="improve-mini-spin" />
+                        ) : (
+                          "✦"
+                        )}{" "}
+                        Build PPTX
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1953,18 +2368,31 @@ export default function Dashboard() {
         onSelectTheme={handleThemeSelect}
       />
 
-      {useExistingDialog && (        <div className="modal-backdrop" onClick={() => setUseExistingDialog(null)}>
-          <div className="modal-box" onClick={e => e.stopPropagation()}>
+      {useExistingDialog && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setUseExistingDialog(null)}
+        >
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="modal-title">Files already on server</div>
             <div className="modal-desc">
-              {useExistingDialog.names.length} file{useExistingDialog.names.length !== 1 ? "s" : ""} with the same name
-              {useExistingDialog.names.length === 1 ? " is" : " are"} already uploaded. Use existing uploads to avoid duplicates?
+              {useExistingDialog.names.length} file
+              {useExistingDialog.names.length !== 1 ? "s" : ""} with the same
+              name
+              {useExistingDialog.names.length === 1 ? " is" : " are"} already
+              uploaded. Use existing uploads to avoid duplicates?
             </div>
             <div className="modal-btns">
-              <button className="modal-btn secondary" onClick={() => handleUseExistingConfirm(false)}>
+              <button
+                className="modal-btn secondary"
+                onClick={() => handleUseExistingConfirm(false)}
+              >
                 Upload again
               </button>
-              <button className="modal-btn primary" onClick={() => handleUseExistingConfirm(true)}>
+              <button
+                className="modal-btn primary"
+                onClick={() => handleUseExistingConfirm(true)}
+              >
                 Use existing
               </button>
             </div>

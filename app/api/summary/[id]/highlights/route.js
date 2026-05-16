@@ -30,11 +30,12 @@ export async function GET(_req, ctx) {
   try {
     if (!prisma?.summaryHighlight) {
       throw new Error(
-        "Prisma model missing: prisma.summaryHighlight is undefined. Did Vercel regenerate Prisma Client?"
+        "Prisma model missing: prisma.summaryHighlight is undefined. Did Vercel regenerate Prisma Client?",
       );
     }
     const user = await getUserFromSession();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const summaryId = await getSummaryIdFromParams(ctx.params);
 
@@ -62,7 +63,7 @@ export async function GET(_req, ctx) {
     // Helpful detail for production debugging (Vercel logs can be hard to inspect).
     return NextResponse.json(
       { error: "Failed to load highlights", detail: msg },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -71,11 +72,12 @@ export async function POST(req, ctx) {
   try {
     if (!prisma?.summaryHighlight) {
       throw new Error(
-        "Prisma model missing: prisma.summaryHighlight is undefined. Did Vercel regenerate Prisma Client?"
+        "Prisma model missing: prisma.summaryHighlight is undefined. Did Vercel regenerate Prisma Client?",
       );
     }
     const user = await getUserFromSession();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const summaryId = await getSummaryIdFromParams(ctx.params);
 
@@ -116,7 +118,7 @@ export async function POST(req, ctx) {
     console.error(err);
     return NextResponse.json(
       { error: "Failed to save highlight", detail: msg },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

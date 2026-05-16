@@ -18,9 +18,14 @@ export default function TemplatePickerModal({
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-box template-picker-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-box template-picker-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="template-picker-head">
-          <div className="modal-title" style={{ marginBottom: 0 }}>Choose design template</div>
+          <div className="modal-title" style={{ marginBottom: 0 }}>
+            Choose design template
+          </div>
           <button
             type="button"
             className="file-remove"
@@ -45,14 +50,24 @@ export default function TemplatePickerModal({
             disabled={themeSearchLoading || !themeQuery.trim()}
             onClick={() => void onSearch()}
           >
-            {themeSearchLoading ? <span className="improve-mini-spin" /> : "Search"}
+            {themeSearchLoading ? (
+              <span className="improve-mini-spin" />
+            ) : (
+              "Search"
+            )}
           </button>
         </div>
-        {themeSearchErr && <div className="improve-err" style={{ marginTop: 8 }}>{themeSearchErr}</div>}
+        {themeSearchErr && (
+          <div className="improve-err" style={{ marginTop: 8 }}>
+            {themeSearchErr}
+          </div>
+        )}
 
         <div className="template-picker-grid">
           {themeResults.length === 0 ? (
-            <div className="template-picker-empty">Search to see template previews.</div>
+            <div className="template-picker-empty">
+              Search to see template previews.
+            </div>
           ) : (
             themeResults.map((t) => (
               <button
@@ -63,12 +78,21 @@ export default function TemplatePickerModal({
               >
                 <div className="template-card-preview-wrap">
                   <div className="template-card-preview-icon">🎨</div>
-                  <div className="template-card-preview-label">{t.name || "Template"}</div>
+                  <div className="template-card-preview-label">
+                    {t.name || "Template"}
+                  </div>
                   {t.tags && (
                     <div className="template-card-preview-tags">
-                      {String(t.tags).split(",").slice(0, 3).map((tag) => tag.trim()).filter(Boolean).map((tag) => (
-                        <span key={tag} className="template-card-preview-tag">{tag}</span>
-                      ))}
+                      {String(t.tags)
+                        .split(",")
+                        .slice(0, 3)
+                        .map((tag) => tag.trim())
+                        .filter(Boolean)
+                        .map((tag) => (
+                          <span key={tag} className="template-card-preview-tag">
+                            {tag}
+                          </span>
+                        ))}
                     </div>
                   )}
                   {t.themeURL && (
@@ -87,12 +111,18 @@ export default function TemplatePickerModal({
                       src={`/api/improve-ppt/theme-preview?url=${encodeURIComponent(t.themeURL)}`}
                       alt={t.name || "Template preview"}
                       className="template-card-preview"
-                      onError={(e) => { e.currentTarget.style.display = "none"; }}
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
                     />
                   )}
                 </div>
-                <div className="template-card-name">{t.name || "Untitled template"}</div>
-                {t.description ? <div className="template-card-desc">{t.description}</div> : null}
+                <div className="template-card-name">
+                  {t.name || "Untitled template"}
+                </div>
+                {t.description ? (
+                  <div className="template-card-desc">{t.description}</div>
+                ) : null}
               </button>
             ))
           )}

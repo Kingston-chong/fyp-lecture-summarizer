@@ -101,11 +101,11 @@ export default function AuthPageChrome({
 
   const showSubnav = subnav !== false;
   const subnavNode =
-    subnav === false
-      ? null
-      : subnav === undefined
-        ? <AuthSubnavPlaceholder variant={themed ? "themed" : "dark"} />
-        : subnav;
+    subnav === false ? null : subnav === undefined ? (
+      <AuthSubnavPlaceholder variant={themed ? "themed" : "dark"} />
+    ) : (
+      subnav
+    );
 
   return (
     <>
@@ -145,9 +145,15 @@ export default function AuthPageChrome({
         }
       `}</style>
       <div className="auth-chrome-root">
-        {blobCount >= 1 ? <div className="auth-chrome-blob1" aria-hidden /> : null}
-        {blobCount >= 2 ? <div className="auth-chrome-blob2" aria-hidden /> : null}
-        {blobCount >= 3 ? <div className="auth-chrome-blob3" aria-hidden /> : null}
+        {blobCount >= 1 ? (
+          <div className="auth-chrome-blob1" aria-hidden />
+        ) : null}
+        {blobCount >= 2 ? (
+          <div className="auth-chrome-blob2" aria-hidden />
+        ) : null}
+        {blobCount >= 3 ? (
+          <div className="auth-chrome-blob3" aria-hidden />
+        ) : null}
         {header}
         {showSubnav ? subnavNode : null}
         {children}

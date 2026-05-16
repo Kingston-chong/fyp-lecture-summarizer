@@ -29,7 +29,7 @@ export async function GET() {
     console.error("Documents list error:", err);
     return NextResponse.json(
       { error: "Failed to fetch documents" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

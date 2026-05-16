@@ -13,29 +13,43 @@ export async function GET(req, context) {
     const resolved = await Promise.resolve(context?.params);
     const id = resolved?.id;
     if (!id) {
-      return NextResponse.json({ error: "Generation ID is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Generation ID is required" },
+        { status: 400 },
+      );
     }
 
     if (!process.env.ALAI_API_KEY) {
-      return NextResponse.json({ error: "ALAI_API_KEY is not configured on the server." }, { status: 500 });
+      return NextResponse.json(
+        { error: "ALAI_API_KEY is not configured on the server." },
+        { status: 500 },
+      );
     }
 
     // Proxy the polling request to Alai API
-    const res = await fetch(`https://slides-api.getalai.com/api/v1/generations/${id}`, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${process.env.ALAI_API_KEY}`,
+    const res = await fetch(
+      `https://slides-api.getalai.com/api/v1/generations/${id}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${process.env.ALAI_API_KEY}`,
+        },
+        cache: "no-store",
       },
-      cache: "no-store",
-    });
+    );
 
     if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        console.error("Alai API Polling Error:", errData);
-        return NextResponse.json(
-            { error: errData.error || errData.message || "Failed to check generation status" }, 
-            { status: res.status }
-        );
+      const errData = await res.json().catch(() => ({}));
+      console.error("Alai API Polling Error:", errData);
+      return NextResponse.json(
+        {
+          error:
+            errData.error ||
+            errData.message ||
+            "Failed to check generation status",
+        },
+        { status: res.status },
+      );
     }
 
     const data = await res.json().catch(() => ({}));
@@ -45,7 +59,10 @@ export async function GET(req, context) {
 
     if (status === "failed") {
       return NextResponse.json(
-        { status: "failed", error: data?.error || "Slide generation failed at Alai API." },
+        {
+          status: "failed",
+          error: data?.error || "Slide generation failed at Alai API.",
+        },
         { status: 500 },
       );
     }
@@ -92,12 +109,11 @@ export async function GET(req, context) {
       status,
       progress: data?.progress || 0,
     });
-
   } catch (err) {
     console.error("generate-slides proxy GET:", err);
     return NextResponse.json(
       { error: String(err?.message || err) },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

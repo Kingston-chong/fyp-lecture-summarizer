@@ -15,7 +15,10 @@ export async function GET(_req, context) {
   try {
     const summaryId = await resolveSummaryId(context);
     if (!summaryId) {
-      return NextResponse.json({ error: "Invalid summary id" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid summary id" },
+        { status: 400 },
+      );
     }
 
     const user = await getRequestUser();

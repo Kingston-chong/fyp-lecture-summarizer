@@ -177,7 +177,8 @@ export default function GenerateSlidesModal({
         body: JSON.stringify({
           alaiGenerationId: genId,
           title: String(deckTitle || title || "").trim() || undefined,
-          remotePptxUrl: String(remotePptxUrl || alaiRemotePptUrl || "").trim() || undefined,
+          remotePptxUrl:
+            String(remotePptxUrl || alaiRemotePptUrl || "").trim() || undefined,
         }),
       });
       const aj = await ar.json().catch(() => ({}));
@@ -388,12 +389,11 @@ export default function GenerateSlidesModal({
           );
         }
 
-        const hasArtifact =
-          !!(
-            pollData.preview_url ||
-            pollData.download_url ||
-            pollData.remote_download_url
-          );
+        const hasArtifact = !!(
+          pollData.preview_url ||
+          pollData.download_url ||
+          pollData.remote_download_url
+        );
 
         if (pollData.status === "completed" && hasArtifact) {
           setGenerateProgress("Ready — opening preview...");
@@ -1334,7 +1334,9 @@ export default function GenerateSlidesModal({
                           // Otherwise fetch it now (only for non-top results)
                           setThemeSearchLoading(true);
                           try {
-                            const baseQ = (themeResultsQuery || themeQuery).trim() || t.name;
+                            const baseQ =
+                              (themeResultsQuery || themeQuery).trim() ||
+                              t.name;
                             const params = new URLSearchParams({
                               q: baseQ,
                               model: aiModel,

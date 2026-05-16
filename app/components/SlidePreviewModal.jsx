@@ -4,36 +4,93 @@ import { useState, useEffect, useRef } from "react";
 
 // ─── Icons ────────────────────────────────────────────────
 const CloseIco = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+  <svg
+    width="13"
+    height="13"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 );
 const SlidesIco = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><polygon points="10 8 16 11 10 14 10 8"/>
+  <svg
+    width="15"
+    height="15"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="2" y="3" width="20" height="14" rx="2" />
+    <path d="M8 21h8M12 17v4" />
+    <polygon points="10 8 16 11 10 14 10 8" />
   </svg>
 );
 const DownloadIco = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-    <polyline points="7 10 12 15 17 10"/>
-    <line x1="12" y1="15" x2="12" y2="3"/>
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
   </svg>
 );
 const RefreshIco = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="1 4 1 10 7 10"/>
-    <path d="M3.51 15a9 9 0 1 0 .49-4.96"/>
+  <svg
+    width="13"
+    height="13"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <polyline points="1 4 1 10 7 10" />
+    <path d="M3.51 15a9 9 0 1 0 .49-4.96" />
   </svg>
 );
 const ChevLeftIco = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="15 18 9 12 15 6"/>
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <polyline points="15 18 9 12 15 6" />
   </svg>
 );
 const ChevRightIco = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="9 18 15 12 9 6"/>
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <polyline points="9 18 15 12 9 6" />
   </svg>
 );
 
@@ -59,7 +116,16 @@ function SlideDesignPreview({ slide, theme, pageNum, totalPages }) {
       }}
     >
       {/* Top accent bar */}
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "24%", background: accent }} />
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: "24%",
+          background: accent,
+        }}
+      />
 
       {/* Left accent strip */}
       <div
@@ -103,7 +169,14 @@ function SlideDesignPreview({ slide, theme, pageNum, totalPages }) {
           {title}
         </div>
 
-        <div style={{ color: textCol, fontFamily: "'Sora',sans-serif", fontSize: 13.5, lineHeight: 1.5 }}>
+        <div
+          style={{
+            color: textCol,
+            fontFamily: "'Sora',sans-serif",
+            fontSize: 13.5,
+            lineHeight: 1.5,
+          }}
+        >
           {lines.length > 0 ? (
             <ul style={{ margin: 0, paddingLeft: 18 }}>
               {lines.slice(0, 8).map((l, i) => (
@@ -113,7 +186,9 @@ function SlideDesignPreview({ slide, theme, pageNum, totalPages }) {
               ))}
             </ul>
           ) : (
-            <div style={{ opacity: 0.7, fontStyle: "italic" }}>(No bullet content)</div>
+            <div style={{ opacity: 0.7, fontStyle: "italic" }}>
+              (No bullet content)
+            </div>
           )}
         </div>
       </div>
@@ -145,13 +220,19 @@ function Thumbnail({ num, active, onClick, theme }) {
       ? String(theme.panel).trim()
       : "rgba(255,255,255,.1)";
   return (
-    <div onClick={onClick} style={{
-      flexShrink: 0, width: 52, cursor: "pointer",
-      borderRadius: 5,
-      border: active ? "2px solid #6366f1" : "2px solid rgba(255,255,255,.1)",
-      overflow: "hidden", transition: "border-color .18s",
-      boxShadow: active ? "0 0 0 3px rgba(99,102,241,.18)" : "none",
-    }}>
+    <div
+      onClick={onClick}
+      style={{
+        flexShrink: 0,
+        width: 52,
+        cursor: "pointer",
+        borderRadius: 5,
+        border: active ? "2px solid #6366f1" : "2px solid rgba(255,255,255,.1)",
+        overflow: "hidden",
+        transition: "border-color .18s",
+        boxShadow: active ? "0 0 0 3px rgba(99,102,241,.18)" : "none",
+      }}
+    >
       <div
         style={{
           aspectRatio: "16/10",
@@ -160,7 +241,16 @@ function Thumbnail({ num, active, onClick, theme }) {
           overflow: "hidden",
         }}
       >
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "18%", background: accent }} />
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "18%",
+            background: accent,
+          }}
+        />
         <div
           style={{
             position: "absolute",
@@ -203,26 +293,38 @@ export default function SlidePreviewModal({
   totalPages = 20,
 }) {
   const [currentPage, setCurrentPage] = useState(1);
-  const [inputPage,   setInputPage]   = useState("1");
+  const [inputPage, setInputPage] = useState("1");
   const [downloading, setDownloading] = useState(false);
-  const [regenerating,setRegenerating]= useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const thumbsRef = useRef(null);
 
   const slideCount = Array.isArray(slides) ? slides.length : 0;
   const totalNum = Number(totalPages);
   const effectiveTotal = Math.max(
     1,
-    slideCount > 0 ? slideCount : Number.isFinite(totalNum) && totalNum > 0 ? totalNum : 1,
+    slideCount > 0
+      ? slideCount
+      : Number.isFinite(totalNum) && totalNum > 0
+        ? totalNum
+        : 1,
   );
   const activeSlide = Array.isArray(slides) ? slides[currentPage - 1] : null;
 
   // Keep input in sync with currentPage
-  useEffect(() => { setInputPage(String(currentPage)); }, [currentPage]);
+  useEffect(() => {
+    setInputPage(String(currentPage));
+  }, [currentPage]);
 
   // Scroll active thumbnail into view
   useEffect(() => {
-    const el = thumbsRef.current?.querySelector(`[data-thumb="${currentPage}"]`);
-    el?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    const el = thumbsRef.current?.querySelector(
+      `[data-thumb="${currentPage}"]`,
+    );
+    el?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
   }, [currentPage]);
 
   function goTo(n) {
@@ -256,7 +358,7 @@ export default function SlidePreviewModal({
 
   async function handleGenerateAgain() {
     setRegenerating(true);
-    await new Promise(r => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, 600));
     setRegenerating(false);
     onGenerateAgain?.();
   }
@@ -278,7 +380,7 @@ export default function SlidePreviewModal({
 
   return (
     <>
-    <style>{`
+      <style>{`
       @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap');
       @keyframes overlayIn { from{opacity:0} to{opacity:1} }
       @keyframes modalIn   { from{opacity:0;transform:scale(.95) translateY(16px)} to{opacity:1;transform:none} }
@@ -432,126 +534,174 @@ export default function SlidePreviewModal({
       .kbd { display: inline-block; padding: 1px 5px; border-radius: 4px; border: 1px solid rgba(255,255,255,.15); background: rgba(255,255,255,.05); font-size: 10px; margin: 0 2px; }
     `}</style>
 
-    <div className="pv-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="pv-modal" onMouseDown={(e) => e.stopPropagation()}>
-
-        {/* ── Header ── */}
-        <div className="pv-head">
-          <div className="pv-head-left">
-            <div className="pv-title"><SlidesIco/> {String(title || "").trim() || "Preview presentation"}</div>
-            <div className="pv-subtitle">{subtitle || "Review your slide design and content."}</div>
-          </div>
-
-          <div className="pv-actions">
-            {onGenerateAgain ? (
-              <button className="btn-again" onClick={handleGenerateAgain} disabled={regenerating}>
-                {regenerating ? <div className="mini-spin"/> : <RefreshIco/>}
-                Generate Again..
-              </button>
-            ) : null}
-            {onDownload ? (
-              <button className="btn-download" onClick={handleDownload} disabled={downloading}>
-                {downloading ? <div className="mini-spin"/> : <DownloadIco/>}
-                Download
-              </button>
-            ) : null}
-            <button className="pv-close" onClick={onClose}><CloseIco/></button>
-          </div>
-        </div>
-
-        {/* ── Body ── */}
-        <div className="pv-body">
-
-          {/* Page navigation */}
-          <div className="page-nav">
-            <button type="button" className="nav-btn" onClick={() => goTo(currentPage - 1)} disabled={currentPage <= 1}>
-              <ChevLeftIco/>
-            </button>
-            <div className="page-label">
-              Page
-              <input
-                className="page-inp"
-                value={inputPage}
-                onChange={handlePageInput}
-                onBlur={handlePageInputBlur}
-                onKeyDown={handlePageInputKey}
-              />
-              <span className="out-of">out of {effectiveTotal}</span>
-            </div>
-            <button type="button" className="nav-btn" onClick={() => goTo(currentPage + 1)} disabled={currentPage >= effectiveTotal}>
-              <ChevRightIco/>
-            </button>
-          </div>
-
-          {/* Slide viewer + thumbnails */}
-          <div className="slide-viewer">
-
-            {/* Thumbnail strip (left) */}
-            <div className="thumb-strip" ref={thumbsRef}>
-              {Array.from({ length: effectiveTotal }, (_, i) => i + 1).map(n => (
-                <div key={n} data-thumb={n}>
-                  <Thumbnail num={n} active={currentPage === n} onClick={() => goTo(n)} theme={theme} />
-                </div>
-              ))}
+      <div
+        className="pv-overlay"
+        onClick={(e) => e.target === e.currentTarget && onClose()}
+      >
+        <div className="pv-modal" onMouseDown={(e) => e.stopPropagation()}>
+          {/* ── Header ── */}
+          <div className="pv-head">
+            <div className="pv-head-left">
+              <div className="pv-title">
+                <SlidesIco />{" "}
+                {String(title || "").trim() || "Preview presentation"}
+              </div>
+              <div className="pv-subtitle">
+                {subtitle || "Review your slide design and content."}
+              </div>
             </div>
 
-            {/* Main slide + fake scrollbar */}
-            <div className="slide-main-wrap">
-              <div className="slide-main">
-                <SlideDesignPreview
-                  slide={activeSlide}
-                  theme={theme}
-                  pageNum={currentPage}
-                  totalPages={effectiveTotal}
+            <div className="pv-actions">
+              {onGenerateAgain ? (
+                <button
+                  className="btn-again"
+                  onClick={handleGenerateAgain}
+                  disabled={regenerating}
+                >
+                  {regenerating ? (
+                    <div className="mini-spin" />
+                  ) : (
+                    <RefreshIco />
+                  )}
+                  Generate Again..
+                </button>
+              ) : null}
+              {onDownload ? (
+                <button
+                  className="btn-download"
+                  onClick={handleDownload}
+                  disabled={downloading}
+                >
+                  {downloading ? (
+                    <div className="mini-spin" />
+                  ) : (
+                    <DownloadIco />
+                  )}
+                  Download
+                </button>
+              ) : null}
+              <button className="pv-close" onClick={onClose}>
+                <CloseIco />
+              </button>
+            </div>
+          </div>
+
+          {/* ── Body ── */}
+          <div className="pv-body">
+            {/* Page navigation */}
+            <div className="page-nav">
+              <button
+                type="button"
+                className="nav-btn"
+                onClick={() => goTo(currentPage - 1)}
+                disabled={currentPage <= 1}
+              >
+                <ChevLeftIco />
+              </button>
+              <div className="page-label">
+                Page
+                <input
+                  className="page-inp"
+                  value={inputPage}
+                  onChange={handlePageInput}
+                  onBlur={handlePageInputBlur}
+                  onKeyDown={handlePageInputKey}
                 />
+                <span className="out-of">out of {effectiveTotal}</span>
+              </div>
+              <button
+                type="button"
+                className="nav-btn"
+                onClick={() => goTo(currentPage + 1)}
+                disabled={currentPage >= effectiveTotal}
+              >
+                <ChevRightIco />
+              </button>
+            </div>
 
-                {String(activeSlide?.notes || "").trim() ? (
-                  <div
-                    style={{
-                      marginTop: 10,
-                      borderRadius: 8,
-                      background: "rgba(255,255,255,.05)",
-                      border: "1px solid rgba(255,255,255,.10)",
-                      padding: 12,
-                      maxHeight: 170,
-                      overflowY: "auto",
-                      fontFamily: "'Sora',sans-serif",
-                      color: "rgba(255,255,255,.72)",
-                      lineHeight: 1.45,
-                      fontSize: 12.5,
-                      whiteSpace: "pre-wrap",
-                    }}
-                  >
-                    <div style={{ color: "rgba(255,255,255,.92)", fontWeight: 700, marginBottom: 6, fontSize: 12 }}>
-                      Speaker notes (preview)
+            {/* Slide viewer + thumbnails */}
+            <div className="slide-viewer">
+              {/* Thumbnail strip (left) */}
+              <div className="thumb-strip" ref={thumbsRef}>
+                {Array.from({ length: effectiveTotal }, (_, i) => i + 1).map(
+                  (n) => (
+                    <div key={n} data-thumb={n}>
+                      <Thumbnail
+                        num={n}
+                        active={currentPage === n}
+                        onClick={() => goTo(n)}
+                        theme={theme}
+                      />
                     </div>
-                    {String(activeSlide.notes).slice(0, 2200)}
-                    {String(activeSlide.notes).length > 2200 ? "…" : ""}
-                  </div>
-                ) : null}
+                  ),
+                )}
               </div>
 
-              {/* Scrollbar matching wireframe */}
-              <div className="slide-scrollbar">
-                <div className="scroll-track">
-                  <div className="scroll-thumb" style={{
-                    top: `${((currentPage - 1) / Math.max(effectiveTotal - 1, 1)) * 60}%`
-                  }}/>
+              {/* Main slide + fake scrollbar */}
+              <div className="slide-main-wrap">
+                <div className="slide-main">
+                  <SlideDesignPreview
+                    slide={activeSlide}
+                    theme={theme}
+                    pageNum={currentPage}
+                    totalPages={effectiveTotal}
+                  />
+
+                  {String(activeSlide?.notes || "").trim() ? (
+                    <div
+                      style={{
+                        marginTop: 10,
+                        borderRadius: 8,
+                        background: "rgba(255,255,255,.05)",
+                        border: "1px solid rgba(255,255,255,.10)",
+                        padding: 12,
+                        maxHeight: 170,
+                        overflowY: "auto",
+                        fontFamily: "'Sora',sans-serif",
+                        color: "rgba(255,255,255,.72)",
+                        lineHeight: 1.45,
+                        fontSize: 12.5,
+                        whiteSpace: "pre-wrap",
+                      }}
+                    >
+                      <div
+                        style={{
+                          color: "rgba(255,255,255,.92)",
+                          fontWeight: 700,
+                          marginBottom: 6,
+                          fontSize: 12,
+                        }}
+                      >
+                        Speaker notes (preview)
+                      </div>
+                      {String(activeSlide.notes).slice(0, 2200)}
+                      {String(activeSlide.notes).length > 2200 ? "…" : ""}
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* Scrollbar matching wireframe */}
+                <div className="slide-scrollbar">
+                  <div className="scroll-track">
+                    <div
+                      className="scroll-thumb"
+                      style={{
+                        top: `${((currentPage - 1) / Math.max(effectiveTotal - 1, 1)) * 60}%`,
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
+            {/* Keyboard hint */}
+            <div className="kbd-hint">
+              Use <span className="kbd">←</span>
+              <span className="kbd">→</span> arrow keys to navigate slides
+            </div>
           </div>
-
-          {/* Keyboard hint */}
-          <div className="kbd-hint">
-            Use <span className="kbd">←</span><span className="kbd">→</span> arrow keys to navigate slides
-          </div>
-
         </div>
-
       </div>
-    </div>
     </>
   );
 }

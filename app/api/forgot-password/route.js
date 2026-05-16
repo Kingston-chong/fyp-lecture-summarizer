@@ -11,7 +11,7 @@ export async function POST(req) {
   if (!user) {
     return NextResponse.json(
       { error: "Email not found. Please check and try again." },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -46,5 +46,8 @@ export async function POST(req) {
       `),
   });
 
-  return NextResponse.json({ success: true, expiresAt: expiresAt.toISOString() });
+  return NextResponse.json({
+    success: true,
+    expiresAt: expiresAt.toISOString(),
+  });
 }

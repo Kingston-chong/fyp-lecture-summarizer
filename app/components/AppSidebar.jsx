@@ -55,12 +55,7 @@ function buildHeadingTree(headings) {
   return roots;
 }
 
-function SectionTreeBranch({
-  node,
-  depth,
-  isFolded,
-  onToggleFold,
-}) {
+function SectionTreeBranch({ node, depth, isFolded, onToggleFold }) {
   const hasChildren = node.children.length > 0;
   const folded = isFolded(node.id);
   return (
@@ -70,9 +65,7 @@ function SectionTreeBranch({
           <button
             type="button"
             className={`as-sec-twist ${folded ? "folded" : ""}`}
-            aria-label={
-              folded ? "Expand subsections" : "Collapse subsections"
-            }
+            aria-label={folded ? "Expand subsections" : "Collapse subsections"}
             aria-expanded={!folded}
             onClick={(e) => {
               e.stopPropagation();
@@ -113,9 +106,7 @@ function SectionTreeBranch({
 
 function jumpToHeading(id) {
   if (typeof window === "undefined") return;
-  window.dispatchEvent(
-    new CustomEvent("s2n-jump-to-heading", { detail: id }),
-  );
+  window.dispatchEvent(new CustomEvent("s2n-jump-to-heading", { detail: id }));
 }
 
 function SectionBullet({ level }) {
@@ -189,10 +180,7 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
     fetchPrevUploads();
   }, [fetchHistory, fetchPrevUploads]);
 
-  const sectionTree = useMemo(
-    () => buildHeadingTree(sections),
-    [sections],
-  );
+  const sectionTree = useMemo(() => buildHeadingTree(sections), [sections]);
 
   const sectionSig = useMemo(
     () => sections.map((s) => s.id).join("|"),
@@ -349,8 +337,7 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
     [history, historyMenu],
   );
 
-  const portalTarget =
-    typeof document !== "undefined" ? document.body : null;
+  const portalTarget = typeof document !== "undefined" ? document.body : null;
 
   /** Move the history ⋮ menu horizontally: increase to shift right (pixels). */
   const historyMenuShiftRightPx = 0;
@@ -684,8 +671,8 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
           </span>
         </div>
 
-        {historyOpen && (
-          historyLoading ? (
+        {historyOpen &&
+          (historyLoading ? (
             <div className="as-loading">
               <div className="as-spin" /> Loading...
             </div>
@@ -705,7 +692,9 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
                           new CustomEvent("s2n-cancel-highlighter"),
                         );
                       }
-                      setExpandedHistory(expandedHistory === h.id ? null : h.id);
+                      setExpandedHistory(
+                        expandedHistory === h.id ? null : h.id,
+                      );
                       router.push(`/summary/${h.id}`);
                     }}
                   >
@@ -730,11 +719,16 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
                         );
                       }}
                     >
-                      {renamingId === h.id ? <span className="as-spin" /> : <DotsIcon />}
+                      {renamingId === h.id ? (
+                        <span className="as-spin" />
+                      ) : (
+                        <DotsIcon />
+                      )}
                     </button>
                   </div>
                   <div className="as-hmeta">
-                    {h.files.length} file{h.files.length !== 1 ? "s" : ""} · {timeAgo(h.createdAt)}
+                    {h.files.length} file{h.files.length !== 1 ? "s" : ""} ·{" "}
+                    {timeAgo(h.createdAt)}
                   </div>
                 </div>
                 {expandedHistory === h.id &&
@@ -746,18 +740,14 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
                   ))}
               </div>
             ))
-          )
-        )}
+          ))}
 
         <div className="as-divider" />
 
         {/* Sections (headings inside current summary) */}
         {sections.length > 0 && (
           <>
-            <div
-              className="as-head"
-              onClick={() => setSectionsOpen((v) => !v)}
-            >
+            <div className="as-head" onClick={() => setSectionsOpen((v) => !v)}>
               <span className="as-title">Sections</span>
               <span className="as-chev">
                 <ChevronDownIcon size={11} />
@@ -793,8 +783,8 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
               </span>
             </div>
 
-            {prevOpen && (
-              prevLoading ? (
+            {prevOpen &&
+              (prevLoading ? (
                 <div className="as-loading">
                   <div className="as-spin" /> Loading...
                 </div>
@@ -826,8 +816,7 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
                     </div>
                   );
                 })
-              )
-            )}
+              ))}
           </>
         )}
       </aside>
@@ -902,10 +891,7 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
             className="as-modal-backdrop"
             onClick={() => setRenameModal(null)}
           >
-            <div
-              className="as-modal-box"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div className="as-modal-box" onClick={(e) => e.stopPropagation()}>
               <div className="as-modal-title">Rename summary</div>
               <input
                 type="text"
@@ -946,10 +932,7 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
             className="as-modal-backdrop"
             onClick={() => setDeleteModal(null)}
           >
-            <div
-              className="as-modal-box"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div className="as-modal-box" onClick={(e) => e.stopPropagation()}>
               <div className="as-modal-title">Delete summary</div>
               <div className="as-modal-desc">
                 Delete this summary permanently? This cannot be undone.
@@ -986,4 +969,3 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
     </>
   );
 }
-

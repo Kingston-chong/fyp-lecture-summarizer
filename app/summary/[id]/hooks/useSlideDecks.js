@@ -13,6 +13,24 @@ export function useSlideDecks({ summaryId, status }) {
   const [slideDeckRemotePptUrl, setSlideDeckRemotePptUrl] = useState("");
   const [slideDeckPreviewTitle, setSlideDeckPreviewTitle] = useState("");
   const slideDeckDlRef = useRef(null);
+  const slideDeckPdfDlRef = useRef(null);
+
+  function deckDownloadFilename(title, ext) {
+    const base =
+      String(title || "presentation")
+        .replace(/[^a-z0-9]/gi, "_")
+        .toLowerCase() || "presentation";
+    return `${base}.${ext}`;
+  }
+
+  function triggerBlobDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const fetchSlideDecks = useCallback(async () => {
     if (!numericSummaryId) return;
@@ -39,23 +57,11 @@ export function useSlideDecks({ summaryId, status }) {
     setSlideDeckPreviewTitle(
       String(deck.title || "Presentation").trim() || "Presentation",
     );
-    const baseTitle =
-      String(deck.title || "presentation").trim() || "presentation";
     slideDeckDlRef.current = async () => {
-      if (!numericSummaryId) throw new Error("Invalid summary id");
-      const r = await fetch(
-        `/api/summary/${numericSummaryId}/slide-decks/${deck.id}/view?v=${Date.now()}`,
-      );
-      if (!r.ok) throw new Error("Failed to download file");
-      const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const fileName =
-        baseTitle.replace(/[^a-z0-9]/gi, "_").toLowerCase() || "presentation";
-      a.download = `${fileName}.pptx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadSlideDeck(deck);
+    };
+    slideDeckPdfDlRef.current = async () => {
+      await downloadSlideDeckPdf(deck);
     };
     setSlideDeckPreviewOpen(true);
     try {
@@ -83,18 +89,29 @@ export function useSlideDecks({ summaryId, status }) {
       const r = await fetch(
         `/api/summary/${numericSummaryId}/slide-decks/${deck.id}/view?v=${Date.now()}`,
       );
-      if (!r.ok) throw new Error("Download failed");
+      if (!r.ok) {
+        const data = await r.json().catch(() => ({}));
+        throw new Error(data?.error || "Download failed");
+      }
       const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const fileName =
-        String(deck.title || "presentation")
-          .replace(/[^a-z0-9]/gi, "_")
-          .toLowerCase() || "presentation";
-      a.download = `${fileName}.pptx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      triggerBlobDownload(blob, deckDownloadFilename(deck.title, "pptx"));
+    } catch (e) {
+      alert(e?.message || String(e));
+    }
+  }
+
+  async function downloadSlideDeckPdf(deck) {
+    try {
+      if (!numericSummaryId) throw new Error("Invalid summary id");
+      const r = await fetch(
+        `/api/summary/${numericSummaryId}/slide-decks/${deck.id}/pdf?v=${Date.now()}`,
+      );
+      if (!r.ok) {
+        const data = await r.json().catch(() => ({}));
+        throw new Error(data?.error || "PDF download failed");
+      }
+      const blob = await r.blob();
+      triggerBlobDownload(blob, deckDownloadFilename(deck.title, "pdf"));
     } catch (e) {
       alert(e?.message || String(e));
     }
@@ -138,9 +155,11 @@ export function useSlideDecks({ summaryId, status }) {
     slideDeckRemotePptUrl,
     slideDeckPreviewTitle,
     slideDeckDlRef,
+    slideDeckPdfDlRef,
     fetchSlideDecks,
     openSlideDeckPreview,
     downloadSlideDeck,
+    downloadSlideDeckPdf,
     deleteSlideDeck,
   };
 }

@@ -10,23 +10,27 @@ export default function SlideDecksPanel({
   onRefresh,
   onPreview,
   onDownload,
+  onDownloadPdf,
   onDelete,
   panelClassName = "hl-panel sd-panel sd-panel--sources",
+  embedded = false,
 }) {
   return (
     <div className={panelClassName} aria-label="Saved slide decks">
-      <div className="hl-head-row">
-        <div className="hl-head">SLIDE DECKS</div>
-        <button
-          type="button"
-          className="sd-refresh-btn"
-          title="Refresh slide decks"
-          disabled={slideDecksLoading}
-          onClick={onRefresh}
-        >
-          {slideDecksLoading ? <Spinner size={11} /> : "↻"}
-        </button>
-      </div>
+      {!embedded && (
+        <div className="hl-head-row">
+          <div className="hl-head">SLIDE DECKS</div>
+          <button
+            type="button"
+            className="sd-refresh-btn"
+            title="Refresh slide decks"
+            disabled={slideDecksLoading}
+            onClick={onRefresh}
+          >
+            {slideDecksLoading ? <Spinner size={11} /> : "↻"}
+          </button>
+        </div>
+      )}
       <div className="sd-deck-list">
         {slideDecksLoading && slideDecks.length === 0 ? (
           <div className="hl-empty">
@@ -57,8 +61,17 @@ export default function SlideDecksPanel({
                   type="button"
                   className="sd-deck-btn"
                   onClick={() => onDownload(d)}
+                  title="Download PowerPoint (.pptx)"
                 >
-                  Download
+                  PPTX
+                </button>
+                <button
+                  type="button"
+                  className="sd-deck-btn"
+                  onClick={() => onDownloadPdf?.(d)}
+                  title="Save as PDF"
+                >
+                  PDF
                 </button>
                 <button
                   type="button"

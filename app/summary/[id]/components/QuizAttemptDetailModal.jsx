@@ -280,8 +280,7 @@ export default function QuizAttemptDetailModal({ detail, onClose }) {
                     >
                       Your answer:
                     </span>
-                    {row.userAnswer != null &&
-                    String(row.userAnswer).trim() ? (
+                    {row.userAnswer != null && String(row.userAnswer).trim() ? (
                       String(row.userAnswer)
                     ) : (
                       <em style={{ opacity: 0.55 }}>No answer</em>

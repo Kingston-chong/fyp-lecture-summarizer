@@ -18,7 +18,8 @@ async function getIdFromParams(params) {
 export async function GET(_req, ctx) {
   try {
     const user = await getUserFromSession();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const id = await getIdFromParams(ctx.params);
 
@@ -29,7 +30,8 @@ export async function GET(_req, ctx) {
       },
     });
 
-    if (!summary) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!summary)
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const formatted = {
       id: summary.id,
@@ -52,14 +54,18 @@ export async function GET(_req, ctx) {
       return NextResponse.json({ error: msg }, { status: 400 });
     }
     console.error(err);
-    return NextResponse.json({ error: "Failed to fetch summary" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch summary" },
+      { status: 500 },
+    );
   }
 }
 
 export async function PATCH(req, ctx) {
   try {
     const user = await getUserFromSession();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const id = await getIdFromParams(ctx.params);
     const body = await req.json();
@@ -80,7 +86,10 @@ export async function PATCH(req, ctx) {
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: "Failed to update summary" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to update summary" },
+      { status: 500 },
+    );
   }
 }
 
@@ -109,6 +118,9 @@ export async function DELETE(_req, ctx) {
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: "Failed to delete summary" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to delete summary" },
+      { status: 500 },
+    );
   }
 }
