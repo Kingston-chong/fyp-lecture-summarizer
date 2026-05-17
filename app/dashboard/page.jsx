@@ -618,6 +618,7 @@ export default function Dashboard() {
     return () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
+      document.body.classList.remove("no-select");
     };
   }, []);
 

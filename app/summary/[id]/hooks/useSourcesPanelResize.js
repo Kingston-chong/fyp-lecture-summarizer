@@ -27,6 +27,8 @@ export function useSourcesPanelResize() {
     return () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      splitterRef.current = null;
     };
   }, []);
 
