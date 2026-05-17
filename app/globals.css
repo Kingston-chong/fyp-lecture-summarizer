@@ -84,7 +84,8 @@ html[data-theme="dark"] {
   --modal-overlay-bg: rgba(6, 6, 14, 0.72);
   --modal-surface-bg: rgba(17, 17, 27, 0.97);
   --modal-border: rgba(255, 255, 255, 0.1);
-  --modal-shadow: 0 32px 80px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(99, 102, 241, 0.08);
+  --modal-shadow:
+    0 32px 80px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(99, 102, 241, 0.08);
   --modal-divider: rgba(255, 255, 255, 0.07);
   --modal-title: #e0e0f4;
   --modal-close-border: rgba(255, 255, 255, 0.1);
@@ -186,7 +187,8 @@ html[data-theme="light"] {
   --modal-overlay-bg: rgba(0, 0, 20, 0.4);
   --modal-surface-bg: rgba(255, 255, 255, 0.98);
   --modal-border: rgba(0, 0, 0, 0.1);
-  --modal-shadow: 0 32px 80px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(99, 102, 241, 0.08);
+  --modal-shadow:
+    0 32px 80px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(99, 102, 241, 0.08);
   --modal-divider: rgba(0, 0, 0, 0.07);
   --modal-title: #1a1a2e;
   --modal-close-border: rgba(0, 0, 0, 0.1);

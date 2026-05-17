@@ -7,6 +7,8 @@ import {
   extractPdfUrlFromAlaiGenerationJson,
   getAlaiPptxUrl,
 } from "@/lib/alaiSlidePptx";
+import { getAlaiApiKey, ALAI_BASE } from "@/lib/alaiClient";
+import { convertPptxBufferToPdf } from "@/lib/pptxToPdf";
 import { getRequestUser } from "@/lib/apiAuth";
 import { publicSlideDeckFields, toBlobRef } from "@/lib/blobRef";
 
@@ -165,12 +167,13 @@ export async function POST(req, context) {
     if (/^https?:\/\//i.test(remotePdfUrl)) {
       pdfDl = await downloadPdfBuffer(remotePdfUrl);
     }
-    if (!pdfDl?.ok && provider === "alai" && process.env.ALAI_API_KEY) {
+    const alaiKey = getAlaiApiKey();
+    if (!pdfDl?.ok && provider === "alai" && alaiKey) {
       const genRes = await fetch(
-        `https://slides-api.getalai.com/api/v1/generations/${encodeURIComponent(alaiGenerationId)}`,
+        `${ALAI_BASE}/generations/${encodeURIComponent(alaiGenerationId)}`,
         {
           method: "GET",
-          headers: { Authorization: `Bearer ${process.env.ALAI_API_KEY}` },
+          headers: { Authorization: `Bearer ${alaiKey}` },
           cache: "no-store",
         },
       );
@@ -179,6 +182,9 @@ export async function POST(req, context) {
         const pdfFromAlai = extractPdfUrlFromAlaiGenerationJson(genData);
         if (pdfFromAlai) pdfDl = await downloadPdfBuffer(pdfFromAlai);
       }
+    }
+    if (!pdfDl?.ok && dl.buffer?.length) {
+      pdfDl = await convertPptxBufferToPdf(dl.buffer);
     }
     if (pdfDl?.ok) {
       const pdfPath = `slides/${user.id}/${summaryId}/${Date.now()}-${safeSlug}.pdf`;

@@ -68,6 +68,142 @@ export const SlidesIco = () => (
   </svg>
 );
 
+/**
+ * Custom select with readable menu in dark/light modal themes.
+ * @param {{ value: string, onChange: (v: string) => void, options: { value: string, label: string }[], width?: string | number, placeholder?: string, disabled?: boolean, maxMenuHeight?: number }} props
+ */
+export function SelectMenu({
+  value,
+  onChange,
+  options,
+  width = "100%",
+  placeholder = "Select…",
+  disabled = false,
+  maxMenuHeight = 220,
+}) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const [open, setOpen] = useState(false);
+
+  const selected = options.find((o) => o.value === value);
+  const displayLabel = selected?.label || placeholder;
+
+  return (
+    <div
+      className="gs-select-menu"
+      style={{ position: "relative", width, marginBottom: 8 }}
+    >
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen((v) => !v)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        className="gs-select-trigger"
+        style={{
+          width: "100%",
+          minHeight: 34,
+          padding: "6px 12px",
+          background: isDark ? "rgba(255,255,255,.07)" : "#fff",
+          border: `1px solid ${isDark ? "rgba(255,255,255,.14)" : "rgba(0,0,0,.16)"}`,
+          borderRadius: 8,
+          fontFamily: "'Sora',sans-serif",
+          fontSize: 12,
+          color: selected
+            ? isDark
+              ? "#e4e4f4"
+              : "#111827"
+            : isDark
+              ? "rgba(255,255,255,.4)"
+              : "rgba(0,0,0,.45)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          cursor: disabled ? "not-allowed" : "pointer",
+          gap: 8,
+          opacity: disabled ? 0.55 : 1,
+          textAlign: "left",
+        }}
+      >
+        <span
+          style={{
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            flex: 1,
+          }}
+        >
+          {displayLabel}
+        </span>
+        <ChevDownIco />
+      </button>
+      {open && options.length > 0 ? (
+        <div
+          className="gs-select-menu-panel"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            left: 0,
+            right: 0,
+            zIndex: 400,
+            maxHeight: maxMenuHeight,
+            overflowY: "auto",
+            background: isDark ? "#16162a" : "#fff",
+            border: `1px solid ${isDark ? "rgba(255,255,255,.14)" : "rgba(0,0,0,.14)"}`,
+            borderRadius: 8,
+            padding: 4,
+            boxShadow: isDark
+              ? "0 12px 32px rgba(0,0,0,.55)"
+              : "0 12px 32px rgba(0,0,0,.12)",
+          }}
+        >
+          {options.map((o) => {
+            const isSelected = value === o.value;
+            return (
+              <div
+                key={o.value || o.label}
+                role="option"
+                aria-selected={isSelected}
+                onMouseDown={() => {
+                  onChange(o.value);
+                  setOpen(false);
+                }}
+                style={{
+                  padding: "8px 10px",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  fontSize: 12,
+                  lineHeight: 1.35,
+                  color: isSelected
+                    ? "#a5b4fc"
+                    : isDark
+                      ? "#d4d4e8"
+                      : "#374151",
+                  background: isSelected
+                    ? "rgba(99,102,241,.22)"
+                    : "transparent",
+                  fontWeight: isSelected ? 600 : 400,
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSelected) {
+                    e.currentTarget.style.background = isDark
+                      ? "rgba(255,255,255,.08)"
+                      : "rgba(99,102,241,.08)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSelected) e.currentTarget.style.background = "transparent";
+                }}
+              >
+                {o.label}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function Dropdown({ value, onChange, options, width = 120 }) {
   const { theme } = useTheme();
   const isDark = theme === "dark";

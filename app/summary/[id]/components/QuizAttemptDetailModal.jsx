@@ -27,11 +27,12 @@ export default function QuizAttemptDetailModal({ detail, onClose }) {
 
   return (
     <div
-      className="qadm-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      className="qadm-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
-      <div
-        className="qadm-modal qa-modal" onClick={(e) => e.stopPropagation()}
-      >
+      <div className="qadm-modal qa-modal" onClick={(e) => e.stopPropagation()}>
         <div
           style={{
             padding: "18px 20px 16px",
@@ -55,22 +56,27 @@ export default function QuizAttemptDetailModal({ detail, onClose }) {
             >
               Attempt Review
             </div>
-            <div
-              className="qadm-score-row"
-            >
+            <div className="qadm-score-row">
               <div
-                className="qadm-grade-pill" style={{ background: grade.bg, border: `1px solid ${grade.color}44` }}
+                className="qadm-grade-pill"
+                style={{
+                  background: grade.bg,
+                  border: `1px solid ${grade.color}44`,
+                }}
               >
                 <span
-                  className="qadm-grade-score" style={{ color: grade.color }}
+                  className="qadm-grade-score"
+                  style={{ color: grade.color }}
                 >
                   {score}/{totalQ}
                 </span>
                 <span
-                  className="qadm-grade-divider" style={{ background: `${grade.color}44` }}
+                  className="qadm-grade-divider"
+                  style={{ background: `${grade.color}44` }}
                 />
                 <span
-                  className="qadm-grade-meta" style={{ color: grade.color }}
+                  className="qadm-grade-meta"
+                  style={{ color: grade.color }}
                 >
                   {pct}% · {grade.label}
                 </span>
@@ -84,7 +90,10 @@ export default function QuizAttemptDetailModal({ detail, onClose }) {
           </div>
           <button
             type="button"
-            type="button" className="qadm-close qa-close-btn" onClick={onClose} aria-label="Close"
+            type="button"
+            className="qadm-close qa-close-btn"
+            onClick={onClose}
+            aria-label="Close"
             aria-label="Close"
           >
             ×
@@ -99,17 +108,17 @@ export default function QuizAttemptDetailModal({ detail, onClose }) {
           }}
         >
           <div
-            className="qadm-progress-fill" style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${grade.color}80, ${grade.color})` }}
+            className="qadm-progress-fill"
+            style={{
+              width: `${pct}%`,
+              background: `linear-gradient(90deg, ${grade.color}80, ${grade.color})`,
+            }}
           />
         </div>
 
-        <div
-          className="qadm-scroll qa-scroll"
-        >
+        <div className="qadm-scroll qa-scroll">
           {detail.rows.length === 0 ? (
-            <div
-              className="qadm-empty"
-            >
+            <div className="qadm-empty">
               No question data found for this attempt.
             </div>
           ) : (

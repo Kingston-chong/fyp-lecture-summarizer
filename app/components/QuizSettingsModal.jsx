@@ -93,7 +93,7 @@ export default function QuizSettingsModal({
 }) {
   const isLecturer = mode === "lecturer";
   const copy = COPY[isLecturer ? "lecturer" : "student"];
-const [aiModel, setAiModel] = useState("Gemini");
+  const [aiModel, setAiModel] = useState("Gemini");
   const [generationMode, setGenerationMode] = useState("Strict");
   const [questionTypes, setQuestionTypes] = useState(["MCQ"]);
   const [questionCountAuto, setQuestionCountAuto] = useState(false);
@@ -171,7 +171,7 @@ const [aiModel, setAiModel] = useState("Gemini");
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="sl-modal qsm-modal">
-<div className="sl-head">
+        <div className="sl-head">
           <div className="sl-title">
             <QuizIco /> {copy.title}
           </div>
@@ -180,15 +180,9 @@ const [aiModel, setAiModel] = useState("Gemini");
           </button>
         </div>
 
-        <div
-          className="qsm-intro"
-        >
-          {copy.intro}
-        </div>
+        <div className="qsm-intro">{copy.intro}</div>
 
-        <div
-          className="sl-body qsm-body"
-        >
+        <div className="sl-body qsm-body">
           <div className="col-left">
             <SectionHead>AI Model Selection</SectionHead>
             <Dropdown
@@ -198,9 +192,7 @@ const [aiModel, setAiModel] = useState("Gemini");
               width={140}
             />
 
-            <div
-              className="qsm-gen-row"
-            >
+            <div className="qsm-gen-row">
               <SectionHead className="qsm-section-head--inline">
                 Generation Mode
               </SectionHead>
@@ -339,9 +331,7 @@ const [aiModel, setAiModel] = useState("Gemini");
               {!isLecturer && (
                 <div>
                   <FieldLabel>{copy.quizModeLabel}</FieldLabel>
-                  <div
-                    className="flex-col gap-2"
-                  >
+                  <div className="flex-col gap-2">
                     {["Practice (with hints)", "Assessment (no hints)"].map(
                       (opt) => (
                         <label
@@ -367,9 +357,7 @@ const [aiModel, setAiModel] = useState("Gemini");
               )}
               <div>
                 <FieldLabel>{copy.timeLabel}</FieldLabel>
-                <div
-                  className="flex-col gap-2"
-                >
+                <div className="flex-col gap-2">
                   <label
                     className={`radio-opt ${timeLimit === 0 ? "on" : ""}`}
                     onClick={() => setTimeLimit(0)}
@@ -403,13 +391,7 @@ const [aiModel, setAiModel] = useState("Gemini");
           </div>
         </div>
 
-        {error && (
-          <div
-            className="qsm-error"
-          >
-            {error}
-          </div>
-        )}
+        {error && <div className="qsm-error">{error}</div>}
 
         <div className="sl-foot">
           <button

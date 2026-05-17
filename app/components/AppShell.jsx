@@ -72,7 +72,7 @@ export default function AppShell({
 
   return (
     <>
-<div
+      <div
         className={`shell${showSidebar && mobileNavOpen ? " shell--menu-open" : ""}${
           sidebarMobileOnly ? " shell--dashboard-mobile" : ""
         }`}

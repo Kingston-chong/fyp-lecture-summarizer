@@ -84,9 +84,16 @@ export default function Dashboard() {
     const q = historySearch.trim().toLowerCase();
     if (!q) return history;
     return history.filter((h) => {
-      if (String(h.title || "").toLowerCase().includes(q)) return true;
+      if (
+        String(h.title || "")
+          .toLowerCase()
+          .includes(q)
+      )
+        return true;
       return (h.files || []).some((f) =>
-        String(f.name || "").toLowerCase().includes(q),
+        String(f.name || "")
+          .toLowerCase()
+          .includes(q),
       );
     });
   }, [history, historySearch]);
@@ -616,26 +623,11 @@ export default function Dashboard() {
 
   if (status === "loading")
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "var(--app-bg)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            border: "3px solid rgba(99,102,241,0.3)",
-            borderTopColor: "#6366f1",
-            borderRadius: "50%",
-            animation: "spin 0.7s linear infinite",
-          }}
-        />
-</div>
+      <div className="app">
+        <div className="body dash-loading-body">
+          <div className="dash-loading-spinner" aria-hidden />
+        </div>
+      </div>
     );
 
   function addPickedImageFromUrl(url, thumb) {
@@ -893,7 +885,7 @@ export default function Dashboard() {
 
   return (
     <>
-<div className={`app ${sidebarOpen ? "app--sidebar-open" : ""}`}>
+      <div className={`app ${sidebarOpen ? "app--sidebar-open" : ""}`}>
         <div className="body">
           <button
             type="button"

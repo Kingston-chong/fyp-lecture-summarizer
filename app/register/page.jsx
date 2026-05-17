@@ -137,8 +137,8 @@ export default function Slide2NotesRegister() {
 
   return (
     <>
-<AuthPageChrome header={<AuthMarketingNav />} blobCount={3}>
-        <main className="main">
+      <AuthPageChrome header={<AuthMarketingNav />} blobCount={3}>
+        <main className="login-main">
           <div className="card">
             <div className="card-glow" />
 

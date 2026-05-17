@@ -90,7 +90,6 @@ function QuestionCard({ q, idx, mode }) {
   );
 }
 
-
 export default function LecturerQuizReviewModal({
   quizSet,
   summaryId,
@@ -98,7 +97,7 @@ export default function LecturerQuizReviewModal({
   onRegenerate,
   onPublishChange,
 }) {
-const [tab, setTab] = useState("answerKey");
+  const [tab, setTab] = useState("answerKey");
   const [copied, setCopied] = useState("");
   const [published, setPublished] = useState(Boolean(quizSet?.published));
   const [acceptingResponses, setAcceptingResponses] = useState(
@@ -241,7 +240,7 @@ const [tab, setTab] = useState("answerKey");
         aria-labelledby="lqr-title"
         onClick={(e) => e.stopPropagation()}
       >
-<div className="sl-head">
+        <div className="sl-head">
           <div>
             <div className="sl-title" id="lqr-title">
               <QuizIco /> {quizSet.title || "Class quiz"}
@@ -279,9 +278,7 @@ const [tab, setTab] = useState("answerKey");
           {tab === "share" ? (
             <div>
               <div className="lqr-share-card">
-                <div className="lqr-share-title">
-                  Export files
-                </div>
+                <div className="lqr-share-title">Export files</div>
                 <p className="lqr-share-desc">
                   Download a student handout (no answers) or a full answer key
                   with explanations.
@@ -341,9 +338,7 @@ const [tab, setTab] = useState("answerKey");
               </div>
 
               <div className="lqr-share-card">
-                <div className="lqr-share-title">
-                  Google Forms
-                </div>
+                <div className="lqr-share-title">Google Forms</div>
                 <p className="lqr-share-desc">
                   Copy formatted text and paste questions into{" "}
                   <a
@@ -368,9 +363,7 @@ const [tab, setTab] = useState("answerKey");
               </div>
 
               <div className="lqr-share-card">
-                <div className="lqr-share-title">
-                  Students take in app
-                </div>
+                <div className="lqr-share-title">Students take in app</div>
                 <p className="lqr-share-desc">
                   Publish a share link first, then start collecting when you are
                   ready for students to submit. Stop collecting to close the
@@ -400,7 +393,9 @@ const [tab, setTab] = useState("answerKey");
                           disabled={collectionLoading || publishLoading}
                         />
                       </label>
-                      <span className={`lqr-status-badge${acceptingResponses ? " lqr-status-badge--collecting" : ""}`}>
+                      <span
+                        className={`lqr-status-badge${acceptingResponses ? " lqr-status-badge--collecting" : ""}`}
+                      >
                         {acceptingResponses ? "Collecting" : "Not collecting"}
                       </span>
                       <button
@@ -423,7 +418,9 @@ const [tab, setTab] = useState("answerKey");
                 {published && shareUrl && (
                   <div className="lqr-share-url-wrap">
                     <input
-                      readOnly value={shareUrl} className="lqr-share-input"
+                      readOnly
+                      value={shareUrl}
+                      className="lqr-share-input"
                     />
                     <button
                       type="button"
@@ -438,12 +435,7 @@ const [tab, setTab] = useState("answerKey");
             </div>
           ) : (
             questions.map((q, i) => (
-              <QuestionCard
-                key={q.id ?? i}
-                q={q}
-                idx={i}
-                mode={listMode}
-                />
+              <QuestionCard key={q.id ?? i} q={q} idx={i} mode={listMode} />
             ))
           )}
         </div>

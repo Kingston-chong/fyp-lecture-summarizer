@@ -1,14 +1,53 @@
 import { NextResponse } from "next/server";
-import { get } from "@vercel/blob";
+import { get, put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { getRequestUser } from "@/lib/apiAuth";
-import { downloadPdfBuffer, getAlaiPdfUrl } from "@/lib/alaiSlidePptx";
+import {
+  downloadPdfBuffer,
+  extractPdfUrlFromAlaiGenerationJson,
+  getAlaiPdfUrl,
+} from "@/lib/alaiSlidePptx";
+import { getAlaiApiKey, ALAI_BASE } from "@/lib/alaiClient";
+import {
+  convertPptxBufferToPdf,
+  readableStreamToBuffer,
+} from "@/lib/pptxToPdf";
 import { toBlobRef } from "@/lib/blobRef";
 
 function safeAsciiFilename(name) {
   return String(name || "presentation")
     .replace(/[^\x20-\x7E]/g, "_")
     .replace(/"/g, "");
+}
+
+function safeSlug(title) {
+  return (
+    String(title || "presentation")
+      .replace(/[^a-z0-9]+/gi, "_")
+      .replace(/^_+|_+$/g, "")
+      .toLowerCase() || "slides"
+  );
+}
+
+async function loadPptxBuffer(pptxRef) {
+  const result = await get(pptxRef, { access: "private", useCache: true });
+  if (result?.statusCode !== 200 || !result.stream) return null;
+  return readableStreamToBuffer(result.stream);
+}
+
+async function cachePdfOnDeck({ deckId, userId, summaryId, title, pdfBuffer }) {
+  const slug = safeSlug(title);
+  const pdfPath = `slides/${userId}/${summaryId}/${Date.now()}-${slug}.pdf`;
+  const pdfBlob = await put(pdfPath, pdfBuffer, {
+    access: "private",
+    contentType: "application/pdf",
+  });
+  const storedPdfUrl = pdfBlob.pathname || pdfBlob.url;
+  await prisma.slideDeck.update({
+    where: { id: deckId },
+    data: { pdfUrl: storedPdfUrl },
+  });
+  return storedPdfUrl;
 }
 
 export async function GET(_req, context) {
@@ -27,7 +66,13 @@ export async function GET(_req, context) {
 
     const deck = await prisma.slideDeck.findFirst({
       where: { id: deckId, summaryId, userId: user.id },
-      select: { title: true, pdfUrl: true, alaiGenerationId: true },
+      select: {
+        title: true,
+        pdfUrl: true,
+        pptxUrl: true,
+        alaiGenerationId: true,
+        provider: true,
+      },
     });
     if (!deck) {
       return NextResponse.json(
@@ -56,28 +101,83 @@ export async function GET(_req, context) {
       }
     }
 
+    let pdfBuffer = null;
+
     const genId = String(deck.alaiGenerationId || "").trim();
-    if (!genId) {
+    const alaiKey = getAlaiApiKey();
+    if (
+      genId &&
+      String(deck.provider || "alai").toLowerCase() === "alai" &&
+      alaiKey
+    ) {
+      const urlResult = await getAlaiPdfUrl(genId);
+      if (urlResult.ok) {
+        const dl = await downloadPdfBuffer(urlResult.pdfUrl);
+        if (dl.ok) pdfBuffer = dl.buffer;
+      } else {
+        const genRes = await fetch(
+          `${ALAI_BASE}/generations/${encodeURIComponent(genId)}`,
+          {
+            headers: { Authorization: `Bearer ${alaiKey}` },
+            cache: "no-store",
+          },
+        );
+        const genData = await genRes.json().catch(() => ({}));
+        if (genRes.ok) {
+          const pdfUrl = extractPdfUrlFromAlaiGenerationJson(genData);
+          if (pdfUrl) {
+            const dl = await downloadPdfBuffer(pdfUrl);
+            if (dl.ok) pdfBuffer = dl.buffer;
+          }
+        }
+      }
+    }
+
+    if (!pdfBuffer?.length) {
+      const pptxRef = toBlobRef(deck.pptxUrl);
+      if (!pptxRef) {
+        return NextResponse.json(
+          {
+            error:
+              "PDF is not available. The PPTX file is missing — regenerate slides.",
+          },
+          { status: 404 },
+        );
+      }
+      const pptxBuffer = await loadPptxBuffer(pptxRef);
+      if (!pptxBuffer?.length) {
+        return NextResponse.json(
+          { error: "Could not read the saved presentation file." },
+          { status: 502 },
+        );
+      }
+      const converted = await convertPptxBufferToPdf(pptxBuffer);
+      if (!converted.ok) {
+        return NextResponse.json({ error: converted.error }, { status: 502 });
+      }
+      pdfBuffer = converted.buffer;
+    }
+
+    if (!pdfBuffer?.length) {
       return NextResponse.json(
-        {
-          error:
-            "PDF is not available for this deck. Regenerate slides to create a PDF copy.",
-        },
-        { status: 404 },
+        { error: "PDF could not be created for this deck." },
+        { status: 502 },
       );
     }
 
-    const urlResult = await getAlaiPdfUrl(genId);
-    if (!urlResult.ok) {
-      return NextResponse.json({ error: urlResult.error }, { status: 404 });
+    try {
+      await cachePdfOnDeck({
+        deckId: deck.id,
+        userId: user.id,
+        summaryId,
+        title: deck.title,
+        pdfBuffer,
+      });
+    } catch (e) {
+      console.warn("slide deck pdf cache:", e?.message || e);
     }
 
-    const dl = await downloadPdfBuffer(urlResult.pdfUrl);
-    if (!dl.ok) {
-      return NextResponse.json({ error: dl.error }, { status: 502 });
-    }
-
-    return new NextResponse(dl.buffer, {
+    return new NextResponse(pdfBuffer, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",

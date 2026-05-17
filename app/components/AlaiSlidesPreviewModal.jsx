@@ -106,7 +106,7 @@ export default function AlaiSlidesPreviewModal({
 
   return (
     <>
-<div
+      <div
         className="alai-overlay"
         onClick={(e) => e.target === e.currentTarget && onClose?.()}
       >

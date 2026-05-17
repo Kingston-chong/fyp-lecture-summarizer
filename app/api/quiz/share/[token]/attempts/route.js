@@ -36,9 +36,10 @@ export async function POST(req, context) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const respondentLabel = String(body.respondentLabel || "")
-      .trim()
-      .slice(0, 120) || null;
+    const respondentLabel =
+      String(body.respondentLabel || "")
+        .trim()
+        .slice(0, 120) || null;
     const answers =
       body.answers && typeof body.answers === "object" ? body.answers : {};
     const totalQuestions = quizSet.questions.length;

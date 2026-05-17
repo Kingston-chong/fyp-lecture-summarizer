@@ -92,7 +92,7 @@ export default function NewPassword() {
         centerContent
         shell="dark"
       >
-<div className="success-card">
+        <div className="success-card">
           <div className="success-icon">
             <svg
               width="36"
@@ -115,7 +115,7 @@ export default function NewPassword() {
 
   return (
     <>
-<AuthPageChrome header={<AuthMarketingNav />} blobCount={2}>
+      <AuthPageChrome header={<AuthMarketingNav />} blobCount={2}>
         <main className="main">
           <div className="card">
             <div className="card-glow" />

@@ -3,6 +3,7 @@ import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { getRequestUser } from "@/lib/apiAuth";
 import { publicSlideDeckFields } from "@/lib/blobRef";
+import { convertPptxBufferToPdf } from "@/lib/pptxToPdf";
 
 async function resolveSummaryId(context) {
   const resolved = await Promise.resolve(context?.params);
@@ -80,6 +81,17 @@ export async function POST(req, context) {
     });
     const storedPptxUrl = blob.pathname || blob.url;
 
+    let storedPdfUrl = null;
+    const pdfConv = await convertPptxBufferToPdf(buffer);
+    if (pdfConv.ok) {
+      const pdfPath = `slides/${user.id}/${summaryId}/${Date.now()}-${safeSlug}.pdf`;
+      const pdfBlob = await put(pdfPath, pdfConv.buffer, {
+        access: "private",
+        contentType: "application/pdf",
+      });
+      storedPdfUrl = pdfBlob.pathname || pdfBlob.url;
+    }
+
     const localId =
       `local:${Date.now()}-${Math.random().toString(36).slice(2, 11)}`.slice(
         0,
@@ -93,6 +105,7 @@ export async function POST(req, context) {
         title,
         alaiGenerationId: localId,
         pptxUrl: storedPptxUrl,
+        pdfUrl: storedPdfUrl,
       },
       select: {
         id: true,

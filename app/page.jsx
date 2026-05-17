@@ -78,7 +78,7 @@ export default function HomePage() {
 
   return (
     <>
-<div className="atm">
+      <div className="atm">
         <div className="atm-1" />
         <div className="atm-2" />
         <div className="atm-3" />

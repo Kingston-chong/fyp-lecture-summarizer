@@ -42,6 +42,8 @@
 }
 
 .wrap {
+  flex: 1;
+  min-height: 0;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -3257,4 +3259,211 @@ html[data-theme="light"] .ref-item.active {
 html[data-theme="light"] .ref-meta,
 html[data-theme="light"] .ref-kind {
   color: rgba(0, 0, 0, 0.45);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   PATCH 1 — PDF button loading state
+   Add these rules to summary-page.css (alongside existing .sd-deck-btn rules)
+───────────────────────────────────────────────────────────────────────────── */
+
+/* PDF button with spinner: lay out icon + label side by side */
+.sd-deck-btn--pdf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+/* Dim and block interaction while PDF is generating */
+.sd-deck-btn--pdf:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+  /* Subtle pulse to signal activity */
+  animation: sd-pdf-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes sd-pdf-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%       { opacity: 0.8;  }
+}
+
+/* Light theme overrides */
+html[data-theme="light"] .sd-deck-btn--pdf:disabled {
+  opacity: 0.5;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   PATCH 2 — ChatGPT-style reply / chat thread
+   Replace or extend the existing .chat-thread, .m-row, .m-bub, .m-ava rules
+   in summary-page.css with the following.
+───────────────────────────────────────────────────────────────────────────── */
+
+/* ── Thread container ── */
+.chat-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 0;           /* ChatGPT uses no gap — spacing is inside each row */
+  padding-bottom: 4px;
+}
+
+/* ── Row: each message ── */
+.m-row {
+  display: flex;
+  gap: 0;
+  align-items: flex-start;
+  padding: 16px 0;
+  animation: msgIn 0.22s ease;
+}
+
+/* User rows: no background, flush right */
+.m-row.user {
+  flex-direction: row-reverse;
+}
+.m-row.user .m-bub-col {
+  align-items: flex-end;
+}
+
+/* AI rows: subtle stripe like ChatGPT's alternating background */
+.m-row.ai {
+  background: rgba(255, 255, 255, 0.025);
+  border-radius: 12px;
+  padding: 16px 12px;
+  margin: 0 -12px;   /* bleed to panel edges */
+}
+
+/* ── Avatar ── */
+.m-ava {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;   /* ChatGPT uses circular avatars */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  margin-right: 12px;
+}
+.m-row.user .m-ava {
+  margin-right: 0;
+  margin-left: 12px;
+}
+
+/* AI avatar: solid brand circle */
+.m-ava.ai {
+  background: #10a37f;       /* ChatGPT green */
+  color: #fff;
+  border: none;
+}
+
+/* User avatar: neutral grey circle */
+.m-ava.user {
+  background: #4a4a4a;
+  color: rgba(255,255,255,0.85);
+  border: none;
+}
+
+/* ── Bubble wrap / col ── */
+.m-bub-wrap {
+  position: relative;
+  max-width: 78%;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 6px;
+}
+.m-bub-col {
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Bubble ── */
+.m-bub {
+  width: 100%;
+  padding: 0;                /* ChatGPT AI: no bubble background, just text */
+  border-radius: 0;
+  border: none;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.75;
+  font-family:
+    "Sora",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+/* AI bubble: no chrome at all, text flows directly */
+.m-bub.ai {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--sum-text);
+}
+
+/* User bubble: pill with subtle fill — like ChatGPT's user turn */
+.m-bub.user {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  padding: 10px 16px;
+  color: var(--sum-title);
+  width: auto;          /* shrink to content */
+  max-width: 100%;
+}
+
+.m-bub.err {
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.2);
+  border-radius: 12px;
+  padding: 9px 13px;
+  color: #fca5a5;
+}
+
+.m-bub a {
+  color: #93c5fd;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+}
+.m-bub a:hover { color: #bfdbfe; }
+.m-bub.user a  { color: #a5b4fc; }
+.m-bub.user a:hover { color: #c7d2fe; }
+
+
+/* ── Light theme overrides ── */
+html[data-theme="light"] .m-row.ai {
+  background: rgba(0, 0, 0, 0.025);
+}
+html[data-theme="light"] .m-ava.ai {
+  background: #10a37f;
+  color: #fff;
+}
+html[data-theme="light"] .m-ava.user {
+  background: #d1d5db;
+  color: #374151;
+}
+html[data-theme="light"] .m-bub.user {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #111;
+}
+html[data-theme="light"] .m-bub.ai {
+  color: #111;
+}
+html[data-theme="light"] .m-bub a {
+  color: #2563eb;
+}
+html[data-theme="light"] .m-bub a:hover {
+  color: #1d4ed8;
+}
+html[data-theme="light"] .m-bub.user a {
+  color: #4f46e5;
 }

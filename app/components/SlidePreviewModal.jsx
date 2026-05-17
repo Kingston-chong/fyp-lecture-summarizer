@@ -381,7 +381,7 @@ export default function SlidePreviewModal({
 
   return (
     <>
-<div
+      <div
         className="pv-overlay"
         onClick={(e) => e.target === e.currentTarget && onClose()}
       >

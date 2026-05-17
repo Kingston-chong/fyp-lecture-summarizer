@@ -25,8 +25,10 @@ export async function GET(req) {
       MAX_LIMIT,
       Math.max(
         1,
-        Number.parseInt(searchParams.get("limit") || String(DEFAULT_LIMIT), 10) ||
-          DEFAULT_LIMIT,
+        Number.parseInt(
+          searchParams.get("limit") || String(DEFAULT_LIMIT),
+          10,
+        ) || DEFAULT_LIMIT,
       ),
     );
     const skip = page * limit;
@@ -61,9 +63,7 @@ export async function GET(req) {
       title: s.title,
       model: s.model,
       summarizeFor: s.summarizeFor,
-      excerpt: s.output
-        ? String(s.output).slice(0, EXCERPT_CHARS)
-        : "",
+      excerpt: s.output ? String(s.output).slice(0, EXCERPT_CHARS) : "",
       createdAt: s.createdAt,
       files: s.documents.map((d) => ({
         id: d.document.id,

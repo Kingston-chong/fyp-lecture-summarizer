@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/apiAuth";
-import { extractPptxUrlFromAlaiGenerationJson } from "@/lib/alaiSlidePptx";
+import {
+  extractPdfUrlFromAlaiGenerationJson,
+  extractPptxUrlFromAlaiGenerationJson,
+} from "@/lib/alaiSlidePptx";
 import { pollTwoSlidesGeneration } from "@/lib/twoSlidesGenerate";
 import { logger } from "@/lib/logger";
 
@@ -114,11 +117,13 @@ export async function GET(req, context) {
       if (pptUrl) {
         const base = new URL(req.url);
         const downloadEndpoint = `${base.origin}/api/generate-slides/${encodeURIComponent(id)}/download?provider=alai`;
+        const pdfUrl = extractPdfUrlFromAlaiGenerationJson(data);
         return NextResponse.json({
           status: "completed",
           download_url: downloadEndpoint,
           preview_url: previewUrl,
           remote_download_url: pptUrl,
+          remote_pdf_url: pdfUrl || null,
         });
       }
 

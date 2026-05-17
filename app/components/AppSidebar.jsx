@@ -338,9 +338,16 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
     const q = historySearch.trim().toLowerCase();
     if (!q) return history;
     return history.filter((h) => {
-      if (String(h.title || "").toLowerCase().includes(q)) return true;
+      if (
+        String(h.title || "")
+          .toLowerCase()
+          .includes(q)
+      )
+        return true;
       return (h.files || []).some((f) =>
-        String(f.name || "").toLowerCase().includes(q),
+        String(f.name || "")
+          .toLowerCase()
+          .includes(q),
       );
     });
   }, [history, historySearch]);

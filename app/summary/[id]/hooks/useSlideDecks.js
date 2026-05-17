@@ -8,6 +8,10 @@ export function useSlideDecks({ summaryId, status }) {
   const [slideDecks, setSlideDecks] = useState([]);
   const [slideDecksLoading, setSlideDecksLoading] = useState(false);
   const [slideDeckDeletingId, setSlideDeckDeletingId] = useState(null);
+  // Track which deck IDs are currently downloading PDF (Set of deck ids)
+  const [slideDeckPdfLoadingIds, setSlideDeckPdfLoadingIds] = useState(
+    new Set(),
+  );
   const [slideDeckPreviewOpen, setSlideDeckPreviewOpen] = useState(false);
   const [slideDeckPreviewUrl, setSlideDeckPreviewUrl] = useState("");
   const [slideDeckRemotePptUrl, setSlideDeckRemotePptUrl] = useState("");
@@ -101,6 +105,8 @@ export function useSlideDecks({ summaryId, status }) {
   }
 
   async function downloadSlideDeckPdf(deck) {
+    // Mark this deck as PDF-loading
+    setSlideDeckPdfLoadingIds((prev) => new Set([...prev, deck.id]));
     try {
       if (!numericSummaryId) throw new Error("Invalid summary id");
       const r = await fetch(
@@ -114,6 +120,13 @@ export function useSlideDecks({ summaryId, status }) {
       triggerBlobDownload(blob, deckDownloadFilename(deck.title, "pdf"));
     } catch (e) {
       alert(e?.message || String(e));
+    } finally {
+      // Clear loading state for this deck
+      setSlideDeckPdfLoadingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(deck.id);
+        return next;
+      });
     }
   }
 
@@ -149,6 +162,7 @@ export function useSlideDecks({ summaryId, status }) {
     slideDecks,
     slideDecksLoading,
     slideDeckDeletingId,
+    slideDeckPdfLoadingIds,
     slideDeckPreviewOpen,
     setSlideDeckPreviewOpen,
     slideDeckPreviewUrl,

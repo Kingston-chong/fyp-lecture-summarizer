@@ -19,7 +19,10 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.03);
   cursor: pointer;
-  transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
+  transition:
+    border-color 0.18s,
+    background 0.18s,
+    box-shadow 0.18s;
   font-family: inherit;
 }
 
@@ -85,7 +88,10 @@
   font-weight: 500;
   line-height: 1.3;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    color 0.15s;
 }
 
 .gs-pill:hover {
@@ -141,11 +147,166 @@
   margin-bottom: 12px;
 }
 
-.gs-progress-msg {
+.gs-advanced-full {
+  grid-column: 1 / -1;
+}
+
+.gs-density-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.gs-density-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 6px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    color 0.15s;
+  font-family: "Sora", sans-serif;
+  outline: none;
+}
+
+.gs-density-btn:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.gs-density-btn.on {
+  border-color: rgba(99, 102, 241, 0.7);
+  background: rgba(99, 102, 241, 0.18);
+}
+
+.gs-density-label {
   font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.5);
-  margin-top: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.gs-density-btn.on .gs-density-label {
+  color: #a5b4fc;
+}
+
+.gs-density-desc {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.gs-density-btn.on .gs-density-desc {
+  color: rgba(165, 180, 252, 0.75);
+}
+
+.slides-modal-light .gs-density-btn {
+  border-color: rgba(0, 0, 0, 0.14);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.slides-modal-light .gs-density-btn:hover {
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.slides-modal-light .gs-density-btn.on {
+  border-color: rgba(99, 102, 241, 0.45);
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.slides-modal-light .gs-density-label {
+  color: rgba(0, 0, 0, 0.72);
+}
+
+.slides-modal-light .gs-density-btn.on .gs-density-label {
+  color: #4338ca;
+}
+
+.slides-modal-light .gs-density-desc {
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.slides-modal-light .gs-density-btn.on .gs-density-desc {
+  color: rgba(67, 56, 202, 0.75);
+}
+
+.gs-select-menu-panel::-webkit-scrollbar {
+  width: 6px;
+}
+.gs-select-menu-panel::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+.slides-modal-light .gs-select-menu-panel::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.gs-progress-bar-wrap {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.gs-progress-track {
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.gs-progress-fill {
+  height: 100%;
+  width: 40%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #6366f1, #a5b4fc, #6366f1);
+  background-size: 200% 100%;
+  animation: gs-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes gs-shimmer {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.gs-progress-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.55);
   line-height: 1.4;
+}
+
+.gs-progress-dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #818cf8;
+  animation: gs-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes gs-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.7);
+  }
 }
 
 .csf-extra-wrap {
@@ -228,6 +389,9 @@
   color: rgba(0, 0, 0, 0.8);
 }
 
-.slides-modal-light .gs-progress-msg {
+.slides-modal-light .gs-progress-label {
   color: rgba(0, 0, 0, 0.55);
+}
+.slides-modal-light .gs-progress-track {
+  background: rgba(0, 0, 0, 0.08);
 }

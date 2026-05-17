@@ -52,8 +52,8 @@ export default function ResetPassword() {
 
   return (
     <>
-<AuthPageChrome header={<AuthMarketingNav />} blobCount={2}>
-        <main className="main">
+      <AuthPageChrome header={<AuthMarketingNav />} blobCount={2}>
+        <main className="login-main">
           <div className="card">
             <div className="card-glow" />
 

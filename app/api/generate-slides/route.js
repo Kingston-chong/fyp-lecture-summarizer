@@ -4,6 +4,7 @@ import { getRoleProfile, normalizeSummarizeRole } from "@/lib/roleProfiles";
 import { submitTwoSlidesGeneration } from "@/lib/twoSlidesGenerate";
 import { logger } from "@/lib/logger";
 import { applyLlmRateLimit } from "@/lib/llmRateLimit";
+import { ALAI_BASE, alaiErrorPayload, getAlaiApiKey } from "@/lib/alaiClient";
 
 const parsedMaxPrompt = Number.parseInt(
   process.env.SLIDES_MAX_USER_PROMPT_CHARS || "4000",
@@ -14,56 +15,102 @@ const MAX_SLIDE_USER_PROMPT_CHARS =
     ? parsedMaxPrompt
     : 4000;
 
-function buildInstructions(body, roleProfile) {
-  let instructions = `Create a presentation based on this summary text.\n`;
-  instructions += `Audience Mode: ${roleProfile.label}\n`;
-  instructions += `Role guidance:\n${roleProfile.slideInstructions
-    .map((line) => `- ${line}`)
-    .join("\n")}\n`;
+const ALAI_IMAGE_STYLES = new Set([
+  "auto",
+  "realistic",
+  "artistic",
+  "cartoon",
+  "three_d",
+  "custom",
+]);
 
-  if (body.title) instructions += `Title: ${body.title}\n`;
-  if (body.slideLength) instructions += `Length/Detail: ${body.slideLength}\n`;
-  if (body.template)
-    instructions += `Preferred Template/Style: ${body.template}\n`;
-  if (body.textStyle) instructions += `Tone/Text Style: ${body.textStyle}\n`;
-  if (body.maxSlides) instructions += `Max Slides Limit: ${body.maxSlides}\n`;
-  if (body.strictness) {
-    instructions += `Fidelity to source summary: ${String(body.strictness)}\n`;
+/** @param {unknown} maxSlides */
+function toSlideRange(maxSlides) {
+  const n = Number.parseInt(String(maxSlides ?? ""), 10);
+  if (!n || n < 1) return "auto";
+  if (n === 1) return "1";
+  if (n <= 5) return "2-5";
+  if (n <= 10) return "6-10";
+  if (n <= 15) return "11-15";
+  if (n <= 20) return "16-20";
+  if (n <= 25) return "21-25";
+  return "26-50";
+}
+
+/**
+ * Style and audience guidance for Alai `additional_instructions` (not raw content).
+ * @param {Record<string, unknown>} body
+ * @param {ReturnType<typeof getRoleProfile>} roleProfile
+ */
+function buildAlaiAdditionalInstructions(body, roleProfile) {
+  const lines = [];
+
+  const audienceBits = [`Audience: ${roleProfile.label}`];
+  if (body.textStyle) audienceBits.push(`${String(body.textStyle)} tone`);
+  if (body.strictness === "Strict") {
+    audienceBits.push("strict fidelity to source");
+  } else if (body.strictness === "Flexible") {
+    audienceBits.push("flexible fidelity; may add relevant context");
+  }
+  lines.push(`${audienceBits.join(". ")}.`);
+
+  const roleLines = roleProfile.slideInstructions
+    .map((line) => `- ${line}`)
+    .join("\n");
+  if (roleLines) {
+    lines.push(`Role guidance:\n${roleLines}`);
+  }
+
+  if (body.slideLength) {
+    lines.push(`Slide length: ${String(body.slideLength)}.`);
   }
 
   if (body.highlightDefs === true) {
-    instructions +=
-      "Formatting: Call out important definitions and technical terms on slides.\n";
+    lines.push(
+      "Formatting: Call out important definitions and technical terms on slides.",
+    );
   }
   if (body.boldKeywords === true) {
-    instructions +=
-      "Formatting: Bold or otherwise emphasize essential keywords.\n";
+    lines.push("Formatting: Bold or otherwise emphasize essential keywords.");
   }
   if (body.speakerNotes === true) {
-    instructions +=
-      "Include detailed speaker notes for every slide (minimum 2 sentences each).\n";
+    lines.push(
+      "Include detailed speaker notes for every slide (minimum 2 sentences each).",
+    );
   }
 
   const bl = String(body?.bulletLimit ?? "").trim();
   if (bl) {
-    instructions += `Bullet budget: aim for at most ${bl} bullet points per slide.\n`;
-  }
-  if (body.fontSize) {
-    instructions += `Relative font size preference for body text: ${String(body.fontSize)}\n`;
-  }
-  if (body.textDensity) {
-    instructions += `Layout density / whitespace: ${String(body.textDensity)}\n`;
+    lines.push(`Bullet budget: at most ${bl} bullet points per slide.`);
   }
 
   const userExtra = String(body?.slideUserPrompt || body?.userPrompt || "")
     .trim()
     .slice(0, MAX_SLIDE_USER_PROMPT_CHARS);
   if (userExtra) {
-    instructions += `\nAdditional instructions from the user:\n${userExtra}\n`;
+    lines.push(`Additional user instructions:\n${userExtra}`);
   }
 
-  instructions += `\nSummary:\n${body.summaryText}`;
-  return instructions;
+  return lines.join("\n").trim();
+}
+
+/**
+ * Full input for 2slides (single `input_text` field).
+ * @param {Record<string, unknown>} body
+ * @param {ReturnType<typeof getRoleProfile>} roleProfile
+ */
+function buildTwoSlidesInputText(body, roleProfile) {
+  const instructions = buildAlaiAdditionalInstructions(body, roleProfile);
+  const summary = String(body.summaryText || "").trim();
+  return `${instructions}\n\nSummary:\n${summary}`;
+}
+
+/** @param {unknown} style */
+function normalizeAlaiImageStyle(style) {
+  const s = String(style || "auto")
+    .trim()
+    .toLowerCase();
+  return ALAI_IMAGE_STYLES.has(s) ? s : "auto";
 }
 
 export async function POST(req) {
@@ -92,44 +139,95 @@ export async function POST(req) {
 
     const summarizeRole = normalizeSummarizeRole(body?.summarizeFor);
     const roleProfile = getRoleProfile(summarizeRole);
-    const instructions = buildInstructions(
-      { ...body, summaryText },
-      roleProfile,
-    );
 
     if (provider === "alai") {
-      if (!process.env.ALAI_API_KEY) {
+      const alaiKey = getAlaiApiKey();
+      if (!alaiKey) {
         return NextResponse.json(
-          { error: "ALAI_API_KEY is not configured on the server." },
+          {
+            error:
+              "ALAI_API_KEY is not configured. Add a valid key from app.getalai.com to .env.local and restart the dev server.",
+            code: "ALAI_NOT_CONFIGURED",
+          },
           { status: 500 },
         );
       }
 
-      const payload = {
-        input_text: instructions,
-        export_formats: ["ppt", "link", "pdf"],
-        presentation_options: body?.title
-          ? { title: String(body.title) }
-          : undefined,
+      const additionalInstructions = buildAlaiAdditionalInstructions(
+        { ...body, summaryText },
+        roleProfile,
+      );
+
+      const vibeId = String(body?.vibeId || "").trim();
+
+      // num_image_variants: 0 = no creative variants, 1-2 = AI image-led variants.
+      // If the user supplied a value, clamp it to [0, 2].
+      // If a vibe is set it requires >= 1, so floor at 1 in that case.
+      let numImageVariants = 0;
+      const rawVariants = body?.numImageVariants;
+      if (rawVariants !== undefined && rawVariants !== null) {
+        const parsed = Number.parseInt(String(rawVariants), 10);
+        if (Number.isFinite(parsed)) {
+          numImageVariants = Math.min(Math.max(parsed, 0), 2);
+        }
+      }
+      if (vibeId && numImageVariants < 1) numImageVariants = 1;
+
+      const imageOptions = {
+        include_ai_images: body?.includeAiImages !== false,
+        include_web_images: body?.includeWebImages !== false,
+        style: normalizeAlaiImageStyle(body?.imageStyle),
+        num_image_variants: numImageVariants,
       };
 
-      const res = await fetch(
-        "https://slides-api.getalai.com/api/v1/generations",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.ALAI_API_KEY}`,
-          },
-          body: JSON.stringify(payload),
+      // image_ids: UUIDs returned by POST /api/generate-slides/upload-images
+      const rawImageIds = Array.isArray(body?.imageIds) ? body.imageIds : [];
+      const imageIds = rawImageIds
+        .map((id) => String(id).trim())
+        .filter(Boolean);
+
+      const presentationOptions = {
+        ...(body?.title ? { title: String(body.title) } : {}),
+        ...(body?.themeId ? { theme_id: String(body.themeId) } : {}),
+        slide_range: toSlideRange(body?.maxSlides),
+      };
+
+      const payload = {
+        input_text: summaryText,
+        additional_instructions: additionalInstructions || undefined,
+        export_formats: ["link", "ppt", "pdf"],
+        presentation_options: {
+          ...presentationOptions,
+          ...(vibeId ? { vibe_id: vibeId } : {}),
         },
-      );
+        image_options: imageOptions,
+        ...(imageIds.length > 0 ? { image_ids: imageIds } : {}),
+      };
+
+      const res = await fetch(`${ALAI_BASE}/generations`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${alaiKey}`,
+        },
+        body: JSON.stringify(payload),
+      });
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        const { message, httpStatus } = alaiErrorPayload(res, data);
+        logger.error("generate-slides", "Alai POST /generations failed", {
+          status: res.status,
+          message,
+        });
         return NextResponse.json(
-          { error: data.error || data.message || "Alai generation failed" },
-          { status: res.status },
+          {
+            error: message,
+            code: "ALAI_UPSTREAM",
+            provider: "alai",
+            upstreamStatus: res.status,
+          },
+          { status: httpStatus },
         );
       }
 
@@ -140,8 +238,13 @@ export async function POST(req) {
       });
     }
 
+    const twoSlidesInput = buildTwoSlidesInputText(
+      { ...body, summaryText },
+      roleProfile,
+    );
+
     const result = await submitTwoSlidesGeneration({
-      inputText: instructions,
+      inputText: twoSlidesInput,
       themeId: body?.themeId || undefined,
       title: body?.title || undefined,
     });

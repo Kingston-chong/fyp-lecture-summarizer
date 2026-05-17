@@ -19,7 +19,7 @@ import AuthPageChrome from "@/app/components/AuthPageChrome";
 export default function Slide2NotesLogin() {
   const router = useRouter();
   const { status } = useSession();
-  const showAuthLoading = status !== "unauthenticated";
+  const showRedirecting = status === "authenticated";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -78,7 +78,7 @@ export default function Slide2NotesLogin() {
 
   return (
     <>
-<AuthPageChrome
+      <AuthPageChrome
         shell="themed"
         blobCount={3}
         header={
@@ -94,17 +94,13 @@ export default function Slide2NotesLogin() {
           />
         }
       >
-<main className="main">
+        <main className="login-main">
           <div className="card">
             <div className="card-top-glow" />
-            {showAuthLoading ? (
+            {showRedirecting ? (
               <div className="auth-loading">
                 <div className="auth-spinner" />
-                <p className="auth-loading-text">
-                  {status === "authenticated"
-                    ? "Redirecting to dashboard..."
-                    : "Checking session..."}
-                </p>
+                <p className="auth-loading-text">Redirecting to dashboard...</p>
               </div>
             ) : (
               <>

@@ -171,8 +171,7 @@ export default function SavedQuizzesPanel({
                             {(a.respondentLabel ||
                               a.user?.username ||
                               a.user?.email ||
-                              "Student") +
-                              ": "}
+                              "Student") + ": "}
                             {a.score}/{a.totalQuestions}
                             {a.createdAt
                               ? ` — ${formatSlideDeckSavedAt(a.createdAt)}`

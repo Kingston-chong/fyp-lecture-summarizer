@@ -35,7 +35,9 @@ export default class ErrorBoundary extends Component {
               fontFamily: "inherit",
             }}
           >
-            <h2 style={{ fontSize: 16, marginBottom: 8 }}>Something went wrong</h2>
+            <h2 style={{ fontSize: 16, marginBottom: 8 }}>
+              Something went wrong
+            </h2>
             <p style={{ fontSize: 13, opacity: 0.8, marginBottom: 12 }}>
               {this.state.message}
             </p>

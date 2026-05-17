@@ -22,7 +22,9 @@ export default function GlobalError({
         }}
       >
         <div style={{ maxWidth: 420, textAlign: "center" }}>
-          <h1 style={{ fontSize: 20, marginBottom: 8 }}>Something went wrong</h1>
+          <h1 style={{ fontSize: 20, marginBottom: 8 }}>
+            Something went wrong
+          </h1>
           <p style={{ fontSize: 14, opacity: 0.75, marginBottom: 16 }}>
             {error.message || "An unexpected error occurred."}
           </p>

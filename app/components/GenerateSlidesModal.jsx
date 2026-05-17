@@ -82,10 +82,21 @@ export default function GenerateSlidesModal({
   // Content style
   const [textStyle, setTextStyle] = useState("Academic");
   const [bulletLimit, setBulletLimit] = useState("");
-  const [highlightDefs, setHighlightDefs] = useState(false);
+  const [highlightDefs, setHighlightDefs] = useState(() =>
+    ["lecturer", "student"].includes(summarizeFor),
+  );
   const [boldKeywords, setBoldKeywords] = useState(false);
   const [provider, setProvider] = useState("alai");
   const [speakerNotes, setSpeakerNotes] = useState(false);
+  const [imageStyle, setImageStyle] = useState("auto");
+  const [selectedVibeId, setSelectedVibeId] = useState("");
+  const [alaiThemes, setAlaiThemes] = useState([]);
+  const [alaiThemesLoading, setAlaiThemesLoading] = useState(false);
+  const [alaiThemesHint, setAlaiThemesHint] = useState("");
+  const [alaiVibes, setAlaiVibes] = useState([]);
+  const [alaiVibesLoading, setAlaiVibesLoading] = useState(false);
+  const [imageIds, setImageIds] = useState([]);
+  const [numImageVariants, setNumImageVariants] = useState(1);
 
   // Slide design
   const [template, setTemplate] = useState("Academic");
@@ -157,6 +168,7 @@ export default function GenerateSlidesModal({
   async function saveDeckToArchive({
     generationId,
     remotePptxUrl,
+    remotePdfUrl,
     deckTitle,
     deckProvider = provider,
   } = {}) {
@@ -189,6 +201,7 @@ export default function GenerateSlidesModal({
           title: String(deckTitle || title || "").trim() || undefined,
           remotePptxUrl:
             String(remotePptxUrl || alaiRemotePptUrl || "").trim() || undefined,
+          remotePdfUrl: String(remotePdfUrl || "").trim() || undefined,
         }),
       });
       const aj = await ar.json().catch(() => ({}));
@@ -314,6 +327,76 @@ export default function GenerateSlidesModal({
     setPlanError("");
   }, [improveInstructions, aiModel]);
 
+  useEffect(() => {
+    if (provider !== "alai") return;
+    let cancelled = false;
+    setAlaiThemesLoading(true);
+    setAlaiThemesHint("");
+    void (async () => {
+      try {
+        const res = await fetch("/api/themes?provider=alai");
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (!res.ok) {
+          setAlaiThemes([]);
+          setAlaiThemesHint(
+            data?.error || data?.hint || "Could not load Alai themes.",
+          );
+          return;
+        }
+        const themes = Array.isArray(data.themes) ? data.themes : [];
+        setAlaiThemes(themes);
+        if (data?.hint) setAlaiThemesHint(String(data.hint));
+        else if (themes.length === 0) {
+          setAlaiThemesHint(
+            "No Alai themes returned. Check ALAI_API_KEY in .env.local.",
+          );
+        }
+        if (themes.length > 0) {
+          setSelectedThemeId((prev) => {
+            if (prev) return prev;
+            return String(themes[0]?.id || themes[0]?.theme_id || "") || prev;
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          setAlaiThemes([]);
+          setAlaiThemesHint("Could not load Alai themes.");
+        }
+      } finally {
+        if (!cancelled) setAlaiThemesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [provider]);
+
+  useEffect(() => {
+    if (provider !== "alai") return;
+    let cancelled = false;
+    setAlaiVibesLoading(true);
+    void (async () => {
+      try {
+        const res = await fetch("/api/vibes?provider=alai");
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (res.ok) {
+          setAlaiVibes(Array.isArray(data.vibes) ? data.vibes : []);
+        } else {
+          setAlaiVibes([]);
+        }
+      } catch {
+        if (!cancelled) setAlaiVibes([]);
+      } finally {
+        if (!cancelled) setAlaiVibesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [provider]);
+
   async function runImprovePlanNow() {
     if (!parsedSlides?.length || !improveInstructions.trim()) return [];
     setPlanLoading(true);
@@ -369,6 +452,12 @@ export default function GenerateSlidesModal({
           speakerNotes,
           provider,
           themeId: selectedThemeId || undefined,
+          imageStyle: provider === "alai" ? imageStyle : undefined,
+          vibeId:
+            provider === "alai" && selectedVibeId ? selectedVibeId : undefined,
+          numImageVariants: provider === "alai" ? numImageVariants : undefined,
+          imageIds:
+            provider === "alai" && imageIds.length > 0 ? imageIds : undefined,
           bulletLimit: String(bulletLimit || "").trim() || undefined,
           fontSize,
           textDensity,
@@ -439,6 +528,7 @@ export default function GenerateSlidesModal({
           void saveDeckToArchive({
             generationId: String(genId),
             remotePptxUrl: pollData.remote_download_url || "",
+            remotePdfUrl: pollData.remote_pdf_url || "",
             deckTitle: title.trim() || undefined,
             deckProvider: activeProvider,
           });
@@ -460,7 +550,17 @@ export default function GenerateSlidesModal({
           continue;
         }
 
-        setGenerateProgress(`Status: ${pollData.status}...`);
+        const statusMessages = {
+          queued: "Queued — waiting for a generation slot…",
+          pending: "Preparing your presentation…",
+          in_progress: "Building slides from your summary…",
+          processing: "Processing slide content…",
+          rendering: "Rendering slides…",
+          exporting: "Exporting to PPTX…",
+        };
+        setGenerateProgress(
+          statusMessages[pollData.status] ?? `Working… (${pollData.status})`,
+        );
         await new Promise((r) => setTimeout(r, 3000));
       }
     } catch (e) {
@@ -569,7 +669,7 @@ export default function GenerateSlidesModal({
 
   return (
     <>
-<div
+      <div
         className={`sl-overlay${isDark ? "" : " slides-modal-light"}`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -622,6 +722,21 @@ export default function GenerateSlidesModal({
               generateErr={generateErr}
               generateProgress={generateProgress}
               archiveNote={archiveNote}
+              alaiThemes={alaiThemes}
+              alaiThemesLoading={alaiThemesLoading}
+              alaiThemesHint={alaiThemesHint}
+              selectedThemeId={selectedThemeId}
+              setSelectedThemeId={setSelectedThemeId}
+              imageStyle={imageStyle}
+              setImageStyle={setImageStyle}
+              alaiVibes={alaiVibes}
+              alaiVibesLoading={alaiVibesLoading}
+              selectedVibeId={selectedVibeId}
+              setSelectedVibeId={setSelectedVibeId}
+              imageIds={imageIds}
+              onImageIdsChange={setImageIds}
+              numImageVariants={numImageVariants}
+              onVariantsChange={setNumImageVariants}
             />
           </div>
           {/* /sl-body */}

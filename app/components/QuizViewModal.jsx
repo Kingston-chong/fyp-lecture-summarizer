@@ -364,7 +364,7 @@ export default function QuizViewModal({
         aria-labelledby="quiz-modal-title"
         onClick={(e) => e.stopPropagation()}
       >
-<div className="sl-head">
+        <div className="sl-head">
           <div className="sl-title" id="quiz-modal-title">
             {isFinished
               ? "Quiz Results"
@@ -389,21 +389,11 @@ export default function QuizViewModal({
           </div>
         </div>
 
-        <div
-          className="sl-body"
-        >
+        <div className="sl-body">
           {!isFinished ? (
             <div className="qvm-active-wrap">
-              <div
-                className="qvm-q-type"
-              >
-                {currentQuestion.type}
-              </div>
-              <h2
-                className="qvm-q-text"
-              >
-                {currentQuestion.question}
-              </h2>
+              <div className="qvm-q-type">{currentQuestion.type}</div>
+              <h2 className="qvm-q-text">{currentQuestion.question}</h2>
 
               <div className="options-container">
                 {currentQuestion.type === "MCQ" &&
@@ -420,7 +410,14 @@ export default function QuizViewModal({
                         className={`quiz-option ${isSelected ? "selected" : ""} ${isCorrect ? "correct" : ""} ${isWrong ? "wrong" : ""}`}
                         onClick={() => handleSelectAnswer(opt)}
                       >
-                        <div className={optionLetterClass(isCorrect, isWrong, isSelected)}>{String.fromCharCode(65 + i)}
+                        <div
+                          className={optionLetterClass(
+                            isCorrect,
+                            isWrong,
+                            isSelected,
+                          )}
+                        >
+                          {String.fromCharCode(65 + i)}
                         </div>
                         {opt}
                       </div>
@@ -456,9 +453,7 @@ export default function QuizViewModal({
                       disabled={showExplanation}
                     />
                     {showExplanation && (
-                      <div
-                        className="qvm-correct-hint"
-                      >
+                      <div className="qvm-correct-hint">
                         Correct Answer: {correctAnswerFor(currentIdx)}
                       </div>
                     )}
@@ -468,14 +463,10 @@ export default function QuizViewModal({
 
               {showExplanation && (
                 <div className="expl-box">
-                  <div
-                    className="qvm-expl-head"
-                  >
+                  <div className="qvm-expl-head">
                     <InfoIcon /> Explanation
                   </div>
-                  <div
-                    className="qvm-expl-body"
-                  >
+                  <div className="qvm-expl-body">
                     {explanationFor(currentIdx) ??
                       "No explanation available for this question."}
                   </div>
@@ -484,19 +475,13 @@ export default function QuizViewModal({
             </div>
           ) : (
             <div className="qvm-results">
-              <div
-                className="qvm-score-pct"
-              >
+              <div className="qvm-score-pct">
                 {Math.round((getScore() / totalQuestions) * 100)}%
               </div>
-              <div
-                className="qvm-score-label"
-              >
+              <div className="qvm-score-label">
                 You scored {getScore()} out of {totalQuestions} questions
               </div>
-              <div
-                className="qvm-score-hint"
-              >
+              <div className="qvm-score-hint">
                 This result is saved to your account when you finish. Exiting
                 before the end does not save a score. Use{" "}
                 <strong>Retake quiz</strong> for another attempt, or open this
@@ -508,12 +493,8 @@ export default function QuizViewModal({
                 <SectionHead>Review Questions</SectionHead>
                 {questions.map((q, idx) => (
                   <div key={idx} className="review-card">
-                    <div
-                      className="qvm-review-row"
-                    >
-                      <span
-                        className="qvm-review-q-label"
-                      >
+                    <div className="qvm-review-row">
+                      <span className="qvm-review-q-label">
                         Question {idx + 1}
                       </span>
                       <span
@@ -522,11 +503,7 @@ export default function QuizViewModal({
                         {isAnswerCorrect(idx) ? "CORRECT" : "WRONG"}
                       </span>
                     </div>
-                    <div
-                      className="qvm-review-q-text"
-                    >
-                      {q.question}
-                    </div>
+                    <div className="qvm-review-q-text">{q.question}</div>
                     <div className="qvm-review-answer-line">
                       Your answer:{" "}
                       <span
@@ -565,10 +542,13 @@ export default function QuizViewModal({
         <div className="sl-foot">
           {!isFinished ? (
             <>
-              <div
-                className="qvm-progress-track"
-              >
-                <div className="qvm-progress-fill" style={{ width: `${((currentIdx + (showExplanation ? 1 : 0)) / totalQuestions) * 100}%`, transition: "width .4s cubic-bezier(.16,1,.3,1)" }}
+              <div className="qvm-progress-track">
+                <div
+                  className="qvm-progress-fill"
+                  style={{
+                    width: `${((currentIdx + (showExplanation ? 1 : 0)) / totalQuestions) * 100}%`,
+                    transition: "width .4s cubic-bezier(.16,1,.3,1)",
+                  }}
                 />
               </div>
               {showExplanation ? (
@@ -589,9 +569,7 @@ export default function QuizViewModal({
               )}
             </>
           ) : (
-            <div
-              className="qvm-finish-actions"
-            >
+            <div className="qvm-finish-actions">
               <button
                 type="button"
                 onClick={resetSession}
