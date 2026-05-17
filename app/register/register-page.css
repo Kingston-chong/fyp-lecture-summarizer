@@ -8,8 +8,8 @@
   padding: 48px 24px;
 }
 
-/* CARD */
-.card {
+/* CARD — scoped so auth styles never affect summary .sum-card */
+.login-main .card {
   width: 100%;
   max-width: 760px;
   position: relative;

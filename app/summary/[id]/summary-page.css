@@ -90,6 +90,7 @@
   flex: 1;
   display: flex;
   min-width: 0;
+  width: 100%;
 }
 .sum-splitter {
   width: 8px;
@@ -793,11 +794,13 @@
   flex-shrink: 0;
 }
 
-/* ── content card ── */
-.card {
+/* ── content card (sum-card avoids clash with auth .card { max-width: 400px }) ── */
+.sum-card {
   position: relative;
   flex: 1;
   min-height: 0;
+  width: 100%;
+  max-width: none;
   display: flex;
   flex-direction: column;
   background: var(--sum-card-bg);
@@ -2240,9 +2243,11 @@ mark.s2n-hl-pending {
     width: 12px !important;
     height: 12px !important;
   }
-  .card {
+  .sum-card {
     border-radius: 14px;
     flex: 1;
+    width: 100%;
+    max-width: none;
     display: flex;
     flex-direction: column;
     min-height: 0;

@@ -1640,7 +1640,7 @@ export default function SummaryView() {
               </div>
 
               {/* Card: summary + chat */}
-              <div className="card">
+              <div className="sum-card">
                 <div className="sum-head">
                   <div className="sum-left">
                     <div className="sum-title">Your summarized content</div>
@@ -2272,7 +2272,7 @@ export default function SummaryView() {
                   </div>
                 </div>
               </div>
-              {/* /card */}
+              {/* /sum-card */}
             </main>
 
             <SourcesSidebar
@@ -2437,8 +2437,8 @@ export default function SummaryView() {
       />
 
       {/* Chat selection reply popover — rendered at the top level of the fragment,
-          OUTSIDE .card, so that position:fixed is relative to the viewport.
-          .card has backdrop-filter:blur() which creates a CSS containing block
+          OUTSIDE .sum-card, so that position:fixed is relative to the viewport.
+          .sum-card has backdrop-filter:blur() which creates a CSS containing block
           and breaks fixed positioning for any descendants. */}
       <ChatSelectionPopover
         draft={chatSelectionDraft}

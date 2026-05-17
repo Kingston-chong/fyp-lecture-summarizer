@@ -7,8 +7,8 @@
   padding: 48px 16px;
 }
 
-/* CARD */
-.card {
+/* CARD — scoped so login styles never shrink summary page .card */
+.login-main .card {
   width: 100%;
   max-width: 400px;
   position: relative;
@@ -25,7 +25,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
   animation: cardIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-html[data-theme="light"] .card {
+html[data-theme="light"] .login-main .card {
   box-shadow:
     0 0 0 1px rgba(99, 102, 241, 0.12),
     0 24px 48px rgba(15, 23, 42, 0.08),
