@@ -1,83 +1,32 @@
 "use client";
 
 import { useState } from "react";
-import { useTheme } from "./ThemeProvider.jsx";
 import { ChevronDownIcon, CloseIcon, QuizIco } from "./icons";
+import "./QuizSettingsModal.css";
 
 // ─── Reusable Components ──────────────────────────────────
 function Dropdown({ value, onChange, options, width = 120 }) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
   const [open, setOpen] = useState(false);
   return (
-    <div style={{ position: "relative", width }}>
+    <div className="qsm-dropdown" style={{ width }}>
       <button
+        type="button"
+        className="qsm-dropdown-btn"
         onClick={() => setOpen((v) => !v)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
-        style={{
-          width: "100%",
-          height: 32,
-          padding: "0 10px",
-          background: isDark ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.04)",
-          border: `1px solid ${isDark ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"}`,
-          borderRadius: 7,
-          fontFamily: "'Sora',sans-serif",
-          fontSize: 12,
-          color: isDark ? "#c0c0d8" : "#4a4a5a",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          cursor: "pointer",
-          gap: 6,
-          transition: "all .18s",
-        }}
       >
         {value} <ChevronDownIcon size={12} />
       </button>
       {open && (
-        <div
-          style={{
-            position: "absolute",
-            top: "calc(100% + 4px)",
-            left: 0,
-            right: 0,
-            zIndex: 200,
-            background: isDark ? "rgba(22,22,34,.98)" : "rgba(255,255,255,.98)",
-            border: `1px solid ${isDark ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"}`,
-            borderRadius: 8,
-            padding: 4,
-            boxShadow: isDark
-              ? "0 12px 32px rgba(0,0,0,.5)"
-              : "0 12px 32px rgba(0,0,0,.15)",
-          }}
-        >
+        <div className="qsm-dropdown-menu">
           {options.map((o) => (
             <div
               key={o}
+              role="option"
+              className={`qsm-dropdown-item${value === o ? " qsm-dropdown-item--selected" : ""}`}
               onMouseDown={() => {
                 onChange(o);
                 setOpen(false);
-              }}
-              style={{
-                padding: "7px 10px",
-                borderRadius: 6,
-                cursor: "pointer",
-                fontSize: 12,
-                color: value === o ? "#6366f1" : isDark ? "#b0b0cc" : "#555568",
-                background:
-                  value === o ? "rgba(99,102,241,.18)" : "transparent",
-                fontWeight: value === o ? 500 : 400,
-                transition: "background .12s",
-              }}
-              onMouseEnter={(e) => {
-                if (value !== o)
-                  e.currentTarget.style.background = isDark
-                    ? "rgba(255,255,255,.05)"
-                    : "rgba(0,0,0,.05)";
-              }}
-              onMouseLeave={(e) => {
-                if (value !== o)
-                  e.currentTarget.style.background = "transparent";
               }}
             >
               {o}
@@ -89,67 +38,22 @@ function Dropdown({ value, onChange, options, width = 120 }) {
   );
 }
 
-function SectionHead({ children, style }) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
+function SectionHead({ children, className = "" }) {
   return (
-    <div
-      style={{
-        fontSize: 13.5,
-        fontWeight: 700,
-        color: isDark ? "#ddddf0" : "#1e1b4b",
-        marginBottom: 12,
-        marginTop: 4,
-        ...style,
-      }}
-    >
-      {children}
-    </div>
+    <div className={`qsm-section-head ${className}`.trim()}>{children}</div>
   );
 }
 
-function FieldLabel({ children, style }) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
+function FieldLabel({ children, className = "" }) {
   return (
-    <div
-      style={{
-        fontSize: 11.5,
-        color: isDark ? "rgba(255,255,255,.45)" : "rgba(0,0,0,.5)",
-        marginBottom: 8,
-        ...style,
-      }}
-    >
-      {children}
-    </div>
+    <div className={`qsm-field-label ${className}`.trim()}>{children}</div>
   );
 }
 
 /** Small “?” with native tooltip (`title`) for short option explanations */
 function HintMark({ title }) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
   return (
-    <span
-      title={title}
-      aria-label={title}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 18,
-        height: 18,
-        borderRadius: 999,
-        flexShrink: 0,
-        fontSize: 11,
-        fontWeight: 700,
-        lineHeight: 1,
-        cursor: "help",
-        color: isDark ? "#a5b4fc" : "#4f46e5",
-        border: `1px solid ${isDark ? "rgba(165,180,252,.45)" : "rgba(79,70,229,.35)"}`,
-        background: isDark ? "rgba(99,102,241,.12)" : "rgba(99,102,241,.08)",
-      }}
-    >
+    <span title={title} aria-label={title} className="qsm-hint">
       ?
     </span>
   );
@@ -189,9 +93,7 @@ export default function QuizSettingsModal({
 }) {
   const isLecturer = mode === "lecturer";
   const copy = COPY[isLecturer ? "lecturer" : "student"];
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
-  const [aiModel, setAiModel] = useState("Gemini");
+const [aiModel, setAiModel] = useState("Gemini");
   const [generationMode, setGenerationMode] = useState("Strict");
   const [questionTypes, setQuestionTypes] = useState(["MCQ"]);
   const [questionCountAuto, setQuestionCountAuto] = useState(false);
@@ -265,182 +167,11 @@ export default function QuizSettingsModal({
 
   return (
     <div
-      className={`sl-overlay${isDark ? "" : " quiz-modal-light"}`}
+      className="sl-overlay"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="sl-modal" style={{ maxWidth: 720 }}>
-        <style>{`
-          @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap');
-          
-          @keyframes overlayIn { from { opacity:0; } to { opacity:1; } }
-          @keyframes modalIn   { from { opacity:0; transform:scale(.96) translateY(14px); } to { opacity:1; transform:none; } }
-          @keyframes spin      { to { transform:rotate(360deg); } }
-
-          .sl-overlay {
-            position: fixed; inset: 0; z-index: 1000;
-            background: rgba(6,6,14,.72); backdrop-filter: blur(6px);
-            display: flex; align-items: center; justify-content: center;
-            padding: 20px; animation: overlayIn .2s ease;
-            font-family: 'Sora', sans-serif;
-          }
-          .sl-modal {
-            width: 100%; max-width: 680px; max-height: 90vh;
-            background: rgba(17,17,27,.97);
-            border: 1px solid rgba(255,255,255,.1);
-            border-radius: 18px;
-            box-shadow: 0 32px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(99,102,241,.08);
-            display: flex; flex-direction: column;
-            animation: modalIn .28s cubic-bezier(.16,1,.3,1);
-            overflow: hidden;
-          }
-
-          .sl-head {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 18px 22px 14px;
-            border-bottom: 1px solid rgba(255,255,255,.07);
-            flex-shrink: 0;
-          }
-          .sl-title {
-            font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600;
-            color: #e0e0f4; display: flex; align-items: center; gap: 8px;
-          }
-          .sl-close {
-            width: 28px; height: 28px; border-radius: 8px; border: 1px solid rgba(255,255,255,.1);
-            background: rgba(255,255,255,.05); color: rgba(255,255,255,.5);
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; transition: all .18s;
-          }
-          .sl-close:hover { background: rgba(248,113,113,.12); border-color: rgba(248,113,113,.3); color: #fca5a5; }
-
-          .sl-body {
-            overflow-y: auto; flex: 1;
-            padding: 20px 22px;
-            display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px;
-          }
-          .sl-body::-webkit-scrollbar { width: 3px; }
-          .sl-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 4px; }
-
-          .sl-foot {
-            display: flex; align-items: center; justify-content: flex-end; gap: 9px;
-            padding: 14px 22px; border-top: 1px solid rgba(255,255,255,.07); flex-shrink: 0;
-          }
-
-          .btn-prev {
-            height: 36px; padding: 0 18px; border-radius: 9px;
-            border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05);
-            font-family: 'Sora',sans-serif; font-size: 12.5px; font-weight: 500;
-            color: rgba(255,255,255,.55); cursor: pointer; display: flex; align-items: center; gap: 6px;
-            transition: all .18s;
-          }
-          .btn-prev:hover { border-color: rgba(255,255,255,.22); color: rgba(255,255,255,.85); background: rgba(255,255,255,.08); }
-
-          .btn-create {
-            height: 36px; padding: 0 20px; border-radius: 9px; border: none;
-            background: linear-gradient(135deg,#5258ee,#8b5cf6);
-            font-family: 'Sora',sans-serif; font-size: 12.5px; font-weight: 600;
-            color: white; cursor: pointer; display: flex; align-items: center; gap: 7px;
-            box-shadow: 0 4px 16px rgba(99,102,241,.35); transition: all .18s;
-          }
-          .btn-create:hover { box-shadow: 0 6px 22px rgba(99,102,241,.52); transform: translateY(-1px); }
-          .btn-create:disabled { opacity: .5; cursor: not-allowed; transform: none; }
-          .mini-spin { width: 13px; height: 13px; border: 2px solid rgba(255,255,255,.25); border-top-color: white; border-radius: 50%; animation: spin .7s linear infinite; }
-
-          .chk-row { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 11.5px; color: rgba(255,255,255,.45); transition: color .15s; margin-bottom: 8px; }
-          .chk-row:hover { color: rgba(255,255,255,.75); }
-          .chk-box { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .15s; }
-          .chk-box.on { background: #6366f1; border-color: #6366f1; }
-          .chk-tick { color: white; font-size: 10px; }
-          
-          .radio-group { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
-          .radio-opt { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 11.5px; color: rgba(255,255,255,.45); transition: color .15s; }
-          .radio-opt:hover { color: rgba(255,255,255,.75); }
-          .radio-opt.on { color: #a5b4fc; }
-          .radio-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: border-color .15s; }
-          .radio-dot.on { border-color: #6366f1; }
-          .radio-dot.on::after { content:''; width:6px; height:6px; border-radius:50%; background:#6366f1; }
-          
-          .num-input { width: 60px; height: 28px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 6px; color: #fff; padding: 0 8px; font-size: 12px; outline: none; }
-
-          .quiz-modal-light.sl-overlay {
-            background: rgba(15, 18, 30, 0.42);
-            backdrop-filter: blur(8px);
-          }
-          .quiz-modal-light .sl-modal {
-            background: #f8f9fc;
-            border: 1px solid rgba(0, 0, 0, 0.1);
-            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(99, 102, 241, 0.08);
-          }
-          .quiz-modal-light .sl-head {
-            border-bottom-color: rgba(0, 0, 0, 0.08);
-          }
-          .quiz-modal-light .sl-title {
-            color: #1e1b4b;
-          }
-          .quiz-modal-light .sl-close {
-            border-color: rgba(0, 0, 0, 0.12);
-            background: rgba(0, 0, 0, 0.04);
-            color: rgba(0, 0, 0, 0.5);
-          }
-          .quiz-modal-light .sl-close:hover {
-            background: rgba(248, 113, 113, 0.12);
-            border-color: rgba(248, 113, 113, 0.35);
-            color: #b91c1c;
-          }
-          .quiz-modal-light .sl-body::-webkit-scrollbar-thumb {
-            background: rgba(0, 0, 0, 0.12);
-            border-radius: 4px;
-          }
-          .quiz-modal-light .sl-foot {
-            border-top-color: rgba(0, 0, 0, 0.08);
-          }
-          .quiz-modal-light .btn-prev {
-            border-color: rgba(0, 0, 0, 0.12);
-            background: rgba(0, 0, 0, 0.04);
-            color: rgba(0, 0, 0, 0.6);
-          }
-          .quiz-modal-light .btn-prev:hover {
-            border-color: rgba(0, 0, 0, 0.2);
-            color: rgba(0, 0, 0, 0.88);
-            background: rgba(0, 0, 0, 0.06);
-          }
-          .quiz-modal-light .chk-row {
-            color: rgba(0, 0, 0, 0.58);
-          }
-          .quiz-modal-light .chk-row:hover {
-            color: rgba(0, 0, 0, 0.88);
-          }
-          .quiz-modal-light .chk-box {
-            border-color: rgba(0, 0, 0, 0.22);
-          }
-          .quiz-modal-light .radio-opt {
-            color: rgba(0, 0, 0, 0.58);
-          }
-          .quiz-modal-light .radio-opt:hover {
-            color: rgba(0, 0, 0, 0.88);
-          }
-          .quiz-modal-light .radio-opt.on {
-            color: #4f46e5;
-          }
-          .quiz-modal-light .radio-dot {
-            border-color: rgba(0, 0, 0, 0.22);
-          }
-          .quiz-modal-light .num-input {
-            background: #fff;
-            border: 1px solid rgba(0, 0, 0, 0.14);
-            color: #111827;
-          }
-          .quiz-modal-light .num-input:focus {
-            border-color: rgba(99, 102, 241, 0.45);
-            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
-          }
-          
-          @media (max-width: 640px) {
-            .sl-body { grid-template-columns: 1fr; gap: 20px; }
-            .sl-modal { max-height: 95vh; }
-          }
-        `}</style>
-
-        <div className="sl-head">
+      <div className="sl-modal qsm-modal">
+<div className="sl-head">
           <div className="sl-title">
             <QuizIco /> {copy.title}
           </div>
@@ -450,18 +181,13 @@ export default function QuizSettingsModal({
         </div>
 
         <div
-          style={{
-            padding: "14px 22px",
-            fontSize: 11,
-            color: isDark ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.48)",
-          }}
+          className="qsm-intro"
         >
           {copy.intro}
         </div>
 
         <div
-          className="sl-body"
-          style={{ gridTemplateColumns: "1fr 1fr", gap: "0 32px" }}
+          className="sl-body qsm-body"
         >
           <div className="col-left">
             <SectionHead>AI Model Selection</SectionHead>
@@ -473,15 +199,9 @@ export default function QuizSettingsModal({
             />
 
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                marginBottom: 12,
-                marginTop: 4,
-              }}
+              className="qsm-gen-row"
             >
-              <SectionHead style={{ marginBottom: 0, marginTop: 0 }}>
+              <SectionHead className="qsm-section-head--inline">
                 Generation Mode
               </SectionHead>
               <HintMark
@@ -536,7 +256,7 @@ export default function QuizSettingsModal({
           <div className="col-right">
             <SectionHead>Quiz Length & Difficulty</SectionHead>
             <FieldLabel>Number of questions:</FieldLabel>
-            <div className="radio-group" style={{ marginBottom: 12 }}>
+            <div className="radio-group" className="mb-3">
               <label
                 className={`radio-opt ${!questionCountAuto ? "on" : ""}`}
                 onClick={() => {
@@ -581,7 +301,7 @@ export default function QuizSettingsModal({
             </div>
 
             <FieldLabel>Difficulty Level:</FieldLabel>
-            <div className="radio-group" style={{ marginBottom: 16 }}>
+            <div className="radio-group radio-group--mb-lg">
               {["Easy", "Medium", "Hard"].map((opt) => (
                 <label
                   key={opt}
@@ -615,40 +335,40 @@ export default function QuizSettingsModal({
             ))}
 
             <SectionHead>{copy.presentationSection}</SectionHead>
-            <div style={{ display: "flex", gap: 24 }}>
+            <div className="flex gap-6">
               {!isLecturer && (
-              <div>
-                <FieldLabel>{copy.quizModeLabel}</FieldLabel>
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 8 }}
-                >
-                  {["Practice (with hints)", "Assessment (no hints)"].map(
-                    (opt) => (
-                      <label
-                        key={opt}
-                        className={`radio-opt ${quizMode === (opt.includes("Practice") ? "Practice" : "Assessment") ? "on" : ""}`}
-                        onClick={() =>
-                          setQuizMode(
-                            opt.includes("Practice")
-                              ? "Practice"
-                              : "Assessment",
-                          )
-                        }
-                      >
-                        <div
-                          className={`radio-dot ${quizMode === (opt.includes("Practice") ? "Practice" : "Assessment") ? "on" : ""}`}
-                        />
-                        {opt}
-                      </label>
-                    ),
-                  )}
+                <div>
+                  <FieldLabel>{copy.quizModeLabel}</FieldLabel>
+                  <div
+                    className="flex-col gap-2"
+                  >
+                    {["Practice (with hints)", "Assessment (no hints)"].map(
+                      (opt) => (
+                        <label
+                          key={opt}
+                          className={`radio-opt ${quizMode === (opt.includes("Practice") ? "Practice" : "Assessment") ? "on" : ""}`}
+                          onClick={() =>
+                            setQuizMode(
+                              opt.includes("Practice")
+                                ? "Practice"
+                                : "Assessment",
+                            )
+                          }
+                        >
+                          <div
+                            className={`radio-dot ${quizMode === (opt.includes("Practice") ? "Practice" : "Assessment") ? "on" : ""}`}
+                          />
+                          {opt}
+                        </label>
+                      ),
+                    )}
+                  </div>
                 </div>
-              </div>
               )}
               <div>
                 <FieldLabel>{copy.timeLabel}</FieldLabel>
                 <div
-                  style={{ display: "flex", flexDirection: "column", gap: 8 }}
+                  className="flex-col gap-2"
                 >
                   <label
                     className={`radio-opt ${timeLimit === 0 ? "on" : ""}`}
@@ -675,7 +395,7 @@ export default function QuizSettingsModal({
                       onClick={(e) => e.stopPropagation()}
                       style={{ marginLeft: 8, width: 40 }}
                     />
-                    <span style={{ marginLeft: 4 }}>minutes</span>
+                    <span className="ml-1">minutes</span>
                   </label>
                 </div>
               </div>
@@ -685,12 +405,7 @@ export default function QuizSettingsModal({
 
         {error && (
           <div
-            style={{
-              padding: "0 22px",
-              color: isDark ? "#fca5a5" : "#b91c1c",
-              fontSize: 12,
-              marginTop: 10,
-            }}
+            className="qsm-error"
           >
             {error}
           </div>

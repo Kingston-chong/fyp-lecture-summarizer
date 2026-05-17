@@ -112,6 +112,7 @@ export function useQuizSets({
           question: q.question ?? "",
           userAnswer,
           correctAnswer,
+          explanation: q.explanation?.trim() || null,
           isCorrect:
             userAnswer != null &&
             String(userAnswer).trim() === String(correctAnswer).trim(),

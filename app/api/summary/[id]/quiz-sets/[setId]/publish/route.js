@@ -46,12 +46,18 @@ export async function POST(req, context) {
       data: {
         published: wantPublished,
         shareToken: wantPublished ? shareToken : quizSet.shareToken,
+        ...(wantPublished ? {} : { acceptingResponses: false }),
       },
-      select: { published: true, shareToken: true },
+      select: {
+        published: true,
+        acceptingResponses: true,
+        shareToken: true,
+      },
     });
 
     return NextResponse.json({
       published: updated.published,
+      acceptingResponses: updated.acceptingResponses,
       shareToken: updated.published ? updated.shareToken : null,
     });
   } catch (err) {

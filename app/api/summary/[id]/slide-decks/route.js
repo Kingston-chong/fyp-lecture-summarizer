@@ -8,6 +8,7 @@ import {
   getAlaiPptxUrl,
 } from "@/lib/alaiSlidePptx";
 import { getRequestUser } from "@/lib/apiAuth";
+import { publicSlideDeckFields, toBlobRef } from "@/lib/blobRef";
 
 async function resolveSummaryId(context) {
   const resolved = await Promise.resolve(context?.params);
@@ -48,8 +49,7 @@ export async function GET(req, context) {
         id: true,
         title: true,
         alaiGenerationId: true,
-        pptxUrl: true,
-        pdfUrl: true,
+        provider: true,
         createdAt: true,
       },
     });
@@ -89,10 +89,17 @@ export async function POST(req, context) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const alaiGenerationId = String(body?.alaiGenerationId || "").trim();
-    if (!alaiGenerationId) {
+    const provider = String(body?.provider || "alai").toLowerCase();
+    const alaiGenerationId = String(
+      body?.alaiGenerationId || body?.providerDeckId || "",
+    ).trim();
+    const providerDeckId = String(
+      body?.providerDeckId || alaiGenerationId || "",
+    ).trim();
+
+    if (!alaiGenerationId && !providerDeckId) {
       return NextResponse.json(
-        { error: "alaiGenerationId is required" },
+        { error: "alaiGenerationId or providerDeckId is required" },
         { status: 400 },
       );
     }
@@ -105,10 +112,18 @@ export async function POST(req, context) {
     const remotePptxUrl = String(body?.remotePptxUrl || "").trim();
 
     let dl = null;
-    if (/^https?:\/\//i.test(remotePptxUrl)) {
+    if (provider === "2slides") {
+      if (!/^https?:\/\//i.test(remotePptxUrl)) {
+        return NextResponse.json(
+          { error: "remotePptxUrl is required for 2slides decks" },
+          { status: 400 },
+        );
+      }
+      dl = await downloadPptxBuffer(remotePptxUrl);
+    } else if (/^https?:\/\//i.test(remotePptxUrl)) {
       dl = await downloadPptxBuffer(remotePptxUrl);
     }
-    if (!dl?.ok) {
+    if (!dl?.ok && provider !== "2slides") {
       const urlResult = await getAlaiPptxUrl(alaiGenerationId);
       if (!urlResult.ok) {
         return NextResponse.json(
@@ -142,7 +157,7 @@ export async function POST(req, context) {
       contentType:
         "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     });
-    const storedPptxUrl = blob.downloadUrl || blob.url;
+    const storedPptxUrl = blob.pathname || blob.url;
 
     let storedPdfUrl = null;
     const remotePdfUrl = String(body?.remotePdfUrl || "").trim();
@@ -150,7 +165,7 @@ export async function POST(req, context) {
     if (/^https?:\/\//i.test(remotePdfUrl)) {
       pdfDl = await downloadPdfBuffer(remotePdfUrl);
     }
-    if (!pdfDl?.ok) {
+    if (!pdfDl?.ok && provider === "alai" && process.env.ALAI_API_KEY) {
       const genRes = await fetch(
         `https://slides-api.getalai.com/api/v1/generations/${encodeURIComponent(alaiGenerationId)}`,
         {
@@ -171,15 +186,18 @@ export async function POST(req, context) {
         access: "private",
         contentType: "application/pdf",
       });
-      storedPdfUrl = pdfBlob.downloadUrl || pdfBlob.url;
+      storedPdfUrl = pdfBlob.pathname || pdfBlob.url;
     }
 
+    const deckIdForDb = (providerDeckId || alaiGenerationId).slice(0, 128);
     const deck = await prisma.slideDeck.create({
       data: {
         userId: user.id,
         summaryId,
         title,
-        alaiGenerationId: alaiGenerationId.slice(0, 128),
+        alaiGenerationId: deckIdForDb,
+        provider: provider.slice(0, 32),
+        providerDeckId: providerDeckId.slice(0, 256) || deckIdForDb,
         pptxUrl: storedPptxUrl,
         pdfUrl: storedPdfUrl,
       },
@@ -187,13 +205,12 @@ export async function POST(req, context) {
         id: true,
         title: true,
         alaiGenerationId: true,
-        pptxUrl: true,
-        pdfUrl: true,
+        provider: true,
         createdAt: true,
       },
     });
 
-    return NextResponse.json({ deck });
+    return NextResponse.json({ deck: publicSlideDeckFields(deck) });
   } catch (err) {
     console.error("slide-decks POST:", err);
     return NextResponse.json(
@@ -240,8 +257,8 @@ export async function DELETE(req, context) {
     }
 
     try {
-      if (deck.pptxUrl) await del(deck.pptxUrl);
-      if (deck.pdfUrl) await del(deck.pdfUrl);
+      if (deck.pptxUrl) await del(toBlobRef(deck.pptxUrl));
+      if (deck.pdfUrl) await del(toBlobRef(deck.pdfUrl));
     } catch (e) {
       console.warn("Slide deck blob delete failed:", e?.message || e);
     }

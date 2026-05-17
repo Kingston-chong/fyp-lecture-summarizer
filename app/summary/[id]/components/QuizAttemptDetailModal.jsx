@@ -1,6 +1,7 @@
 "use client";
 
 import { formatSlideDeckSavedAt } from "../helpers";
+import "./QuizAttemptDetailModal.css";
 
 function gradeForPct(pct) {
   if (pct >= 90)
@@ -26,36 +27,10 @@ export default function QuizAttemptDetailModal({ detail, onClose }) {
 
   return (
     <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1200,
-        background: "rgba(4,6,15,0.72)",
-        backdropFilter: "blur(8px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 16,
-      }}
+      className="qadm-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="qa-modal"
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "min(720px, 100%)",
-          maxHeight: "90vh",
-          background: "var(--sum-card-bg)",
-          border: "1px solid var(--sum-card-border)",
-          borderRadius: 18,
-          boxShadow:
-            "0 32px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04)",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
-        }}
+        className="qadm-modal qa-modal" onClick={(e) => e.stopPropagation()}
       >
         <div
           style={{
@@ -81,53 +56,27 @@ export default function QuizAttemptDetailModal({ detail, onClose }) {
               Attempt Review
             </div>
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                flexWrap: "wrap",
-              }}
+              className="qadm-score-row"
             >
               <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  background: grade.bg,
-                  border: `1px solid ${grade.color}44`,
-                  borderRadius: 999,
-                  padding: "4px 12px 4px 8px",
-                }}
+                className="qadm-grade-pill" style={{ background: grade.bg, border: `1px solid ${grade.color}44` }}
               >
                 <span
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 800,
-                    color: grade.color,
-                  }}
+                  className="qadm-grade-score" style={{ color: grade.color }}
                 >
                   {score}/{totalQ}
                 </span>
                 <span
-                  style={{
-                    width: 1,
-                    height: 12,
-                    background: `${grade.color}44`,
-                  }}
+                  className="qadm-grade-divider" style={{ background: `${grade.color}44` }}
                 />
                 <span
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: grade.color,
-                    opacity: 0.85,
-                  }}
+                  className="qadm-grade-meta" style={{ color: grade.color }}
                 >
                   {pct}% · {grade.label}
                 </span>
               </div>
               {detail.createdAt && (
-                <span style={{ fontSize: 12, opacity: 0.38 }}>
+                <span className="qadm-date">
                   {formatSlideDeckSavedAt(detail.createdAt)}
                 </span>
               )}
@@ -135,24 +84,7 @@ export default function QuizAttemptDetailModal({ detail, onClose }) {
           </div>
           <button
             type="button"
-            className="qa-close-btn"
-            onClick={onClose}
-            style={{
-              flexShrink: 0,
-              width: 32,
-              height: 32,
-              borderRadius: 10,
-              border: "1px solid var(--sum-card-border)",
-              background: "transparent",
-              color: "var(--sum-inp-text)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 18,
-              lineHeight: 1,
-              transition: "background 0.15s",
-            }}
+            type="button" className="qadm-close qa-close-btn" onClick={onClose} aria-label="Close"
             aria-label="Close"
           >
             ×
@@ -167,35 +99,16 @@ export default function QuizAttemptDetailModal({ detail, onClose }) {
           }}
         >
           <div
-            style={{
-              height: "100%",
-              width: `${pct}%`,
-              background: `linear-gradient(90deg, ${grade.color}80, ${grade.color})`,
-              transition: "width 0.6s cubic-bezier(.22,.68,0,1)",
-            }}
+            className="qadm-progress-fill" style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${grade.color}80, ${grade.color})` }}
           />
         </div>
 
         <div
-          className="qa-scroll"
-          style={{
-            padding: "14px 16px",
-            overflowY: "auto",
-            minHeight: 0,
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-          }}
+          className="qadm-scroll qa-scroll"
         >
           {detail.rows.length === 0 ? (
             <div
-              style={{
-                textAlign: "center",
-                padding: "40px 0",
-                opacity: 0.38,
-                fontSize: 13,
-              }}
+              className="qadm-empty"
             >
               No question data found for this attempt.
             </div>
@@ -203,14 +116,7 @@ export default function QuizAttemptDetailModal({ detail, onClose }) {
             detail.rows.map((row, idx) => (
               <div
                 key={row.id}
-                className="qa-row-card"
-                style={{
-                  borderRadius: 12,
-                  border: "1px solid var(--sum-card-border)",
-                  borderLeft: `3px solid ${row.isCorrect ? "#22c55e" : "#ef4444"}`,
-                  padding: "12px 14px",
-                  background: "rgba(255,255,255,0.02)",
-                }}
+                className={`qadm-row qa-row-card ${row.isCorrect ? "qadm-row--correct" : "qadm-row--wrong"}`}
               >
                 <div
                   style={{
@@ -310,6 +216,23 @@ export default function QuizAttemptDetailModal({ detail, onClose }) {
                     </div>
                   )}
                 </div>
+                {row.explanation && (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      marginTop: 10,
+                      lineHeight: 1.55,
+                      opacity: 0.75,
+                      padding: "8px 10px",
+                      borderRadius: 8,
+                      background: "rgba(99,102,241,0.08)",
+                      border: "1px solid rgba(99,102,241,0.15)",
+                    }}
+                  >
+                    <strong style={{ color: "#818cf8" }}>Explanation: </strong>
+                    {row.explanation}
+                  </div>
+                )}
               </div>
             ))
           )}

@@ -1,0 +1,253 @@
+.qvm-section-head {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--modal-section-head);
+  margin-bottom: 12px;
+  margin-top: 4;
+  font-family: "Sora", sans-serif;
+}
+
+.qvm-timer {
+  font-size: 13px;
+  font-weight: 600;
+  color: #a5b4fc;
+}
+
+.qvm-timer--urgent {
+  color: #fca5a5;
+}
+
+.qvm-active-wrap {
+  padding-bottom: 20px;
+}
+
+.qvm-q-type {
+  font-size: 13px;
+  color: var(--modal-muted);
+  margin-bottom: 8px;
+}
+
+.qvm-q-text {
+  font-size: 18px;
+  color: var(--modal-text);
+  line-height: 1.5;
+  margin-bottom: 24px;
+  font-weight: 500;
+}
+
+.qvm-option-letter {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.qvm-option-letter--default {
+  background: var(--modal-scrollbar-thumb);
+}
+
+.qvm-option-letter--selected {
+  background: #6366f1;
+}
+
+.qvm-option-letter--correct {
+  background: #22c55e;
+}
+
+.qvm-option-letter--wrong {
+  background: #ef4444;
+}
+
+.qvm-text-answer-wrap {
+  margin-bottom: 20px;
+}
+
+.qvm-text-input {
+  height: 44px;
+  font-size: 14px;
+  background: var(--modal-input-bg);
+  color: var(--modal-text);
+  border: 1px solid var(--modal-input-border);
+  border-radius: 8px;
+  padding: 0 12px;
+  outline: none;
+  width: 100%;
+}
+
+.qvm-correct-hint {
+  margin-top: 12px;
+  font-size: 14px;
+  color: #22c55e;
+  font-weight: 500;
+}
+
+.qvm-expl-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #818cf8;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.qvm-expl-body {
+  font-size: 13.5;
+  color: var(--modal-muted);
+  line-height: 1.6;
+}
+
+html[data-theme="light"] .qvm-expl-body {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.qvm-results {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.qvm-score-pct {
+  font-size: 48px;
+  font-weight: 800;
+  color: #6366f1;
+  margin-bottom: 8px;
+}
+
+.qvm-score-label {
+  font-size: 16px;
+  color: var(--modal-muted);
+  margin-bottom: 10px;
+}
+
+html[data-theme="light"] .qvm-score-label {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.qvm-score-hint {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--modal-muted);
+  margin-bottom: 28px;
+  max-width: 420px;
+  margin-left: auto;
+  margin-right: auto;
+  opacity: 0.85;
+}
+
+.qvm-review-list {
+  text-align: left;
+}
+
+.qvm-review-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.qvm-review-q-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--modal-muted);
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.qvm-review-status {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.qvm-review-status--ok {
+  color: #22c55e;
+}
+
+.qvm-review-status--bad {
+  color: #ef4444;
+}
+
+.qvm-review-q-text {
+  font-size: 14px;
+  color: var(--modal-text);
+  margin-bottom: 12px;
+}
+
+.qvm-review-answer-line {
+  font-size: 12.5px;
+  color: var(--modal-muted);
+}
+
+.qvm-answer--ok {
+  color: #22c55e;
+}
+
+.qvm-answer--bad {
+  color: #ef4444;
+}
+
+.qvm-review-correct-line {
+  font-size: 12.5px;
+  color: var(--modal-muted);
+  margin-top: 4px;
+}
+
+.qvm-review-expl {
+  font-size: 12.5px;
+  color: var(--modal-muted);
+  margin-top: 10px;
+  line-height: 1.55;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+html[data-theme="light"] .qvm-review-expl {
+  background: rgba(99, 102, 241, 0.06);
+  border-color: rgba(99, 102, 241, 0.15);
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.qvm-expl-strong {
+  color: #818cf8;
+}
+
+.qvm-progress-track {
+  flex: 1;
+  height: 4px;
+  background: var(--modal-progress-track);
+  border-radius: 2px;
+  margin-right: 20px;
+}
+
+.qvm-progress-fill {
+  height: 100%;
+  background: #6366f1;
+  border-radius: 2px;
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.qvm-finish-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.qvm-retake-btn {
+  height: 42px;
+  padding: 0 20px;
+  border-radius: 10px;
+  border: 1px solid var(--modal-btn-secondary-border);
+  background: var(--modal-btn-secondary-bg);
+  color: var(--modal-btn-secondary-text);
+  font-weight: 600;
+  cursor: pointer;
+  font-family: "Sora", sans-serif;
+}

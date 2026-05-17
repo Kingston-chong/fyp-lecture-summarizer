@@ -1,0 +1,165 @@
+/* QuizSettingsModal — qsm-* */
+
+.qsm-modal.sl-modal {
+  max-width: 720px;
+}
+
+.qsm-intro {
+  padding: 14px 22px;
+  font-size: 11px;
+  color: var(--modal-muted);
+}
+
+.qsm-body.sl-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 32px;
+}
+
+.qsm-section-head {
+  font-size: 13.5;
+  font-weight: 700;
+  color: var(--modal-section-head);
+  margin-bottom: 12px;
+  margin-top: 4;
+}
+
+html[data-theme="light"] .qsm-section-head {
+  color: #1e1b4b;
+}
+
+.qsm-section-head--inline {
+  margin-bottom: 0;
+  margin-top: 0;
+}
+
+.qsm-field-label {
+  font-size: 11.5;
+  color: var(--modal-muted);
+  margin-bottom: 8px;
+}
+
+.qsm-gen-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  margin-top: 4;
+}
+
+.qsm-presentation-row {
+  display: flex;
+  gap: 24px;
+}
+
+.qsm-radio-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.qsm-error {
+  padding: 0 22px;
+  color: #fca5a5;
+  font-size: 12;
+  margin-top: 10px;
+}
+
+html[data-theme="light"] .qsm-error {
+  color: #b91c1c;
+}
+
+/* Dropdown */
+.qsm-dropdown {
+  position: relative;
+}
+
+.qsm-dropdown-btn {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  background: var(--modal-input-bg);
+  border: 1px solid var(--modal-input-border);
+  border-radius: 7px;
+  font-family: "Sora", sans-serif;
+  font-size: 12px;
+  color: var(--modal-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  gap: 6px;
+  transition: all 0.18s;
+}
+
+.qsm-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: var(--modal-surface-bg);
+  border: 1px solid var(--modal-input-border);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+html[data-theme="light"] .qsm-dropdown-menu {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+}
+
+.qsm-dropdown-item {
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12;
+  color: var(--modal-muted);
+  font-weight: 400;
+  transition: background 0.12s;
+}
+
+.qsm-dropdown-item:hover {
+  background: var(--modal-close-bg);
+}
+
+.qsm-dropdown-item--selected {
+  color: #6366f1;
+  background: rgba(99, 102, 241, 0.18);
+  font-weight: 500;
+}
+
+/* Hint */
+.qsm-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  color: #a5b4fc;
+  border: 1px solid rgba(165, 180, 252, 0.45);
+  background: rgba(99, 102, 241, 0.12);
+}
+
+html[data-theme="light"] .qsm-hint {
+  color: #4f46e5;
+  border-color: rgba(79, 70, 229, 0.35);
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.qsm-minutes-label {
+  margin-left: 4px;
+}
+
+@media (max-width: 640px) {
+  .qsm-body.sl-body {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}

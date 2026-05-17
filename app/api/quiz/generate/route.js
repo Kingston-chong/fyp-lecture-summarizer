@@ -3,6 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { getRequestUser } from "@/lib/apiAuth";
 import { runChat, normalizeModelKey } from "@/lib/llmServer";
 import { parseJsonFromLlm } from "@/lib/jsonExtract";
+import { applyLlmRateLimit } from "@/lib/llmRateLimit";
+
+const MAX_QUIZ_SOURCE_CHARS = Number.parseInt(
+  process.env.QUIZ_MAX_SOURCE_CHARS || "12000",
+  10,
+);
 
 export async function POST(req) {
   try {
@@ -10,6 +16,9 @@ export async function POST(req) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const rateLimited = await applyLlmRateLimit("quiz-generate", user.id);
+    if (rateLimited) return rateLimited;
 
     const body = await req.json();
     const {
@@ -71,10 +80,15 @@ You MUST return a JSON array of question objects. Each object must have:
 
 Return ONLY the JSON array. Do not include any other text.`;
 
+    const sourceText = String(summary.output || "").slice(
+      0,
+      MAX_QUIZ_SOURCE_CHARS,
+    );
+
     const userPrompt = `Document Title: ${summary.title}
 
 Summary Content:
-${summary.output}
+${sourceText}
 
 Generate the quiz now.`;
 

@@ -1,24 +1,18 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useTheme } from "../components/ThemeProvider.jsx";
 import { ChevRight, CheckIcon, CloseIcon, InfoIcon } from "./icons";
+import "./QuizViewModal.css";
 
-function SectionHead({ children, isDark }) {
-  return (
-    <div
-      style={{
-        fontSize: 13.5,
-        fontWeight: 700,
-        color: isDark ? "#ddddf0" : "#1a1a2e",
-        marginBottom: 12,
-        marginTop: 4,
-        fontFamily: "'Sora', sans-serif",
-      }}
-    >
-      {children}
-    </div>
-  );
+function optionLetterClass(isCorrect, isWrong, isSelected) {
+  if (isCorrect) return "qvm-option-letter qvm-option-letter--correct";
+  if (isWrong) return "qvm-option-letter qvm-option-letter--wrong";
+  if (isSelected) return "qvm-option-letter qvm-option-letter--selected";
+  return "qvm-option-letter qvm-option-letter--default";
+}
+
+function SectionHead({ children }) {
+  return <div className="qvm-section-head">{children}</div>;
 }
 
 export default function QuizViewModal({
@@ -27,13 +21,14 @@ export default function QuizViewModal({
   onClose,
   summaryId,
   shareToken,
+  respondentLabel = "",
   onAttemptSaved,
 }) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
   const [currentIdx, setCurrentIdx] = useState(0);
   const [userAnswers, setUserAnswers] = useState({});
   const [showExplanation, setShowExplanation] = useState(false);
+  const [questionReveal, setQuestionReveal] = useState({});
+  const [submitLoading, setSubmitLoading] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [gradedScore, setGradedScore] = useState(null);
   const initialTimeLeft = useMemo(
@@ -57,10 +52,13 @@ export default function QuizViewModal({
     setCurrentIdx(0);
     setUserAnswers({});
     setShowExplanation(false);
+    setQuestionReveal({});
+    setSubmitLoading(false);
     setIsFinished(false);
     setGradedScore(null);
     setTimeLeft(initialTimeLeft);
     attemptPersistedRef.current = false;
+    finishRevealRef.current = false;
   }, [initialTimeLeft]);
 
   useEffect(() => {
@@ -108,10 +106,22 @@ export default function QuizViewModal({
             score,
             totalQuestions: total,
             answers,
+            ...(useShare && respondentLabel
+              ? {
+                  respondentLabel: String(respondentLabel).trim().slice(0, 120),
+                }
+              : {}),
           }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) return;
+        if (!res.ok) {
+          if (useShare && res.status === 403) {
+            window.alert(
+              data.error || "This quiz is not accepting responses right now.",
+            );
+          }
+          return;
+        }
         if (useShare && typeof data.score === "number") {
           setGradedScore(data.score);
         }
@@ -125,7 +135,7 @@ export default function QuizViewModal({
     })();
 
     return () => ac.abort();
-  }, [isFinished, quizSet, summaryId, shareToken]);
+  }, [isFinished, quizSet, summaryId, shareToken, respondentLabel]);
 
   useEffect(() => {
     if (timeLeft !== null && timeLeft > 0 && !isFinished) {
@@ -154,20 +164,117 @@ export default function QuizViewModal({
   const questions = quizSet?.questions || [];
   const currentQuestion = questions[currentIdx];
   const totalQuestions = questions.length;
+  const shareTokenStr = shareToken ? String(shareToken).trim() : "";
+  const isSharedQuiz = shareTokenStr.length > 0;
+  const finishRevealRef = useRef(false);
+
+  const correctAnswerFor = useCallback(
+    (idx) => {
+      const q = questions[idx];
+      const revealed = questionReveal[idx];
+      if (isSharedQuiz && revealed) return revealed.correctAnswer ?? "";
+      return q?.answer ?? "";
+    },
+    [questions, questionReveal, isSharedQuiz],
+  );
+
+  const explanationFor = useCallback(
+    (idx) => {
+      const q = questions[idx];
+      const revealed = questionReveal[idx];
+      const text =
+        isSharedQuiz && revealed ? revealed.explanation : q?.explanation;
+      const trimmed = text != null ? String(text).trim() : "";
+      return trimmed || null;
+    },
+    [questions, questionReveal, isSharedQuiz],
+  );
 
   const handleSelectAnswer = (ans) => {
     if (showExplanation) return;
     setUserAnswers((prev) => ({ ...prev, [currentIdx]: ans }));
   };
 
-  const handleSubmit = () => {
-    if (!userAnswers[currentIdx]) return;
+  const fetchQuestionFeedback = useCallback(
+    async (idx, userAnswer) => {
+      const res = await fetch(
+        `/api/quiz/share/${encodeURIComponent(shareTokenStr)}/feedback`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ questionIndex: idx, userAnswer }),
+        },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "Could not load explanation.");
+      }
+      return data;
+    },
+    [shareTokenStr],
+  );
+
+  const handleSubmit = async () => {
+    if (!userAnswers[currentIdx] || submitLoading) return;
     if (settings?.answerShowMode === "Immediately") {
-      setShowExplanation(true);
+      if (isSharedQuiz) {
+        setSubmitLoading(true);
+        try {
+          const data = await fetchQuestionFeedback(
+            currentIdx,
+            userAnswers[currentIdx],
+          );
+          setQuestionReveal((prev) => ({ ...prev, [currentIdx]: data }));
+          setShowExplanation(true);
+        } catch (e) {
+          window.alert(e.message || "Could not load explanation.");
+        } finally {
+          setSubmitLoading(false);
+        }
+      } else {
+        setShowExplanation(true);
+      }
     } else {
       handleNext();
     }
   };
+
+  useEffect(() => {
+    if (!isFinished || !isSharedQuiz) return undefined;
+    if (settings?.answerShowMode !== "After submission") return undefined;
+    if (finishRevealRef.current) return undefined;
+    finishRevealRef.current = true;
+
+    let cancelled = false;
+    void (async () => {
+      const ua = userAnswersRef.current;
+      const updates = {};
+      for (let idx = 0; idx < questions.length; idx++) {
+        if (cancelled) return;
+        const ans = ua[idx];
+        if (ans === undefined || ans === "") continue;
+        try {
+          const data = await fetchQuestionFeedback(idx, ans);
+          updates[idx] = data;
+        } catch {
+          /* skip failed reveals */
+        }
+      }
+      if (!cancelled && Object.keys(updates).length > 0) {
+        setQuestionReveal((prev) => ({ ...prev, ...updates }));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isFinished,
+    isSharedQuiz,
+    settings?.answerShowMode,
+    questions.length,
+    fetchQuestionFeedback,
+  ]);
 
   const handleNext = () => {
     setShowExplanation(false);
@@ -188,9 +295,31 @@ export default function QuizViewModal({
     if (gradedScore != null) return gradedScore;
     let score = 0;
     questions.forEach((q, idx) => {
-      if (userAnswers[idx] === q.answer) score++;
+      const ua = userAnswers[idx];
+      const correct = correctAnswerFor(idx);
+      if (
+        ua != null &&
+        String(ua).trim() !== "" &&
+        String(ua).trim() === String(correct).trim()
+      ) {
+        score++;
+      }
     });
     return score;
+  };
+
+  const isAnswerCorrect = (idx) => {
+    const revealed = questionReveal[idx];
+    if (revealed && typeof revealed.isCorrect === "boolean") {
+      return revealed.isCorrect;
+    }
+    const ua = userAnswers[idx];
+    const correct = correctAnswerFor(idx);
+    return (
+      ua != null &&
+      String(ua).trim() !== "" &&
+      String(ua).trim() === String(correct).trim()
+    );
   };
 
   /** X / Escape: confirm while quiz is active. Backdrop ignores clicks until results. */
@@ -229,111 +358,22 @@ export default function QuizViewModal({
       }}
     >
       <div
-        className="sl-modal"
-        style={{ maxWidth: 680, minHeight: 450 }}
+        className="sl-modal sl-modal--quiz"
         role="dialog"
         aria-modal="true"
         aria-labelledby="quiz-modal-title"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Theme-aware CSS */}
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `
-          @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap');
-
-          @keyframes overlayIn { from { opacity:0; } to { opacity:1; } }
-          @keyframes modalIn   { from { opacity:0; transform:scale(.96) translateY(14px); } to { opacity:1; transform:none; } }
-          @keyframes slideUp   { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-
-          .sl-overlay {
-            position: fixed; inset: 0; z-index: 1000;
-            background: ${isDark ? "rgba(6,6,14,.72)" : "rgba(0,0,20,.4)"}; backdrop-filter: blur(6px);
-            display: flex; align-items: center; justify-content: center;
-            padding: 20px; animation: overlayIn .2s ease;
-            font-family: 'Sora', sans-serif;
-          }
-          .sl-modal {
-            width: 100%; max-width: 680px; max-height: 90vh;
-            background: ${isDark ? "rgba(17,17,27,.97)" : "rgba(255,255,255,.98)"};
-            border: 1px solid ${isDark ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.1)"};
-            border-radius: 18px;
-            box-shadow: ${isDark ? "0 32px 80px rgba(0,0,0,.7)" : "0 32px 80px rgba(0,0,0,.3)"}, 0 0 0 1px rgba(99,102,241,.08);
-            display: flex; flex-direction: column;
-            animation: modalIn .28s cubic-bezier(.16,1,.3,1);
-            overflow: hidden;
-          }
-
-          .sl-head {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 18px 22px 14px;
-            border-bottom: 1px solid ${isDark ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.07)"};
-            flex-shrink: 0;
-          }
-          .sl-title {
-            font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600;
-            color: ${isDark ? "#e0e0f4" : "#1a1a2e"}; display: flex; align-items: center; gap: 8px;
-          }
-          .sl-close {
-            width: 28px; height: 28px; border-radius: 8px; border: 1px solid ${isDark ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.1)"};
-            background: ${isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.05)"}; color: ${isDark ? "rgba(255,255,255,.5)" : "rgba(0,0,0,.5)"};
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; transition: all .18s;
-          }
-          .sl-close:hover { background: rgba(248,113,113,.12); border-color: rgba(248,113,113,.3); color: #fca5a5; }
-
-          .sl-body {
-            overflow-y: auto; flex: 1;
-            padding: 20px 22px;
-          }
-          .sl-body::-webkit-scrollbar { width: 3px; }
-          .sl-body::-webkit-scrollbar-thumb { background: ${isDark ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.15)"}; border-radius: 4px; }
-
-          .sl-foot {
-            display: flex; align-items: center; justify-content: flex-end; gap: 9px;
-            padding: 14px 22px; border-top: 1px solid ${isDark ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.07)"}; flex-shrink: 0;
-          }
-
-          .quiz-option {
-            padding: 14px 18px; border-radius: 12px; border: 1px solid ${isDark ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.08)"};
-            background: ${isDark ? "rgba(255,255,255,.03)" : "rgba(0,0,0,.03)"}; color: ${isDark ? "#c0c0d8" : "#4a4a5a"}; cursor: pointer; transition: all .2s;
-            margin-bottom: 10px; font-size: 13.5px; line-height: 1.4; display: flex; align-items: center; gap: 12px;
-          }
-          .quiz-option:hover { background: rgba(99,102,241,.1); border-color: rgba(99,102,241,.3); }
-          .quiz-option.selected { background: rgba(99,102,241,.15); border-color: #6366f1; color: ${isDark ? "#fff" : "#1a1a2e"}; }
-          .quiz-option.correct { background: rgba(34,197,94,.15); border-color: #22c55e; color: ${isDark ? "#fff" : "#1a1a2e"}; }
-          .quiz-option.wrong { background: rgba(239,68,68,.15); border-color: #ef4444; color: ${isDark ? "#fff" : "#1a1a2e"}; }
-
-          .btn-submit { height: 42px; padding: 0 24px; border-radius: 10px; border: none; background: #6366f1; color: white; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all .2s; }
-          .btn-submit:hover { background: #4f46e5; transform: translateY(-1px); }
-          .btn-submit:disabled { opacity: .5; cursor: not-allowed; transform: none; }
-
-          .expl-box { margin-top: 24px; padding: 20px; border-radius: 14px; background: ${isDark ? "rgba(99,102,241,.06)" : "rgba(99,102,241,.08)"}; border: 1px solid rgba(99,102,241,.2); animation: slideUp .3s ease; }
-
-          .review-card { padding: 18px; border-radius: 12px; background: ${isDark ? "rgba(255,255,255,.02)" : "rgba(0,0,0,.02)"}; border: 1px solid ${isDark ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.06)"}; margin-bottom: 12px; }
-
-          @media (max-width: 640px) {
-            .sl-modal { max-height: 95vh; }
-            .btn-submit { width: 100%; justify-content: center; }
-          }
-        `,
-          }}
-        />
-
-        <div className="sl-head">
+<div className="sl-head">
           <div className="sl-title" id="quiz-modal-title">
             {isFinished
               ? "Quiz Results"
               : `Question ${currentIdx + 1} of ${totalQuestions}`}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div className="sl-head-actions">
             {timeLeft !== null && !isFinished && (
               <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: timeLeft < 30 ? "#fca5a5" : "#a5b4fc",
-                }}
+                className={`qvm-timer${timeLeft < 30 ? " qvm-timer--urgent" : ""}`}
               >
                 Time: {formatTime(timeLeft)}
               </div>
@@ -351,27 +391,16 @@ export default function QuizViewModal({
 
         <div
           className="sl-body"
-          style={{ display: "block", overflowY: "auto" }}
         >
           {!isFinished ? (
-            <div style={{ paddingBottom: 20 }}>
+            <div className="qvm-active-wrap">
               <div
-                style={{
-                  fontSize: 13,
-                  color: isDark ? "rgba(255,255,255,.4)" : "rgba(0,0,0,.4)",
-                  marginBottom: 8,
-                }}
+                className="qvm-q-type"
               >
                 {currentQuestion.type}
               </div>
               <h2
-                style={{
-                  fontSize: 18,
-                  color: isDark ? "#fff" : "#1a1a2e",
-                  lineHeight: 1.5,
-                  marginBottom: 24,
-                  fontWeight: 500,
-                }}
+                className="qvm-q-text"
               >
                 {currentQuestion.question}
               </h2>
@@ -380,12 +409,10 @@ export default function QuizViewModal({
                 {currentQuestion.type === "MCQ" &&
                   currentQuestion.options?.map((opt, i) => {
                     const isSelected = userAnswers[currentIdx] === opt;
-                    const isCorrect =
-                      showExplanation && opt === currentQuestion.answer;
+                    const correctAns = correctAnswerFor(currentIdx);
+                    const isCorrect = showExplanation && opt === correctAns;
                     const isWrong =
-                      showExplanation &&
-                      isSelected &&
-                      opt !== currentQuestion.answer;
+                      showExplanation && isSelected && opt !== correctAns;
 
                     return (
                       <div
@@ -393,29 +420,7 @@ export default function QuizViewModal({
                         className={`quiz-option ${isSelected ? "selected" : ""} ${isCorrect ? "correct" : ""} ${isWrong ? "wrong" : ""}`}
                         onClick={() => handleSelectAnswer(opt)}
                       >
-                        <div
-                          style={{
-                            width: 24,
-                            height: 24,
-                            borderRadius: "50%",
-                            background: isCorrect
-                              ? "#22c55e"
-                              : isWrong
-                                ? "#ef4444"
-                                : isSelected
-                                  ? "#6366f1"
-                                  : isDark
-                                    ? "rgba(255,255,255,.1)"
-                                    : "rgba(0,0,0,.1)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            color: "#fff",
-                            fontSize: 11,
-                            fontWeight: 700,
-                          }}
-                        >
-                          {String.fromCharCode(65 + i)}
+                        <div className={optionLetterClass(isCorrect, isWrong, isSelected)}>{String.fromCharCode(65 + i)}
                         </div>
                         {opt}
                       </div>
@@ -424,12 +429,10 @@ export default function QuizViewModal({
                 {currentQuestion.type === "True/False" &&
                   ["True", "False"].map((opt, i) => {
                     const isSelected = userAnswers[currentIdx] === opt;
-                    const isCorrect =
-                      showExplanation && opt === currentQuestion.answer;
+                    const correctAns = correctAnswerFor(currentIdx);
+                    const isCorrect = showExplanation && opt === correctAns;
                     const isWrong =
-                      showExplanation &&
-                      isSelected &&
-                      opt !== currentQuestion.answer;
+                      showExplanation && isSelected && opt !== correctAns;
 
                     return (
                       <div
@@ -443,22 +446,10 @@ export default function QuizViewModal({
                   })}
                 {(currentQuestion.type === "FillInBlanks" ||
                   currentQuestion.type === "ShortAnswer") && (
-                  <div style={{ marginBottom: 20 }}>
+                  <div className="qvm-text-answer-wrap">
                     <input
                       type="text"
-                      className="txt-inp"
-                      style={{
-                        height: 44,
-                        fontSize: 14,
-                        background: isDark
-                          ? "rgba(255,255,255,.05)"
-                          : "rgba(0,0,0,.05)",
-                        color: isDark ? "#fff" : "#1a1a2e",
-                        border: `1px solid ${isDark ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.1)"}`,
-                        borderRadius: 8,
-                        padding: "0 12px",
-                        outline: "none",
-                      }}
+                      className="txt-inp qvm-text-input"
                       placeholder="Type your answer here..."
                       value={userAnswers[currentIdx] || ""}
                       onChange={(e) => handleSelectAnswer(e.target.value)}
@@ -466,14 +457,9 @@ export default function QuizViewModal({
                     />
                     {showExplanation && (
                       <div
-                        style={{
-                          marginTop: 12,
-                          fontSize: 14,
-                          color: "#22c55e",
-                          fontWeight: 500,
-                        }}
+                        className="qvm-correct-hint"
                       >
-                        Correct Answer: {currentQuestion.answer}
+                        Correct Answer: {correctAnswerFor(currentIdx)}
                       </div>
                     )}
                   </div>
@@ -483,63 +469,33 @@ export default function QuizViewModal({
               {showExplanation && (
                 <div className="expl-box">
                   <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      color: "#818cf8",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      marginBottom: 8,
-                    }}
+                    className="qvm-expl-head"
                   >
                     <InfoIcon /> Explanation
                   </div>
                   <div
-                    style={{
-                      fontSize: 13.5,
-                      color: isDark
-                        ? "rgba(255,255,255,.7)"
-                        : "rgba(0,0,0,.65)",
-                      lineHeight: 1.6,
-                    }}
+                    className="qvm-expl-body"
                   >
-                    {currentQuestion.explanation}
+                    {explanationFor(currentIdx) ??
+                      "No explanation available for this question."}
                   </div>
                 </div>
               )}
             </div>
           ) : (
-            <div style={{ textAlign: "center", padding: "20px 0" }}>
+            <div className="qvm-results">
               <div
-                style={{
-                  fontSize: 48,
-                  fontWeight: 800,
-                  color: "#6366f1",
-                  marginBottom: 8,
-                }}
+                className="qvm-score-pct"
               >
                 {Math.round((getScore() / totalQuestions) * 100)}%
               </div>
               <div
-                style={{
-                  fontSize: 16,
-                  color: isDark ? "rgba(255,255,255,.6)" : "rgba(0,0,0,.5)",
-                  marginBottom: 10,
-                }}
+                className="qvm-score-label"
               >
                 You scored {getScore()} out of {totalQuestions} questions
               </div>
               <div
-                style={{
-                  fontSize: 12,
-                  lineHeight: 1.45,
-                  color: isDark ? "rgba(255,255,255,.38)" : "rgba(0,0,0,.42)",
-                  marginBottom: 28,
-                  maxWidth: 420,
-                  marginLeft: "auto",
-                  marginRight: "auto",
-                }}
+                className="qvm-score-hint"
               >
                 This result is saved to your account when you finish. Exiting
                 before the end does not save a score. Use{" "}
@@ -548,83 +504,55 @@ export default function QuizViewModal({
                 list.
               </div>
 
-              <div style={{ textAlign: "left" }}>
-                <SectionHead isDark={isDark}>Review Questions</SectionHead>
+              <div className="qvm-review-list">
+                <SectionHead>Review Questions</SectionHead>
                 {questions.map((q, idx) => (
                   <div key={idx} className="review-card">
                     <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        marginBottom: 8,
-                      }}
+                      className="qvm-review-row"
                     >
                       <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: isDark
-                            ? "rgba(255,255,255,.3)"
-                            : "rgba(0,0,0,.3)",
-                          textTransform: "uppercase",
-                        }}
+                        className="qvm-review-q-label"
                       >
                         Question {idx + 1}
                       </span>
                       <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color:
-                            userAnswers[idx] === q.answer
-                              ? "#22c55e"
-                              : "#ef4444",
-                        }}
+                        className={`qvm-review-status ${isAnswerCorrect(idx) ? "qvm-review-status--ok" : "qvm-review-status--bad"}`}
                       >
-                        {userAnswers[idx] === q.answer ? "CORRECT" : "WRONG"}
+                        {isAnswerCorrect(idx) ? "CORRECT" : "WRONG"}
                       </span>
                     </div>
                     <div
-                      style={{
-                        fontSize: 14,
-                        color: isDark ? "#fff" : "#1a1a2e",
-                        marginBottom: 12,
-                      }}
+                      className="qvm-review-q-text"
                     >
                       {q.question}
                     </div>
-                    <div
-                      style={{
-                        fontSize: 12.5,
-                        color: isDark
-                          ? "rgba(255,255,255,.4)"
-                          : "rgba(0,0,0,.4)",
-                      }}
-                    >
+                    <div className="qvm-review-answer-line">
                       Your answer:{" "}
                       <span
-                        style={{
-                          color:
-                            userAnswers[idx] === q.answer
-                              ? "#22c55e"
-                              : "#ef4444",
-                        }}
+                        className={
+                          isAnswerCorrect(idx)
+                            ? "qvm-answer--ok"
+                            : "qvm-answer--bad"
+                        }
                       >
                         {userAnswers[idx] || "No answer"}
                       </span>
                     </div>
-                    {userAnswers[idx] !== q.answer && (
-                      <div
-                        style={{
-                          fontSize: 12.5,
-                          color: isDark
-                            ? "rgba(255,255,255,.4)"
-                            : "rgba(0,0,0,.4)",
-                          marginTop: 4,
-                        }}
-                      >
+                    {!isAnswerCorrect(idx) && (
+                      <div className="qvm-review-correct-line">
                         Correct answer:{" "}
-                        <span style={{ color: "#22c55e" }}>{q.answer}</span>
+                        <span className="qvm-answer--ok">
+                          {correctAnswerFor(idx)}
+                        </span>
+                      </div>
+                    )}
+                    {explanationFor(idx) && (
+                      <div className="qvm-review-expl">
+                        <strong className="qvm-expl-strong">
+                          Explanation:{" "}
+                        </strong>
+                        {explanationFor(idx)}
                       </div>
                     )}
                   </div>
@@ -638,22 +566,9 @@ export default function QuizViewModal({
           {!isFinished ? (
             <>
               <div
-                style={{
-                  flex: 1,
-                  height: 4,
-                  background: "rgba(255,255,255,.05)",
-                  borderRadius: 2,
-                  marginRight: 20,
-                }}
+                className="qvm-progress-track"
               >
-                <div
-                  style={{
-                    height: "100%",
-                    background: "#6366f1",
-                    borderRadius: 2,
-                    width: `${((currentIdx + (showExplanation ? 1 : 0)) / totalQuestions) * 100}%`,
-                    transition: "width .4s cubic-bezier(.16,1,.3,1)",
-                  }}
+                <div className="qvm-progress-fill" style={{ width: `${((currentIdx + (showExplanation ? 1 : 0)) / totalQuestions) * 100}%`, transition: "width .4s cubic-bezier(.16,1,.3,1)" }}
                 />
               </div>
               {showExplanation ? (
@@ -667,45 +582,26 @@ export default function QuizViewModal({
                 <button
                   className="btn-submit"
                   onClick={handleSubmit}
-                  disabled={!userAnswers[currentIdx]}
+                  disabled={!userAnswers[currentIdx] || submitLoading}
                 >
-                  Submit Answer <CheckIcon />
+                  {submitLoading ? "Loading…" : "Submit Answer"} <CheckIcon />
                 </button>
               )}
             </>
           ) : (
             <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 10,
-                width: "100%",
-                justifyContent: "flex-end",
-              }}
+              className="qvm-finish-actions"
             >
               <button
                 type="button"
                 onClick={resetSession}
-                style={{
-                  height: 42,
-                  padding: "0 20px",
-                  borderRadius: 10,
-                  border: `1px solid ${isDark ? "rgba(255,255,255,.15)" : "rgba(0,0,0,.12)"}`,
-                  background: isDark
-                    ? "rgba(255,255,255,.06)"
-                    : "rgba(0,0,0,.04)",
-                  color: isDark ? "#e0e0f4" : "#1a1a2e",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  fontFamily: "'Sora', sans-serif",
-                }}
+                className="qvm-retake-btn"
               >
                 Retake quiz
               </button>
               <button
                 type="button"
-                className="btn-submit"
-                style={{ justifyContent: "center" }}
+                className="btn-submit btn-submit--center"
                 onClick={onClose}
               >
                 Close

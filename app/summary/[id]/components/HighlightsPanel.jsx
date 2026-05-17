@@ -24,23 +24,23 @@ export default function HighlightsPanel({
   return (
     <div className={panelClassName} aria-label="Highlights">
       {!embedded && (
-      <div className="hl-head-row">
-        <div className="hl-head">HIGHLIGHTS</div>
-        <button
-          type="button"
-          className="hl-save-btn"
-          title={
-            pendingHighlights.length
-              ? `Save ${pendingHighlights.length} highlight(s) to the server`
-              : "No unsaved highlights"
-          }
-          disabled={pendingHighlights.length === 0 || hlSaving || hlLoading}
-          onClick={onSave}
-          aria-label="Save highlights"
-        >
-          {hlSaving ? <Spinner size={12} /> : <SaveIco size={14} />}
-        </button>
-      </div>
+        <div className="hl-head-row">
+          <div className="hl-head">HIGHLIGHTS</div>
+          <button
+            type="button"
+            className="hl-save-btn"
+            title={
+              pendingHighlights.length
+                ? `Save ${pendingHighlights.length} highlight(s) to the server`
+                : "No unsaved highlights"
+            }
+            disabled={pendingHighlights.length === 0 || hlSaving || hlLoading}
+            onClick={onSave}
+            aria-label="Save highlights"
+          >
+            {hlSaving ? <Spinner size={12} /> : <SaveIco size={14} />}
+          </button>
+        </div>
       )}
       {pendingHighlights.length > 0 && (
         <div className="hl-sub">

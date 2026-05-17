@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/authOptions";
+import { getRequestUser } from "@/lib/apiAuth";
 import { extractPptxUrlFromAlaiGenerationJson } from "@/lib/alaiSlidePptx";
+import { pollTwoSlidesGeneration } from "@/lib/twoSlidesGenerate";
+import { logger } from "@/lib/logger";
 
 export async function GET(req, context) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const user = await getRequestUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -19,6 +20,38 @@ export async function GET(req, context) {
       );
     }
 
+    const url = new URL(req.url);
+    const provider = String(
+      url.searchParams.get("provider") || "alai",
+    ).toLowerCase();
+
+    if (provider === "2slides") {
+      const result = await pollTwoSlidesGeneration(id);
+
+      if (result.status === "failed") {
+        return NextResponse.json(
+          {
+            status: "failed",
+            error: result.error || "2slides generation failed.",
+          },
+          { status: 500 },
+        );
+      }
+
+      if (result.status === "completed" && result.downloadUrl) {
+        const base = new URL(req.url);
+        const downloadEndpoint = `${base.origin}/api/generate-slides/${encodeURIComponent(id)}/download?provider=2slides`;
+        return NextResponse.json({
+          status: "completed",
+          download_url: downloadEndpoint,
+          remote_download_url: result.downloadUrl,
+          preview_url: null,
+        });
+      }
+
+      return NextResponse.json({ status: result.status, progress: 0 });
+    }
+
     if (!process.env.ALAI_API_KEY) {
       return NextResponse.json(
         { error: "ALAI_API_KEY is not configured on the server." },
@@ -26,7 +59,6 @@ export async function GET(req, context) {
       );
     }
 
-    // Proxy the polling request to Alai API
     const res = await fetch(
       `https://slides-api.getalai.com/api/v1/generations/${id}`,
       {
@@ -40,7 +72,6 @@ export async function GET(req, context) {
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      console.error("Alai API Polling Error:", errData);
       return NextResponse.json(
         {
           error:
@@ -53,8 +84,6 @@ export async function GET(req, context) {
     }
 
     const data = await res.json().catch(() => ({}));
-
-    // Alai statuses: pending | in_progress | completed | failed
     const status = String(data?.status || "in_progress").toLowerCase();
 
     if (status === "failed") {
@@ -68,7 +97,6 @@ export async function GET(req, context) {
     }
 
     if (status === "completed") {
-      // Alai returns export URLs under data.formats.* (shape may vary by API version)
       const formats =
         data?.formats && typeof data.formats === "object" ? data.formats : null;
       const pptUrl = extractPptxUrlFromAlaiGenerationJson(data);
@@ -85,18 +113,15 @@ export async function GET(req, context) {
 
       if (pptUrl) {
         const base = new URL(req.url);
-        const downloadEndpoint = `${base.origin}/api/generate-slides/${encodeURIComponent(id)}/download`;
+        const downloadEndpoint = `${base.origin}/api/generate-slides/${encodeURIComponent(id)}/download?provider=alai`;
         return NextResponse.json({
           status: "completed",
-          // Prefer our proxy download endpoint (sets Content-Disposition correctly)
           download_url: downloadEndpoint,
           preview_url: previewUrl,
-          // Keep the upstream signed URL available for debugging
           remote_download_url: pptUrl,
         });
       }
 
-      // Completed but export not ready/wasn't requested yet.
       return NextResponse.json({
         status: "completed",
         progress: 100,
@@ -104,13 +129,14 @@ export async function GET(req, context) {
       });
     }
 
-    // If still in progress, return the current status
     return NextResponse.json({
       status,
       progress: data?.progress || 0,
     });
   } catch (err) {
-    console.error("generate-slides proxy GET:", err);
+    logger.error("generate-slides", err?.message || "GET poll failed", {
+      stack: err?.stack,
+    });
     return NextResponse.json(
       { error: String(err?.message || err) },
       { status: 500 },

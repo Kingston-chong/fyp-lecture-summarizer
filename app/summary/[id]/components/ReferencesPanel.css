@@ -58,11 +58,15 @@
   letter-spacing: 0.02em;
 }
 
-/* Copy-all button row — sits below style picker + incomplete badge */
-.rp-head-copy-row {
+/* Incomplete badge + copy-all on one row */
+.rp-head-meta-row {
   display: flex;
   align-items: center;
-  padding-top: 2px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.rp-head-meta-row .rp-copy-all {
+  margin-left: auto;
 }
 
 /* Abstract read-only display */

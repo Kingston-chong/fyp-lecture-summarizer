@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { openApiSpec } from "@/lib/openapi";
+import { apiHandler } from "@/lib/apiHandler";
 
-export async function GET() {
+export const GET = apiHandler(async function GET() {
   return NextResponse.json(openApiSpec);
-}
+});

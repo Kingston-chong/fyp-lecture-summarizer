@@ -14,9 +14,9 @@ import { normalizeTemplateSpec } from "@/lib/pptxTemplateSpec";
  * 1. Calls the 2slides theme search API (free, just needs TWOSLIDES_API_KEY)
  *    to find templates matching the user's query.
  * 2. For the top result, sends its preview image to the LLM (vision) to extract
- *    a pptxGenJS-compatible style spec: colors, layout type, font style.
+ *    a AI generator-compatible style spec: colors, layout type, font style.
  * 3. Returns both the raw theme list AND the extracted spec so the generate
- *    route can use it to drive pptxGenJS.
+ *    route can use it to drive AI generator.
  *
  * ENV required: TWOSLIDES_API_KEY
  */
@@ -99,7 +99,7 @@ async function fetchPreviewAsBase64(themeId, previewUrl) {
 
 /**
  * Ask the LLM (vision) to look at the template preview image and extract a
- * pptxGenJS-compatible style spec.
+ * AI generator-compatible style spec.
  *
  * Returns an object shaped like a pptxTemplateSpec BUILTIN_SPEC entry so it
  * can be passed straight into buildImprovedPptx({ templateSpec }).
@@ -129,7 +129,7 @@ Template name: "${theme.name}"
 Description: "${theme.description}"
 Tags: "${theme.tags}"
 
-Extract a style spec so pptxGenJS can approximate this design. Be specific and accurate.
+Extract a style spec so AI generator can approximate this design. Be specific and accurate.
 
 Return ONLY this JSON:
 {
@@ -178,7 +178,7 @@ Rules:
  * pptxTemplateSpec (BUILTIN_SPECS format) so it plugs straight into
  * buildImprovedPptx({ templateSpec }).
  *
- * This is a best-effort approximation — pptxGenJS can't replicate every
+ * This is a best-effort approximation — AI generator can't replicate every
  * design detail, but layout, palette, and font style will match.
  */
 function buildTemplateSpecFromStyle(styleSpec, theme) {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { getRequestUser } from "@/lib/apiAuth";
+import { publicSlideDeckFields } from "@/lib/blobRef";
 
 async function resolveSummaryId(context) {
   const resolved = await Promise.resolve(context?.params);
@@ -77,7 +78,7 @@ export async function POST(req, context) {
       contentType:
         "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     });
-    const storedPptxUrl = blob.downloadUrl || blob.url;
+    const storedPptxUrl = blob.pathname || blob.url;
 
     const localId =
       `local:${Date.now()}-${Math.random().toString(36).slice(2, 11)}`.slice(
@@ -97,12 +98,11 @@ export async function POST(req, context) {
         id: true,
         title: true,
         alaiGenerationId: true,
-        pptxUrl: true,
         createdAt: true,
       },
     });
 
-    return NextResponse.json({ deck });
+    return NextResponse.json({ deck: publicSlideDeckFields(deck) });
   } catch (err) {
     console.error("slide-decks upload POST:", err);
     return NextResponse.json(

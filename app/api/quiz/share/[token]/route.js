@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  ensureQuizNotExpired,
+  isQuizAcceptingResponses,
+} from "@/lib/quizCollection";
 
 function publicQuestion(q) {
   return {
@@ -30,19 +34,22 @@ export async function GET(_req, context) {
       return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
     }
 
+    const active = await ensureQuizNotExpired(prisma, quizSet);
+    const accepting = isQuizAcceptingResponses(active);
+
     return NextResponse.json({
+      acceptingResponses: accepting,
+      collectionStatus: accepting ? "open" : "closed",
+      closesAt: active.closesAt,
       quizSet: {
-        id: quizSet.id,
-        title: quizSet.title,
-        settings: quizSet.settings,
-        questions: quizSet.questions.map(publicQuestion),
+        id: active.id,
+        title: active.title,
+        settings: active.settings,
+        questions: active.questions.map(publicQuestion),
       },
     });
   } catch (err) {
     console.error("quiz share GET:", err);
-    return NextResponse.json(
-      { error: "Failed to load quiz" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to load quiz" }, { status: 500 });
   }
 }

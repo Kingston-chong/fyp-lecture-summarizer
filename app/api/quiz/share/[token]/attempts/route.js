@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRequestUser } from "@/lib/apiAuth";
+import {
+  ensureQuizNotExpired,
+  isQuizAcceptingResponses,
+} from "@/lib/quizCollection";
 
 export async function POST(req, context) {
   try {
@@ -23,12 +27,26 @@ export async function POST(req, context) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const activeQuiz = await ensureQuizNotExpired(prisma, quizSet);
+    if (!isQuizAcceptingResponses(activeQuiz)) {
+      return NextResponse.json(
+        { error: "This quiz is not accepting responses right now." },
+        { status: 403 },
+      );
+    }
+
     const body = await req.json().catch(() => ({}));
+    const respondentLabel = String(body.respondentLabel || "")
+      .trim()
+      .slice(0, 120) || null;
     const answers =
       body.answers && typeof body.answers === "object" ? body.answers : {};
     const totalQuestions = quizSet.questions.length;
     if (totalQuestions === 0) {
-      return NextResponse.json({ error: "Quiz has no questions" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Quiz has no questions" },
+        { status: 400 },
+      );
     }
 
     let score = 0;
@@ -46,6 +64,7 @@ export async function POST(req, context) {
       data: {
         userId: user.id,
         quizSetId: quizSet.id,
+        respondentLabel,
         score,
         totalQuestions,
         answers,

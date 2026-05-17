@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
+import { apiHandler } from "@/lib/apiHandler";
 
-export async function POST(req) {
+// PUBLIC ROUTE — no auth required (password reset flow)
+export const POST = apiHandler(async function POST(req) {
   const { email, otp } = await req.json();
 
   const record = await prisma.passwordReset.findUnique({ where: { email } });
@@ -41,4 +43,4 @@ export async function POST(req) {
   });
 
   return NextResponse.json({ success: true, token });
-}
+});

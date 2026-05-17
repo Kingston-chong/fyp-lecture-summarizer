@@ -1,0 +1,65 @@
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap");
+
+.auth-chrome-root {
+  min-height: 100vh;
+  background: #0e0e12;
+  font-family: "Sora", sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+
+html[data-theme="light"] .auth-chrome-root--themed,
+.auth-chrome-root--themed {
+  background: var(--app-bg);
+}
+
+.auth-chrome-root--center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-chrome-blob1 {
+  position: fixed;
+  top: -15%;
+  right: -8%;
+  width: 650px;
+  height: 650px;
+  background: radial-gradient(
+    circle,
+    rgba(99, 102, 241, 0.16) 0%,
+    transparent 65%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.auth-chrome-blob2 {
+  position: fixed;
+  bottom: -10%;
+  left: -5%;
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(
+    circle,
+    rgba(20, 184, 166, 0.1) 0%,
+    transparent 65%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.auth-chrome-blob3 {
+  position: fixed;
+  top: 45%;
+  left: 38%;
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(
+    circle,
+    rgba(168, 85, 247, 0.06) 0%,
+    transparent 65%
+  );
+  pointer-events: none;
+  z-index: 0;
+}

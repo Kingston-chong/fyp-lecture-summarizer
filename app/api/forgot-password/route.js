@@ -3,8 +3,10 @@ import { prisma } from "@/lib/prisma";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
 import { wrapEmailWithAuthChrome } from "@/lib/emailAuthChrome";
+import { apiHandler } from "@/lib/apiHandler";
 
-export async function POST(req) {
+// PUBLIC ROUTE — no auth required (password reset flow)
+export const POST = apiHandler(async function POST(req) {
   const { email } = await req.json();
 
   const user = await prisma.user.findUnique({ where: { email } });
@@ -50,4 +52,4 @@ export async function POST(req) {
     success: true,
     expiresAt: expiresAt.toISOString(),
   });
-}
+});

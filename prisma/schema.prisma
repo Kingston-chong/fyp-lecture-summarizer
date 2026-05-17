@@ -169,8 +169,10 @@ model QuizSet {
   summaryId   Int
   title       String
   settings    Json?          // Store generation settings (difficulty, types, etc.)
-  published   Boolean        @default(false)
-  shareToken  String?        @unique @db.VarChar(64)
+  published           Boolean        @default(false)
+  acceptingResponses  Boolean        @default(false)
+  closesAt            DateTime?
+  shareToken          String?        @unique @db.VarChar(64)
   createdAt   DateTime       @default(now())
   questions   QuizQuestion[]
   attempts    QuizAttempt[]
@@ -182,13 +184,14 @@ model QuizSet {
 }
 
 model QuizAttempt {
-  id             Int      @id @default(autoincrement())
-  userId         Int
-  quizSetId      Int
-  score          Int
-  totalQuestions Int
-  answers        Json?
-  createdAt      DateTime @default(now())
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  quizSetId       Int
+  respondentLabel String?  @db.VarChar(120)
+  score           Int
+  totalQuestions  Int
+  answers         Json?
+  createdAt       DateTime @default(now())
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   quizSet QuizSet @relation(fields: [quizSetId], references: [id], onDelete: Cascade)
@@ -219,9 +222,11 @@ model SlideDeck {
   summaryId        Int
   title            String   @db.VarChar(512)
   alaiGenerationId String   @db.VarChar(128)
-  /** Public blob URL — required for in-browser Office preview */
+  provider         String?  @db.VarChar(32)   // "alai" | "2slides"
+  providerDeckId   String?  @db.VarChar(256)
+  /** Vercel Blob pathname (or legacy URL) — use server get() with private access, not public HTTP */
   pptxUrl          String   @db.VarChar(2048)
-  /** Optional archived PDF export (Vercel Blob) */
+  /** Optional archived PDF blob pathname */
   pdfUrl           String?  @db.VarChar(2048)
   createdAt        DateTime @default(now())
 

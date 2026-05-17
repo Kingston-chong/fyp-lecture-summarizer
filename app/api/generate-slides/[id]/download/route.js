@@ -1,10 +1,33 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/authOptions";
+import { getRequestUser } from "@/lib/apiAuth";
 import { extractPptxUrlFromAlaiGenerationJson } from "@/lib/alaiSlidePptx";
+import { pollTwoSlidesGeneration } from "@/lib/twoSlidesGenerate";
+import { apiHandler } from "@/lib/apiHandler";
 
-export async function GET(req, context) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
+function pptxResponse(fileRes, titleParam) {
+  const title = (titleParam || "presentation").trim();
+  const safeBase =
+    title
+      .replace(/[^a-z0-9]+/gi, "_")
+      .replace(/^_+|_+$/g, "")
+      .toLowerCase() || "presentation";
+  const filename = `${safeBase}.pptx`;
+
+  const headers = new Headers();
+  headers.set(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  );
+  headers.set("Content-Disposition", `attachment; filename="${filename}"`);
+
+  const len = fileRes.headers.get("content-length");
+  if (len) headers.set("Content-Length", len);
+
+  return new Response(fileRes.body, { status: 200, headers });
+}
+
+export const GET = apiHandler(async function GET(req, context) {
+  const user = await getRequestUser();
+  if (!user) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
@@ -23,6 +46,49 @@ export async function GET(req, context) {
     );
   }
 
+  const url = new URL(req.url);
+  const provider = String(
+    url.searchParams.get("provider") || "alai",
+  ).toLowerCase();
+  const titleParam = url.searchParams.get("title") || "presentation";
+
+  if (provider === "2slides") {
+    if (!process.env.TWOSLIDES_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: "TWOSLIDES_API_KEY is not configured." }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const result = await pollTwoSlidesGeneration(id);
+
+    if (result.status !== "completed" || !result.downloadUrl) {
+      return new Response(
+        JSON.stringify({ error: `Not ready (status: ${result.status})` }),
+        {
+          status: 409,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const fileRes = await fetch(result.downloadUrl, { cache: "no-store" });
+    if (!fileRes.ok) {
+      return new Response(
+        JSON.stringify({ error: "Failed to download PPTX from 2slides." }),
+        {
+          status: 502,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    return pptxResponse(fileRes, titleParam);
+  }
+
   if (!process.env.ALAI_API_KEY) {
     return new Response(
       JSON.stringify({
@@ -35,7 +101,6 @@ export async function GET(req, context) {
     );
   }
 
-  // Poll Alai once to get a fresh signed URL (valid ~24h).
   const statusRes = await fetch(
     `https://slides-api.getalai.com/api/v1/generations/${id}`,
     {
@@ -86,7 +151,6 @@ export async function GET(req, context) {
     );
   }
 
-  // Download the actual PPTX server-side and stream it to the browser.
   const fileRes = await fetch(pptUrl, { cache: "no-store" });
   if (!fileRes.ok) {
     return new Response(
@@ -98,24 +162,5 @@ export async function GET(req, context) {
     );
   }
 
-  const url = new URL(req.url);
-  const title = (url.searchParams.get("title") || "presentation").trim();
-  const safeBase =
-    title
-      .replace(/[^a-z0-9]+/gi, "_")
-      .replace(/^_+|_+$/g, "")
-      .toLowerCase() || "presentation";
-  const filename = `${safeBase}.pptx`;
-
-  const headers = new Headers();
-  headers.set(
-    "Content-Type",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  );
-  headers.set("Content-Disposition", `attachment; filename="${filename}"`);
-
-  const len = fileRes.headers.get("content-length");
-  if (len) headers.set("Content-Length", len);
-
-  return new Response(fileRes.body, { status: 200, headers });
-}
+  return pptxResponse(fileRes, titleParam);
+});

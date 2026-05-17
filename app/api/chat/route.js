@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { get } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { getRequestUser } from "@/lib/apiAuth";
-import { extractText as unpdfExtractText, getDocumentProxy } from "unpdf";
-import mammoth from "mammoth";
+import { extractDocumentText } from "@/lib/extractDocumentText";
+import { apiHandler } from "@/lib/apiHandler";
+import { logger } from "@/lib/logger";
 import { runChat, normalizeModelKey, parseSummaryModel } from "@/lib/llmServer";
 import {
   fetchTavilyContextForChat,
@@ -27,63 +27,6 @@ const MAX_ATTACHMENT_CONTEXT_CHARS = Number.parseInt(
   process.env.CHAT_MAX_ATTACHMENT_CONTEXT_CHARS || "12000",
   10,
 );
-
-async function fetchBlobBuffer(url) {
-  const result = await get(url, { access: "private", useCache: true });
-  if (!result || result.statusCode !== 200 || !result.stream) {
-    throw new Error("Failed to fetch blob");
-  }
-  const res = new Response(result.stream);
-  return Buffer.from(await res.arrayBuffer());
-}
-
-async function extractDocumentText(url, type) {
-  const buffer = await fetchBlobBuffer(url);
-  switch (String(type || "").toUpperCase()) {
-    case "PDF": {
-      const pdf = await getDocumentProxy(new Uint8Array(buffer));
-      const { text } = await unpdfExtractText(pdf, { mergePages: true });
-      return text || "";
-    }
-    case "DOCX":
-    case "DOC": {
-      const result = await mammoth.extractRawText({ buffer });
-      return result.value || "";
-    }
-    case "TXT":
-    case "MD":
-    case "CSV":
-      return buffer.toString("utf-8");
-    case "PPTX":
-    case "PPT": {
-      const JSZip = (await import("jszip")).default;
-      const zip = await JSZip.loadAsync(buffer);
-      let text = "";
-      const slideFiles = Object.keys(zip.files).filter(
-        (f) => f.startsWith("ppt/slides/slide") && f.endsWith(".xml"),
-      );
-      for (const slideFile of slideFiles) {
-        const xml = await zip.files[slideFile].async("string");
-        text += xml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ") + "\n";
-      }
-      return text;
-    }
-    case "XLSX":
-    case "XLS": {
-      const XLSX = await import("xlsx");
-      const workbook = XLSX.read(buffer, { type: "buffer" });
-      let text = "";
-      for (const sheetName of workbook.SheetNames) {
-        const sheet = workbook.Sheets[sheetName];
-        text += `Sheet: ${sheetName}\n`;
-        text += XLSX.utils.sheet_to_csv(sheet) + "\n";
-      }
-      return text;
-    }
-    default:
-      return buffer.toString("utf-8");
-  }
-}
 
 const MAX_CHAT_IMAGE_BYTES = Number.parseInt(
   process.env.CHAT_MAX_IMAGE_BYTES || "3500000",
@@ -253,154 +196,147 @@ function sanitizeMessages(msgs) {
   return out;
 }
 
-export async function POST(req) {
-  try {
-    const user = await getRequestUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+export const POST = apiHandler(async function POST(req) {
+  const user = await getRequestUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-    const body = await req.json();
-    const summaryId = Number(body?.summaryId);
-    const modelKey = normalizeModelKey(body?.model);
-    const modelLabel = (body?.modelLabel || "").toString().trim() || null;
-    const rawMessages = Array.isArray(body?.messages) ? body.messages : [];
-    const imageSizeErr = oversizedChatImageError(rawMessages);
-    if (imageSizeErr) {
-      return NextResponse.json({ error: imageSizeErr }, { status: 413 });
-    }
-    const requestedDocIds = Array.isArray(body?.documentIds)
-      ? body.documentIds
-          .map((id) => Number(id))
-          .filter((id) => Number.isFinite(id) && id > 0)
-      : [];
+  const body = await req.json();
+  const summaryId = Number(body?.summaryId);
+  const modelKey = normalizeModelKey(body?.model);
+  const modelLabel = (body?.modelLabel || "").toString().trim() || null;
+  const rawMessages = Array.isArray(body?.messages) ? body.messages : [];
+  const imageSizeErr = oversizedChatImageError(rawMessages);
+  if (imageSizeErr) {
+    return NextResponse.json({ error: imageSizeErr }, { status: 413 });
+  }
+  const requestedDocIds = Array.isArray(body?.documentIds)
+    ? body.documentIds
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id) && id > 0)
+    : [];
 
-    /** @type {boolean|undefined} */
-    const webSearchOverride = body?.webSearch;
-    const regenerate = body?.regenerate === true;
+  /** @type {boolean|undefined} */
+  const webSearchOverride = body?.webSearch;
+  const regenerate = body?.regenerate === true;
 
-    if (!Number.isFinite(summaryId) || summaryId <= 0) {
-      return NextResponse.json(
-        { error: "Invalid summary id" },
-        { status: 400 },
-      );
-    }
-    if (!modelKey) {
-      return NextResponse.json({ error: "Invalid model" }, { status: 400 });
-    }
+  if (!Number.isFinite(summaryId) || summaryId <= 0) {
+    return NextResponse.json({ error: "Invalid summary id" }, { status: 400 });
+  }
+  if (!modelKey) {
+    return NextResponse.json({ error: "Invalid model" }, { status: 400 });
+  }
 
-    const messages = sanitizeMessages(rawMessages);
-    if (!messages) {
-      return NextResponse.json(
-        { error: "Messages must be non-empty and end with a user message" },
-        { status: 400 },
-      );
-    }
+  const messages = sanitizeMessages(rawMessages);
+  if (!messages) {
+    return NextResponse.json(
+      { error: "Messages must be non-empty and end with a user message" },
+      { status: 400 },
+    );
+  }
 
-    const summary = await prisma.summary.findFirst({
-      where: { id: summaryId, userId: user.id },
-      select: {
-        id: true,
-        output: true,
-        model: true,
-        title: true,
-        summarizeFor: true,
-      },
+  const summary = await prisma.summary.findFirst({
+    where: { id: summaryId, userId: user.id },
+    select: {
+      id: true,
+      output: true,
+      model: true,
+      title: true,
+      summarizeFor: true,
+    },
+  });
+
+  if (!summary) {
+    return NextResponse.json({ error: "Summary not found" }, { status: 404 });
+  }
+
+  const context = (summary.output || "").slice(0, MAX_CONTEXT_CHARS);
+  const summarizeRole = normalizeSummarizeRole(summary.summarizeFor);
+  const roleProfile = getRoleProfile(summarizeRole);
+  const { provider: summaryProvider, variant: summaryVariant } =
+    parseSummaryModel(summary.model);
+
+  const useVariant =
+    modelKey === summaryProvider && summaryVariant ? summaryVariant : null;
+
+  let attachmentContext = "";
+  if (requestedDocIds.length > 0) {
+    const docs = await prisma.document.findMany({
+      where: { id: { in: requestedDocIds }, userId: user.id },
+      select: { id: true, name: true, url: true, type: true },
     });
 
-    if (!summary) {
-      return NextResponse.json({ error: "Summary not found" }, { status: 404 });
-    }
-
-    const context = (summary.output || "").slice(0, MAX_CONTEXT_CHARS);
-    const summarizeRole = normalizeSummarizeRole(summary.summarizeFor);
-    const roleProfile = getRoleProfile(summarizeRole);
-    const { provider: summaryProvider, variant: summaryVariant } =
-      parseSummaryModel(summary.model);
-
-    const useVariant =
-      modelKey === summaryProvider && summaryVariant ? summaryVariant : null;
-
-    let attachmentContext = "";
-    if (requestedDocIds.length > 0) {
-      const docs = await prisma.document.findMany({
-        where: { id: { in: requestedDocIds }, userId: user.id },
-        select: { id: true, name: true, url: true, type: true },
-      });
-
-      for (const doc of docs) {
-        if (attachmentContext.length >= MAX_ATTACHMENT_CONTEXT_CHARS) break;
-        try {
-          const extracted = await extractDocumentText(doc.url, doc.type);
-          if (!extracted) continue;
-          const remaining = Math.max(
-            0,
-            MAX_ATTACHMENT_CONTEXT_CHARS - attachmentContext.length,
-          );
-          attachmentContext += `\n\n=== ${doc.name} ===\n`;
-          attachmentContext += extracted.slice(0, remaining);
-        } catch (e) {
-          console.warn(
-            `Could not extract chat attachment "${doc.name}":`,
-            e?.message,
-          );
-        }
+    for (const doc of docs) {
+      if (attachmentContext.length >= MAX_ATTACHMENT_CONTEXT_CHARS) break;
+      try {
+        const extracted = await extractDocumentText(doc.url, doc.type);
+        if (!extracted) continue;
+        const remaining = Math.max(
+          0,
+          MAX_ATTACHMENT_CONTEXT_CHARS - attachmentContext.length,
+        );
+        attachmentContext += `\n\n=== ${doc.name} ===\n`;
+        attachmentContext += extracted.slice(0, remaining);
+      } catch (e) {
+        logger.warn("chat", `Could not extract chat attachment "${doc.name}"`, {
+          error: e?.message,
+        });
       }
     }
+  }
 
-    const lastUserMessage = messages[messages.length - 1];
-    const lastUserSearchText = userMessageTextForSearch(
-      lastUserMessage.content,
-    );
+  const lastUserMessage = messages[messages.length - 1];
+  const lastUserSearchText = userMessageTextForSearch(lastUserMessage.content);
 
-    const webSearchKeyOk = Boolean(process.env.TAVILY_API_KEY);
-    const webSearchGloballyOff = process.env.CHAT_WEB_SEARCH === "0";
-    const toggleOn = webSearchOverride === true;
-    const wantsReferences = userRequestedReferences(lastUserSearchText);
-    const phraseOn =
-      wantsReferences || userRequestedBeyondSummaryWeb(lastUserSearchText);
-    const autoWebEnabled = webSearchKeyOk && !webSearchGloballyOff;
+  const webSearchKeyOk = Boolean(process.env.TAVILY_API_KEY);
+  const webSearchGloballyOff = process.env.CHAT_WEB_SEARCH === "0";
+  const toggleOn = webSearchOverride === true;
+  const wantsReferences = userRequestedReferences(lastUserSearchText);
+  const phraseOn =
+    wantsReferences || userRequestedBeyondSummaryWeb(lastUserSearchText);
+  const autoWebEnabled = webSearchKeyOk && !webSearchGloballyOff;
 
-    let webSearchSkippedReason = null;
-    if (!autoWebEnabled && (toggleOn || phraseOn)) {
-      if (!webSearchKeyOk) webSearchSkippedReason = "missing_tavily_key";
-      else if (webSearchGloballyOff)
-        webSearchSkippedReason = "web_search_disabled_env";
-    }
+  let webSearchSkippedReason = null;
+  if (!autoWebEnabled && (toggleOn || phraseOn)) {
+    if (!webSearchKeyOk) webSearchSkippedReason = "missing_tavily_key";
+    else if (webSearchGloballyOff)
+      webSearchSkippedReason = "web_search_disabled_env";
+  }
 
-    const buildSearchQuery = () => {
-      const qUser = lastUserSearchText.trim().slice(0, 220);
-      const qTitle = (summary.title || "").trim().slice(0, 80);
-      const suffix =
-        " Broader reference information beyond lecture notes only; include established facts not necessarily stated in the slides.";
-      return [qUser, qTitle ? `(Topic: ${qTitle})` : "", suffix]
-        .filter(Boolean)
-        .join(" ")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 400);
-    };
+  const buildSearchQuery = () => {
+    const qUser = lastUserSearchText.trim().slice(0, 220);
+    const qTitle = (summary.title || "").trim().slice(0, 80);
+    const suffix =
+      " Broader reference information beyond lecture notes only; include established facts not necessarily stated in the slides.";
+    return [qUser, qTitle ? `(Topic: ${qTitle})` : "", suffix]
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 400);
+  };
 
-    const roleSpecificRules = roleProfile.chatInstructions
-      .map((line) => `- ${line}`)
-      .join("\n");
-    const lecturerCitationRules =
-      summarizeRole === "lecturer" && !wantsReferences
-        ? `
+  const roleSpecificRules = roleProfile.chatInstructions
+    .map((line) => `- ${line}`)
+    .join("\n");
+  const lecturerCitationRules =
+    summarizeRole === "lecturer" && !wantsReferences
+      ? `
 Citation requirements for lecturer mode:
 - Every meaningful factual claim should include one or more inline citation markers like [1], [2].
 - Use available sources only: summary, attached sources, and web excerpts.
 - End with a dedicated "References" section. Each reference must map to a marker and include source title plus URL/domain.
 - If no source supports a claim, explicitly state uncertainty and do not fabricate references.
 `
-        : "";
-    const onDemandRefRules = wantsReferences ? referenceCitationRules() : "";
+      : "";
+  const onDemandRefRules = wantsReferences ? referenceCitationRules() : "";
 
-    const buildSystemPrompt = ({
-      webContext = "",
-      academicContext = "",
-      sourcesBlock = "",
-    } = {}) => `You are a helpful assistant for Slide2Notes. The user is discussing a generated lecture/document summary.
+  const buildSystemPrompt = ({
+    webContext = "",
+    academicContext = "",
+    sourcesBlock = "",
+  } = {}) => `You are a helpful assistant for Slide2Notes. The user is discussing a generated lecture/document summary.
 Audience mode: ${summarizeRole}.
 
 The user may paste screenshots or diagrams into the chat; use what you see together with the summary when it is relevant.
@@ -429,222 +365,225 @@ ${webContext ? `\n\n--- Web search excerpts ---\n${webContext}` : ""}
 ${academicContext ? `\n\n--- Academic papers ---\n${academicContext}` : ""}
 ${attachmentContext ? `\n\n--- Attached Sources (uploaded by user) ---\n${attachmentContext}` : ""}`;
 
-    let webContext = "";
-    let academicContext = "";
-    let sourcesBlock = "";
-    let chatSources = [];
-    let webSearchAttempted = false;
-    let referenceSearchAttempted = false;
+  let webContext = "";
+  let academicContext = "";
+  let sourcesBlock = "";
+  let chatSources = [];
+  let webSearchAttempted = false;
+  let referenceSearchAttempted = false;
 
-    if (wantsReferences) {
-      referenceSearchAttempted = true;
-      webSearchAttempted = true;
-      const bundle = await fetchChatReferenceSources({
-        userText: lastUserSearchText,
-        summaryTitle: summary.title || "",
-        summaryExcerpt: context.slice(0, 3000),
-      });
-      chatSources = bundle.sources;
-      webContext = bundle.webContext;
-      academicContext = bundle.academicContext;
-      sourcesBlock = buildNumberedSourcesPrompt(chatSources);
-    }
-
-    let reply;
-    let trimmed;
-
-    if (wantsReferences) {
-      reply = await runChat(
-        modelKey,
-        useVariant,
-        buildSystemPrompt({ webContext, academicContext, sourcesBlock }),
-        messages,
-      );
-      trimmed = String(reply ?? "").trim();
-    } else {
-      reply = await runChat(
-        modelKey,
-        useVariant,
-        buildSystemPrompt({}),
-        messages,
-      );
-      trimmed = String(reply ?? "").trim();
-
-      const shouldTryWebFallback =
-        autoWebEnabled &&
-        (toggleOn || phraseOn || shouldFallbackToWeb(trimmed));
-
-      if (shouldTryWebFallback) {
-        webSearchAttempted = true;
-        webContext = await fetchTavilyContextForChat(buildSearchQuery());
-        if (String(webContext || "").trim()) {
-          reply = await runChat(
-            modelKey,
-            useVariant,
-            buildSystemPrompt({ webContext }),
-            messages,
-          );
-          trimmed = String(reply ?? "").trim();
-        }
-      }
-    }
-
-    if (!trimmed) {
-      return NextResponse.json(
-        { error: "The model returned an empty reply" },
-        { status: 502 },
-      );
-    }
-
-    const webContextIncluded = Boolean(webContext && String(webContext).trim());
-    /** Client can show whether Tavily actually contributed text to the system prompt */
-    const webSearch = webSearchAttempted
-      ? { attempted: true, contextIncluded: webContextIncluded }
-      : {
-          attempted: false,
-          contextIncluded: false,
-          ...(webSearchSkippedReason
-            ? { skippedReason: webSearchSkippedReason }
-            : {}),
-        };
-    const hasReferencesSection = /\n#{0,3}\s*references\s*\n/i.test(trimmed);
-    const citedInBody = new Set(extractCitationMarkers(trimmed));
-    let finalReply = trimmed;
-    if (wantsReferences && !hasReferencesSection) {
-      const refsForSection =
-        citedInBody.size > 0
-          ? chatSources.filter((s) => citedInBody.has(s.marker))
-          : [];
-      if (refsForSection.length > 0) {
-        const lines = refsForSection.map((s) => {
-          const link = s.url ? `[${s.title}](${s.url})` : s.title;
-          return `- [${s.marker}] ${link}`;
-        });
-        finalReply = `${trimmed}\n\n## References\n${lines.join("\n")}`;
-      } else {
-        finalReply = `${trimmed}\n\n## References\n- No verifiable sources were found for this query. Try rephrasing or check API keys (Tavily / academic search).`;
-      }
-    } else if (
-      summarizeRole === "lecturer" &&
-      !wantsReferences &&
-      !hasReferencesSection
-    ) {
-      finalReply = `${trimmed}\n\n## References\n- No verifiable source references were produced for this response.`;
-    }
-
-    const citedMarkers = new Set(extractCitationMarkers(finalReply));
-    const citedSources =
-      wantsReferences && citedMarkers.size > 0
-        ? chatSources.filter((s) => citedMarkers.has(s.marker))
-        : [];
-    const clientSources = formatSourcesForClient(citedSources);
-
-    // Persist the newest turn so refresh/resume keeps conversation context.
-    // NOTE: we use raw SQL to avoid depending on regenerated Prisma client models.
-    await prisma.$executeRaw`
-      INSERT INTO ChatThread (userId, summaryId, createdAt, updatedAt)
-      VALUES (${user.id}, ${summaryId}, NOW(), NOW())
-      ON DUPLICATE KEY UPDATE updatedAt = NOW()
-    `;
-
-    const threadRow = await prisma.$queryRaw`
-      SELECT id
-      FROM ChatThread
-      WHERE userId = ${user.id} AND summaryId = ${summaryId}
-      LIMIT 1
-    `;
-    const threadId = Number(threadRow?.[0]?.id);
-
-    if (regenerate) {
-      const lastTwo = await prisma.$queryRaw`
-        SELECT turn, role, content
-        FROM ChatMessage
-        WHERE threadId = ${threadId}
-        ORDER BY turn DESC
-        LIMIT 2
-      `;
-      const latest = lastTwo?.[0];
-      const prior = lastTwo?.[1];
-      if (
-        !latest ||
-        String(latest.role) !== "assistant" ||
-        !prior ||
-        String(prior.role) !== "user"
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "Cannot regenerate this reply. Try sending your message again.",
-          },
-          { status: 409 },
-        );
-      }
-      const priorRaw = prior.content;
-      const lastFp = userMessageSyncFingerprint(lastUserMessage.content);
-      let regenMatch = userMessageSyncFingerprint(priorRaw) === lastFp;
-      if (
-        !regenMatch &&
-        typeof priorRaw === "string" &&
-        priorRaw.startsWith('{"v":1')
-      ) {
-        try {
-          const o = JSON.parse(priorRaw);
-          const priorText = String(o?.t ?? "").trim();
-          const lastText = userMessageTextForSearch(lastUserMessage.content);
-          regenMatch = priorText === lastText.trim();
-        } catch {
-          regenMatch = false;
-        }
-      }
-      if (!regenMatch) {
-        return NextResponse.json(
-          {
-            error:
-              "Cannot regenerate: this chat is out of sync. Refresh the page.",
-          },
-          { status: 409 },
-        );
-      }
-      const assistantTurn = Number(latest.turn);
-      await prisma.$executeRaw`
-        DELETE FROM ChatMessage
-        WHERE threadId = ${threadId} AND turn = ${assistantTurn}
-      `;
-      await prisma.$executeRaw`
-        INSERT INTO ChatMessage (threadId, turn, role, content, modelLabel, createdAt)
-        VALUES (${threadId}, ${assistantTurn}, 'assistant', ${finalReply}, ${modelLabel}, NOW())
-      `;
-    } else {
-      const nextTurnRow = await prisma.$queryRaw`
-        SELECT COALESCE(MAX(turn), -1) AS maxTurn
-        FROM ChatMessage
-        WHERE threadId = ${threadId}
-      `;
-      const nextTurn = Number(nextTurnRow?.[0]?.maxTurn) + 1;
-
-      const userRowContent = userMessageContentForDatabase(
-        lastUserMessage.content,
-      );
-      await prisma.$executeRaw`
-        INSERT INTO ChatMessage (threadId, turn, role, content, modelLabel, createdAt)
-        VALUES
-          (${threadId}, ${nextTurn}, 'user', ${userRowContent}, NULL, NOW()),
-          (${threadId}, ${nextTurn + 1}, 'assistant', ${finalReply}, ${modelLabel}, NOW())
-      `;
-    }
-
-    return NextResponse.json({
-      reply: finalReply,
-      webSearch: {
-        ...webSearch,
-        referencesRequested: wantsReferences,
-        referenceSearchAttempted,
-      },
-      sources: clientSources,
+  if (wantsReferences) {
+    referenceSearchAttempted = true;
+    webSearchAttempted = true;
+    const bundle = await fetchChatReferenceSources({
+      userText: lastUserSearchText,
+      summaryTitle: summary.title || "",
+      summaryExcerpt: context.slice(0, 3000),
     });
-  } catch (err) {
-    console.error("Chat error:", err);
-    const msg = err?.message || "Chat failed";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    chatSources = bundle.sources;
+    webContext = bundle.webContext;
+    academicContext = bundle.academicContext;
+    sourcesBlock = buildNumberedSourcesPrompt(chatSources);
   }
-}
+
+  let reply;
+  let trimmed;
+
+  if (wantsReferences) {
+    reply = await runChat(
+      modelKey,
+      useVariant,
+      buildSystemPrompt({ webContext, academicContext, sourcesBlock }),
+      messages,
+    );
+    trimmed = String(reply ?? "").trim();
+  } else {
+    reply = await runChat(
+      modelKey,
+      useVariant,
+      buildSystemPrompt({}),
+      messages,
+    );
+    trimmed = String(reply ?? "").trim();
+
+    const shouldTryWebFallback =
+      autoWebEnabled && (toggleOn || phraseOn || shouldFallbackToWeb(trimmed));
+
+    if (shouldTryWebFallback) {
+      webSearchAttempted = true;
+      webContext = await fetchTavilyContextForChat(buildSearchQuery());
+      if (String(webContext || "").trim()) {
+        reply = await runChat(
+          modelKey,
+          useVariant,
+          buildSystemPrompt({ webContext }),
+          messages,
+        );
+        trimmed = String(reply ?? "").trim();
+      }
+    }
+  }
+
+  if (!trimmed) {
+    return NextResponse.json(
+      { error: "The model returned an empty reply" },
+      { status: 502 },
+    );
+  }
+
+  const webContextIncluded = Boolean(webContext && String(webContext).trim());
+  /** Client can show whether Tavily actually contributed text to the system prompt */
+  const webSearch = webSearchAttempted
+    ? { attempted: true, contextIncluded: webContextIncluded }
+    : {
+        attempted: false,
+        contextIncluded: false,
+        ...(webSearchSkippedReason
+          ? { skippedReason: webSearchSkippedReason }
+          : {}),
+      };
+  const hasReferencesSection = /\n#{0,3}\s*references\s*\n/i.test(trimmed);
+  const citedInBody = new Set(extractCitationMarkers(trimmed));
+  let finalReply = trimmed;
+  if (wantsReferences && !hasReferencesSection) {
+    const refsForSection =
+      citedInBody.size > 0
+        ? chatSources.filter((s) => citedInBody.has(s.marker))
+        : [];
+    if (refsForSection.length > 0) {
+      const lines = refsForSection.map((s) => {
+        const link = s.url ? `[${s.title}](${s.url})` : s.title;
+        return `- [${s.marker}] ${link}`;
+      });
+      finalReply = `${trimmed}\n\n## References\n${lines.join("\n")}`;
+    } else {
+      finalReply = `${trimmed}\n\n## References\n- No verifiable sources were found for this query. Try rephrasing or check API keys (Tavily / academic search).`;
+    }
+  } else if (
+    summarizeRole === "lecturer" &&
+    !wantsReferences &&
+    !hasReferencesSection
+  ) {
+    finalReply = `${trimmed}\n\n## References\n- No verifiable source references were produced for this response.`;
+  }
+
+  const citedMarkers = new Set(extractCitationMarkers(finalReply));
+  const citedSources =
+    wantsReferences && citedMarkers.size > 0
+      ? chatSources.filter((s) => citedMarkers.has(s.marker))
+      : [];
+  const clientSources = formatSourcesForClient(citedSources);
+
+  // Persist the newest turn so refresh/resume keeps conversation context.
+  const thread = await prisma.chatThread.upsert({
+    where: {
+      userId_summaryId: { userId: user.id, summaryId },
+    },
+    create: { userId: user.id, summaryId },
+    update: { updatedAt: new Date() },
+    select: { id: true },
+  });
+  const threadId = thread.id;
+
+  if (regenerate) {
+    const lastTwo = await prisma.chatMessage.findMany({
+      where: { threadId },
+      orderBy: { turn: "desc" },
+      take: 2,
+      select: { turn: true, role: true, content: true },
+    });
+    const latest = lastTwo?.[0];
+    const prior = lastTwo?.[1];
+    if (
+      !latest ||
+      String(latest.role) !== "assistant" ||
+      !prior ||
+      String(prior.role) !== "user"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Cannot regenerate this reply. Try sending your message again.",
+        },
+        { status: 409 },
+      );
+    }
+    const priorRaw = prior.content;
+    const lastFp = userMessageSyncFingerprint(lastUserMessage.content);
+    let regenMatch = userMessageSyncFingerprint(priorRaw) === lastFp;
+    if (
+      !regenMatch &&
+      typeof priorRaw === "string" &&
+      priorRaw.startsWith('{"v":1')
+    ) {
+      try {
+        const o = JSON.parse(priorRaw);
+        const priorText = String(o?.t ?? "").trim();
+        const lastText = userMessageTextForSearch(lastUserMessage.content);
+        regenMatch = priorText === lastText.trim();
+      } catch {
+        regenMatch = false;
+      }
+    }
+    if (!regenMatch) {
+      return NextResponse.json(
+        {
+          error:
+            "Cannot regenerate: this chat is out of sync. Refresh the page.",
+        },
+        { status: 409 },
+      );
+    }
+    const assistantTurn = Number(latest.turn);
+    await prisma.chatMessage.deleteMany({
+      where: { threadId, turn: assistantTurn },
+    });
+    await prisma.chatMessage.create({
+      data: {
+        threadId,
+        turn: assistantTurn,
+        role: "assistant",
+        content: finalReply,
+        modelLabel,
+      },
+    });
+  } else {
+    const agg = await prisma.chatMessage.aggregate({
+      where: { threadId },
+      _max: { turn: true },
+    });
+    const nextTurn = (agg._max.turn ?? -1) + 1;
+
+    const userRowContent = userMessageContentForDatabase(
+      lastUserMessage.content,
+    );
+    await prisma.chatMessage.createMany({
+      data: [
+        {
+          threadId,
+          turn: nextTurn,
+          role: "user",
+          content: userRowContent,
+          modelLabel: null,
+        },
+        {
+          threadId,
+          turn: nextTurn + 1,
+          role: "assistant",
+          content: finalReply,
+          modelLabel,
+        },
+      ],
+    });
+  }
+
+  return NextResponse.json({
+    reply: finalReply,
+    webSearch: {
+      ...webSearch,
+      referencesRequested: wantsReferences,
+      referenceSearchAttempted,
+    },
+    sources: clientSources,
+  });
+});

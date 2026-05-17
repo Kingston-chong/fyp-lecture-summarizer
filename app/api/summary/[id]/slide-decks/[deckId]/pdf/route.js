@@ -2,10 +2,8 @@ import { NextResponse } from "next/server";
 import { get } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { getRequestUser } from "@/lib/apiAuth";
-import {
-  downloadPdfBuffer,
-  getAlaiPdfUrl,
-} from "@/lib/alaiSlidePptx";
+import { downloadPdfBuffer, getAlaiPdfUrl } from "@/lib/alaiSlidePptx";
+import { toBlobRef } from "@/lib/blobRef";
 
 function safeAsciiFilename(name) {
   return String(name || "presentation")
@@ -40,8 +38,9 @@ export async function GET(_req, context) {
 
     const fn = safeAsciiFilename(deck.title || "presentation");
 
-    if (deck.pdfUrl) {
-      const result = await get(deck.pdfUrl, {
+    const pdfRef = toBlobRef(deck.pdfUrl);
+    if (pdfRef) {
+      const result = await get(pdfRef, {
         access: "private",
         useCache: true,
       });

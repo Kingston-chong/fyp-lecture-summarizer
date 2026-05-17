@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { useTheme } from "./ThemeProvider.jsx";
 import { CloseIcon, QuizIco } from "./icons";
+import "./LecturerQuizReviewModal.css";
 import {
   formatQuizMarkdown,
   formatQuizPlainText,
@@ -19,115 +19,36 @@ function normalizeOptions(options) {
   return [];
 }
 
-function QuestionCard({ q, idx, mode, isDark }) {
+function QuestionCard({ q, idx, mode }) {
   const opts = normalizeOptions(q.options);
   const showKey = mode === "answerKey";
 
   return (
-    <div
-      className="lqr-card"
-      style={{
-        padding: "14px 16px",
-        borderRadius: 10,
-        border: `1px solid ${isDark ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.08)"}`,
-        background: isDark ? "rgba(255,255,255,.03)" : "rgba(0,0,0,.02)",
-        marginBottom: 12,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 8,
-        }}
-      >
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            textTransform: "uppercase",
-            color: isDark ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.4)",
-          }}
-        >
-          Question {idx + 1}
-        </span>
-        <span
-          style={{
-            fontSize: 10,
-            fontWeight: 600,
-            padding: "2px 8px",
-            borderRadius: 999,
-            background: "rgba(99,102,241,.15)",
-            color: "#a5b4fc",
-          }}
-        >
-          {q.type}
-        </span>
+    <div className="lqr-card">
+      <div className="lqr-card-head">
+        <span className="lqr-card-q-num">Question {idx + 1}</span>
+        <span className="lqr-card-type">{q.type}</span>
       </div>
-      <div
-        style={{
-          fontSize: 15,
-          lineHeight: 1.5,
-          color: isDark ? "#fff" : "#1a1a2e",
-          marginBottom: 12,
-        }}
-      >
-        {q.question}
-      </div>
+      <div className="lqr-card-question">{q.question}</div>
 
       {q.type === "MCQ" && opts.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="lqr-options">
           {opts.map((opt, i) => {
             const isCorrect =
-              showKey &&
-              String(opt).trim() === String(q.answer || "").trim();
+              showKey && String(opt).trim() === String(q.answer || "").trim();
             return (
               <div
                 key={i}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "8px 12px",
-                  borderRadius: 8,
-                  border: `1px solid ${
-                    isCorrect
-                      ? "rgba(34,197,94,.4)"
-                      : isDark
-                        ? "rgba(255,255,255,.08)"
-                        : "rgba(0,0,0,.08)"
-                  }`,
-                  background: isCorrect
-                    ? "rgba(34,197,94,.12)"
-                    : "transparent",
-                }}
+                className={`lqr-option${isCorrect ? " lqr-option--correct" : ""}`}
               >
                 <span
-                  style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    background: isCorrect
-                      ? "#22c55e"
-                      : isDark
-                        ? "rgba(255,255,255,.1)"
-                        : "rgba(0,0,0,.08)",
-                    color: isCorrect ? "#fff" : "inherit",
-                  }}
+                  className={`lqr-option-letter${isCorrect ? " lqr-option-letter--correct" : ""}`}
                 >
                   {String.fromCharCode(65 + i)}
                 </span>
-                <span style={{ flex: 1, fontSize: 13 }}>{opt}</span>
+                <span className="lqr-option-text">{opt}</span>
                 {isCorrect && (
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "#22c55e" }}>
-                    Correct
-                  </span>
+                  <span className="lqr-option-correct-label">Correct</span>
                 )}
               </div>
             );
@@ -136,23 +57,13 @@ function QuestionCard({ q, idx, mode, isDark }) {
       )}
 
       {q.type === "True/False" && (
-        <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+        <div className="lqr-tf-row">
           {["True", "False"].map((opt) => {
             const isCorrect = showKey && opt === q.answer;
             return (
               <span
                 key={opt}
-                style={{
-                  padding: "6px 14px",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  border: `1px solid ${
-                    isCorrect ? "rgba(34,197,94,.4)" : "rgba(255,255,255,.1)"
-                  }`,
-                  background: isCorrect
-                    ? "rgba(34,197,94,.12)"
-                    : "transparent",
-                }}
+                className={`lqr-tf-pill${isCorrect ? " lqr-tf-pill--correct" : ""}`}
               >
                 {opt}
                 {isCorrect ? " ✓" : ""}
@@ -163,37 +74,22 @@ function QuestionCard({ q, idx, mode, isDark }) {
       )}
 
       {(q.type === "FillInBlanks" || q.type === "ShortAnswer") && showKey && (
-        <div
-          style={{
-            fontSize: 13,
-            color: isDark ? "rgba(255,255,255,.55)" : "rgba(0,0,0,.55)",
-          }}
-        >
+        <div className="lqr-expected">
           Expected answer:{" "}
-          <strong style={{ color: "#22c55e" }}>{q.answer}</strong>
+          <strong className="qvm-answer--ok">{q.answer}</strong>
         </div>
       )}
 
       {showKey && q.explanation && (
-        <div
-          style={{
-            marginTop: 10,
-            padding: "10px 12px",
-            borderRadius: 8,
-            background: "rgba(99,102,241,.08)",
-            border: "1px solid rgba(99,102,241,.2)",
-            fontSize: 12.5,
-            lineHeight: 1.5,
-            color: isDark ? "rgba(255,255,255,.75)" : "rgba(0,0,0,.7)",
-          }}
-        >
-          <strong style={{ color: "#a5b4fc" }}>Explanation: </strong>
+        <div className="lqr-expl">
+          <strong>Explanation: </strong>
           {q.explanation}
         </div>
       )}
     </div>
   );
 }
+
 
 export default function LecturerQuizReviewModal({
   quizSet,
@@ -202,14 +98,41 @@ export default function LecturerQuizReviewModal({
   onRegenerate,
   onPublishChange,
 }) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
-  const [tab, setTab] = useState("answerKey");
+const [tab, setTab] = useState("answerKey");
   const [copied, setCopied] = useState("");
   const [published, setPublished] = useState(Boolean(quizSet?.published));
+  const [acceptingResponses, setAcceptingResponses] = useState(
+    Boolean(quizSet?.acceptingResponses),
+  );
   const [shareToken, setShareToken] = useState(quizSet?.shareToken || "");
+  const [closesAtLocal, setClosesAtLocal] = useState(() => {
+    if (!quizSet?.closesAt) return "";
+    const d = new Date(quizSet.closesAt);
+    return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 16);
+  });
   const [publishLoading, setPublishLoading] = useState(false);
+  const [collectionLoading, setCollectionLoading] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
+
+  useEffect(() => {
+    setPublished(Boolean(quizSet?.published));
+    setAcceptingResponses(Boolean(quizSet?.acceptingResponses));
+    setShareToken(quizSet?.shareToken || "");
+    if (!quizSet?.closesAt) {
+      setClosesAtLocal("");
+    } else {
+      const d = new Date(quizSet.closesAt);
+      setClosesAtLocal(
+        Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 16),
+      );
+    }
+  }, [
+    quizSet?.id,
+    quizSet?.published,
+    quizSet?.acceptingResponses,
+    quizSet?.shareToken,
+    quizSet?.closesAt,
+  ]);
 
   const questions = useMemo(
     () =>
@@ -262,6 +185,7 @@ export default function LecturerQuizReviewModal({
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Publish failed");
       setPublished(Boolean(data.published));
+      setAcceptingResponses(Boolean(data.acceptingResponses));
       setShareToken(data.shareToken || "");
       onPublishChange?.();
     } catch (e) {
@@ -271,122 +195,65 @@ export default function LecturerQuizReviewModal({
     }
   };
 
+  const handleCollectionToggle = async () => {
+    if (!summaryId || !quizSet?.id || !published) return;
+    setCollectionLoading(true);
+    try {
+      const res = await fetch(
+        `/api/summary/${summaryId}/quiz-sets/${quizSet.id}/collection`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            acceptingResponses: !acceptingResponses,
+            closesAt:
+              !acceptingResponses && closesAtLocal
+                ? new Date(closesAtLocal).toISOString()
+                : null,
+          }),
+        },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not update collection");
+      setAcceptingResponses(Boolean(data.acceptingResponses));
+      onPublishChange?.();
+    } catch (e) {
+      window.alert(e.message || "Could not update collection status");
+    } finally {
+      setCollectionLoading(false);
+    }
+  };
+
   if (!quizSet) return null;
 
   const listMode = tab === "answerKey" ? "answerKey" : "student";
 
   return (
     <div
-      className={`sl-overlay${isDark ? "" : " quiz-review-light"}`}
+      className="sl-overlay lqr-overlay"
       role="presentation"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="sl-modal"
-        style={{ maxWidth: 720, maxHeight: "90vh" }}
+        className="sl-modal sl-modal--wide lqr-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="lqr-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <style>{`
-          @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap');
-          @keyframes overlayIn { from { opacity:0; } to { opacity:1; } }
-          @keyframes modalIn { from { opacity:0; transform:scale(.96) translateY(14px); } to { opacity:1; transform:none; } }
-
-          .sl-overlay {
-            position: fixed; inset: 0; z-index: 1100;
-            background: ${isDark ? "rgba(6,6,14,.72)" : "rgba(0,0,20,.4)"};
-            backdrop-filter: blur(6px);
-            display: flex; align-items: center; justify-content: center;
-            padding: 20px; animation: overlayIn .2s ease;
-            font-family: 'Sora', sans-serif;
-          }
-          .sl-modal {
-            width: 100%; max-width: 720px; max-height: 90vh;
-            background: ${isDark ? "rgba(17,17,27,.97)" : "rgba(255,255,255,.98)"};
-            border: 1px solid ${isDark ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.1)"};
-            border-radius: 18px;
-            box-shadow: ${isDark ? "0 32px 80px rgba(0,0,0,.7)" : "0 32px 80px rgba(0,0,0,.3)"};
-            display: flex; flex-direction: column;
-            animation: modalIn .28s cubic-bezier(.16,1,.3,1);
-            overflow: hidden;
-          }
-          .sl-head {
-            display: flex; align-items: flex-start; justify-content: space-between;
-            padding: 18px 22px 14px;
-            border-bottom: 1px solid ${isDark ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.07)"};
-            flex-shrink: 0;
-          }
-          .sl-title {
-            font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600;
-            color: ${isDark ? "#e0e0f4" : "#1a1a2e"};
-            display: flex; align-items: center; gap: 8px;
-          }
-          .sl-close {
-            width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
-            border: 1px solid ${isDark ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.1)"};
-            background: ${isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.05)"};
-            color: ${isDark ? "rgba(255,255,255,.5)" : "rgba(0,0,0,.5)"};
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer;
-          }
-          .sl-body {
-            overflow-y: auto; flex: 1;
-            padding: 16px 22px 20px;
-          }
-          .sl-body::-webkit-scrollbar { width: 3px; }
-          .sl-body::-webkit-scrollbar-thumb {
-            background: ${isDark ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.15)"};
-            border-radius: 4px;
-          }
-          .sl-foot {
-            display: flex; align-items: center; justify-content: flex-end; gap: 9px;
-            padding: 14px 22px;
-            border-top: 1px solid ${isDark ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.07)"};
-            flex-shrink: 0;
-          }
-          .btn-prev {
-            height: 36px; padding: 0 18px; border-radius: 9px;
-            border: 1px solid ${isDark ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"};
-            background: ${isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)"};
-            font-family: inherit; font-size: 12.5px; font-weight: 500;
-            color: ${isDark ? "rgba(255,255,255,.55)" : "rgba(0,0,0,.55)"};
-            cursor: pointer;
-          }
-          .btn-create {
-            height: 36px; padding: 0 20px; border-radius: 9px; border: none;
-            background: linear-gradient(135deg,#5258ee,#8b5cf6);
-            font-family: inherit; font-size: 12.5px; font-weight: 600;
-            color: white; cursor: pointer;
-            box-shadow: 0 4px 16px rgba(99,102,241,.35);
-          }
-
-          .lqr-tabs { display: flex; gap: 4px; padding: 0 22px 12px; border-bottom: 1px solid ${isDark ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.08)"}; }
-          .lqr-tab { padding: 8px 14px; border-radius: 8px; border: none; background: transparent; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; color: ${isDark ? "rgba(255,255,255,.45)" : "rgba(0,0,0,.45)"}; }
-          .lqr-tab.on { background: rgba(99,102,241,.18); color: #a5b4fc; }
-          .lqr-share-card { padding: 14px; border-radius: 10px; border: 1px solid ${isDark ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.08)"}; margin-bottom: 12px; }
-          .lqr-btn { padding: 8px 14px; border-radius: 8px; border: 1px solid rgba(99,102,241,.35); background: rgba(99,102,241,.15); color: #c7d2fe; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
-          .lqr-btn:hover { background: rgba(99,102,241,.28); }
-          .lqr-btn.secondary { border-color: ${isDark ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"}; background: transparent; color: inherit; }
-        `}</style>
-
-        <div className="sl-head">
+<div className="sl-head">
           <div>
             <div className="sl-title" id="lqr-title">
               <QuizIco /> {quizSet.title || "Class quiz"}
             </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: isDark ? "rgba(255,255,255,.4)" : "rgba(0,0,0,.45)",
-                marginTop: 4,
-              }}
-            >
-              {meta}
-            </div>
+            <div className="lqr-meta">{meta}</div>
           </div>
-          <button type="button" className="sl-close" onClick={onClose} aria-label="Close">
+          <button
+            type="button"
+            className="sl-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
             <CloseIcon size={14} />
           </button>
         </div>
@@ -408,25 +275,18 @@ export default function LecturerQuizReviewModal({
           ))}
         </div>
 
-        <div className="sl-body" style={{ flex: 1, overflowY: "auto" }}>
+        <div className="sl-body">
           {tab === "share" ? (
             <div>
               <div className="lqr-share-card">
-                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>
+                <div className="lqr-share-title">
                   Export files
                 </div>
-                <p
-                  style={{
-                    fontSize: 11,
-                    opacity: 0.55,
-                    marginBottom: 10,
-                    lineHeight: 1.45,
-                  }}
-                >
-                  Download a student handout (no answers) or a full answer key with
-                  explanations.
+                <p className="lqr-share-desc">
+                  Download a student handout (no answers) or a full answer key
+                  with explanations.
                 </p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                <div className="lqr-share-actions">
                   <button
                     type="button"
                     className="lqr-btn secondary"
@@ -481,16 +341,16 @@ export default function LecturerQuizReviewModal({
               </div>
 
               <div className="lqr-share-card">
-                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>
+                <div className="lqr-share-title">
                   Google Forms
                 </div>
-                <p style={{ fontSize: 11, opacity: 0.55, marginBottom: 10, lineHeight: 1.45 }}>
+                <p className="lqr-share-desc">
                   Copy formatted text and paste questions into{" "}
                   <a
                     href="https://forms.google.com"
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ color: "#a5b4fc" }}
+                    className="lqr-link"
                   >
                     Google Forms
                   </a>{" "}
@@ -500,10 +360,7 @@ export default function LecturerQuizReviewModal({
                   type="button"
                   className="lqr-btn"
                   onClick={() =>
-                    void handleCopy(
-                      formatQuizGoogleForms(quizSet),
-                      "google",
-                    )
+                    void handleCopy(formatQuizGoogleForms(quizSet), "google")
                   }
                 >
                   {copied === "google" ? "Copied!" : "Copy for Google Forms"}
@@ -511,43 +368,62 @@ export default function LecturerQuizReviewModal({
               </div>
 
               <div className="lqr-share-card">
-                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>
+                <div className="lqr-share-title">
                   Students take in app
                 </div>
-                <p style={{ fontSize: 11, opacity: 0.55, marginBottom: 10, lineHeight: 1.45 }}>
-                  Publish a share link so students can take this quiz without seeing
-                  your lecture summary or the answer key.
+                <p className="lqr-share-desc">
+                  Publish a share link first, then start collecting when you are
+                  ready for students to submit. Stop collecting to close the
+                  window while keeping the link available.
                 </p>
-                <button
-                  type="button"
-                  className="lqr-btn"
-                  disabled={publishLoading}
-                  onClick={() => void handlePublish()}
-                >
-                  {publishLoading
-                    ? "Updating…"
-                    : published
-                      ? "Unpublish"
-                      : "Publish for students"}
-                </button>
+                <div className="lqr-share-actions lqr-share-actions--center">
+                  <button
+                    type="button"
+                    className="lqr-btn"
+                    disabled={publishLoading || collectionLoading}
+                    onClick={() => void handlePublish()}
+                  >
+                    {publishLoading
+                      ? "Updating…"
+                      : published
+                        ? "Unpublish"
+                        : "Publish for students"}
+                  </button>
+                  {published && (
+                    <>
+                      <label className="lqr-closes-at">
+                        <span>Close automatically</span>
+                        <input
+                          type="datetime-local"
+                          value={closesAtLocal}
+                          onChange={(e) => setClosesAtLocal(e.target.value)}
+                          disabled={collectionLoading || publishLoading}
+                        />
+                      </label>
+                      <span className={`lqr-status-badge${acceptingResponses ? " lqr-status-badge--collecting" : ""}`}>
+                        {acceptingResponses ? "Collecting" : "Not collecting"}
+                      </span>
+                      <button
+                        type="button"
+                        className={
+                          acceptingResponses ? "lqr-btn secondary" : "lqr-btn"
+                        }
+                        disabled={collectionLoading || publishLoading}
+                        onClick={() => void handleCollectionToggle()}
+                      >
+                        {collectionLoading
+                          ? "Updating…"
+                          : acceptingResponses
+                            ? "Stop collecting"
+                            : "Start collecting"}
+                      </button>
+                    </>
+                  )}
+                </div>
                 {published && shareUrl && (
-                  <div style={{ marginTop: 12 }}>
+                  <div className="lqr-share-url-wrap">
                     <input
-                      readOnly
-                      value={shareUrl}
-                      style={{
-                        width: "100%",
-                        padding: "8px 10px",
-                        borderRadius: 8,
-                        border: `1px solid ${isDark ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.1)"}`,
-                        background: isDark
-                          ? "rgba(255,255,255,.04)"
-                          : "rgba(0,0,0,.03)",
-                        color: "inherit",
-                        fontSize: 11,
-                        fontFamily: "inherit",
-                        marginBottom: 8,
-                      }}
+                      readOnly value={shareUrl} className="lqr-share-input"
                     />
                     <button
                       type="button"
@@ -567,8 +443,7 @@ export default function LecturerQuizReviewModal({
                 q={q}
                 idx={i}
                 mode={listMode}
-                isDark={isDark}
-              />
+                />
             ))
           )}
         </div>

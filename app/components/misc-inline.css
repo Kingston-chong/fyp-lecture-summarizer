@@ -1,0 +1,31 @@
+/* Shared utilities for migrated inline styles */
+
+.inline-relative {
+  position: relative;
+}
+
+.inline-w-full {
+  width: 100%;
+}
+
+.inline-flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inline-flex-wrap-gap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inline-text-muted-sm {
+  font-size: 11px;
+  opacity: 0.55;
+  line-height: 1.45;
+}
+
+.inline-link-accent {
+  color: #a5b4fc;
+}

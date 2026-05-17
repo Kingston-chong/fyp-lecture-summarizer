@@ -4,6 +4,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRequestUser } from "@/lib/apiAuth";
 
+const MAX_FILE_BYTES = Number.parseInt(
+  process.env.UPLOAD_MAX_FILE_BYTES || String(25 * 1024 * 1024),
+  10,
+);
+
 const ALLOWED_EXTENSIONS = new Set([
   "PDF",
   "PPTX",
@@ -70,6 +75,14 @@ export async function POST(req) {
         return NextResponse.json(
           { error: "Invalid file upload payload" },
           { status: 400 },
+        );
+      }
+
+      if (file.size > MAX_FILE_BYTES) {
+        const maxMb = Math.round(MAX_FILE_BYTES / (1024 * 1024));
+        return NextResponse.json(
+          { error: `File too large (max ${maxMb} MB): ${file.name}` },
+          { status: 413 },
         );
       }
 

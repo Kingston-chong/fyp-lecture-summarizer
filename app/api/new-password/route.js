@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import { apiHandler } from "@/lib/apiHandler";
 
+// PUBLIC ROUTE — no auth required (deprecated password reset path)
 /**
  * Legacy/alternate path. New password is set via POST /api/reset-password (email, token, password).
  */
-export async function POST() {
+export const POST = apiHandler(async function POST() {
   return NextResponse.json(
     {
       error:
@@ -11,4 +13,4 @@ export async function POST() {
     },
     { status: 410 },
   );
-}
+});

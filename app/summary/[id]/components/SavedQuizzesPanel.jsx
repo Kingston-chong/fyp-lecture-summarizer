@@ -40,14 +40,15 @@ export default function SavedQuizzesPanel({
         <div className="hl-sub" style={{ marginTop: -4, marginBottom: 6 }}>
           {isLecturer ? (
             <>
-              Generated class quizzes are saved here. Open one to review questions,
-              export, or publish a share link for students.
+              Generated class quizzes are saved here. Open one to review
+              questions, export, or publish a share link for students.
             </>
           ) : (
             <>
               Quiz questions stay saved here. When you <strong>finish</strong> a
-              quiz, that score is stored; exiting early does not save an attempt.
-              Use <strong>History</strong> below to see past scores for each quiz.
+              quiz, that score is stored; exiting early does not save an
+              attempt. Use <strong>History</strong> below to see past scores for
+              each quiz.
             </>
           )}
         </div>
@@ -76,7 +77,15 @@ export default function SavedQuizzesPanel({
                     ? ` · ${q._count.questions} Q`
                     : ""}
                   {isLecturer ? (
-                    q.published ? " · Published" : " · Draft"
+                    q.published ? (
+                      q.acceptingResponses ? (
+                        " · Published · Collecting"
+                      ) : (
+                        " · Published · Closed"
+                      )
+                    ) : (
+                      " · Draft"
+                    )
                   ) : q.latestAttempt ? (
                     <>
                       {" "}
@@ -159,6 +168,11 @@ export default function SavedQuizzesPanel({
                             }}
                             onClick={() => onOpenAttempt(a)}
                           >
+                            {(a.respondentLabel ||
+                              a.user?.username ||
+                              a.user?.email ||
+                              "Student") +
+                              ": "}
                             {a.score}/{a.totalQuestions}
                             {a.createdAt
                               ? ` — ${formatSlideDeckSavedAt(a.createdAt)}`

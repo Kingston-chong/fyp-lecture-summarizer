@@ -3,6 +3,7 @@ import { get } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { getRequestUser } from "@/lib/apiAuth";
 import { verifySlideDeckViewToken } from "@/lib/slideDeckViewToken";
+import { toBlobRef } from "@/lib/blobRef";
 
 function safeAsciiFilename(name) {
   return String(name || "presentation")
@@ -58,7 +59,15 @@ export async function GET(req, context) {
       );
     }
 
-    const result = await get(deck.pptxUrl, {
+    const blobRef = toBlobRef(deck.pptxUrl);
+    if (!blobRef) {
+      return NextResponse.json(
+        { error: "Slide deck file is missing" },
+        { status: 404 },
+      );
+    }
+
+    const result = await get(blobRef, {
       access: "private",
       useCache: true,
     });

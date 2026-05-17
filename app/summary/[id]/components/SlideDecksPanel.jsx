@@ -47,6 +47,12 @@ export default function SlideDecksPanel({
                 {d.title}
               </div>
               <div className="sd-deck-meta">
+                {d.provider === "2slides"
+                  ? "2slides"
+                  : d.provider === "alai"
+                    ? "Alai"
+                    : null}
+                {d.provider ? " · " : ""}
                 {formatSlideDeckSavedAt(d.createdAt)}
               </div>
               <div className="sd-deck-actions">

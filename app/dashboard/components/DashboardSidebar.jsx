@@ -13,6 +13,8 @@ export default function DashboardSidebar({
   setSidebarSection,
   historyLoading,
   history,
+  historySearch = "",
+  onHistorySearchChange,
   expandedHistory,
   setExpandedHistory,
   onHistoryNavigate,
@@ -48,6 +50,19 @@ export default function DashboardSidebar({
           <ChevronDownIcon />
         </span>
       </div>
+
+      {sidebarSection.history && (
+        <div className="sidebar-search-wrap">
+          <input
+            type="search"
+            className="sidebar-search"
+            placeholder="Search summaries…"
+            value={historySearch}
+            onChange={(e) => onHistorySearchChange?.(e.target.value)}
+            aria-label="Search summary history"
+          />
+        </div>
+      )}
 
       {sidebarSection.history &&
         (historyLoading ? (

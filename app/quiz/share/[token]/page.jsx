@@ -31,6 +31,7 @@ export default function SharedQuizPage() {
   const [error, setError] = useState("");
   const [quizSet, setQuizSet] = useState(null);
   const [quizOpen, setQuizOpen] = useState(false);
+  const [respondentName, setRespondentName] = useState("");
 
   const settings = useMemo(
     () => (quizSet ? settingsFromQuizSet(quizSet) : null),
@@ -56,7 +57,11 @@ export default function SharedQuizPage() {
           setQuizSet(null);
           return;
         }
-        setQuizSet(data.quizSet);
+        setQuizSet({
+          ...data.quizSet,
+          acceptingResponses: Boolean(data.acceptingResponses),
+          collectionStatus: data.collectionStatus ?? "closed",
+        });
       } catch {
         if (!cancelled) setError("Could not load quiz.");
       } finally {
@@ -101,7 +106,8 @@ export default function SharedQuizPage() {
       >
         <h1 style={{ fontSize: 20, marginBottom: 8 }}>Quiz unavailable</h1>
         <p style={{ opacity: 0.65, maxWidth: 360, lineHeight: 1.5 }}>
-          {error || "This link may be invalid or the lecturer has unpublished the quiz."}
+          {error ||
+            "This link may be invalid or the lecturer has unpublished the quiz."}
         </p>
         <button
           type="button"
@@ -139,7 +145,14 @@ export default function SharedQuizPage() {
         }}
       >
         <h1 style={{ fontSize: 20, marginBottom: 8 }}>{quizSet.title}</h1>
-        <p style={{ opacity: 0.65, maxWidth: 360, lineHeight: 1.5, marginBottom: 20 }}>
+        <p
+          style={{
+            opacity: 0.65,
+            maxWidth: 360,
+            lineHeight: 1.5,
+            marginBottom: 20,
+          }}
+        >
           Sign in to take this quiz and save your score.
         </p>
         <button
@@ -155,7 +168,9 @@ export default function SharedQuizPage() {
             fontWeight: 600,
           }}
           onClick={() =>
-            router.push(`/login?callbackUrl=${encodeURIComponent(`/quiz/share/${token}`)}`)
+            router.push(
+              `/login?callbackUrl=${encodeURIComponent(`/quiz/share/${token}`)}`,
+            )
           }
         >
           Sign in
@@ -179,6 +194,8 @@ export default function SharedQuizPage() {
     );
   }
 
+  const canStart = Boolean(quizSet.acceptingResponses);
+
   return (
     <>
       {!quizOpen && (
@@ -197,10 +214,62 @@ export default function SharedQuizPage() {
           <p style={{ opacity: 0.6, marginBottom: 16 }}>
             {quizSet.questions?.length ?? 0} questions
           </p>
+          {!canStart && (
+            <p
+              style={{
+                opacity: 0.65,
+                maxWidth: 360,
+                lineHeight: 1.5,
+                marginBottom: 16,
+                fontSize: 14,
+              }}
+            >
+              Your lecturer has not opened this quiz for responses yet, or
+              response collection has ended. Check back when they start
+              collecting.
+            </p>
+          )}
+          {canStart && (
+            <label
+              style={{
+                display: "block",
+                maxWidth: 320,
+                width: "100%",
+                marginBottom: 14,
+                textAlign: "left",
+                fontSize: 13,
+              }}
+            >
+              <span style={{ display: "block", marginBottom: 6, opacity: 0.7 }}>
+                Your name (optional, shown to your lecturer)
+              </span>
+              <input
+                type="text"
+                value={respondentName}
+                onChange={(e) => setRespondentName(e.target.value)}
+                placeholder="e.g. Alex Chen"
+                maxLength={120}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "rgba(255,255,255,0.04)",
+                  color: "inherit",
+                  fontFamily: "inherit",
+                  fontSize: 14,
+                }}
+              />
+            </label>
+          )}
           <button
             type="button"
             className="btn-create"
+            disabled={!canStart}
             onClick={() => setQuizOpen(true)}
+            style={
+              !canStart ? { opacity: 0.45, cursor: "not-allowed" } : undefined
+            }
           >
             Start quiz
           </button>
@@ -211,6 +280,7 @@ export default function SharedQuizPage() {
           quizSet={quizSet}
           settings={settings}
           shareToken={token}
+          respondentLabel={respondentName}
           onClose={() => router.push("/dashboard")}
         />
       )}

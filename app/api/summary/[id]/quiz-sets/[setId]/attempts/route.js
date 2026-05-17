@@ -53,15 +53,17 @@ export async function GET(_req, context) {
 
     const [attempts, questions] = await Promise.all([
       prisma.quizAttempt.findMany({
-        where: { quizSetId: setId, userId: user.id },
+        where: { quizSetId: setId },
         orderBy: { createdAt: "desc" },
-        take: 20,
+        take: 50,
         select: {
           id: true,
           score: true,
           totalQuestions: true,
           answers: true,
           createdAt: true,
+          respondentLabel: true,
+          user: { select: { username: true, email: true } },
         },
       }),
       prisma.quizQuestion.findMany({
@@ -72,6 +74,7 @@ export async function GET(_req, context) {
           order: true,
           question: true,
           answer: true,
+          explanation: true,
         },
       }),
     ]);

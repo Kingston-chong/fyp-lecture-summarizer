@@ -50,9 +50,7 @@ export default function CollapsibleSidebarSection({
   }, [id, persist]);
 
   return (
-    <section
-      className={`src-section${open ? " is-open" : " is-collapsed"}`}
-    >
+    <section className={`src-section${open ? " is-open" : " is-collapsed"}`}>
       <div className="src-section-head-row">
         <button
           type="button"

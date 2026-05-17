@@ -113,7 +113,9 @@ export default function MobileMoreSheet({
 
           <CollapsibleSidebarSection
             id="quizzes"
-            title={quizSetsProps?.isLecturer ? "Class quizzes" : "Saved quizzes"}
+            title={
+              quizSetsProps?.isLecturer ? "Class quizzes" : "Saved quizzes"
+            }
             badge={quizCount || null}
             defaultOpen={false}
             actions={
@@ -124,11 +126,7 @@ export default function MobileMoreSheet({
                 disabled={quizSetsProps?.quizSetsLoading}
                 onClick={quizSetsProps?.onRefresh}
               >
-                {quizSetsProps?.quizSetsLoading ? (
-                  <Spinner size={11} />
-                ) : (
-                  "↻"
-                )}
+                {quizSetsProps?.quizSetsLoading ? <Spinner size={11} /> : "↻"}
               </button>
             }
           >

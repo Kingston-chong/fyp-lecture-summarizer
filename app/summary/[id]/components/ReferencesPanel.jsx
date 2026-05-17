@@ -956,10 +956,15 @@ export default function ReferencesPanel({
         {/* ── Header ── */}
         <div className="rp-head">
           {!embedded && (
-          <div className="rp-head-top">
-            <div className="rp-head-left">
-              <span className="rp-title">References</span>
-              {count > 0 && <span className="rp-count">{count}</span>}
+            <div className="rp-head-top">
+              <div className="rp-head-left">
+                <span className="rp-title">References</span>
+                {count > 0 && <span className="rp-count">{count}</span>}
+              </div>
+            </div>
+          )}
+          {(incompleteCount > 0 || count > 0) && (
+            <div className="rp-head-meta-row">
               {incompleteCount > 0 && (
                 <span
                   className="rp-incomplete-badge"
@@ -968,31 +973,18 @@ export default function ReferencesPanel({
                   {incompleteCount} incomplete
                 </span>
               )}
-            </div>
-          </div>
-          )}
-          {embedded && incompleteCount > 0 && (
-            <div className="rp-head-embedded-meta">
-              <span
-                className="rp-incomplete-badge"
-                title={`${incompleteCount} reference${incompleteCount > 1 ? "s are" : " is"} missing fields`}
-              >
-                {incompleteCount} incomplete
-              </span>
+              {count > 0 && (
+                <CopyAllButton
+                  references={references}
+                  style={citationStyle}
+                  alphabetical={alphabetical}
+                />
+              )}
             </div>
           )}
           <div className="rp-head-bottom">
             <StylePicker value={citationStyle} onChange={setCitationStyle} />
           </div>
-          {count > 0 && (
-            <div className="rp-head-copy-row">
-              <CopyAllButton
-                references={references}
-                style={citationStyle}
-                alphabetical={alphabetical}
-              />
-            </div>
-          )}
         </div>
 
         {/* ── Body ── */}
