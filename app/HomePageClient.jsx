@@ -40,7 +40,7 @@ const HOMEPAGE_MODEL_PROVIDERS = [
   },
 ];
 
-export default function HomePage() {
+export default function HomePageClient() {
   const [activeStep, setActiveStep] = useState(0);
 
   useEffect(() => {

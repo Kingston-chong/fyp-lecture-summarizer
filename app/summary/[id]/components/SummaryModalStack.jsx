@@ -19,7 +19,6 @@ export default function SummaryModalStack({
   slideDeckRemotePptUrl,
   slideDeckPreviewTitle,
   slideDeckDlRef,
-  slideDeckPdfDlRef,
   quizModal,
   setQuizModal,
   setQuizData,
@@ -55,14 +54,6 @@ export default function SummaryModalStack({
           subtitle="Saved slide deck"
           onDownload={(() => {
             const fn = slideDeckDlRef.current;
-            return typeof fn === "function"
-              ? async () => {
-                  await fn();
-                }
-              : undefined;
-          })()}
-          onDownloadPdf={(() => {
-            const fn = slideDeckPdfDlRef?.current;
             return typeof fn === "function"
               ? async () => {
                   await fn();

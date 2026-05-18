@@ -7,11 +7,9 @@ export default function SlideDecksPanel({
   slideDecks,
   slideDecksLoading,
   slideDeckDeletingId,
-  slideDeckPdfLoadingIds = new Set(),
   onRefresh,
   onPreview,
   onDownload,
-  onDownloadPdf,
   onDelete,
   panelClassName = "hl-panel sd-panel sd-panel--sources",
   embedded = false,
@@ -42,9 +40,7 @@ export default function SlideDecksPanel({
             None yet. Generate slides — a copy saves here automatically.
           </div>
         ) : (
-          slideDecks.map((d) => {
-            const isPdfLoading = slideDeckPdfLoadingIds.has(d.id);
-            return (
+          slideDecks.map((d) => (
               <div key={d.id} className="sd-deck-row">
                 <div className="sd-deck-title" title={d.title}>
                   {d.title}
@@ -72,23 +68,7 @@ export default function SlideDecksPanel({
                     onClick={() => onDownload(d)}
                     title="Download PowerPoint (.pptx)"
                   >
-                    PPTX
-                  </button>
-                  <button
-                    type="button"
-                    className="sd-deck-btn sd-deck-btn--pdf"
-                    onClick={() => onDownloadPdf?.(d)}
-                    title="Save as PDF"
-                    disabled={isPdfLoading}
-                  >
-                    {isPdfLoading ? (
-                      <>
-                        <Spinner size={9} />
-                        <span>PDF…</span>
-                      </>
-                    ) : (
-                      "PDF"
-                    )}
+                    Download
                   </button>
                   <button
                     type="button"
@@ -100,8 +80,7 @@ export default function SlideDecksPanel({
                   </button>
                 </div>
               </div>
-            );
-          })
+          ))
         )}
       </div>
     </div>

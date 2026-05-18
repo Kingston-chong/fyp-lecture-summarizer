@@ -608,10 +608,10 @@ export default function CreateSlidesForm({
           add relevant context.
         </FieldLabel>
 
-        {isAlai ? (
+        {isAlai || provider === "2slides" ? (
           <>
             <Divider />
-            <SectionHead>Alai theme</SectionHead>
+            <SectionHead>{isAlai ? "Alai theme" : "2slides theme"}</SectionHead>
             {alaiThemesLoading ? (
               <div className="tag-hint">Loading themes…</div>
             ) : alaiThemes.length > 0 ? (
@@ -630,10 +630,16 @@ export default function CreateSlidesForm({
             ) : (
               <div className="tag-hint" style={{ marginBottom: 8 }}>
                 {alaiThemesHint ||
-                  "No themes available. Configure ALAI_API_KEY to browse Alai themes."}
+                  (isAlai
+                    ? "No themes available. Configure ALAI_API_KEY to browse Alai themes."
+                    : "No themes available. Configure TWOSLIDES_API_KEY and pick a theme before generating.")}
               </div>
             )}
+          </>
+        ) : null}
 
+        {isAlai ? (
+          <>
             <Divider />
             <SectionHead>Picture density</SectionHead>
             <div className="tag-hint" style={{ marginBottom: 8 }}>

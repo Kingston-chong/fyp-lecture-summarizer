@@ -301,6 +301,33 @@ html[data-theme="light"] .rp-abstract-display::-webkit-scrollbar-thumb {
   min-width: 22px;
   padding-top: 1px;
   font-variant-numeric: tabular-nums;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 4px;
+}
+.rp-cite-backlinks {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+.rp-cite-caret {
+  opacity: 0.85;
+  margin-right: 1px;
+}
+.rp-cite-backlink {
+  color: #60a5fa;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 10px;
+  padding: 0 1px;
+}
+.rp-cite-backlink:hover {
+  text-decoration: underline;
+  color: #93c5fd;
 }
 
 /* Body (clickable area) */
@@ -1140,4 +1167,49 @@ html[data-theme="light"] .rp-toast {
 }
 html[data-theme="light"] .rp-toast svg {
   color: #059669;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Embedded mode: cap the list height so the sidebar doesn't
+   become a single endless scroll when references are numerous.
+   The CollapsibleSidebarSection wrapper handles the outer collapse;
+   the inner list gets its own scroll so headers and controls stay visible.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* When inside the sources sidebar, give the list a fixed max and let
+   the list itself scroll — headers/controls always stay in view. */
+.sources-scroll .rp-root {
+  max-height: none;  /* keep existing override — outer sidebar scrolls */
+  overflow: visible; /* keep existing override */
+}
+
+.sources-scroll .rp-list {
+  /* Cap at ~8 items' worth of height, scroll within */
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+/* Compact the header inside sidebar — fewer vertical lines */
+.sources-scroll .rp-head {
+  gap: 5px;
+  padding: 8px 10px 6px;
+}
+
+/* Stack count badge + "copy all" inline to save vertical space */
+.sources-scroll .rp-head-meta-row {
+  flex-wrap: nowrap;
+}
+
+/* Tighten item padding when in sidebar */
+.sources-scroll .rp-item {
+  padding: 6px 6px 6px 8px;
+}
+
+/* Slightly smaller type in sidebar context */
+.sources-scroll .rp-item-title {
+  font-size: 11px;
+}
+
+.sources-scroll .rp-item-formatted {
+  font-size: 9.5px;
 }

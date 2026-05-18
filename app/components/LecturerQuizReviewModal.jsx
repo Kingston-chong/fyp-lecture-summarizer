@@ -276,7 +276,8 @@ export default function LecturerQuizReviewModal({
 
         <div className="sl-body">
           {tab === "share" ? (
-            <div>
+            <div className="lqr-share-grid">
+              <div className="lqr-share-col">
               <div className="lqr-share-card">
                 <div className="lqr-share-title">Export files</div>
                 <p className="lqr-share-desc">
@@ -361,9 +362,11 @@ export default function LecturerQuizReviewModal({
                   {copied === "google" ? "Copied!" : "Copy for Google Forms"}
                 </button>
               </div>
+              </div>
 
-              <div className="lqr-share-card">
-                <div className="lqr-share-title">Students take in app</div>
+              <div className="lqr-share-col lqr-share-col--website">
+              <div className="lqr-share-card lqr-share-card--website">
+                <div className="lqr-share-title">Students take in website</div>
                 <p className="lqr-share-desc">
                   Publish a share link first, then start collecting when you are
                   ready for students to submit. Stop collecting to close the
@@ -431,6 +434,7 @@ export default function LecturerQuizReviewModal({
                     </button>
                   </div>
                 )}
+              </div>
               </div>
             </div>
           ) : (

@@ -14,17 +14,10 @@ import {
   TrashIcon,
   UploadIcon,
 } from "./icons";
-
-function timeAgo(date) {
-  const diff = Date.now() - new Date(date).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
-}
+import {
+  formatSummarizeForLabel,
+  timeAgo,
+} from "@/app/dashboard/helpers";
 
 function formatBytes(bytes) {
   if (!bytes) return "";
@@ -449,9 +442,14 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
                     </button>
                   </div>
                   <div className="as-hmeta">
-                    {h.files.length} file{h.files.length !== 1 ? "s" : ""} ·{" "}
-                    {timeAgo(h.createdAt)}
+                    {[
+                      `${h.files.length} file${h.files.length !== 1 ? "s" : ""}`,
+                      formatSummarizeForLabel(h.summarizeFor),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </div>
+                  <div className="as-hdate">{timeAgo(h.createdAt)}</div>
                 </div>
                 {expandedHistory === h.id &&
                   h.files.map((f) => (

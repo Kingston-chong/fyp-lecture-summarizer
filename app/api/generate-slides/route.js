@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/apiAuth";
 import { getRoleProfile, normalizeSummarizeRole } from "@/lib/roleProfiles";
-import { submitTwoSlidesGeneration } from "@/lib/twoSlidesGenerate";
+import {
+  parseTwoSlidesPage,
+  submitTwoSlidesGeneration,
+} from "@/lib/twoSlidesGenerate";
 import { logger } from "@/lib/logger";
 import { applyLlmRateLimit } from "@/lib/llmRateLimit";
 import { ALAI_BASE, alaiErrorPayload, getAlaiApiKey } from "@/lib/alaiClient";
@@ -100,9 +103,18 @@ function buildAlaiAdditionalInstructions(body, roleProfile) {
  * @param {ReturnType<typeof getRoleProfile>} roleProfile
  */
 function buildTwoSlidesInputText(body, roleProfile) {
+  const parts = [];
+  const page = parseTwoSlidesPage(body?.maxSlides);
+  if (page > 0) {
+    parts.push(
+      `Target slide count: approximately ${page} slides. Do not exceed ${page + 1} slides.`,
+    );
+  }
   const instructions = buildAlaiAdditionalInstructions(body, roleProfile);
+  if (instructions) parts.push(instructions);
   const summary = String(body.summaryText || "").trim();
-  return `${instructions}\n\nSummary:\n${summary}`;
+  if (summary) parts.push(`Summary:\n${summary}`);
+  return parts.join("\n\n");
 }
 
 /** @param {unknown} style */
@@ -238,6 +250,17 @@ export async function POST(req) {
       });
     }
 
+    const themeId = String(body?.themeId || "").trim();
+    if (!themeId) {
+      return NextResponse.json(
+        {
+          error:
+            "A theme is required for 2slides. Search and select a theme before generating.",
+        },
+        { status: 400 },
+      );
+    }
+
     const twoSlidesInput = buildTwoSlidesInputText(
       { ...body, summaryText },
       roleProfile,
@@ -245,8 +268,9 @@ export async function POST(req) {
 
     const result = await submitTwoSlidesGeneration({
       inputText: twoSlidesInput,
-      themeId: body?.themeId || undefined,
-      title: body?.title || undefined,
+      themeId,
+      page: parseTwoSlidesPage(body?.maxSlides),
+      responseLanguage: String(body?.responseLanguage || "Auto").trim() || "Auto",
     });
 
     if (!result.ok) {

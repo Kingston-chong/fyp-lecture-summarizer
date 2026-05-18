@@ -328,19 +328,25 @@ export default function GenerateSlidesModal({
   }, [improveInstructions, aiModel]);
 
   useEffect(() => {
-    if (provider !== "alai") return;
+    if (provider !== "alai" && provider !== "2slides") return;
     let cancelled = false;
     setAlaiThemesLoading(true);
     setAlaiThemesHint("");
     void (async () => {
       try {
-        const res = await fetch("/api/themes?provider=alai");
+        const themesUrl =
+          provider === "2slides"
+            ? "/api/themes?provider=2slides&query=business&limit=24"
+            : "/api/themes?provider=alai";
+        const res = await fetch(themesUrl);
         const data = await res.json().catch(() => ({}));
         if (cancelled) return;
         if (!res.ok) {
           setAlaiThemes([]);
           setAlaiThemesHint(
-            data?.error || data?.hint || "Could not load Alai themes.",
+            data?.error ||
+              data?.hint ||
+              `Could not load ${provider === "2slides" ? "2slides" : "Alai"} themes.`,
           );
           return;
         }
@@ -349,19 +355,26 @@ export default function GenerateSlidesModal({
         if (data?.hint) setAlaiThemesHint(String(data.hint));
         else if (themes.length === 0) {
           setAlaiThemesHint(
-            "No Alai themes returned. Check ALAI_API_KEY in .env.local.",
+            provider === "2slides"
+              ? "No 2slides themes returned. Check TWOSLIDES_API_KEY in .env."
+              : "No Alai themes returned. Check ALAI_API_KEY in .env.local.",
           );
         }
         if (themes.length > 0) {
           setSelectedThemeId((prev) => {
-            if (prev) return prev;
+            if (prev && themes.some((t) => String(t?.id || t?.theme_id) === prev))
+              return prev;
             return String(themes[0]?.id || themes[0]?.theme_id || "") || prev;
           });
         }
       } catch {
         if (!cancelled) {
           setAlaiThemes([]);
-          setAlaiThemesHint("Could not load Alai themes.");
+          setAlaiThemesHint(
+            provider === "2slides"
+              ? "Could not load 2slides themes."
+              : "Could not load Alai themes.",
+          );
         }
       } finally {
         if (!cancelled) setAlaiThemesLoading(false);
@@ -472,11 +485,13 @@ export default function GenerateSlidesModal({
       const activeProvider = String(data.provider || provider).toLowerCase();
       setLastGenerationId(String(genId));
 
+      const pollIntervalMs = activeProvider === "2slides" ? 20_000 : 3_000;
+
       /** Alai often sets `completed` before `formats.ppt` is populated — keep polling. */
       let exportWaitAttempts = 0;
       const MAX_EXPORT_WAIT_ATTEMPTS = 60;
 
-      // Poll for completion (check immediately, then every 3s)
+      // Poll for completion (2slides: ≥20s per API guidance; Alai: 3s)
       while (true) {
         const pollRes = await fetch(
           `/api/generate-slides/${genId}?provider=${encodeURIComponent(activeProvider)}`,
@@ -505,7 +520,7 @@ export default function GenerateSlidesModal({
           setAlaiRemotePptUrl(pollData.remote_download_url || "");
           setFreshSlideDownload(pollData, activeProvider);
 
-          if (activeProvider === "alai" && pollData.preview_url) {
+          if (pollData.preview_url) {
             setGenerateProgress("Ready — opening preview...");
             setAlaiPreviewOpen(true);
           } else if (pollData.download_url) {
@@ -546,7 +561,7 @@ export default function GenerateSlidesModal({
           setGenerateProgress(
             String(pollData.error || "").trim() || "Waiting for PPTX export…",
           );
-          await new Promise((r) => setTimeout(r, 3000));
+          await new Promise((r) => setTimeout(r, pollIntervalMs));
           continue;
         }
 
@@ -561,7 +576,7 @@ export default function GenerateSlidesModal({
         setGenerateProgress(
           statusMessages[pollData.status] ?? `Working… (${pollData.status})`,
         );
-        await new Promise((r) => setTimeout(r, 3000));
+        await new Promise((r) => setTimeout(r, pollIntervalMs));
       }
     } catch (e) {
       setGenerateErr(e.message || String(e));
@@ -685,7 +700,7 @@ export default function GenerateSlidesModal({
           </div>
 
           {/* ── Scrollable body (2-col grid) ── */}
-          <div className="sl-body">
+          <div className="sl-body slides-sl-body">
             <CreateSlidesForm
               provider={provider}
               setProvider={setProvider}

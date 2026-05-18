@@ -133,7 +133,7 @@ export default function CitationPreviewPopover({
               onClose?.();
             }}
           >
-            View in sidebar
+            Go to citation
           </button>
         ) : null}
       </div>

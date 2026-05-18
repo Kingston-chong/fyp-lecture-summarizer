@@ -21,14 +21,16 @@ export default function MobileMoreSheet({
 }) {
   if (!open) return null;
 
+  const refCount = referencesProps?.references?.length ?? 0;
   const showReferences =
-    summary?.summarizeFor === "lecturer" && referencesProps != null;
+    summary?.summarizeFor === "lecturer" &&
+    referencesProps != null &&
+    (referencesProps.loading || refCount > 0);
   const baseFiles = summary?.files || [];
   const extraFiles = (extraSources || []).filter(
     (es) => !baseFiles.some((f) => f.id === es.id),
   );
   const fileCount = baseFiles.length + extraFiles.length;
-  const refCount = referencesProps?.references?.length ?? 0;
   const deckCount = slideDecksProps?.slideDecks?.length ?? 0;
   const quizCount = quizSetsProps?.quizSets?.length ?? 0;
   const hlCount =

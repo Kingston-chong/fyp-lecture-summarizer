@@ -49,7 +49,6 @@ function officeViewSrc(pptUrl) {
 export default function AlaiSlidesPreviewModal({
   onClose,
   onDownload,
-  onDownloadPdf,
   previewUrl,
   /** Signed PPTX URL from Alai — used when there is no link/pdf preview */
   remotePptUrl = "",
@@ -58,7 +57,6 @@ export default function AlaiSlidesPreviewModal({
   subtitle = "Your presentation slides is ready..",
 }) {
   const [downloading, setDownloading] = useState(false);
-  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [iframeLoading, setIframeLoading] = useState(true);
 
   // Prefer Office Online embed for the PPTX when we have a signed URL. Alai's own
@@ -94,16 +92,6 @@ export default function AlaiSlidesPreviewModal({
     }
   }
 
-  async function handleDownloadPdf() {
-    if (!onDownloadPdf) return;
-    setDownloadingPdf(true);
-    try {
-      await onDownloadPdf();
-    } finally {
-      setDownloadingPdf(false);
-    }
-  }
-
   return (
     <>
       <div
@@ -125,18 +113,10 @@ export default function AlaiSlidesPreviewModal({
               <button
                 className="alai-btn"
                 onClick={handleDownload}
-                disabled={!onDownload || downloading || downloadingPdf}
+                disabled={!onDownload || downloading}
               >
                 <DownloadIco />
                 {downloading ? "Downloading…" : "PPTX"}
-              </button>
-              <button
-                className="alai-btn"
-                onClick={() => void handleDownloadPdf()}
-                disabled={!onDownloadPdf || downloadingPdf || downloading}
-              >
-                <DownloadIco />
-                {downloadingPdf ? "Saving…" : "PDF"}
               </button>
               <button className="alai-close" onClick={onClose}>
                 <CloseIco />

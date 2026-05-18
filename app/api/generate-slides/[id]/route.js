@@ -48,7 +48,7 @@ export async function GET(req, context) {
           status: "completed",
           download_url: downloadEndpoint,
           remote_download_url: result.downloadUrl,
-          preview_url: null,
+          preview_url: result.downloadUrl ?? null,
         });
       }
 

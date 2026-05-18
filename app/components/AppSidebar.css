@@ -124,6 +124,11 @@
   color: rgba(255, 255, 255, 0.22);
   margin-top: 2px;
 }
+.as-hdate {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.18);
+  margin-top: 1px;
+}
 .as-hdots {
   width: 20px;
   height: 20px;
@@ -526,6 +531,9 @@ html[data-theme="light"] .as-hname {
 }
 html[data-theme="light"] .as-hmeta {
   color: rgba(0, 0, 0, 0.45);
+}
+html[data-theme="light"] .as-hdate {
+  color: rgba(0, 0, 0, 0.38);
 }
 html[data-theme="light"] .as-hdots {
   color: rgba(0, 0, 0, 0.45);

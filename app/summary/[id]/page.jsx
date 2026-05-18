@@ -21,6 +21,11 @@ import {
   buildReferencesSectionHtml,
   syntheticUploadReference,
 } from "@/lib/referenceDisplay";
+import {
+  buildMarkerAnchorMap,
+  extractCitationMarkers,
+  filterReferencesToCitedInBody,
+} from "@/lib/referenceUtils";
 import CitationPreviewPopover from "./components/CitationPreviewPopover";
 import { buildChatSuggestions } from "@/lib/chatSuggestionsFromSummary";
 import Button from "@/app/components/ui/Button";
@@ -143,6 +148,26 @@ export default function SummaryView() {
   const [citationPreview, setCitationPreview] = useState(null);
   const [referenceMutatingId, setReferenceMutatingId] = useState(null);
 
+  const lecturerReferences = useMemo(() => {
+    if (summary?.summarizeFor !== "lecturer" || summaryReferences.length === 0) {
+      return summaryReferences;
+    }
+    const output = summary?.output?.trim();
+    if (!output) return summaryReferences;
+    const anchorMap = buildMarkerAnchorMap(output);
+    return summaryReferences.map((r) => ({
+      ...r,
+      anchorIds: anchorMap.get(r.marker) ?? [],
+    }));
+  }, [summary?.summarizeFor, summary?.output, summaryReferences]);
+
+  const visibleLecturerReferences = useMemo(() => {
+    if (summary?.summarizeFor !== "lecturer") return [];
+    const output = summary?.output?.trim();
+    if (!output) return lecturerReferences;
+    return filterReferencesToCitedInBody(lecturerReferences, output);
+  }, [summary?.summarizeFor, summary?.output, lecturerReferences]);
+
   const { sourcesWidth, onSplitterMouseDown } = useSourcesPanelResize();
 
   const slideDecksApi = useSlideDecks({ summaryId, status });
@@ -156,12 +181,9 @@ export default function SummaryView() {
     slideDeckRemotePptUrl,
     slideDeckPreviewTitle,
     slideDeckDlRef,
-    slideDeckPdfDlRef,
-    slideDeckPdfLoadingIds,
     fetchSlideDecks,
     openSlideDeckPreview,
     downloadSlideDeck,
-    downloadSlideDeckPdf,
     deleteSlideDeck,
   } = slideDecksApi;
 
@@ -702,16 +724,22 @@ export default function SummaryView() {
     });
 
     if (summary.summarizeFor === "lecturer") {
-      const maxMarker = summaryReferences.length
-        ? Math.max(...summaryReferences.map((r) => r.marker))
-        : 99;
+      const citedMarkers = extractCitationMarkers(bodyMd);
+      const maxMarker =
+        citedMarkers.length > 0 ? Math.max(...citedMarkers) : 99;
       bodyHtml = enrichSummaryBodyHtml(bodyHtml, maxMarker);
     }
 
+    const hasLecturerDbRefs =
+      summary.summarizeFor === "lecturer" && summaryReferences.length > 0;
+
     let html = bodyHtml;
-    if (summary.summarizeFor === "lecturer" && summaryReferences.length > 0) {
-      html += buildReferencesSectionHtml(summaryReferences);
-    } else if (referencesMarkdown) {
+    if (
+      summary.summarizeFor === "lecturer" &&
+      visibleLecturerReferences.length > 0
+    ) {
+      html += buildReferencesSectionHtml(visibleLecturerReferences);
+    } else if (referencesMarkdown && !hasLecturerDbRefs) {
       html += markdownToHtml(referencesMarkdown);
     }
 
@@ -723,7 +751,7 @@ export default function SummaryView() {
         new CustomEvent("s2n-summary-headings", { detail: found }),
       );
     }
-  }, [summary, summaryReferences]);
+  }, [summary, summaryReferences, visibleLecturerReferences]);
 
   const fetchSummaryReferences = useCallback(async () => {
     if (!summaryId || summary?.summarizeFor !== "lecturer") return;
@@ -762,25 +790,56 @@ export default function SummaryView() {
     fetchSummaryReferences,
   ]);
 
-  const scrollToId = useCallback((id) => {
-    if (!id) return;
-    const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  /**
+   * Flash-highlight an element after scroll so users can see exactly
+   * which passage the citation or anchor refers to — similar to the
+   * Google text-fragment (#:~:text=) yellow-flash behaviour.
+   *
+   * Uses a CSS class toggle rather than inline style mutation so the
+   * transition is fully declarative and won't clash with highlight marks.
+   */
+  const flashHighlight = useCallback((el) => {
+    if (!el) return;
+    el.classList.remove("cite-flash"); // reset if already animating
+    // Force a reflow so the browser re-triggers the animation
+    void el.offsetWidth; // eslint-disable-line no-unused-expressions
+    el.classList.add("cite-flash");
+    el.addEventListener(
+      "animationend",
+      () => el.classList.remove("cite-flash"),
+      { once: true },
+    );
   }, []);
+
+  const scrollToId = useCallback(
+    (id) => {
+      if (!id) return;
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Flash after the scroll settles (~400 ms)
+      setTimeout(() => flashHighlight(el), 420);
+    },
+    [flashHighlight],
+  );
 
   const handleSelectReference = useCallback(
     (ref) => {
       setActiveCitationMarker(ref.marker);
       const anchor = ref.anchorIds?.[0];
-      if (anchor) scrollToId(anchor);
-      else {
+      if (anchor) {
+        scrollToId(anchor);
+      } else {
         const link = summaryBodyRef.current?.querySelector(
           `.cite-marker[data-marker="${ref.marker}"]`,
         );
-        link?.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (link) {
+          link.scrollIntoView({ behavior: "smooth", block: "center" });
+          setTimeout(() => flashHighlight(link), 420);
+        }
       }
     },
-    [scrollToId],
+    [scrollToId, flashHighlight],
   );
 
   const handleDeleteSummaryReference = useCallback(
@@ -887,6 +946,14 @@ export default function SummaryView() {
     const root = summaryBodyRef.current;
     if (!root) return;
     const onClick = (e) => {
+      const backlink = e.target.closest?.(".ref-cite-backlink");
+      if (backlink) {
+        e.preventDefault();
+        const href = backlink.getAttribute("href");
+        const id = href?.startsWith("#") ? href.slice(1) : null;
+        if (id) scrollToId(id);
+        return;
+      }
       const cite = e.target.closest?.(".cite-marker");
       if (cite) {
         e.preventDefault();
@@ -905,7 +972,7 @@ export default function SummaryView() {
     };
     root.addEventListener("click", onClick);
     return () => root.removeEventListener("click", onClick);
-  }, [summaryHtml, openCitationPreview]);
+  }, [summaryHtml, openCitationPreview, scrollToId]);
 
   // Handle jump-to-heading requests from sidebar
   useEffect(() => {
@@ -2284,13 +2351,14 @@ export default function SummaryView() {
               referencesProps={
                 summary?.summarizeFor === "lecturer"
                   ? {
-                      references: summaryReferences,
+                      references: visibleLecturerReferences,
                       loading: referencesLoading || summarizing,
                       activeMarker: activeCitationMarker,
                       onSelectReference: handleSelectReference,
                       onMarkerHover: setActiveCitationMarker,
                       onDeleteReference: handleDeleteSummaryReference,
                       onUpdateReference: handleUpdateSummaryReference,
+                      onJumpToAnchor: scrollToId,
                       mutatingRefId: referenceMutatingId,
                     }
                   : null
@@ -2299,11 +2367,9 @@ export default function SummaryView() {
                 slideDecks,
                 slideDecksLoading,
                 slideDeckDeletingId,
-                slideDeckPdfLoadingIds,
                 onRefresh: () => void fetchSlideDecks(),
                 onPreview: openSlideDeckPreview,
                 onDownload: downloadSlideDeck,
-                onDownloadPdf: downloadSlideDeckPdf,
                 onDelete: deleteSlideDeck,
               }}
               quizSetsProps={{
@@ -2345,7 +2411,6 @@ export default function SummaryView() {
         slideDeckRemotePptUrl={slideDeckRemotePptUrl}
         slideDeckPreviewTitle={slideDeckPreviewTitle}
         slideDeckDlRef={slideDeckDlRef}
-        slideDeckPdfDlRef={slideDeckPdfDlRef}
         quizModal={quizModal}
         setQuizModal={setQuizModal}
         setQuizData={setQuizData}
@@ -2389,13 +2454,14 @@ export default function SummaryView() {
         referencesProps={
           summary?.summarizeFor === "lecturer"
             ? {
-                references: summaryReferences,
+                references: visibleLecturerReferences,
                 loading: referencesLoading || summarizing,
                 activeMarker: activeCitationMarker,
                 onSelectReference: handleSelectReference,
                 onMarkerHover: setActiveCitationMarker,
                 onDeleteReference: handleDeleteSummaryReference,
                 onUpdateReference: handleUpdateSummaryReference,
+                onJumpToAnchor: scrollToId,
                 mutatingRefId: referenceMutatingId,
               }
             : null
@@ -2404,11 +2470,9 @@ export default function SummaryView() {
           slideDecks,
           slideDecksLoading,
           slideDeckDeletingId,
-          slideDeckPdfLoadingIds,
           onRefresh: () => void fetchSlideDecks(),
           onPreview: openSlideDeckPreview,
           onDownload: downloadSlideDeck,
-          onDownloadPdf: downloadSlideDeckPdf,
           onDelete: deleteSlideDeck,
         }}
         quizSetsProps={{

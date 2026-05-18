@@ -90,8 +90,8 @@
   color: #fca5a5;
 }
 
-/* scrollable body */
-.sl-body {
+/* scrollable body — scoped so other modals (e.g. quiz review) are not affected */
+.slides-sl-body {
   overflow-y: auto;
   overflow-x: hidden;
   flex: 1;
@@ -102,10 +102,10 @@
   gap: 8px 32px;
   align-items: start;
 }
-.sl-body::-webkit-scrollbar {
+.slides-sl-body::-webkit-scrollbar {
   width: 6px;
 }
-.sl-body::-webkit-scrollbar-thumb {
+.slides-sl-body::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
 }
@@ -793,7 +793,7 @@
     overflow-x: auto;
     scrollbar-width: thin;
   }
-  .sl-body {
+  .slides-sl-body {
     display: flex;
     flex-direction: column;
     gap: 14px;

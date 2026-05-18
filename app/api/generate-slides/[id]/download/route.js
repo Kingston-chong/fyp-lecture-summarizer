@@ -63,6 +63,7 @@ export const GET = apiHandler(async function GET(req, context) {
       );
     }
 
+    // Always re-poll; 2slides presigned download URLs expire after ~1 hour.
     const result = await pollTwoSlidesGeneration(id);
 
     if (result.status !== "completed" || !result.downloadUrl) {

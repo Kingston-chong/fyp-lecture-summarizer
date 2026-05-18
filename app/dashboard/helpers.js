@@ -109,8 +109,21 @@ export function modelDisplayName(saved) {
   return variant ? `${prov?.label ?? providerId} · ${variant.label}` : saved;
 }
 
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
 export function timeAgo(date) {
-  const diff = Date.now() - new Date(date).getTime();
+  const d = new Date(date);
+  const diff = Date.now() - d.getTime();
+  if (!Number.isFinite(diff)) return "";
+  if (diff > SEVEN_DAYS_MS) {
+    return d.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
@@ -118,6 +131,14 @@ export function timeAgo(date) {
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
   return `${days}d ago`;
+}
+
+export function formatSummarizeForLabel(value) {
+  if (!value) return "";
+  const v = String(value).toLowerCase();
+  if (v === "lecturer") return "Lecturer";
+  if (v === "student") return "Student";
+  return String(value).charAt(0).toUpperCase() + String(value).slice(1);
 }
 
 export function formatBytes(bytes) {

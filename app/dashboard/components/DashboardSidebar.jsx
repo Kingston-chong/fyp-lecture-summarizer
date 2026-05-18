@@ -6,6 +6,7 @@ import {
   HistoryIcon,
   UploadIcon,
 } from "@/app/components/icons";
+import { formatSummarizeForLabel } from "../helpers";
 
 export default function DashboardSidebar({
   sidebarWidth,
@@ -85,9 +86,14 @@ export default function DashboardSidebar({
                   {h.title}
                 </div>
                 <div className="history-meta">
-                  {h.files.length} file{h.files.length !== 1 ? "s" : ""} ·{" "}
-                  {timeAgo(h.createdAt)}
+                  {[
+                    `${h.files.length} file${h.files.length !== 1 ? "s" : ""}`,
+                    formatSummarizeForLabel(h.summarizeFor),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </div>
+                <div className="history-date">{timeAgo(h.createdAt)}</div>
               </div>
               {expandedHistory === h.id &&
                 h.files.map((f) => (

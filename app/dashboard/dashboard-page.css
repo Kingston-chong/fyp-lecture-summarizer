@@ -256,6 +256,11 @@
   color: rgba(255, 255, 255, 0.22);
   margin-top: 2px;
 }
+.history-date {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.18);
+  margin-top: 1px;
+}
 .history-file-chip {
   display: flex;
   align-items: center;
@@ -2009,6 +2014,9 @@ html[data-theme="light"] .history-name {
 }
 html[data-theme="light"] .history-meta {
   color: rgba(0, 0, 0, 0.45);
+}
+html[data-theme="light"] .history-date {
+  color: rgba(0, 0, 0, 0.38);
 }
 html[data-theme="light"] .history-file-chip {
   color: rgba(0, 0, 0, 0.45);

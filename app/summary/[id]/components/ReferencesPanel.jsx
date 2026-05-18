@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { TrashIcon, Spinner } from "@/app/components/icons";
+import { citationLetterForIndex } from "@/lib/referenceUtils";
 
 // ─── Citation style formatters ────────────────────────────────────────────────
 
@@ -717,6 +718,35 @@ function SortToggle({ alphabetical, onChange }) {
   );
 }
 
+function CitationBacklinks({ anchorIds, onJump }) {
+  if (!Array.isArray(anchorIds) || anchorIds.length <= 1) return null;
+  return (
+    <span
+      className="rp-cite-backlinks"
+      aria-label="Jump to citations in summary"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <span className="rp-cite-caret" aria-hidden>
+        ^
+      </span>
+      {anchorIds.map((id, i) => (
+        <a
+          key={id}
+          href={`#${id}`}
+          className="rp-cite-backlink"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onJump?.(id);
+          }}
+        >
+          {citationLetterForIndex(i)}
+        </a>
+      ))}
+    </span>
+  );
+}
+
 // ─── ReferenceItem ────────────────────────────────────────────────────────────
 function ReferenceItem({
   item: reference,
@@ -728,6 +758,7 @@ function ReferenceItem({
   onHover,
   onDelete,
   onEdit,
+  onJumpToAnchor,
 }) {
   const [copied, setCopied] = useState(false);
   const url =
@@ -760,6 +791,10 @@ function ReferenceItem({
 
       <div className="rp-item-marker" aria-hidden>
         {style === "numeric" ? `[${reference.marker}]` : reference.marker}
+        <CitationBacklinks
+          anchorIds={reference.anchorIds}
+          onJump={onJumpToAnchor}
+        />
       </div>
 
       <div
@@ -919,6 +954,7 @@ export default function ReferencesPanel({
   onMarkerHover,
   onDeleteReference,
   onUpdateReference, // (updatedRef) => void  — caller persists to API
+  onJumpToAnchor,
   mutatingRefId = null,
   embedded = false,
 }) {
@@ -1044,6 +1080,7 @@ export default function ReferencesPanel({
                 onHover={onMarkerHover}
                 onDelete={onDeleteReference}
                 onEdit={canEdit ? setEditingRef : () => {}}
+                onJumpToAnchor={onJumpToAnchor}
               />
             ))}
           </ul>
