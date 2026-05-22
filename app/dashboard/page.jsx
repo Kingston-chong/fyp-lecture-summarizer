@@ -1003,13 +1003,7 @@ export default function Dashboard() {
           />
 
           {/* ── MAIN GRID ── */}
-          <main
-            className="main"
-            style={{
-              gridTemplateColumns:
-                "minmax(320px, 1fr) minmax(320px, 1fr) 300px",
-            }}
-          >
+          <main className="main">
             {/* Panel 1 — Files */}
             <div
               className={`panel${dragging ? " panel--drop-active" : ""}`}

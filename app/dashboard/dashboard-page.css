@@ -198,6 +198,16 @@
   }
 }
 
+/* Narrow desktop: 3 fixed min-width columns overflow beside history sidebar */
+@media (min-width: 1024px) and (max-width: 1320px) {
+  .app .main {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .app .main > .panel:nth-child(3) {
+    grid-column: 1 / -1;
+  }
+}
+
 .sidebar-header {
   display: flex;
   align-items: center;
@@ -561,11 +571,18 @@
 /* MAIN */
 .app .main {
   flex: 1;
+  min-width: 0; /* allow shrink beside dashboard sidebar (grid min widths otherwise overflow) */
   display: grid;
   gap: 14px;
   padding: 16px;
   overflow-y: auto;
+  overflow-x: hidden;
   align-content: start;
+  align-items: start; /* don't stretch all panels to tallest row (fixes huge prompt + counter at bottom) */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 300px);
+}
+.app .main > .panel {
+  min-width: 0;
 }
 .app .main::-webkit-scrollbar {
   width: 3px;
@@ -742,7 +759,7 @@
 }
 
 .prompt-area {
-  flex: 1;
+  flex: 1 1 auto;
   resize: none;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.07);
@@ -758,6 +775,9 @@
     box-shadow 0.2s;
   line-height: 1.65;
   min-height: 180px;
+  max-height: min(420px, 45vh);
+  width: 100%;
+  box-sizing: border-box;
 }
 .prompt-area::placeholder {
   color: rgba(255, 255, 255, 0.15);
