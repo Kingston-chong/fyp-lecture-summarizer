@@ -45,7 +45,19 @@ function SaveBtn({ loading, saved, onClick, disabled }) {
         </>
       ) : saved ? (
         <>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
           Saved
         </>
       ) : (
@@ -115,7 +127,12 @@ function useAccountProfile() {
 
 /* ── Sections ────────────────────────────────────────────────────── */
 
-function ProfileSection({ profile, profileLoading, profileError, onProfileChange }) {
+function ProfileSection({
+  profile,
+  profileLoading,
+  profileError,
+  onProfileChange,
+}) {
   const { update } = useSession();
   const [username, setUsername] = useState("");
   const [savedUsername, setSavedUsername] = useState("");
@@ -234,9 +251,7 @@ function ProfileSection({ profile, profileLoading, profileError, onProfileChange
           className="as-input as-input--disabled"
           type="text"
           value={
-            profile?.authProvider === "google"
-              ? "Google"
-              : "Email and password"
+            profile?.authProvider === "google" ? "Google" : "Email and password"
           }
           readOnly
           disabled
@@ -379,9 +394,34 @@ function PasswordSection({ profile, profileLoading }) {
             onClick={() => setShowCurrent((v) => !v)}
           >
             {showCurrent ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                <line x1="1" y1="1" x2="23" y2="23" />
+              </svg>
             ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
             )}
           </button>
         </div>
@@ -406,9 +446,34 @@ function PasswordSection({ profile, profileLoading }) {
             onClick={() => setShowNew((v) => !v)}
           >
             {showNew ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                <line x1="1" y1="1" x2="23" y2="23" />
+              </svg>
             ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
             )}
           </button>
         </div>
@@ -504,12 +569,29 @@ function DangerSection() {
         >
           <div className="as-delete-modal" onClick={(e) => e.stopPropagation()}>
             <div className="as-delete-modal-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14H6L5 6" />
+                <path d="M10 11v6" />
+                <path d="M14 11v6" />
+                <path d="M9 6V4h6v2" />
+              </svg>
             </div>
             <h3 className="as-delete-modal-title">Delete your account?</h3>
             <p className="as-delete-modal-body">
               All your data — documents, summaries, quizzes, and flashcards —
-              will be <strong>permanently deleted</strong> and cannot be recovered.
+              will be <strong>permanently deleted</strong> and cannot be
+              recovered.
             </p>
             <p className="as-delete-modal-body">
               Type <strong>{CONFIRM_PHRASE}</strong> to confirm.
@@ -577,9 +659,7 @@ export default function AccountSettingsPage() {
       <div className="as-page-inner">
         <div className="as-page-head">
           <h1 className="as-page-title">Account settings</h1>
-          <p className="as-page-subtitle">
-            Manage your profile and security.
-          </p>
+          <p className="as-page-subtitle">Manage your profile and security.</p>
         </div>
 
         <div className="as-tabs" role="tablist">

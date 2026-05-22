@@ -52,7 +52,10 @@ export async function GET(req) {
       }
 
       const query = String(url.searchParams.get("query") || "business").trim();
-      const limitRaw = Number.parseInt(url.searchParams.get("limit") || "20", 10);
+      const limitRaw = Number.parseInt(
+        url.searchParams.get("limit") || "20",
+        10,
+      );
       const limit =
         Number.isFinite(limitRaw) && limitRaw > 0
           ? Math.min(limitRaw, 100)

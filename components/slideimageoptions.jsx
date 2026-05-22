@@ -140,7 +140,11 @@ export default function SlideImageOptions({
         setUploadedFiles((prev) => {
           const updated = [...prev];
           let idIdx = 0;
-          for (let i = updated.length - placeholders.length; i < updated.length; i++) {
+          for (
+            let i = updated.length - placeholders.length;
+            i < updated.length;
+            i++
+          ) {
             updated[i] = {
               ...updated[i],
               id: ids[idIdx] ?? null,
@@ -156,7 +160,11 @@ export default function SlideImageOptions({
       } catch (err) {
         setUploadedFiles((prev) => {
           const updated = [...prev];
-          for (let i = updated.length - placeholders.length; i < updated.length; i++) {
+          for (
+            let i = updated.length - placeholders.length;
+            i < updated.length;
+            i++
+          ) {
             updated[i] = { ...updated[i], status: "error", error: err.message };
           }
           return updated;
@@ -226,8 +234,7 @@ export default function SlideImageOptions({
       {/* ── Image upload ── */}
       <div style={styles.section}>
         <label style={styles.sectionLabel}>
-          Your images{" "}
-          <span style={styles.optionalTag}>optional</span>
+          Your images <span style={styles.optionalTag}>optional</span>
         </label>
         <p style={styles.sectionHint}>
           Upload your own photos or diagrams — Alai will place them on relevant
@@ -268,9 +275,7 @@ export default function SlideImageOptions({
                   ? "Drop to upload"
                   : "Drag & drop or click to browse"}
               </span>
-              <span style={styles.dropSub}>
-                Up to {MAX_FILES} images
-              </span>
+              <span style={styles.dropSub}>Up to {MAX_FILES} images</span>
             </>
           )}
         </div>
@@ -281,11 +286,7 @@ export default function SlideImageOptions({
             {uploadedFiles.map((f, i) => (
               <li key={i} style={styles.fileItem}>
                 {f.localUrl && (
-                  <img
-                    src={f.localUrl}
-                    alt={f.name}
-                    style={styles.fileThumb}
-                  />
+                  <img src={f.localUrl} alt={f.name} style={styles.fileThumb} />
                 )}
                 <span
                   style={{

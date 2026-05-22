@@ -77,9 +77,7 @@ export async function POST(req, context) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const title =
-      String(body?.title ?? "").trim() ||
-      `My flashcards`;
+    const title = String(body?.title ?? "").trim() || `My flashcards`;
 
     const flashcardSet = await prisma.flashcardSet.create({
       data: {

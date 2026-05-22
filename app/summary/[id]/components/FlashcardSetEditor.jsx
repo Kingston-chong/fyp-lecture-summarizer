@@ -190,7 +190,10 @@ export default function FlashcardSetEditor({
                   onDrop={globalBusy ? undefined : () => void onDrop(card.id)}
                 >
                   <div className="fc-editor-card-head">
-                    <span className="fc-editor-drag-handle" title="Drag to reorder">
+                    <span
+                      className="fc-editor-drag-handle"
+                      title="Drag to reorder"
+                    >
                       ⋮⋮
                     </span>
                     <span className="fc-editor-card-num">Card {index + 1}</span>

@@ -31,6 +31,7 @@ import {
 import DashboardSidebar from "./components/DashboardSidebar";
 import DocumentPreviewModal from "./components/DocumentPreviewModal";
 import TemplatePickerModal from "./components/TemplatePickerModal";
+import { uploadDocumentsViaClient } from "@/lib/clientDocumentUpload";
 
 // ── Main Component ─────────────────────────────────────────
 export default function Dashboard() {
@@ -226,7 +227,7 @@ export default function Dashboard() {
     return name.split(".").pop().toUpperCase();
   }
 
-  function addLocalFiles(newFiles) {
+  async function addLocalFiles(newFiles) {
     const arr = Array.from(newFiles).map((f) => ({
       file: f,
       name: f.name,
@@ -242,8 +243,33 @@ export default function Dashboard() {
         setSelectedFiles([]);
         return;
       }
+      const picked = deck[deck.length - 1];
       setError("");
-      setSelectedFiles([deck[deck.length - 1]]);
+      setUploading(true);
+      try {
+        const doc = await uploadDocumentsViaClient([picked.file]);
+        const uploaded = doc[0];
+        setSelectedFiles([
+          {
+            id: uploaded.id,
+            name: uploaded.name,
+            type: uploaded.type || getExt(uploaded.name),
+            size: formatBytes(uploaded.size),
+            fromPrev: true,
+          },
+        ]);
+        mutateUploads();
+      } catch (err) {
+        setError(
+          err?.message?.includes("FUNCTION_PAYLOAD") ||
+            err?.message?.includes("Too Large")
+            ? "File is too large to upload through the server. Try again — uploads now go directly to storage."
+            : `Upload failed: ${err?.message || err}`,
+        );
+        setSelectedFiles([]);
+      } finally {
+        setUploading(false);
+      }
       return;
     }
 
@@ -336,17 +362,15 @@ export default function Dashboard() {
     if (newFiles.length === 0) return [];
 
     setUploading(true);
-    const formData = new FormData();
-    newFiles.forEach((f) => formData.append("files", f.file));
-
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    const data = await res.json();
-    setUploading(false);
-
-    if (!res.ok) throw new Error(data.error || "Upload failed");
-
-    mutateUploads();
-    return data.documents; // [{id, name, type, size, ...}]
+    try {
+      const uploaded = await uploadDocumentsViaClient(
+        newFiles.map((f) => f.file),
+      );
+      mutateUploads();
+      return uploaded;
+    } finally {
+      setUploading(false);
+    }
   }
 
   // ── Upload + summarize (used by handleSummarize and by "use existing" dialog)
@@ -572,31 +596,13 @@ export default function Dashboard() {
       return;
     }
 
-    const f = selectedImproveSource.file;
-    const reqId = ++parseRequestIdRef.current;
-    setImproveFile(f);
+    // Local picks are uploaded to Blob in addLocalFiles before parse runs.
+    setImproveFile(null);
     setImproveDocumentId(null);
-    setParseLoading(true);
-    void (async () => {
-      try {
-        const fd = new FormData();
-        fd.append("file", f);
-        const res = await fetch("/api/improve-ppt/parse", {
-          method: "POST",
-          body: fd,
-        });
-        const data = await res.json().catch(() => ({}));
-        if (reqId !== parseRequestIdRef.current) return;
-        if (!res.ok) throw new Error(data.error || "Could not read slides");
-        setParsedSlides(Array.isArray(data.slides) ? data.slides : []);
-      } catch (err) {
-        if (reqId !== parseRequestIdRef.current) return;
-        setImproveErr(err?.message || String(err));
-        setParsedSlides(null);
-      } finally {
-        if (reqId === parseRequestIdRef.current) setParseLoading(false);
-      }
-    })();
+    setParseLoading(false);
+    setImproveErr(
+      "File upload did not finish. Remove the file and upload again.",
+    );
   }, [dashMode, selectedImproveSourceKey, selectedImproveSource]);
 
   useEffect(() => {
@@ -626,59 +632,64 @@ export default function Dashboard() {
 
   const DEFAULT_2SLIDES_THEME_QUERY = "business";
 
-  const loadImproveThemeList = useCallback(async (searchQuery) => {
-    setThemeSearchLoading(true);
-    setThemeSearchErr("");
-    try {
-      const provider = improveProvider === "2slides" ? "2slides" : "alai";
-      const params = new URLSearchParams({ provider, limit: "24" });
-      const q = String(searchQuery ?? "").trim();
-      if (provider === "2slides") {
-        params.set("query", q || DEFAULT_2SLIDES_THEME_QUERY);
-      }
-      const res = await fetch(`/api/themes?${params.toString()}`);
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(
-          data.error || data.hint || "Could not load design templates",
+  const loadImproveThemeList = useCallback(
+    async (searchQuery) => {
+      setThemeSearchLoading(true);
+      setThemeSearchErr("");
+      try {
+        const provider = improveProvider === "2slides" ? "2slides" : "alai";
+        const params = new URLSearchParams({ provider, limit: "24" });
+        const q = String(searchQuery ?? "").trim();
+        if (provider === "2slides") {
+          params.set("query", q || DEFAULT_2SLIDES_THEME_QUERY);
+        }
+        const res = await fetch(`/api/themes?${params.toString()}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(
+            data.error || data.hint || "Could not load design templates",
+          );
+        }
+        let themes = (Array.isArray(data.themes) ? data.themes : []).map(
+          (t) => ({
+            id: String(t.id || t.theme_id || ""),
+            name: String(t.name || t.title || t.label || "").trim(),
+            description: String(t.description || "").trim(),
+            tags: t.tags,
+            themeURL: String(t.themeURL || ""),
+          }),
         );
+        if (provider === "alai" && q) {
+          const needle = q.toLowerCase();
+          themes = themes.filter(
+            (t) =>
+              t.name.toLowerCase().includes(needle) ||
+              t.description.toLowerCase().includes(needle) ||
+              String(t.tags || "")
+                .toLowerCase()
+                .includes(needle),
+          );
+        }
+        themes = themes.filter((t) => t.id);
+        setThemeResults(themes);
+        setThemeResultsQuery(q);
+        if (themes.length === 0) {
+          setThemeSearchErr(
+            data.hint ||
+              (provider === "alai"
+                ? "No Alai themes match. Clear the filter or check ALAI_API_KEY."
+                : "No templates found. Try another search term."),
+          );
+        }
+      } catch (e) {
+        setThemeSearchErr(e?.message || String(e));
+        setThemeResults([]);
+      } finally {
+        setThemeSearchLoading(false);
       }
-      let themes = (Array.isArray(data.themes) ? data.themes : []).map((t) => ({
-        id: String(t.id || t.theme_id || ""),
-        name: String(t.name || t.title || t.label || "").trim(),
-        description: String(t.description || "").trim(),
-        tags: t.tags,
-        themeURL: String(t.themeURL || ""),
-      }));
-      if (provider === "alai" && q) {
-        const needle = q.toLowerCase();
-        themes = themes.filter(
-          (t) =>
-            t.name.toLowerCase().includes(needle) ||
-            t.description.toLowerCase().includes(needle) ||
-            String(t.tags || "")
-              .toLowerCase()
-              .includes(needle),
-        );
-      }
-      themes = themes.filter((t) => t.id);
-      setThemeResults(themes);
-      setThemeResultsQuery(q);
-      if (themes.length === 0) {
-        setThemeSearchErr(
-          data.hint ||
-            (provider === "alai"
-              ? "No Alai themes match. Clear the filter or check ALAI_API_KEY."
-              : "No templates found. Try another search term."),
-        );
-      }
-    } catch (e) {
-      setThemeSearchErr(e?.message || String(e));
-      setThemeResults([]);
-    } finally {
-      setThemeSearchLoading(false);
-    }
-  }, [improveProvider]);
+    },
+    [improveProvider],
+  );
 
   useEffect(() => {
     if (!templatePickerOpen) return;
@@ -829,9 +840,7 @@ export default function Dashboard() {
       return;
     }
     if (improveProvider === "2slides" && !selectedThemeId) {
-      setImproveErr(
-        "Choose a design template before building with 2slides.",
-      );
+      setImproveErr("Choose a design template before building with 2slides.");
       return;
     }
     setImproveGenLoading(true);
@@ -1174,7 +1183,9 @@ export default function Dashboard() {
                   </div>
 
                   <div>
-                    <div className="improve-section-head">Quick suggestions</div>
+                    <div className="improve-section-head">
+                      Quick suggestions
+                    </div>
                     <div
                       className="improve-sug-grid"
                       aria-label="Improve suggestions"
@@ -1493,7 +1504,9 @@ export default function Dashboard() {
                 <div className="improve-panel">
                   {improveGenLoading || planLoading ? (
                     <div className="improve-panel-busy">
-                      <div className="improve-section-head">AI plan preview</div>
+                      <div className="improve-section-head">
+                        AI plan preview
+                      </div>
                       {planLoading && planAdjustments.length === 0 && (
                         <div className="improve-plan-loading">
                           <span className="improve-mini-spin" /> Planning
@@ -1508,8 +1521,7 @@ export default function Dashboard() {
                               <span>
                                 {typeof adj === "string"
                                   ? adj
-                                  : (adj.description ??
-                                    JSON.stringify(adj))}
+                                  : (adj.description ?? JSON.stringify(adj))}
                               </span>
                             </div>
                           ))}
@@ -1529,191 +1541,196 @@ export default function Dashboard() {
                       )}
                     </div>
                   ) : (
-                  <div className="improve-controls">
-                    <div>
-                      <div className="radio-label">Detail level</div>
-                      {[
-                        {
-                          value: "concise",
-                          title: "Concise",
-                          sub: "2+ bullets · brief speaker notes",
-                        },
-                        {
-                          value: "lecture",
-                          title: "Lecture",
-                          sub: "3–6 full-sentence bullets · examples in notes",
-                        },
-                        {
-                          value: "deep",
-                          title: "Deep",
-                          sub: "4–8 bullets · definitions, examples, misconceptions",
-                        },
-                      ].map((opt) => (
-                        <div
-                          key={opt.value}
-                          className={`radio-option ${improveDetailLevel === opt.value ? "selected" : ""}`}
-                          onClick={() => setImproveDetailLevel(opt.value)}
-                        >
+                    <div className="improve-controls">
+                      <div>
+                        <div className="radio-label">Detail level</div>
+                        {[
+                          {
+                            value: "concise",
+                            title: "Concise",
+                            sub: "2+ bullets · brief speaker notes",
+                          },
+                          {
+                            value: "lecture",
+                            title: "Lecture",
+                            sub: "3–6 full-sentence bullets · examples in notes",
+                          },
+                          {
+                            value: "deep",
+                            title: "Deep",
+                            sub: "4–8 bullets · definitions, examples, misconceptions",
+                          },
+                        ].map((opt) => (
                           <div
-                            className={`radio-dot ${improveDetailLevel === opt.value ? "on" : ""}`}
-                          />
-                          <div>
-                            <div className="radio-title">{opt.title}</div>
-                            <div className="radio-sub">{opt.sub}</div>
+                            key={opt.value}
+                            className={`radio-option ${improveDetailLevel === opt.value ? "selected" : ""}`}
+                            onClick={() => setImproveDetailLevel(opt.value)}
+                          >
+                            <div
+                              className={`radio-dot ${improveDetailLevel === opt.value ? "on" : ""}`}
+                            />
+                            <div>
+                              <div className="radio-title">{opt.title}</div>
+                              <div className="radio-sub">{opt.sub}</div>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div>
-                      <div className="improve-section-head">Slide generator</div>
-                      <div className="improve-mode-tabs">
-                        <button
-                          type="button"
-                          className={`improve-mode-tab ${improveProvider === "alai" ? "active" : ""}`}
-                          onClick={() => {
-                            setImproveProvider("alai");
-                            setSelectedThemeId(null);
-                            setSelectedTemplateSpec(null);
-                          }}
-                        >
-                          <span className="improve-mode-tab-name">Alai</span>
-                          <span className="improve-mode-tab-sub">
-                            AI-designed slides and layout
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          className={`improve-mode-tab ${improveProvider === "2slides" ? "active" : ""}`}
-                          onClick={() => {
-                            setImproveProvider("2slides");
-                            setSelectedThemeId(null);
-                            setSelectedTemplateSpec(null);
-                          }}
-                        >
-                          <span className="improve-mode-tab-name">2slides</span>
-                          <span className="improve-mode-tab-sub">
-                            Template-based Fast PPT
-                          </span>
-                        </button>
+                        ))}
                       </div>
-                    </div>
 
-                    <div className="improve-section-head">
-                      Design template{" "}
-                      <span
-                        style={{
-                          fontWeight: 400,
-                          textTransform: "none",
-                          fontSize: 10,
-                        }}
-                      >
-                        {improveProvider === "2slides"
-                          ? "(required)"
-                          : "(optional)"}
-                      </span>
-                    </div>
-                    {selectedTemplateSpec ? (
-                      <div className="improve-template-selected">
-                        <div className="improve-template-info">
-                          <div className="improve-template-name">
-                            {selectedTemplateSpec._themeName}
-                          </div>
-                          <div className="improve-template-vibe">
-                            {selectedTemplateSpec._summary}
-                          </div>
+                      <div>
+                        <div className="improve-section-head">
+                          Slide generator
                         </div>
+                        <div className="improve-mode-tabs">
+                          <button
+                            type="button"
+                            className={`improve-mode-tab ${improveProvider === "alai" ? "active" : ""}`}
+                            onClick={() => {
+                              setImproveProvider("alai");
+                              setSelectedThemeId(null);
+                              setSelectedTemplateSpec(null);
+                            }}
+                          >
+                            <span className="improve-mode-tab-name">Alai</span>
+                            <span className="improve-mode-tab-sub">
+                              AI-designed slides and layout
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            className={`improve-mode-tab ${improveProvider === "2slides" ? "active" : ""}`}
+                            onClick={() => {
+                              setImproveProvider("2slides");
+                              setSelectedThemeId(null);
+                              setSelectedTemplateSpec(null);
+                            }}
+                          >
+                            <span className="improve-mode-tab-name">
+                              2slides
+                            </span>
+                            <span className="improve-mode-tab-sub">
+                              Template-based Fast PPT
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="improve-section-head">
+                        Design template{" "}
+                        <span
+                          style={{
+                            fontWeight: 400,
+                            textTransform: "none",
+                            fontSize: 10,
+                          }}
+                        >
+                          {improveProvider === "2slides"
+                            ? "(required)"
+                            : "(optional)"}
+                        </span>
+                      </div>
+                      {selectedTemplateSpec ? (
+                        <div className="improve-template-selected">
+                          <div className="improve-template-info">
+                            <div className="improve-template-name">
+                              {selectedTemplateSpec._themeName}
+                            </div>
+                            <div className="improve-template-vibe">
+                              {selectedTemplateSpec._summary}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="improve-template-change"
+                            onClick={() => setTemplatePickerOpen(true)}
+                          >
+                            Change
+                          </button>
+                        </div>
+                      ) : (
                         <button
                           type="button"
-                          className="improve-template-change"
+                          className="improve-btn-secondary improve-template-btn"
                           onClick={() => setTemplatePickerOpen(true)}
                         >
-                          Change
+                          {themeSearchLoading ? (
+                            <span className="improve-mini-spin" />
+                          ) : (
+                            "Choose template…"
+                          )}
                         </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        className="improve-btn-secondary improve-template-btn"
-                        onClick={() => setTemplatePickerOpen(true)}
-                      >
-                        {themeSearchLoading ? (
-                          <span className="improve-mini-spin" />
-                        ) : (
-                          "Choose template…"
-                        )}
-                      </button>
-                    )}
-                    {themeSearchErr && (
-                      <div className="improve-err">{themeSearchErr}</div>
-                    )}
-                    {improveProvider === "2slides" && !selectedThemeId && (
-                      <div className="improve-provider-hint">
-                        Search and select a 2slides theme to enable Build PPTX.
-                      </div>
-                    )}
-
-                    <div className="improve-section-head">AI model</div>
-                    <div className="model-wrap">
-                      <button
-                        className={`model-btn ${improveModelOpen ? "open" : ""}`}
-                        onClick={() => setImproveModelOpen((v) => !v)}
-                        onBlur={() =>
-                          setTimeout(() => setImproveModelOpen(false), 150)
-                        }
-                      >
-                        <div className="model-left">
-                          <div className="model-dot" />
-                          <span>{improveAiModel}</span>
-                        </div>
-                        <ChevronDownIcon />
-                      </button>
-                      {improveModelOpen && (
-                        <div className="model-menu">
-                          {["ChatGPT", "DeepSeek", "Gemini"].map((opt) => (
-                            <div
-                              key={opt}
-                              className={`model-opt ${improveAiModel === opt ? "on" : ""}`}
-                              onMouseDown={() => {
-                                setImproveAiModel(opt);
-                                setImproveModelOpen(false);
-                              }}
-                            >
-                              <div className="model-opt-name">{opt}</div>
-                              {improveAiModel === opt && (
-                                <span className="model-check">✓</span>
-                              )}
-                            </div>
-                          ))}
+                      )}
+                      {themeSearchErr && (
+                        <div className="improve-err">{themeSearchErr}</div>
+                      )}
+                      {improveProvider === "2slides" && !selectedThemeId && (
+                        <div className="improve-provider-hint">
+                          Search and select a 2slides theme to enable Build
+                          PPTX.
                         </div>
                       )}
-                    </div>
 
-                    {improveErr && (
-                      <div className="improve-err">{improveErr}</div>
-                    )}
+                      <div className="improve-section-head">AI model</div>
+                      <div className="model-wrap">
+                        <button
+                          className={`model-btn ${improveModelOpen ? "open" : ""}`}
+                          onClick={() => setImproveModelOpen((v) => !v)}
+                          onBlur={() =>
+                            setTimeout(() => setImproveModelOpen(false), 150)
+                          }
+                        >
+                          <div className="model-left">
+                            <div className="model-dot" />
+                            <span>{improveAiModel}</span>
+                          </div>
+                          <ChevronDownIcon />
+                        </button>
+                        {improveModelOpen && (
+                          <div className="model-menu">
+                            {["ChatGPT", "DeepSeek", "Gemini"].map((opt) => (
+                              <div
+                                key={opt}
+                                className={`model-opt ${improveAiModel === opt ? "on" : ""}`}
+                                onMouseDown={() => {
+                                  setImproveAiModel(opt);
+                                  setImproveModelOpen(false);
+                                }}
+                              >
+                                <div className="model-opt-name">{opt}</div>
+                                {improveAiModel === opt && (
+                                  <span className="model-check">✓</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
 
-                    <div className="improve-btn-row">
-                      <button
-                        className="improve-btn-primary improve-btn-full"
-                        onClick={handleImproveGenerate}
-                        disabled={
-                          improveGenLoading ||
-                          parseLoading ||
-                          !parsedSlides?.length ||
-                          !improveInstructions.trim() ||
-                          (improveProvider === "2slides" && !selectedThemeId)
-                        }
-                      >
-                        {improveGenLoading ? (
-                          <span className="improve-mini-spin" />
-                        ) : (
-                          "✦"
-                        )}{" "}
-                        Build PPTX
-                      </button>
+                      {improveErr && (
+                        <div className="improve-err">{improveErr}</div>
+                      )}
+
+                      <div className="improve-btn-row">
+                        <button
+                          className="improve-btn-primary improve-btn-full"
+                          onClick={handleImproveGenerate}
+                          disabled={
+                            improveGenLoading ||
+                            parseLoading ||
+                            !parsedSlides?.length ||
+                            !improveInstructions.trim() ||
+                            (improveProvider === "2slides" && !selectedThemeId)
+                          }
+                        >
+                          {improveGenLoading ? (
+                            <span className="improve-mini-spin" />
+                          ) : (
+                            "✦"
+                          )}{" "}
+                          Build PPTX
+                        </button>
+                      </div>
                     </div>
-                  </div>
                   )}
                 </div>
               )}

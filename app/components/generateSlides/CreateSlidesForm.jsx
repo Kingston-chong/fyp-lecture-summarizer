@@ -195,14 +195,18 @@ const ALAI_IMAGE_STYLE_OPTIONS = [
 ];
 
 const DENSITY_OPTIONS = [
-  { value: 0, label: "None",  desc: "Text only" },
-  { value: 1, label: "Some",  desc: "AI picks" },
-  { value: 2, label: "Rich",  desc: "Every slide" },
+  { value: 0, label: "None", desc: "Text only" },
+  { value: 1, label: "Some", desc: "AI picks" },
+  { value: 2, label: "Rich", desc: "Every slide" },
 ];
 
 const ALLOWED_IMAGE_TYPES = [
-  "image/png", "image/jpeg", "image/webp",
-  "image/gif", "image/avif", "image/svg+xml",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+  "image/avif",
+  "image/svg+xml",
 ];
 const MAX_IMAGE_FILES = 10;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -220,7 +224,12 @@ function themeOptionId(theme) {
 
 // ΓöÇΓöÇ Image upload sub-component ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
-function ImageUploadSection({ uploadedFiles, onUpload, onRemove, isUploading }) {
+function ImageUploadSection({
+  uploadedFiles,
+  onUpload,
+  onRemove,
+  isUploading,
+}) {
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef(null);
 
@@ -235,7 +244,10 @@ function ImageUploadSection({ uploadedFiles, onUpload, onRemove, isUploading }) 
       {/* Drop zone */}
       <div
         onDrop={onDrop}
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
         onDragLeave={() => setIsDragging(false)}
         onClick={() => !isUploading && inputRef.current?.click()}
         role="button"
@@ -250,7 +262,9 @@ function ImageUploadSection({ uploadedFiles, onUpload, onRemove, isUploading }) 
           padding: "14px 12px",
           border: `1.5px dashed ${isDragging ? "rgba(99,102,241,.7)" : "rgba(255,255,255,.15)"}`,
           borderRadius: 9,
-          background: isDragging ? "rgba(99,102,241,.1)" : "rgba(255,255,255,.03)",
+          background: isDragging
+            ? "rgba(99,102,241,.1)"
+            : "rgba(255,255,255,.03)",
           cursor: isUploading ? "default" : "pointer",
           transition: "border-color .15s, background .15s",
           opacity: isUploading ? 0.6 : 1,
@@ -266,17 +280,35 @@ function ImageUploadSection({ uploadedFiles, onUpload, onRemove, isUploading }) 
           onChange={(e) => onUpload(Array.from(e.target.files))}
         />
         <span style={{ fontSize: 18, color: "rgba(255,255,255,.3)" }}>Γåæ</span>
-        <span style={{ fontSize: 11.5, color: "rgba(255,255,255,.5)", fontWeight: 500 }}>
-          {isUploading ? "UploadingΓÇª" : isDragging ? "Drop to upload" : "Drag & drop or click to browse"}
+        <span
+          style={{
+            fontSize: 11.5,
+            color: "rgba(255,255,255,.5)",
+            fontWeight: 500,
+          }}
+        >
+          {isUploading
+            ? "UploadingΓÇª"
+            : isDragging
+              ? "Drop to upload"
+              : "Drag & drop or click to browse"}
         </span>
         <span style={{ fontSize: 10.5, color: "rgba(255,255,255,.25)" }}>
-          PNG, JPEG, WebP, GIF, AVIF, SVG ┬╖ max 10 MB ┬╖ up to {MAX_IMAGE_FILES} files
+          PNG, JPEG, WebP, GIF, AVIF, SVG ┬╖ max 10 MB ┬╖ up to{" "}
+          {MAX_IMAGE_FILES} files
         </span>
       </div>
 
       {/* File chips */}
       {uploadedFiles.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 8 }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 5,
+            marginTop: 8,
+          }}
+        >
           {uploadedFiles.map((f, i) => (
             <div
               key={i}
@@ -285,9 +317,10 @@ function ImageUploadSection({ uploadedFiles, onUpload, onRemove, isUploading }) 
                 alignItems: "center",
                 gap: 8,
                 padding: "5px 8px",
-                background: f.status === "error"
-                  ? "rgba(239,68,68,.1)"
-                  : "rgba(255,255,255,.05)",
+                background:
+                  f.status === "error"
+                    ? "rgba(239,68,68,.1)"
+                    : "rgba(255,255,255,.05)",
                 border: `1px solid ${f.status === "error" ? "rgba(239,68,68,.3)" : "rgba(255,255,255,.1)"}`,
                 borderRadius: 7,
               }}
@@ -314,20 +347,25 @@ function ImageUploadSection({ uploadedFiles, onUpload, onRemove, isUploading }) 
                   borderRadius: "50%",
                   flexShrink: 0,
                   background:
-                    f.status === "uploading" ? "#facc15"
-                    : f.status === "done"     ? "#4ade80"
-                    :                           "#f87171",
+                    f.status === "uploading"
+                      ? "#facc15"
+                      : f.status === "done"
+                        ? "#4ade80"
+                        : "#f87171",
                   boxShadow:
-                    f.status === "uploading" ? "0 0 6px #facc15"
-                    : f.status === "done"     ? "0 0 6px #4ade80"
-                    :                           "0 0 6px #f87171",
+                    f.status === "uploading"
+                      ? "0 0 6px #facc15"
+                      : f.status === "done"
+                        ? "0 0 6px #4ade80"
+                        : "0 0 6px #f87171",
                 }}
               />
               <span
                 style={{
                   flex: 1,
                   fontSize: 11.5,
-                  color: f.status === "error" ? "#f87171" : "rgba(255,255,255,.65)",
+                  color:
+                    f.status === "error" ? "#f87171" : "rgba(255,255,255,.65)",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
@@ -335,7 +373,10 @@ function ImageUploadSection({ uploadedFiles, onUpload, onRemove, isUploading }) 
               >
                 {f.name}
                 {f.status === "uploading" && (
-                  <span style={{ color: "rgba(255,255,255,.3)" }}> ┬╖ uploadingΓÇª</span>
+                  <span style={{ color: "rgba(255,255,255,.3)" }}>
+                    {" "}
+                    ┬╖ uploadingΓÇª
+                  </span>
                 )}
                 {f.status === "error" && (
                   <span style={{ color: "#f87171" }}> ┬╖ {f.error}</span>
@@ -357,7 +398,9 @@ function ImageUploadSection({ uploadedFiles, onUpload, onRemove, isUploading }) 
                   transition: "color .12s",
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = "#f87171")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,.3)")}
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.color = "rgba(255,255,255,.3)")
+                }
                 aria-label={`Remove ${f.name}`}
               >
                 Γ£ò
@@ -424,7 +467,8 @@ export default function CreateSlidesForm({
   onVariantsChange,
 }) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [localImageVariants, setLocalImageVariants] = useState(numImageVariants);
+  const [localImageVariants, setLocalImageVariants] =
+    useState(numImageVariants);
   const isAlai = provider === "alai";
   const effectiveImageVariants = onVariantsChange
     ? numImageVariants
@@ -490,7 +534,11 @@ export default function CreateSlidesForm({
           const updated = [...prev];
           const start = updated.length - placeholders.length;
           ids.forEach((id, idx) => {
-            updated[start + idx] = { ...updated[start + idx], id, status: "done" };
+            updated[start + idx] = {
+              ...updated[start + idx],
+              id,
+              status: "done",
+            };
           });
           return updated;
         });
@@ -656,9 +704,21 @@ export default function CreateSlidesForm({
       <div className="col-right">
         <SectionHead>Formatting extras</SectionHead>
         {[
-          { label: "Highlight key definitions", val: highlightDefs, set: setHighlightDefs },
-          { label: "Bold important keywords",   val: boldKeywords,  set: setBoldKeywords  },
-          { label: "Add speaker notes",         val: speakerNotes,  set: setSpeakerNotes  },
+          {
+            label: "Highlight key definitions",
+            val: highlightDefs,
+            set: setHighlightDefs,
+          },
+          {
+            label: "Bold important keywords",
+            val: boldKeywords,
+            set: setBoldKeywords,
+          },
+          {
+            label: "Add speaker notes",
+            val: speakerNotes,
+            set: setSpeakerNotes,
+          },
         ].map(({ label, val, set }) => (
           <label key={label} className="chk-row" onClick={() => set((v) => !v)}>
             <div className={`chk-box ${val ? "on" : ""}`}>
@@ -706,7 +766,8 @@ export default function CreateSlidesForm({
               </span>
             </SectionHead>
             <div className="tag-hint" style={{ marginBottom: 8 }}>
-              Upload your own photos or diagrams ΓÇö Alai places them on relevant slides automatically
+              Upload your own photos or diagrams ΓÇö Alai places them on
+              relevant slides automatically
             </div>
             <ImageUploadSection
               uploadedFiles={uploadedFiles}
@@ -734,8 +795,9 @@ export default function CreateSlidesForm({
                       return {
                         value: id,
                         label:
-                          String(v?.name || v?.title || v?.label || "").trim() ||
-                          id,
+                          String(
+                            v?.name || v?.title || v?.label || "",
+                          ).trim() || id,
                       };
                     })
                     .filter(Boolean),
@@ -775,7 +837,13 @@ export default function CreateSlidesForm({
                 onChange={(e) => setTemplate(e.target.value)}
                 style={{ width: 110 }}
               >
-                {["Academic", "Professional", "Creative", "Minimal", "Corporate"].map((o) => (
+                {[
+                  "Academic",
+                  "Professional",
+                  "Creative",
+                  "Minimal",
+                  "Corporate",
+                ].map((o) => (
                   <option key={o}>{o}</option>
                 ))}
               </select>

@@ -28,10 +28,7 @@ export async function PATCH(req, context) {
       );
     }
     if (!cardId) {
-      return NextResponse.json(
-        { error: "Invalid card id" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Invalid card id" }, { status: 400 });
     }
 
     const access = await requireFlashcardSetAccess(summaryId, setId);
@@ -60,10 +57,7 @@ export async function PATCH(req, context) {
     if (studyStatusRaw !== undefined) {
       if (studyStatusRaw === null || studyStatusRaw === "") {
         studyStatus = null;
-      } else if (
-        studyStatusRaw === "known" ||
-        studyStatusRaw === "learning"
-      ) {
+      } else if (studyStatusRaw === "known" || studyStatusRaw === "learning") {
         studyStatus = studyStatusRaw;
       } else {
         return NextResponse.json(
@@ -127,10 +121,7 @@ export async function DELETE(_req, context) {
       );
     }
     if (!cardId) {
-      return NextResponse.json(
-        { error: "Invalid card id" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Invalid card id" }, { status: 400 });
     }
 
     const access = await requireFlashcardSetAccess(summaryId, setId);

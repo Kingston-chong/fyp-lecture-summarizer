@@ -270,7 +270,8 @@ export async function POST(req) {
       inputText: twoSlidesInput,
       themeId,
       page: parseTwoSlidesPage(body?.maxSlides),
-      responseLanguage: String(body?.responseLanguage || "Auto").trim() || "Auto",
+      responseLanguage:
+        String(body?.responseLanguage || "Auto").trim() || "Auto",
     });
 
     if (!result.ok) {

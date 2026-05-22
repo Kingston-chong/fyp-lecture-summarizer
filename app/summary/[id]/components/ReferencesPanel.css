@@ -1179,7 +1179,7 @@ html[data-theme="light"] .rp-toast svg {
 /* When inside the sources sidebar, give the list a fixed max and let
    the list itself scroll — headers/controls always stay in view. */
 .sources-scroll .rp-root {
-  max-height: none;  /* keep existing override — outer sidebar scrolls */
+  max-height: none; /* keep existing override — outer sidebar scrolls */
   overflow: visible; /* keep existing override */
 }
 

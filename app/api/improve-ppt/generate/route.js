@@ -564,7 +564,7 @@ Rules:
     const payload = {
       input_text,
       additional_instructions:
-        "Follow the numbered slide outline in input_text exactly: one slide per \"Slide N\" section, preserve order, and do not merge or drop slides. Use the provided bullets and speaker notes.",
+        'Follow the numbered slide outline in input_text exactly: one slide per "Slide N" section, preserve order, and do not merge or drop slides. Use the provided bullets and speaker notes.',
       export_formats: ["link", "ppt"],
       presentation_options: {
         title: String(title || "Improved presentation").slice(0, 200),

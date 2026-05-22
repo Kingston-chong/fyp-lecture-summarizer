@@ -1,46 +1,14 @@
-// app/api/upload/route.js
+// app/api/upload/route.js — small files only; large files use client Blob upload (lib/clientDocumentUpload.js).
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRequestUser } from "@/lib/apiAuth";
-
-const MAX_FILE_BYTES = Number.parseInt(
-  process.env.UPLOAD_MAX_FILE_BYTES || String(25 * 1024 * 1024),
-  10,
-);
-
-const ALLOWED_EXTENSIONS = new Set([
-  "PDF",
-  "PPTX",
-  "PPT",
-  "DOCX",
-  "DOC",
-  "TXT",
-  "XLSX",
-  "XLS",
-  "CSV",
-  "MD",
-]);
-
-// Generates a new unique name if duplicate exists
-// lu1-tutorial.pdf → lu1-tutorial (1).pdf → lu1-tutorial (2).pdf
-function generateRenamedFile(originalName, existingNames) {
-  const dotIndex = originalName.lastIndexOf(".");
-  const hasExt = dotIndex !== -1;
-  const base = hasExt ? originalName.slice(0, dotIndex) : originalName;
-  const ext = hasExt ? originalName.slice(dotIndex) : ""; // includes the dot
-
-  let counter = 1;
-  let newName = `${base} (${counter})${ext}`;
-
-  // Keep incrementing until we find a name that doesn't exist
-  while (existingNames.has(newName)) {
-    counter++;
-    newName = `${base} (${counter})${ext}`;
-  }
-
-  return newName;
-}
+import {
+  MAX_FILE_BYTES,
+  SERVERLESS_UPLOAD_MAX_BYTES,
+  resolveUploadName,
+  buildBlobPathname,
+} from "@/lib/documentUpload";
 
 export async function POST(req) {
   try {
@@ -86,33 +54,37 @@ export async function POST(req) {
         );
       }
 
-      let finalName = file.name;
-
-      if (shouldRename && existingNames.has(file.name)) {
-        finalName = generateRenamedFile(file.name, existingNames);
-      }
-
-      // Add to set so subsequent files in the same batch don't collide
-      existingNames.add(finalName);
-
-      const ext = finalName.split(".").pop().toUpperCase();
-      if (!ALLOWED_EXTENSIONS.has(ext)) {
+      if (file.size > SERVERLESS_UPLOAD_MAX_BYTES) {
+        const limitMb = Math.round(SERVERLESS_UPLOAD_MAX_BYTES / (1024 * 1024));
         return NextResponse.json(
           {
             error:
-              `Unsupported file type: .${String(ext || "").toLowerCase()}. ` +
-              "Supported: pdf, pptx, ppt, docx, doc, txt, xlsx, xls, csv, md.",
+              `File "${file.name}" is too large for direct server upload (${limitMb} MB limit). ` +
+              "The app will upload it via the browser automatically — refresh the page and try again.",
+            code: "USE_CLIENT_UPLOAD",
           },
+          { status: 413 },
+        );
+      }
+
+      let finalName;
+      let ext;
+      try {
+        ({ finalName, type: ext } = resolveUploadName(
+          file.name,
+          existingNames,
+          shouldRename,
+        ));
+      } catch (typeErr) {
+        return NextResponse.json(
+          { error: typeErr?.message || "Unsupported file type" },
           { status: 415 },
         );
       }
 
-      // Upload to Vercel Blob
-      const blob = await put(
-        `uploads/${user.id}/${Date.now()}-${finalName}`,
-        file,
-        { access: "private" },
-      );
+      const blob = await put(buildBlobPathname(user.id, finalName), file, {
+        access: "private",
+      });
 
       // Save to database with the (possibly renamed) name
       const doc = await prisma.document.create({

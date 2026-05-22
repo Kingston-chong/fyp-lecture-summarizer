@@ -47,7 +47,9 @@
   overflow-x: auto;
   scrollbar-width: none;
 }
-.as-tabs::-webkit-scrollbar { display: none; }
+.as-tabs::-webkit-scrollbar {
+  display: none;
+}
 
 .as-tab {
   flex: 1;
@@ -62,7 +64,9 @@
   font-weight: 500;
   color: var(--app-text-muted);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
   white-space: nowrap;
 }
 .as-tab:hover {
@@ -257,10 +261,18 @@ html[data-theme="light"] .as-field-error {
   transition: background 0.22s;
 }
 
-.as-strength--weak   .as-strength-seg.filled { background: #f87171; }
-.as-strength--fair   .as-strength-seg.filled { background: #fb923c; }
-.as-strength--good   .as-strength-seg.filled { background: #facc15; }
-.as-strength--strong .as-strength-seg.filled { background: #4ade80; }
+.as-strength--weak .as-strength-seg.filled {
+  background: #f87171;
+}
+.as-strength--fair .as-strength-seg.filled {
+  background: #fb923c;
+}
+.as-strength--good .as-strength-seg.filled {
+  background: #facc15;
+}
+.as-strength--strong .as-strength-seg.filled {
+  background: #4ade80;
+}
 
 .as-strength-label {
   font-family: "Sora", sans-serif;
@@ -269,10 +281,18 @@ html[data-theme="light"] .as-field-error {
   min-width: 44px;
   text-align: right;
 }
-.as-strength--weak   .as-strength-label { color: #f87171; }
-.as-strength--fair   .as-strength-label { color: #fb923c; }
-.as-strength--good   .as-strength-label { color: #facc15; }
-.as-strength--strong .as-strength-label { color: #4ade80; }
+.as-strength--weak .as-strength-label {
+  color: #f87171;
+}
+.as-strength--fair .as-strength-label {
+  color: #fb923c;
+}
+.as-strength--good .as-strength-label {
+  color: #facc15;
+}
+.as-strength--strong .as-strength-label {
+  color: #4ade80;
+}
 
 /* ── Toggle ────────────────────────────────────────────────────── */
 
@@ -309,7 +329,9 @@ html[data-theme="light"] .as-field-error {
   border: 1px solid var(--app-border);
   cursor: pointer;
   position: relative;
-  transition: background 0.2s, border-color 0.2s;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
   margin-top: 2px;
 }
 .as-toggle::after {
@@ -321,7 +343,9 @@ html[data-theme="light"] .as-field-error {
   background: var(--app-text-muted);
   top: 2px;
   left: 2px;
-  transition: transform 0.2s, background 0.2s;
+  transition:
+    transform 0.2s,
+    background 0.2s;
 }
 .as-toggle--on {
   background: rgba(99, 102, 241, 0.85);
@@ -351,7 +375,9 @@ html[data-theme="light"] .as-field-error {
   align-items: center;
   gap: 6px;
 }
-html[data-theme="light"] .as-error { color: #dc2626; }
+html[data-theme="light"] .as-error {
+  color: #dc2626;
+}
 
 /* ── Buttons ───────────────────────────────────────────────────── */
 
@@ -406,12 +432,12 @@ html[data-theme="light"] .as-btn--saved {
   color: var(--app-btn-text);
 }
 .as-btn--ghost:hover:not(:disabled) {
-  background: rgba(255,255,255,0.07);
+  background: rgba(255, 255, 255, 0.07);
   border-color: var(--app-btn-hover-border);
   color: var(--app-btn-hover-text);
 }
 html[data-theme="light"] .as-btn--ghost:hover:not(:disabled) {
-  background: rgba(0,0,0,0.06);
+  background: rgba(0, 0, 0, 0.06);
 }
 
 .as-btn--danger-outline {
@@ -452,15 +478,17 @@ html[data-theme="light"] .as-btn--danger-outline:hover:not(:disabled) {
 .as-spinner {
   width: 12px;
   height: 12px;
-  border: 2px solid rgba(255,255,255,0.25);
-  border-top-color: rgba(255,255,255,0.85);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: rgba(255, 255, 255, 0.85);
   border-radius: 50%;
   animation: as-spin 0.65s linear infinite;
   flex-shrink: 0;
 }
 
 @keyframes as-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ── Danger section ────────────────────────────────────────────── */
@@ -519,8 +547,14 @@ html[data-theme="light"] .as-btn--danger-outline:hover:not(:disabled) {
 }
 
 @keyframes as-modal-in {
-  from { opacity: 0; transform: scale(0.94) translateY(10px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .as-delete-modal-icon {

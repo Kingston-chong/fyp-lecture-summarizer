@@ -13,6 +13,7 @@ import {
 } from "./generateSlides/ui.jsx";
 import CreateSlidesForm from "./generateSlides/CreateSlidesForm.jsx";
 import { useTheme } from "./ThemeProvider";
+import { uploadDocumentViaClient } from "@/lib/clientDocumentUpload";
 
 // ─── Main Modal ───────────────────────────────────────────
 export default function GenerateSlidesModal({
@@ -347,7 +348,10 @@ export default function GenerateSlidesModal({
         }
         if (themes.length > 0) {
           setSelectedThemeId((prev) => {
-            if (prev && themes.some((t) => String(t?.id || t?.theme_id) === prev))
+            if (
+              prev &&
+              themes.some((t) => String(t?.id || t?.theme_id) === prev)
+            )
               return prev;
             return String(themes[0]?.id || themes[0]?.theme_id || "") || prev;
           });
@@ -386,7 +390,9 @@ export default function GenerateSlidesModal({
       setTwoSlidesThemes(themes);
       if (data?.hint) setTwoSlidesThemesHint(String(data.hint));
       else if (themes.length === 0) {
-        setTwoSlidesThemesHint("No themes found for that query. Try another keyword.");
+        setTwoSlidesThemesHint(
+          "No themes found for that query. Try another keyword.",
+        );
       }
       if (themes.length > 0) {
         setSelectedThemeId(
@@ -487,7 +493,8 @@ export default function GenerateSlidesModal({
           imageIds:
             provider === "alai" && imageIds.length > 0 ? imageIds : undefined,
           bulletLimit: String(bulletLimit || "").trim() || undefined,
-          responseLanguage: provider === "2slides" ? responseLanguage : undefined,
+          responseLanguage:
+            provider === "2slides" ? responseLanguage : undefined,
         }),
       });
 
@@ -803,8 +810,15 @@ export default function GenerateSlidesModal({
           ) : (
             /* ── Improve existing PPTX tab (Alai only) ── */
             <>
-              <div className="sl-body" style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
-
+              <div
+                className="sl-body"
+                style={{
+                  padding: "20px 24px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 16,
+                }}
+              >
                 {/* File upload */}
                 <div>
                   <SectionHead>Upload your PPTX or PDF</SectionHead>
@@ -827,17 +841,29 @@ export default function GenerateSlidesModal({
                         setParsedSlides(null);
                         setPlanAdjustments([]);
                         if (f) {
-                          // Auto-parse on file pick
                           setParseLoading(true);
-                          const fd = new FormData();
-                          fd.append("file", f);
-                          fetch("/api/improve-ppt/parse", { method: "POST", body: fd })
-                            .then((r) => r.json())
-                            .then((d) => {
-                              if (d?.slides) setParsedSlides(d.slides);
-                            })
-                            .catch(() => {})
-                            .finally(() => setParseLoading(false));
+                          void (async () => {
+                            try {
+                              const doc = await uploadDocumentViaClient(f);
+                              const res = await fetch(
+                                "/api/improve-ppt/parse",
+                                {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({ documentId: doc.id }),
+                                },
+                              );
+                              const d = await res.json().catch(() => ({}));
+                              if (res.ok && d?.slides)
+                                setParsedSlides(d.slides);
+                            } catch {
+                              /* ignore */
+                            } finally {
+                              setParseLoading(false);
+                            }
+                          })();
                         }
                       }}
                     />
@@ -849,11 +875,23 @@ export default function GenerateSlidesModal({
                       <UploadCloudIco /> Choose file
                     </button>
                     {improveFile ? (
-                      <span style={{ fontSize: 12, color: "rgba(255,255,255,.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {parseLoading ? "Parsing slides…" : `✓ ${improveFile.name}${parsedSlides ? ` · ${parsedSlides.length} slides` : ""}`}
+                      <span
+                        style={{
+                          fontSize: 12,
+                          color: "rgba(255,255,255,.6)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {parseLoading
+                          ? "Parsing slides…"
+                          : `✓ ${improveFile.name}${parsedSlides ? ` · ${parsedSlides.length} slides` : ""}`}
                       </span>
                     ) : (
-                      <span style={{ fontSize: 12, color: "rgba(255,255,255,.3)" }}>
+                      <span
+                        style={{ fontSize: 12, color: "rgba(255,255,255,.3)" }}
+                      >
                         .pptx or .pdf · max 50 MB
                       </span>
                     )}
@@ -871,13 +909,27 @@ export default function GenerateSlidesModal({
                     value={improveInstructions}
                     onChange={(e) => setImproveInstructions(e.target.value)}
                   />
-                  <div className="create-prompt-hint">{improveInstructions.length} / 2000</div>
+                  <div className="create-prompt-hint">
+                    {improveInstructions.length} / 2000
+                  </div>
                 </div>
 
                 {/* Two columns for options */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 24px" }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "16px 24px",
+                  }}
+                >
                   {/* Left col */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 14,
+                    }}
+                  >
                     <div>
                       <SectionHead>Detail level</SectionHead>
                       <div className="create-pill-row">
@@ -896,10 +948,19 @@ export default function GenerateSlidesModal({
                           </button>
                         ))}
                       </div>
-                      <FieldLabel style={{ marginTop: 4, fontSize: 10.5, color: "rgba(255,255,255,.3)" }}>
-                        {improveDetailLevel === "concise" && "2+ bullets, brief notes"}
-                        {improveDetailLevel === "lecture" && "3–6 bullets, 3–5 sentence notes"}
-                        {improveDetailLevel === "deep" && "4–8 bullets, rich notes with examples"}
+                      <FieldLabel
+                        style={{
+                          marginTop: 4,
+                          fontSize: 10.5,
+                          color: "rgba(255,255,255,.3)",
+                        }}
+                      >
+                        {improveDetailLevel === "concise" &&
+                          "2+ bullets, brief notes"}
+                        {improveDetailLevel === "lecture" &&
+                          "3–6 bullets, 3–5 sentence notes"}
+                        {improveDetailLevel === "deep" &&
+                          "4–8 bullets, rich notes with examples"}
                       </FieldLabel>
                     </div>
 
@@ -921,7 +982,13 @@ export default function GenerateSlidesModal({
                           Full redesign
                         </button>
                       </div>
-                      <FieldLabel style={{ marginTop: 4, fontSize: 10.5, color: "rgba(255,255,255,.3)" }}>
+                      <FieldLabel
+                        style={{
+                          marginTop: 4,
+                          fontSize: 10.5,
+                          color: "rgba(255,255,255,.3)",
+                        }}
+                      >
                         {additiveImprove
                           ? "Keeps all original content, adds new bullets marked →"
                           : "AI may rewrite titles, bullets, and structure"}
@@ -946,11 +1013,18 @@ export default function GenerateSlidesModal({
                   </div>
 
                   {/* Right col */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 14,
+                    }}
+                  >
                     <div>
                       <SectionHead>2slides theme (optional)</SectionHead>
                       <div className="tag-hint" style={{ marginBottom: 6 }}>
-                        Search for a visual template to apply to the improved deck
+                        Search for a visual template to apply to the improved
+                        deck
                       </div>
                       <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
                         <input
@@ -958,7 +1032,9 @@ export default function GenerateSlidesModal({
                           placeholder="e.g. academic, minimal…"
                           value={themeQuery}
                           onChange={(e) => setThemeQuery(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && handleThemeSearch()}
+                          onKeyDown={(e) =>
+                            e.key === "Enter" && handleThemeSearch()
+                          }
                           style={{ flex: 1 }}
                         />
                         <button
@@ -972,7 +1048,9 @@ export default function GenerateSlidesModal({
                         </button>
                       </div>
                       {themeSearchErr && (
-                        <div className="tag-hint" style={{ color: "#f87171" }}>{themeSearchErr}</div>
+                        <div className="tag-hint" style={{ color: "#f87171" }}>
+                          {themeSearchErr}
+                        </div>
                       )}
                       {themeResults.length > 0 && (
                         <select
@@ -984,7 +1062,9 @@ export default function GenerateSlidesModal({
                             const found = themeResults.find(
                               (t) => String(t?.id || t?.theme_id) === id,
                             );
-                            setSelectedTemplateSpec(found?.templateSpec ?? null);
+                            setSelectedTemplateSpec(
+                              found?.templateSpec ?? null,
+                            );
                           }}
                           style={{ width: "100%", marginTop: 4 }}
                         >
@@ -1009,8 +1089,12 @@ export default function GenerateSlidesModal({
                         className="chk-row"
                         onClick={() => setAddStockImages((v) => !v)}
                       >
-                        <div className={`chk-box ${addStockImages ? "on" : ""}`}>
-                          {addStockImages ? <span className="chk-tick">✓</span> : null}
+                        <div
+                          className={`chk-box ${addStockImages ? "on" : ""}`}
+                        >
+                          {addStockImages ? (
+                            <span className="chk-tick">✓</span>
+                          ) : null}
                         </div>
                         Search and add stock images
                       </label>
@@ -1022,9 +1106,7 @@ export default function GenerateSlidesModal({
                 </div>
 
                 {/* Error / progress */}
-                {improveErr && (
-                  <div className="improve-err">{improveErr}</div>
-                )}
+                {improveErr && <div className="improve-err">{improveErr}</div>}
                 {improveGenLoading && (
                   <div className="gs-progress-bar-wrap">
                     <div className="gs-progress-track">
@@ -1044,9 +1126,17 @@ export default function GenerateSlidesModal({
                   type="button"
                   className="btn-create"
                   onClick={handleImproveGenerate}
-                  disabled={improveGenLoading || !improveFile || !improveInstructions.trim()}
+                  disabled={
+                    improveGenLoading ||
+                    !improveFile ||
+                    !improveInstructions.trim()
+                  }
                 >
-                  {improveGenLoading ? <div className="mini-spin" /> : <SlidesIco />}
+                  {improveGenLoading ? (
+                    <div className="mini-spin" />
+                  ) : (
+                    <SlidesIco />
+                  )}
                   {improveGenLoading ? "Improving…" : "Improve Slides"}
                 </button>
               </div>

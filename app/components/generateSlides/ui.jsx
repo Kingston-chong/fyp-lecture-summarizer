@@ -191,7 +191,8 @@ export function SelectMenu({
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (!isSelected) e.currentTarget.style.background = "transparent";
+                  if (!isSelected)
+                    e.currentTarget.style.background = "transparent";
                 }}
               >
                 {o.label}

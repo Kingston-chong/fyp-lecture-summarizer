@@ -24,13 +24,7 @@ function shortenFlashcardSetLabel(title, maxLen = 34) {
   return `${t.slice(0, maxLen - 1)}…`;
 }
 
-function OptionDropdown({
-  value,
-  onChange,
-  options,
-  disabled = false,
-  title,
-}) {
+function OptionDropdown({ value, onChange, options, disabled = false, title }) {
   const [open, setOpen] = useState(false);
   const selected = options.find((o) => o.value === value);
   const label = selected?.label ?? value;

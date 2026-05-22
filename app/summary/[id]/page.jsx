@@ -32,6 +32,7 @@ import { buildChatSuggestions } from "@/lib/chatSuggestionsFromSummary";
 import Button from "@/app/components/ui/Button";
 import DocumentPreviewModal from "@/app/dashboard/components/DocumentPreviewModal";
 import { formatBytes, isOfficePreviewName } from "@/app/dashboard/helpers";
+import { uploadDocumentsViaClient } from "@/lib/clientDocumentUpload";
 import SummaryModalStack from "./components/SummaryModalStack";
 import {
   DEFAULT_HL_HEX,
@@ -52,10 +53,7 @@ import MobileMoreSheet from "./components/MobileMoreSheet";
 import { useSourcesPanelResize } from "./hooks/useSourcesPanelResize";
 import { useSlideDecks } from "./hooks/useSlideDecks";
 import { useQuizSets } from "./hooks/useQuizSets";
-import {
-  useFlashcardSets,
-  NEW_SET_VALUE,
-} from "./hooks/useFlashcardSets";
+import { useFlashcardSets, NEW_SET_VALUE } from "./hooks/useFlashcardSets";
 import CreateFlashcardDialog from "./components/CreateFlashcardDialog";
 import FlashcardSetEditor from "./components/FlashcardSetEditor";
 import { MODELS, ATTACH_ACCEPT, SUMMARY_BODY_INNER_STYLE } from "./constants";
@@ -160,7 +158,10 @@ export default function SummaryView() {
   const [referenceMutatingId, setReferenceMutatingId] = useState(null);
 
   const lecturerReferences = useMemo(() => {
-    if (summary?.summarizeFor !== "lecturer" || summaryReferences.length === 0) {
+    if (
+      summary?.summarizeFor !== "lecturer" ||
+      summaryReferences.length === 0
+    ) {
       return summaryReferences;
     }
     const output = summary?.output?.trim();
@@ -253,9 +254,7 @@ export default function SummaryView() {
   const handleManualFlashcardSave = useCallback(
     async ({ saveIn, atPosition, front, back }) => {
       let setId =
-        saveIn === NEW_SET_VALUE
-          ? null
-          : Number.parseInt(String(saveIn), 10);
+        saveIn === NEW_SET_VALUE ? null : Number.parseInt(String(saveIn), 10);
       if (!Number.isFinite(setId) || setId <= 0) {
         const created = await createFlashcardSet("My flashcards");
         setId = created?.id;
@@ -851,9 +850,8 @@ export default function SummaryView() {
     if (!el) return null;
     if (el.classList?.contains("cite-marker")) {
       return (
-        el.closest(
-          "p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, pre",
-        ) ?? el
+        el.closest("p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, pre") ??
+        el
       );
     }
     return el;
@@ -868,7 +866,7 @@ export default function SummaryView() {
       const target = getCitationFlashTarget(el);
       if (!target) return;
       target.classList.remove("cite-flash");
-      void target.offsetWidth;  
+      void target.offsetWidth;
       target.classList.add("cite-flash");
       target.addEventListener(
         "animationend",
@@ -1238,17 +1236,9 @@ export default function SummaryView() {
       if (pendingSourceFiles.length > 0) {
         setSourceUploadLoading(true);
         try {
-          const formData = new FormData();
-          pendingSourceFiles.forEach((p) => formData.append("files", p.file));
-          const upRes = await fetch("/api/upload", {
-            method: "POST",
-            body: formData,
-          });
-          const upData = await upRes.json().catch(() => ({}));
-          if (!upRes.ok) {
-            throw new Error(upData?.error || "Attachment upload failed");
-          }
-          const docs = Array.isArray(upData?.documents) ? upData.documents : [];
+          const docs = await uploadDocumentsViaClient(
+            pendingSourceFiles.map((p) => p.file),
+          );
           const baseIds = new Set(
             (summary?.files || []).map((d) => d?.id).filter(Boolean),
           );

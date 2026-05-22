@@ -24,9 +24,12 @@ export function useDocumentManager({ status, setError, setSelectedFiles }) {
 
   useEffect(() => {
     setSelectedPrevDocIds((prev) => {
-      const next = prev.filter((id) => prevUploads.some((doc) => doc.id === id));
+      const next = prev.filter((id) =>
+        prevUploads.some((doc) => doc.id === id),
+      );
       const unchanged =
-        next.length === prev.length && next.every((id, index) => id === prev[index]);
+        next.length === prev.length &&
+        next.every((id, index) => id === prev[index]);
       return unchanged ? prev : next;
     });
   }, [prevUploads]);

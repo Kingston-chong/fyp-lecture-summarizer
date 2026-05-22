@@ -46,7 +46,8 @@ export default function FlashcardsPanel({
           </div>
         ) : flashcardSets.length === 0 ? (
           <div className="hl-empty">
-            None yet. Generate or create flashcards — they save here automatically.
+            None yet. Generate or create flashcards — they save here
+            automatically.
           </div>
         ) : (
           flashcardSets.map((s) => (

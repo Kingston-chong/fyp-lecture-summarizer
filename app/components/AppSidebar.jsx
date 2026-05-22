@@ -14,10 +14,7 @@ import {
   TrashIcon,
   UploadIcon,
 } from "./icons";
-import {
-  formatSummarizeForLabel,
-  timeAgo,
-} from "@/app/dashboard/helpers";
+import { formatSummarizeForLabel, timeAgo } from "@/app/dashboard/helpers";
 
 function formatBytes(bytes) {
   if (!bytes) return "";

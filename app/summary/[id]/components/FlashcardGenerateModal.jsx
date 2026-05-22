@@ -85,7 +85,8 @@ export default function FlashcardGenerateModal({
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to generate flashcards");
+      if (!res.ok)
+        throw new Error(data.error || "Failed to generate flashcards");
       onGenerated(data.flashcardSet);
     } catch (e) {
       setError(e.message);
@@ -158,7 +159,6 @@ export default function FlashcardGenerateModal({
               {f.label}
             </label>
           ))}
-
         </div>
 
         {error && <div className="qsm-error">{error}</div>}

@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { CloseIcon, EditIcon, Spinner, TrashIcon } from "@/app/components/icons";
+import {
+  CloseIcon,
+  EditIcon,
+  Spinner,
+  TrashIcon,
+} from "@/app/components/icons";
 import { flashcardRatingsFromCards } from "@/lib/flashcardStudyStatus";
 
 function sortCards(cards) {
@@ -303,7 +308,11 @@ export default function FlashcardStudyView({
       <div className="fc-study-view" role="dialog" aria-modal="true">
         <div className="fc-study-inner">
           <p>No cards in this set.</p>
-          <button type="button" className="fc-btn fc-btn--ghost" onClick={onClose}>
+          <button
+            type="button"
+            className="fc-btn fc-btn--ghost"
+            onClick={onClose}
+          >
             Done
           </button>
         </div>
@@ -339,7 +348,11 @@ export default function FlashcardStudyView({
             >
               Study again
             </button>
-            <button type="button" className="fc-btn fc-btn--know" onClick={onClose}>
+            <button
+              type="button"
+              className="fc-btn fc-btn--know"
+              onClick={onClose}
+            >
               Done
             </button>
           </div>
@@ -352,7 +365,9 @@ export default function FlashcardStudyView({
 
   return (
     <div className="fc-study-view" role="dialog" aria-modal="true">
-      <div className={`fc-study-inner${deleting ? " fc-study-inner--busy" : ""}`}>
+      <div
+        className={`fc-study-inner${deleting ? " fc-study-inner--busy" : ""}`}
+      >
         <header className="fc-header">
           <button
             type="button"
@@ -449,9 +464,7 @@ export default function FlashcardStudyView({
                 onChange={(e) => setEditBack(e.target.value)}
                 disabled={editSaving}
               />
-              {editError && (
-                <p className="fc-card-edit-error">{editError}</p>
-              )}
+              {editError && <p className="fc-card-edit-error">{editError}</p>}
               <div className="fc-card-edit-actions">
                 <button
                   type="button"

@@ -1411,7 +1411,9 @@ html[data-theme="light"] .mode-card-sub {
   background: transparent;
   color: rgba(255, 255, 255, 0.45);
   text-align: center;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .improve-mode-tab.active {
@@ -1819,7 +1821,8 @@ html[data-theme="light"] .improve-btn-secondary.improve-template-btn {
   background: rgba(0, 0, 0, 0.03);
   color: rgba(0, 0, 0, 0.7);
 }
-html[data-theme="light"] .improve-btn-secondary.improve-template-btn:hover:not(:disabled) {
+html[data-theme="light"]
+  .improve-btn-secondary.improve-template-btn:hover:not(:disabled) {
   border-color: rgba(99, 102, 241, 0.4);
   background: rgba(99, 102, 241, 0.06);
   color: rgba(0, 0, 0, 0.7);

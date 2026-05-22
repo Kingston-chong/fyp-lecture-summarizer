@@ -11,7 +11,9 @@ import {
 async function requireSessionUser() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+    return {
+      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    };
   }
   return { email: normalizeEmail(session.user.email) };
 }

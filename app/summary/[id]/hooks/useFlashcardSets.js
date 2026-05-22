@@ -87,12 +87,7 @@ export function useFlashcardSets({
         setFlashcardSetOpeningId(null);
       }
     },
-    [
-      numericSummaryId,
-      fetchSetDetails,
-      setFlashcardData,
-      setFlashcardView,
-    ],
+    [numericSummaryId, fetchSetDetails, setFlashcardData, setFlashcardView],
   );
 
   const openFlashcardSetEditor = useCallback(
@@ -154,12 +149,7 @@ export function useFlashcardSets({
         setFlashcardSetDeletingId(null);
       }
     },
-    [
-      numericSummaryId,
-      flashcardEditorSet,
-      setFlashcardData,
-      setFlashcardView,
-    ],
+    [numericSummaryId, flashcardEditorSet, setFlashcardData, setFlashcardView],
   );
 
   const createFlashcardSet = useCallback(
@@ -214,7 +204,8 @@ export function useFlashcardSets({
       const body = {};
       if (payload.front !== undefined) body.front = payload.front;
       if (payload.back !== undefined) body.back = payload.back;
-      if (payload.studyStatus !== undefined) body.studyStatus = payload.studyStatus;
+      if (payload.studyStatus !== undefined)
+        body.studyStatus = payload.studyStatus;
       const res = await fetch(
         `/api/summary/${numericSummaryId}/flashcard-sets/${setId}/cards/${cardId}`,
         {

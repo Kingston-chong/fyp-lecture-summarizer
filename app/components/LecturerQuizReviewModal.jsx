@@ -278,163 +278,167 @@ export default function LecturerQuizReviewModal({
           {tab === "share" ? (
             <div className="lqr-share-grid">
               <div className="lqr-share-col">
-              <div className="lqr-share-card">
-                <div className="lqr-share-title">Export files</div>
-                <p className="lqr-share-desc">
-                  Download a student handout (no answers) or a full answer key
-                  with explanations.
-                </p>
-                <div className="lqr-share-actions">
-                  <button
-                    type="button"
-                    className="lqr-btn secondary"
-                    onClick={() =>
-                      downloadTextFile(
-                        `${slug}-student.md`,
-                        formatQuizMarkdown(quizSet, { variant: "student" }),
-                        "text/markdown;charset=utf-8",
-                      )
-                    }
-                  >
-                    Student .md
-                  </button>
-                  <button
-                    type="button"
-                    className="lqr-btn secondary"
-                    onClick={() =>
-                      downloadTextFile(
-                        `${slug}-student.txt`,
-                        formatQuizPlainText(quizSet, { variant: "student" }),
-                      )
-                    }
-                  >
-                    Student .txt
-                  </button>
-                  <button
-                    type="button"
-                    className="lqr-btn"
-                    onClick={() =>
-                      downloadTextFile(
-                        `${slug}-answer-key.md`,
-                        formatQuizMarkdown(quizSet, { variant: "answerKey" }),
-                        "text/markdown;charset=utf-8",
-                      )
-                    }
-                  >
-                    Answer key .md
-                  </button>
-                  <button
-                    type="button"
-                    className="lqr-btn"
-                    onClick={() =>
-                      downloadTextFile(
-                        `${slug}-answer-key.txt`,
-                        formatQuizPlainText(quizSet, { variant: "answerKey" }),
-                      )
-                    }
-                  >
-                    Answer key .txt
-                  </button>
-                </div>
-              </div>
-
-              <div className="lqr-share-card">
-                <div className="lqr-share-title">Google Forms</div>
-                <p className="lqr-share-desc">
-                  Copy formatted text and paste questions into{" "}
-                  <a
-                    href="https://forms.google.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="lqr-link"
-                  >
-                    Google Forms
-                  </a>{" "}
-                  manually. Correct answers are marked [CORRECT].
-                </p>
-                <button
-                  type="button"
-                  className="lqr-btn"
-                  onClick={() =>
-                    void handleCopy(formatQuizGoogleForms(quizSet), "google")
-                  }
-                >
-                  {copied === "google" ? "Copied!" : "Copy for Google Forms"}
-                </button>
-              </div>
-              </div>
-
-              <div className="lqr-share-col lqr-share-col--website">
-              <div className="lqr-share-card lqr-share-card--website">
-                <div className="lqr-share-title">Students take in website</div>
-                <p className="lqr-share-desc">
-                  Publish a share link first, then start collecting when you are
-                  ready for students to submit. Stop collecting to close the
-                  window while keeping the link available.
-                </p>
-                <div className="lqr-share-actions lqr-share-actions--center">
-                  <button
-                    type="button"
-                    className="lqr-btn"
-                    disabled={publishLoading || collectionLoading}
-                    onClick={() => void handlePublish()}
-                  >
-                    {publishLoading
-                      ? "Updating…"
-                      : published
-                        ? "Unpublish"
-                        : "Publish for students"}
-                  </button>
-                  {published && (
-                    <>
-                      <label className="lqr-closes-at">
-                        <span>Close automatically</span>
-                        <input
-                          type="datetime-local"
-                          value={closesAtLocal}
-                          onChange={(e) => setClosesAtLocal(e.target.value)}
-                          disabled={collectionLoading || publishLoading}
-                        />
-                      </label>
-                      <span
-                        className={`lqr-status-badge${acceptingResponses ? " lqr-status-badge--collecting" : ""}`}
-                      >
-                        {acceptingResponses ? "Collecting" : "Not collecting"}
-                      </span>
-                      <button
-                        type="button"
-                        className={
-                          acceptingResponses ? "lqr-btn secondary" : "lqr-btn"
-                        }
-                        disabled={collectionLoading || publishLoading}
-                        onClick={() => void handleCollectionToggle()}
-                      >
-                        {collectionLoading
-                          ? "Updating…"
-                          : acceptingResponses
-                            ? "Stop collecting"
-                            : "Start collecting"}
-                      </button>
-                    </>
-                  )}
-                </div>
-                {published && shareUrl && (
-                  <div className="lqr-share-url-wrap">
-                    <input
-                      readOnly
-                      value={shareUrl}
-                      className="lqr-share-input"
-                    />
+                <div className="lqr-share-card">
+                  <div className="lqr-share-title">Export files</div>
+                  <p className="lqr-share-desc">
+                    Download a student handout (no answers) or a full answer key
+                    with explanations.
+                  </p>
+                  <div className="lqr-share-actions">
                     <button
                       type="button"
                       className="lqr-btn secondary"
-                      onClick={() => void handleCopy(shareUrl, "link")}
+                      onClick={() =>
+                        downloadTextFile(
+                          `${slug}-student.md`,
+                          formatQuizMarkdown(quizSet, { variant: "student" }),
+                          "text/markdown;charset=utf-8",
+                        )
+                      }
                     >
-                      {copied === "link" ? "Link copied!" : "Copy share link"}
+                      Student .md
+                    </button>
+                    <button
+                      type="button"
+                      className="lqr-btn secondary"
+                      onClick={() =>
+                        downloadTextFile(
+                          `${slug}-student.txt`,
+                          formatQuizPlainText(quizSet, { variant: "student" }),
+                        )
+                      }
+                    >
+                      Student .txt
+                    </button>
+                    <button
+                      type="button"
+                      className="lqr-btn"
+                      onClick={() =>
+                        downloadTextFile(
+                          `${slug}-answer-key.md`,
+                          formatQuizMarkdown(quizSet, { variant: "answerKey" }),
+                          "text/markdown;charset=utf-8",
+                        )
+                      }
+                    >
+                      Answer key .md
+                    </button>
+                    <button
+                      type="button"
+                      className="lqr-btn"
+                      onClick={() =>
+                        downloadTextFile(
+                          `${slug}-answer-key.txt`,
+                          formatQuizPlainText(quizSet, {
+                            variant: "answerKey",
+                          }),
+                        )
+                      }
+                    >
+                      Answer key .txt
                     </button>
                   </div>
-                )}
+                </div>
+
+                <div className="lqr-share-card">
+                  <div className="lqr-share-title">Google Forms</div>
+                  <p className="lqr-share-desc">
+                    Copy formatted text and paste questions into{" "}
+                    <a
+                      href="https://forms.google.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="lqr-link"
+                    >
+                      Google Forms
+                    </a>{" "}
+                    manually. Correct answers are marked [CORRECT].
+                  </p>
+                  <button
+                    type="button"
+                    className="lqr-btn"
+                    onClick={() =>
+                      void handleCopy(formatQuizGoogleForms(quizSet), "google")
+                    }
+                  >
+                    {copied === "google" ? "Copied!" : "Copy for Google Forms"}
+                  </button>
+                </div>
               </div>
+
+              <div className="lqr-share-col lqr-share-col--website">
+                <div className="lqr-share-card lqr-share-card--website">
+                  <div className="lqr-share-title">
+                    Students take in website
+                  </div>
+                  <p className="lqr-share-desc">
+                    Publish a share link first, then start collecting when you
+                    are ready for students to submit. Stop collecting to close
+                    the window while keeping the link available.
+                  </p>
+                  <div className="lqr-share-actions lqr-share-actions--center">
+                    <button
+                      type="button"
+                      className="lqr-btn"
+                      disabled={publishLoading || collectionLoading}
+                      onClick={() => void handlePublish()}
+                    >
+                      {publishLoading
+                        ? "Updating…"
+                        : published
+                          ? "Unpublish"
+                          : "Publish for students"}
+                    </button>
+                    {published && (
+                      <>
+                        <label className="lqr-closes-at">
+                          <span>Close automatically</span>
+                          <input
+                            type="datetime-local"
+                            value={closesAtLocal}
+                            onChange={(e) => setClosesAtLocal(e.target.value)}
+                            disabled={collectionLoading || publishLoading}
+                          />
+                        </label>
+                        <span
+                          className={`lqr-status-badge${acceptingResponses ? " lqr-status-badge--collecting" : ""}`}
+                        >
+                          {acceptingResponses ? "Collecting" : "Not collecting"}
+                        </span>
+                        <button
+                          type="button"
+                          className={
+                            acceptingResponses ? "lqr-btn secondary" : "lqr-btn"
+                          }
+                          disabled={collectionLoading || publishLoading}
+                          onClick={() => void handleCollectionToggle()}
+                        >
+                          {collectionLoading
+                            ? "Updating…"
+                            : acceptingResponses
+                              ? "Stop collecting"
+                              : "Start collecting"}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  {published && shareUrl && (
+                    <div className="lqr-share-url-wrap">
+                      <input
+                        readOnly
+                        value={shareUrl}
+                        className="lqr-share-input"
+                      />
+                      <button
+                        type="button"
+                        className="lqr-btn secondary"
+                        onClick={() => void handleCopy(shareUrl, "link")}
+                      >
+                        {copied === "link" ? "Link copied!" : "Copy share link"}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ) : (

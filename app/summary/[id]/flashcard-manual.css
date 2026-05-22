@@ -193,7 +193,9 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  transition: filter 0.18s, transform 0.18s;
+  transition:
+    filter 0.18s,
+    transform 0.18s;
 }
 
 .fc-save-btn:hover:not(:disabled) {

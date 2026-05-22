@@ -43,14 +43,20 @@ export async function PATCH(req) {
 
   if (!user?.passwordHash || user.passwordHash === "google-oauth") {
     return NextResponse.json(
-      { error: "This account uses Google sign-in. Use Continue with Google, or set a password via Forgot password." },
+      {
+        error:
+          "This account uses Google sign-in. Use Continue with Google, or set a password via Forgot password.",
+      },
       { status: 400 },
     );
   }
 
   const valid = await bcrypt.compare(currentPassword, user.passwordHash);
   if (!valid) {
-    return NextResponse.json({ error: "Current password is incorrect." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Current password is incorrect." },
+      { status: 400 },
+    );
   }
 
   const hashed = await bcrypt.hash(newPassword, 12);

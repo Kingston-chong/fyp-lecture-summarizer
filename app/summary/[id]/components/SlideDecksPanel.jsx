@@ -41,45 +41,45 @@ export default function SlideDecksPanel({
           </div>
         ) : (
           slideDecks.map((d) => (
-              <div key={d.id} className="sd-deck-row">
-                <div className="sd-deck-title" title={d.title}>
-                  {d.title}
-                </div>
-                <div className="sd-deck-meta">
-                  {d.provider === "2slides"
-                    ? "2slides"
-                    : d.provider === "alai"
-                      ? "Alai"
-                      : null}
-                  {d.provider ? " · " : ""}
-                  {formatSlideDeckSavedAt(d.createdAt)}
-                </div>
-                <div className="sd-deck-actions">
-                  <button
-                    type="button"
-                    className="sd-deck-btn"
-                    onClick={() => onPreview(d)}
-                  >
-                    Preview
-                  </button>
-                  <button
-                    type="button"
-                    className="sd-deck-btn"
-                    onClick={() => onDownload(d)}
-                    title="Download PowerPoint (.pptx)"
-                  >
-                    Download
-                  </button>
-                  <button
-                    type="button"
-                    className="sd-deck-btn"
-                    disabled={slideDeckDeletingId === d.id}
-                    onClick={() => onDelete(d)}
-                  >
-                    {slideDeckDeletingId === d.id ? "Deleting..." : "Delete"}
-                  </button>
-                </div>
+            <div key={d.id} className="sd-deck-row">
+              <div className="sd-deck-title" title={d.title}>
+                {d.title}
               </div>
+              <div className="sd-deck-meta">
+                {d.provider === "2slides"
+                  ? "2slides"
+                  : d.provider === "alai"
+                    ? "Alai"
+                    : null}
+                {d.provider ? " · " : ""}
+                {formatSlideDeckSavedAt(d.createdAt)}
+              </div>
+              <div className="sd-deck-actions">
+                <button
+                  type="button"
+                  className="sd-deck-btn"
+                  onClick={() => onPreview(d)}
+                >
+                  Preview
+                </button>
+                <button
+                  type="button"
+                  className="sd-deck-btn"
+                  onClick={() => onDownload(d)}
+                  title="Download PowerPoint (.pptx)"
+                >
+                  Download
+                </button>
+                <button
+                  type="button"
+                  className="sd-deck-btn"
+                  disabled={slideDeckDeletingId === d.id}
+                  onClick={() => onDelete(d)}
+                >
+                  {slideDeckDeletingId === d.id ? "Deleting..." : "Delete"}
+                </button>
+              </div>
+            </div>
           ))
         )}
       </div>

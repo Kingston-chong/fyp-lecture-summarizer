@@ -2095,7 +2095,9 @@ mark.s2n-hl-pending {
   align-items: center;
   gap: 3px;
   cursor: pointer;
-  transition: color 0.15s, background 0.15s;
+  transition:
+    color 0.15s,
+    background 0.15s;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2189,7 +2191,9 @@ mark.s2n-hl-pending {
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
-  transition: color 0.15s, background 0.15s;
+  transition:
+    color 0.15s,
+    background 0.15s;
   position: relative;
 }
 .attach-btn:hover:not(:disabled) {
@@ -3434,15 +3438,19 @@ html[data-theme="light"] .ref-kind {
 }
 
 @keyframes sd-pdf-pulse {
-  0%, 100% { opacity: 0.55; }
-  50%       { opacity: 0.8;  }
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.8;
+  }
 }
 
 /* Light theme overrides */
 html[data-theme="light"] .sd-deck-btn--pdf:disabled {
   opacity: 0.5;
 }
-
 
 /* ─────────────────────────────────────────────────────────────────────────────
    PATCH 2 — ChatGPT-style reply / chat thread
@@ -3454,7 +3462,7 @@ html[data-theme="light"] .sd-deck-btn--pdf:disabled {
 .chat-thread {
   display: flex;
   flex-direction: column;
-  gap: 0;           /* ChatGPT uses no gap — spacing is inside each row */
+  gap: 0; /* ChatGPT uses no gap — spacing is inside each row */
   padding-bottom: 4px;
 }
 
@@ -3480,14 +3488,14 @@ html[data-theme="light"] .sd-deck-btn--pdf:disabled {
   background: rgba(255, 255, 255, 0.025);
   border-radius: 12px;
   padding: 16px 12px;
-  margin: 0 -12px;   /* bleed to panel edges */
+  margin: 0 -12px; /* bleed to panel edges */
 }
 
 /* ── Avatar ── */
 .m-ava {
   width: 28px;
   height: 28px;
-  border-radius: 50%;   /* ChatGPT uses circular avatars */
+  border-radius: 50%; /* ChatGPT uses circular avatars */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3502,7 +3510,7 @@ html[data-theme="light"] .sd-deck-btn--pdf:disabled {
 
 /* AI avatar: solid brand circle */
 .m-ava.ai {
-  background: #10a37f;       /* ChatGPT green */
+  background: #10a37f; /* ChatGPT green */
   color: #fff;
   border: none;
 }
@@ -3510,7 +3518,7 @@ html[data-theme="light"] .sd-deck-btn--pdf:disabled {
 /* User avatar: neutral grey circle */
 .m-ava.user {
   background: #4a4a4a;
-  color: rgba(255,255,255,0.85);
+  color: rgba(255, 255, 255, 0.85);
   border: none;
 }
 
@@ -3536,7 +3544,7 @@ html[data-theme="light"] .sd-deck-btn--pdf:disabled {
 /* ── Bubble ── */
 .m-bub {
   width: 100%;
-  padding: 0;                /* ChatGPT AI: no bubble background, just text */
+  padding: 0; /* ChatGPT AI: no bubble background, just text */
   border-radius: 0;
   border: none;
   font-size: 14px;
@@ -3565,7 +3573,7 @@ html[data-theme="light"] .sd-deck-btn--pdf:disabled {
   border-radius: 18px;
   padding: 10px 16px;
   color: var(--sum-title);
-  width: auto;          /* shrink to content */
+  width: auto; /* shrink to content */
   max-width: 100%;
 }
 
@@ -3583,10 +3591,15 @@ html[data-theme="light"] .sd-deck-btn--pdf:disabled {
   text-underline-offset: 2px;
   word-break: break-all;
 }
-.m-bub a:hover { color: #bfdbfe; }
-.m-bub.user a  { color: #a5b4fc; }
-.m-bub.user a:hover { color: #c7d2fe; }
-
+.m-bub a:hover {
+  color: #bfdbfe;
+}
+.m-bub.user a {
+  color: #a5b4fc;
+}
+.m-bub.user a:hover {
+  color: #c7d2fe;
+}
 
 /* ── Light theme overrides ── */
 html[data-theme="light"] .m-row.ai {

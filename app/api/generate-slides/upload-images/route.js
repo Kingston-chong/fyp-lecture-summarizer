@@ -58,7 +58,10 @@ export async function POST(req) {
 
     if (!files || files.length === 0) {
       return NextResponse.json(
-        { error: "No files provided. Include at least one file under the 'files' field." },
+        {
+          error:
+            "No files provided. Include at least one file under the 'files' field.",
+        },
         { status: 400 },
       );
     }
