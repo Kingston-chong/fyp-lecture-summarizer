@@ -38,7 +38,7 @@ export default function TemplatePickerModal({
         <div className="template-picker-search-row">
           <input
             className="improve-txt-inp"
-            placeholder="Search template style (e.g. dark green modular roadmap)..."
+            placeholder="Filter templates (optional)…"
             value={themeQuery}
             onChange={(e) => onThemeQueryChange(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && onSearch()}
@@ -47,13 +47,13 @@ export default function TemplatePickerModal({
             type="button"
             className="improve-btn-secondary"
             style={{ flex: "none", width: 86 }}
-            disabled={themeSearchLoading || !themeQuery.trim()}
+            disabled={themeSearchLoading}
             onClick={() => void onSearch()}
           >
             {themeSearchLoading ? (
               <span className="improve-mini-spin" />
             ) : (
-              "Search"
+              "Refresh"
             )}
           </button>
         </div>
@@ -66,7 +66,9 @@ export default function TemplatePickerModal({
         <div className="template-picker-grid">
           {themeResults.length === 0 ? (
             <div className="template-picker-empty">
-              Search to see template previews.
+              {themeSearchLoading
+                ? "Loading templates…"
+                : "No templates to show. Try Refresh or adjust the filter."}
             </div>
           ) : (
             themeResults.map((t) => (
@@ -105,16 +107,6 @@ export default function TemplatePickerModal({
                     >
                       View ↗
                     </a>
-                  )}
-                  {t.themeURL && (
-                    <img
-                      src={`/api/improve-ppt/theme-preview?url=${encodeURIComponent(t.themeURL)}`}
-                      alt={t.name || "Template preview"}
-                      className="template-card-preview"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
-                    />
                   )}
                 </div>
                 <div className="template-card-name">

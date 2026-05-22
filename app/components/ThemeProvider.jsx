@@ -4,7 +4,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useLayoutEffect,
   useMemo,
   useState,
 } from "react";
@@ -21,15 +20,14 @@ export function useTheme() {
 
 const STORAGE_KEY = "slide2notes-theme";
 
-export default function ThemeProvider({ children }) {
-  const [theme, setThemeState] = useState("dark");
+function readThemeFromDom() {
+  if (typeof document === "undefined") return "dark";
+  const t = document.documentElement.dataset.theme;
+  return t === "light" || t === "dark" ? t : "dark";
+}
 
-  useLayoutEffect(() => {
-    const t = document.documentElement.dataset.theme;
-    if (t === "light" || t === "dark") {
-      setThemeState(t);
-    }
-  }, []);
+export default function ThemeProvider({ children }) {
+  const [theme, setThemeState] = useState(readThemeFromDom);
 
   const setTheme = useCallback((next) => {
     setThemeState(next);

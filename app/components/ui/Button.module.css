@@ -35,6 +35,12 @@
   background: rgba(251, 191, 36, 0.07);
 }
 
+.flashcard:hover {
+  border-color: rgba(45, 212, 191, 0.4);
+  color: #99f6e4;
+  background: rgba(45, 212, 191, 0.08);
+}
+
 .pdf:hover {
   border-color: rgba(248, 113, 113, 0.35);
   color: #fca5a5;
@@ -90,4 +96,10 @@ html[data-theme="light"] .btn.slides:hover {
   box-shadow: 0 6px 22px rgba(99, 102, 241, 0.45);
   transform: translateY(-1px);
   filter: brightness(1.04);
+}
+
+html[data-theme="light"] .flashcard:hover {
+  border-color: rgba(13, 148, 136, 0.35);
+  color: #0f766e;
+  background: rgba(45, 212, 191, 0.12);
 }

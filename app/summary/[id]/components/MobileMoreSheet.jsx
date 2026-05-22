@@ -4,6 +4,7 @@ import { SaveIco, Spinner } from "@/app/components/icons";
 import SourcesListPanel from "./SourcesListPanel";
 import SlideDecksPanel from "./SlideDecksPanel";
 import SavedQuizzesPanel from "./SavedQuizzesPanel";
+import FlashcardsPanel from "./FlashcardsPanel";
 import HighlightsPanel from "./HighlightsPanel";
 import ReferencesPanel from "./ReferencesPanel";
 import CollapsibleSidebarSection from "./CollapsibleSidebarSection";
@@ -17,6 +18,7 @@ export default function MobileMoreSheet({
   referencesProps,
   slideDecksProps,
   quizSetsProps,
+  flashcardSetsProps,
   highlightsProps,
 }) {
   if (!open) return null;
@@ -33,6 +35,7 @@ export default function MobileMoreSheet({
   const fileCount = baseFiles.length + extraFiles.length;
   const deckCount = slideDecksProps?.slideDecks?.length ?? 0;
   const quizCount = quizSetsProps?.quizSets?.length ?? 0;
+  const flashcardCount = flashcardSetsProps?.flashcardSets?.length ?? 0;
   const hlCount =
     (highlightsProps?.highlights?.length ?? 0) +
     (highlightsProps?.pendingHighlights?.length ?? 0);
@@ -134,6 +137,35 @@ export default function MobileMoreSheet({
           >
             <SavedQuizzesPanel
               {...quizSetsProps}
+              embedded
+              panelClassName="hl-panel sd-panel hl-panel--embedded"
+              showHelpText={false}
+            />
+          </CollapsibleSidebarSection>
+
+          <CollapsibleSidebarSection
+            id="flashcards"
+            title="Flashcards"
+            badge={flashcardCount || null}
+            defaultOpen={false}
+            actions={
+              <button
+                type="button"
+                className="sd-refresh-btn"
+                title="Refresh saved flashcards"
+                disabled={flashcardSetsProps?.flashcardSetsLoading}
+                onClick={flashcardSetsProps?.onRefresh}
+              >
+                {flashcardSetsProps?.flashcardSetsLoading ? (
+                  <Spinner size={11} />
+                ) : (
+                  "↻"
+                )}
+              </button>
+            }
+          >
+            <FlashcardsPanel
+              {...flashcardSetsProps}
               embedded
               panelClassName="hl-panel sd-panel hl-panel--embedded"
               showHelpText={false}

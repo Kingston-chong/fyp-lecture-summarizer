@@ -1300,6 +1300,7 @@ html[data-theme="light"] .mode-card-sub {
   flex-direction: column;
   gap: 12px;
   flex: 1;
+  min-height: 0;
   overflow: visible;
   padding-bottom: 8px;
 }
@@ -1367,6 +1368,184 @@ html[data-theme="light"] .mode-card-sub {
   color: rgba(255, 255, 255, 0.35);
   margin-top: 4px;
 }
+
+/* ── Improve mode tabs (Panel 2) ── */
+.improve-mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.improve-mode-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 7px 6px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
+  text-align: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.improve-mode-tab.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+  border: 0.5px solid rgba(255, 255, 255, 0.12);
+}
+
+.improve-mode-tab-name {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.improve-mode-tab-sub {
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.3;
+  opacity: 0.75;
+}
+
+.improve-provider-hint {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted, rgba(255, 255, 255, 0.55));
+}
+
+/* ── Suggestion chips grid (Panel 2) ── */
+.improve-sug-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.improve-sug-grid .improve-sug-btn {
+  border-radius: 8px;
+  padding: 10px 8px;
+  min-height: 44px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.35;
+}
+
+/* ── Template selected state (Panel 3) ── */
+.improve-template-selected {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.06);
+}
+
+.improve-template-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.improve-template-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(165, 180, 252, 0.95);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.improve-template-vibe {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.improve-template-change {
+  font-size: 11px;
+  color: rgba(165, 180, 252, 0.85);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.improve-template-change:hover {
+  color: rgba(165, 180, 252, 1);
+}
+
+/* ── AI plan preview (Panel 3 while generating) ── */
+.improve-panel-busy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 260px;
+  flex: 1;
+}
+
+.improve-plan-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.improve-generating-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(199, 210, 254, 0.95);
+  flex-shrink: 0;
+  padding-top: 4px;
+}
+
+.improve-plan-box {
+  background: rgba(99, 102, 241, 0.06);
+  border-radius: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.improve-plan-box--fill {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+}
+
+.improve-plan-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.4;
+}
+
+.improve-plan-check {
+  color: rgba(134, 239, 172, 0.85);
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
 .improve-field-label {
   font-size: 11.5px;
   color: rgba(255, 255, 255, 0.5);
@@ -1491,6 +1670,29 @@ html[data-theme="light"] .mode-card-sub {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* Match .model-btn (AI model dropdown) sizing */
+.improve-btn-secondary.improve-template-btn {
+  flex: none;
+  flex-shrink: 0;
+  align-self: stretch;
+  width: 100%;
+  height: 46px;
+  min-height: unset;
+  padding: 0 12px;
+  border-radius: 9px;
+  border-color: rgba(255, 255, 255, 0.08);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #c0c0e0;
+  box-sizing: border-box;
+}
+.improve-btn-secondary.improve-template-btn:hover:not(:disabled) {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.06);
+  color: #c0c0e0;
+}
+
 .improve-btn-primary {
   flex: 1;
   height: 36px;
@@ -1592,6 +1794,65 @@ html[data-theme="light"] .improve-btn-secondary {
   color: rgba(0, 0, 0, 0.65);
   background: rgba(0, 0, 0, 0.03);
 }
+html[data-theme="light"] .improve-btn-secondary.improve-template-btn {
+  border-color: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.03);
+  color: rgba(0, 0, 0, 0.7);
+}
+html[data-theme="light"] .improve-btn-secondary.improve-template-btn:hover:not(:disabled) {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.06);
+  color: rgba(0, 0, 0, 0.7);
+}
+
+/* Improve slides UI — light theme */
+html[data-theme="light"] .improve-mode-tabs {
+  background: rgba(0, 0, 0, 0.04);
+}
+html[data-theme="light"] .improve-mode-tab {
+  color: rgba(0, 0, 0, 0.45);
+}
+html[data-theme="light"] .improve-mode-tab.active {
+  background: rgba(255, 255, 255, 0.9);
+  color: #111827;
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+html[data-theme="light"] .improve-template-selected {
+  border-color: rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.06);
+}
+html[data-theme="light"] .improve-template-name {
+  color: #4f46e5;
+}
+html[data-theme="light"] .improve-template-vibe {
+  color: rgba(0, 0, 0, 0.45);
+}
+html[data-theme="light"] .improve-template-change {
+  color: #4f46e5;
+}
+html[data-theme="light"] .improve-template-change:hover {
+  color: #4338ca;
+}
+html[data-theme="light"] .improve-plan-loading {
+  color: var(--text-muted, #64748b);
+}
+
+html[data-theme="light"] .improve-generating-status {
+  color: #4338ca;
+}
+
+html[data-theme="light"] .improve-plan-box {
+  background: rgba(99, 102, 241, 0.06);
+  border-color: rgba(99, 102, 241, 0.2);
+}
+html[data-theme="light"] .improve-plan-item {
+  color: rgba(0, 0, 0, 0.6);
+}
+html[data-theme="light"] .improve-plan-check {
+  color: #15803d;
+}
+
 .summarize-btn::after {
   content: "";
   position: absolute;
@@ -1803,14 +2064,6 @@ html[data-theme="light"] .improve-btn-secondary {
   justify-content: center;
   gap: 5px;
   padding: 8px;
-}
-.template-card-preview {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  position: absolute;
-  inset: 0;
 }
 .template-card-preview-icon {
   font-size: 22px;

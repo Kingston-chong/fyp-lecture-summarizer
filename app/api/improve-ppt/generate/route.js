@@ -12,9 +12,20 @@ import {
   buildEnrichmentBlock,
 } from "@/lib/improvePptWebSearch";
 import {
+  ALAI_BASE,
+  alaiErrorPayload,
+  getAlaiApiKey,
+  isAlaiThemeId,
+  toAlaiSlideRange,
+} from "@/lib/alaiClient";
+import {
   downloadPptxBuffer,
   getAlaiPptxUrlWithPoll,
 } from "@/lib/alaiSlidePptx";
+import {
+  generatePptxWithTwoSlides,
+  improvedSlidesToTwoSlidesUserInput,
+} from "@/lib/twoSlidesGenerate";
 
 // ── FIX: Raise the serverless function timeout so Tavily + LLM can finish.
 // Without this Next.js kills the function at 60s before any response is sent.
@@ -143,7 +154,7 @@ function buildAlaiInputText({
 
   const subtitleLine = deckSubtitle ? `\nSubtitle: ${deckSubtitle}` : "";
 
-  return `Create a 16:9 PowerPoint deck using the exact slide outline below.
+  const body = `Create a 16:9 PowerPoint deck using the exact slide outline below.
 
 Theme colors:
 - background: ${bg}
@@ -161,6 +172,13 @@ ${refBlock}
 Slide outline (render in this exact order):
 ${slideBlock}
 `;
+
+  const maxChars = 48_000;
+  if (body.length <= maxChars) return body;
+  return (
+    body.slice(0, maxChars) +
+    "\n\n[Outline truncated for API limits — keep slide order and titles above.]"
+  );
 }
 
 function normalizeContentTheme(t, additiveImprove) {
@@ -432,13 +450,74 @@ Rules:
       }
     }
 
-    // 5. Build PPTX via Alai
+    // 5. Build PPTX via selected provider (Alai or 2slides Fast PPT)
     const references = allWebSources.map((s) => ({
       title: s.title,
       url: s.url,
     }));
 
-    // Try to extract original PPTX theme to preserve its look (PDF has no PPTX theme)
+    const providerRaw = String(body?.provider || "alai").toLowerCase();
+    const provider =
+      providerRaw === "2slides"
+        ? "2slides"
+        : providerRaw === "alai"
+          ? "alai"
+          : null;
+    if (!provider) {
+      return NextResponse.json({ error: "Invalid provider" }, { status: 400 });
+    }
+
+    const pptxFilename = editedFilenameFromSource(effectiveSourceName, title);
+    const pptxHeaders = {
+      "Content-Type":
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "Content-Disposition": `attachment; filename="${pptxFilename}"`,
+    };
+
+    if (provider === "2slides") {
+      const themeId = String(body?.themeId || "").trim();
+      if (!themeId) {
+        return NextResponse.json(
+          {
+            error:
+              "A theme is required for 2slides. Search and select a theme before generating.",
+          },
+          { status: 400 },
+        );
+      }
+      if (!process.env.TWOSLIDES_API_KEY) {
+        return NextResponse.json(
+          { error: "TWOSLIDES_API_KEY is not configured on the server." },
+          { status: 500 },
+        );
+      }
+
+      const userInput = improvedSlidesToTwoSlidesUserInput({
+        title,
+        subtitle,
+        slides: outSlides,
+        references,
+        instructions,
+      });
+      const slideCount = outSlides.length;
+
+      try {
+        const buffer = await generatePptxWithTwoSlides({
+          userInput,
+          themeId,
+          mode: slideCount > 10 ? "async" : "sync",
+          pollTimeoutMs: slideCount > 10 ? 240_000 : 120_000,
+        });
+        return new NextResponse(buffer, { status: 200, headers: pptxHeaders });
+      } catch (e) {
+        return NextResponse.json(
+          { error: String(e?.message || e) },
+          { status: 502 },
+        );
+      }
+    }
+
+    // Alai: try to extract original PPTX theme to preserve its look (PDF has no PPTX theme)
     let effectiveTheme = theme;
     if (additiveImprove && /\.pptx$/i.test(effectiveSourceName)) {
       try {
@@ -460,9 +539,13 @@ Rules:
       }
     }
 
-    if (!process.env.ALAI_API_KEY) {
+    const alaiKey = getAlaiApiKey();
+    if (!alaiKey) {
       return NextResponse.json(
-        { error: "ALAI_API_KEY is not configured on the server." },
+        {
+          error:
+            "ALAI_API_KEY is not configured. Add a valid key from app.getalai.com to .env.local and restart the dev server.",
+        },
         { status: 500 },
       );
     }
@@ -477,38 +560,51 @@ Rules:
       templateHints: incomingTemplateSpec || null,
     });
 
+    const alaiThemeId = String(body?.themeId || "").trim();
     const payload = {
       input_text,
-      export_formats: ["ppt"],
-      presentation_options: title ? { title: String(title) } : undefined,
+      additional_instructions:
+        "Follow the numbered slide outline in input_text exactly: one slide per \"Slide N\" section, preserve order, and do not merge or drop slides. Use the provided bullets and speaker notes.",
+      export_formats: ["link", "ppt"],
+      presentation_options: {
+        title: String(title || "Improved presentation").slice(0, 200),
+        slide_range: toAlaiSlideRange(outSlides.length),
+        ...(isAlaiThemeId(alaiThemeId) ? { theme_id: alaiThemeId } : {}),
+      },
+      image_options: {
+        include_ai_images: true,
+        include_web_images: true,
+        num_image_variants: 0,
+      },
     };
 
-    const startRes = await fetch(
-      "https://slides-api.getalai.com/api/v1/generations",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.ALAI_API_KEY}`,
-        },
-        body: JSON.stringify(payload),
+    const startRes = await fetch(`${ALAI_BASE}/generations`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${alaiKey}`,
       },
-    );
+      body: JSON.stringify(payload),
+    });
 
     const startData = await startRes.json().catch(() => ({}));
     if (!startRes.ok) {
+      const { message, httpStatus } = alaiErrorPayload(startRes, startData);
+      console.error("improve-ppt Alai POST /generations failed", {
+        status: startRes.status,
+        message,
+      });
       return NextResponse.json(
         {
-          error:
-            startData?.error ||
-            startData?.message ||
-            "Failed to start Alai PPTX generation",
+          error: message,
+          code: "ALAI_UPSTREAM",
+          upstreamStatus: startRes.status,
         },
-        { status: startRes.status || 502 },
+        { status: httpStatus },
       );
     }
 
-    const generationId = startData.id || startData.generation_id;
+    const generationId = startData.generation_id || startData.id;
     if (!generationId) {
       return NextResponse.json(
         { error: "Alai did not return a generation id." },
@@ -535,11 +631,7 @@ Rules:
 
     return new NextResponse(dl.buffer, {
       status: 200,
-      headers: {
-        "Content-Type":
-          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        "Content-Disposition": `attachment; filename="${editedFilenameFromSource(effectiveSourceName, title)}"`,
-      },
+      headers: pptxHeaders,
     });
   } catch (err) {
     console.error("improve-ppt generate:", err);

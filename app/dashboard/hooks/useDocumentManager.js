@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { swrFetcher } from "@/lib/swrFetcher";
 
+const EMPTY_DOCS = [];
+
 /**
  * Previous uploads list + selection + delete handlers (dashboard).
  * @param {{ status: string; setError: (msg: string) => void; setSelectedFiles: React.Dispatch<React.SetStateAction<unknown[]>> }} options
@@ -14,16 +16,19 @@ export function useDocumentManager({ status, setError, setSelectedFiles }) {
     isLoading: prevLoading,
     mutate: mutateUploads,
   } = useSWR(status === "authenticated" ? "/api/documents" : null, swrFetcher);
-  const prevUploads = uploadsData?.documents || [];
+  const prevUploads = uploadsData?.documents ?? EMPTY_DOCS;
 
   const [removingDocId, setRemovingDocId] = useState(null);
   const [selectedPrevDocIds, setSelectedPrevDocIds] = useState([]);
   const [bulkRemoving, setBulkRemoving] = useState(false);
 
   useEffect(() => {
-    setSelectedPrevDocIds((prev) =>
-      prev.filter((id) => prevUploads.some((doc) => doc.id === id)),
-    );
+    setSelectedPrevDocIds((prev) => {
+      const next = prev.filter((id) => prevUploads.some((doc) => doc.id === id));
+      const unchanged =
+        next.length === prev.length && next.every((id, index) => id === prev[index]);
+      return unchanged ? prev : next;
+    });
   }, [prevUploads]);
 
   async function handleRemoveDocument(doc) {

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { FieldLabel, SectionHead, Divider, SelectMenu } from "./ui.jsx";
@@ -24,7 +24,7 @@ function ExtraInstructionsField({ value, onChange, presets, onApplyPreset }) {
           className="create-prompt-area"
           rows={3}
           maxLength={4000}
-          placeholder='e.g. "focus on diagrams", "add a recap slide at the end"…'
+          placeholder='e.g. "focus on diagrams", "add a recap slide at the end"ΓÇª'
           value={value}
           onChange={(e) => onChange(e.target.value)}
           style={{ paddingRight: 36 }}
@@ -93,7 +93,7 @@ function ExtraInstructionsField({ value, onChange, presets, onApplyPreset }) {
               borderBottom: "1px solid rgba(255,255,255,.07)",
             }}
           >
-            Suggestions — click to add
+            Suggestions ΓÇö click to add
           </div>
           {presets.map((preset, i) => (
             <button
@@ -218,7 +218,7 @@ function themeOptionId(theme) {
   return String(theme?.id || theme?.theme_id || "").trim();
 }
 
-// ── Image upload sub-component ────────────────────────────────────────────────
+// ΓöÇΓöÇ Image upload sub-component ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 function ImageUploadSection({ uploadedFiles, onUpload, onRemove, isUploading }) {
   const [isDragging, setIsDragging] = useState(false);
@@ -265,12 +265,12 @@ function ImageUploadSection({ uploadedFiles, onUpload, onRemove, isUploading }) 
           style={{ display: "none" }}
           onChange={(e) => onUpload(Array.from(e.target.files))}
         />
-        <span style={{ fontSize: 18, color: "rgba(255,255,255,.3)" }}>↑</span>
+        <span style={{ fontSize: 18, color: "rgba(255,255,255,.3)" }}>Γåæ</span>
         <span style={{ fontSize: 11.5, color: "rgba(255,255,255,.5)", fontWeight: 500 }}>
-          {isUploading ? "Uploading…" : isDragging ? "Drop to upload" : "Drag & drop or click to browse"}
+          {isUploading ? "UploadingΓÇª" : isDragging ? "Drop to upload" : "Drag & drop or click to browse"}
         </span>
         <span style={{ fontSize: 10.5, color: "rgba(255,255,255,.25)" }}>
-          PNG, JPEG, WebP, GIF, AVIF, SVG · max 10 MB · up to {MAX_IMAGE_FILES} files
+          PNG, JPEG, WebP, GIF, AVIF, SVG ┬╖ max 10 MB ┬╖ up to {MAX_IMAGE_FILES} files
         </span>
       </div>
 
@@ -335,10 +335,10 @@ function ImageUploadSection({ uploadedFiles, onUpload, onRemove, isUploading }) 
               >
                 {f.name}
                 {f.status === "uploading" && (
-                  <span style={{ color: "rgba(255,255,255,.3)" }}> · uploading…</span>
+                  <span style={{ color: "rgba(255,255,255,.3)" }}> ┬╖ uploadingΓÇª</span>
                 )}
                 {f.status === "error" && (
-                  <span style={{ color: "#f87171" }}> · {f.error}</span>
+                  <span style={{ color: "#f87171" }}> ┬╖ {f.error}</span>
                 )}
               </span>
               <button
@@ -360,7 +360,7 @@ function ImageUploadSection({ uploadedFiles, onUpload, onRemove, isUploading }) 
                 onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,.3)")}
                 aria-label={`Remove ${f.name}`}
               >
-                ✕
+                Γ£ò
               </button>
             </div>
           ))}
@@ -370,7 +370,7 @@ function ImageUploadSection({ uploadedFiles, onUpload, onRemove, isUploading }) 
   );
 }
 
-// ── Main export ───────────────────────────────────────────────────────────────
+// ΓöÇΓöÇ Main export ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 export default function CreateSlidesForm({
   provider,
@@ -417,7 +417,7 @@ export default function CreateSlidesForm({
   alaiVibesLoading = false,
   selectedVibeId,
   setSelectedVibeId,
-  // ── NEW ───────────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ NEW ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   imageIds = [],
   onImageIdsChange,
   numImageVariants = 1,
@@ -545,7 +545,7 @@ export default function CreateSlidesForm({
         <FieldLabel>Presentation title (optional)</FieldLabel>
         <input
           className="txt-inp"
-          placeholder="Auto from summary…"
+          placeholder="Auto from summaryΓÇª"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           style={{ marginBottom: 10 }}
@@ -613,12 +613,12 @@ export default function CreateSlidesForm({
             <Divider />
             <SectionHead>{isAlai ? "Alai theme" : "2slides theme"}</SectionHead>
             {alaiThemesLoading ? (
-              <div className="tag-hint">Loading themes…</div>
+              <div className="tag-hint">Loading themesΓÇª</div>
             ) : alaiThemes.length > 0 ? (
               <SelectMenu
                 value={selectedThemeId || ""}
                 onChange={(id) => setSelectedThemeId(id || null)}
-                placeholder="Choose a theme…"
+                placeholder="Choose a themeΓÇª"
                 maxMenuHeight={260}
                 options={alaiThemes
                   .map((t) => ({
@@ -662,7 +662,7 @@ export default function CreateSlidesForm({
         ].map(({ label, val, set }) => (
           <label key={label} className="chk-row" onClick={() => set((v) => !v)}>
             <div className={`chk-box ${val ? "on" : ""}`}>
-              {val ? <span className="chk-tick">✓</span> : null}
+              {val ? <span className="chk-tick">Γ£ô</span> : null}
             </div>
             {label}
           </label>
@@ -706,7 +706,7 @@ export default function CreateSlidesForm({
               </span>
             </SectionHead>
             <div className="tag-hint" style={{ marginBottom: 8 }}>
-              Upload your own photos or diagrams — Alai places them on relevant slides automatically
+              Upload your own photos or diagrams ΓÇö Alai places them on relevant slides automatically
             </div>
             <ImageUploadSection
               uploadedFiles={uploadedFiles}
@@ -718,7 +718,7 @@ export default function CreateSlidesForm({
             <Divider />
             <FieldLabel>Visual vibe (optional)</FieldLabel>
             {alaiVibesLoading ? (
-              <div className="tag-hint">Loading vibes…</div>
+              <div className="tag-hint">Loading vibesΓÇª</div>
             ) : (
               <SelectMenu
                 value={selectedVibeId}
@@ -760,7 +760,7 @@ export default function CreateSlidesForm({
             className="gs-advanced-chev"
             style={{ transform: advancedOpen ? "rotate(90deg)" : "none" }}
           >
-            ›
+            ΓÇ║
           </span>
           Advanced options
         </button>
@@ -813,7 +813,7 @@ export default function CreateSlidesForm({
                 type="number"
                 min={1}
                 max={20}
-                placeholder="—"
+                placeholder="ΓÇö"
                 value={bulletLimit}
                 onChange={(e) => setBulletLimit(e.target.value)}
               />

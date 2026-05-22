@@ -1,6 +1,7 @@
 "use client";
 
 import "./summary-page.css";
+import "./flashcard-manual.css";
 import "./components/ReferencesPanel.css";
 
 import {
@@ -51,6 +52,12 @@ import MobileMoreSheet from "./components/MobileMoreSheet";
 import { useSourcesPanelResize } from "./hooks/useSourcesPanelResize";
 import { useSlideDecks } from "./hooks/useSlideDecks";
 import { useQuizSets } from "./hooks/useQuizSets";
+import {
+  useFlashcardSets,
+  NEW_SET_VALUE,
+} from "./hooks/useFlashcardSets";
+import CreateFlashcardDialog from "./components/CreateFlashcardDialog";
+import FlashcardSetEditor from "./components/FlashcardSetEditor";
 import { MODELS, ATTACH_ACCEPT, SUMMARY_BODY_INNER_STYLE } from "./constants";
 import {
   downscaleImageFileToJpegDataUrl,
@@ -123,6 +130,10 @@ export default function SummaryView() {
   const [quizView, setQuizView] = useState(false);
   const [quizData, setQuizData] = useState(null);
   const [quizSettings, setQuizSettings] = useState(null);
+  const [flashcardModal, setFlashcardModal] = useState(false);
+  const [createFlashcardOpen, setCreateFlashcardOpen] = useState(false);
+  const [flashcardView, setFlashcardView] = useState(false);
+  const [flashcardData, setFlashcardData] = useState(null);
 
   const [compactActBar, setCompactActBar] = useState(false);
   const [highlights, setHighlights] = useState([]);
@@ -211,6 +222,51 @@ export default function SummaryView() {
     openQuizAttemptDetail,
     openSavedQuizSet,
   } = quizSetsApi;
+
+  const flashcardSetsApi = useFlashcardSets({
+    summaryId,
+    status,
+    setFlashcardData,
+    setFlashcardView,
+  });
+  const {
+    flashcardSets,
+    flashcardSetsLoading,
+    flashcardSetOpeningId,
+    flashcardSetDeletingId,
+    flashcardEditorSet,
+    flashcardEditorLoading,
+    fetchFlashcardSets,
+    fetchSetDetails,
+    openFlashcardSet,
+    openFlashcardSetEditor,
+    closeFlashcardSetEditor,
+    deleteFlashcardSet,
+    createFlashcardSet,
+    addCard,
+    updateCard,
+    resetStudyProgress,
+    deleteCard,
+    reorderCards,
+  } = flashcardSetsApi;
+
+  const handleManualFlashcardSave = useCallback(
+    async ({ saveIn, atPosition, front, back }) => {
+      let setId =
+        saveIn === NEW_SET_VALUE
+          ? null
+          : Number.parseInt(String(saveIn), 10);
+      if (!Number.isFinite(setId) || setId <= 0) {
+        const created = await createFlashcardSet("My flashcards");
+        setId = created?.id;
+        if (!setId) throw new Error("Could not create flashcard set");
+        return addCard(setId, { front, back, atPosition });
+      }
+      return addCard(setId, { front, back, atPosition });
+    },
+    [createFlashcardSet, addCard],
+  );
+
   const [open, setOpen] = useState(false);
 
   const [chatTitleEditing, setChatTitleEditing] = useState(false);
@@ -790,26 +846,38 @@ export default function SummaryView() {
     fetchSummaryReferences,
   ]);
 
-  /**
-   * Flash-highlight an element after scroll so users can see exactly
-   * which passage the citation or anchor refers to — similar to the
-   * Google text-fragment (#:~:text=) yellow-flash behaviour.
-   *
-   * Uses a CSS class toggle rather than inline style mutation so the
-   * transition is fully declarative and won't clash with highlight marks.
-   */
-  const flashHighlight = useCallback((el) => {
-    if (!el) return;
-    el.classList.remove("cite-flash"); // reset if already animating
-    // Force a reflow so the browser re-triggers the animation
-    void el.offsetWidth; // eslint-disable-line no-unused-expressions
-    el.classList.add("cite-flash");
-    el.addEventListener(
-      "animationend",
-      () => el.classList.remove("cite-flash"),
-      { once: true },
-    );
+  /** Block-level container to flash so users see the cited claim, not just [n]. */
+  const getCitationFlashTarget = useCallback((el) => {
+    if (!el) return null;
+    if (el.classList?.contains("cite-marker")) {
+      return (
+        el.closest(
+          "p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, pre",
+        ) ?? el
+      );
+    }
+    return el;
   }, []);
+
+  /**
+   * Brief yellow flash on the passage tied to a citation — similar to
+   * Google text-fragment (#:~:text=) behaviour.
+   */
+  const flashHighlight = useCallback(
+    (el) => {
+      const target = getCitationFlashTarget(el);
+      if (!target) return;
+      target.classList.remove("cite-flash");
+      void target.offsetWidth;  
+      target.classList.add("cite-flash");
+      target.addEventListener(
+        "animationend",
+        () => target.classList.remove("cite-flash"),
+        { once: true },
+      );
+    },
+    [getCitationFlashTarget],
+  );
 
   const scrollToId = useCallback(
     (id) => {
@@ -927,6 +995,9 @@ export default function SummaryView() {
         summaryReferences.find((r) => r.marker === marker) ??
         syntheticUploadReference(marker, summary?.files);
       setActiveCitationMarker(marker);
+      if (anchorEl.classList?.contains("cite-marker")) {
+        flashHighlight(anchorEl);
+      }
       if (ref) {
         setCitationPreview({
           marker,
@@ -939,7 +1010,7 @@ export default function SummaryView() {
           ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }
     },
-    [summaryReferences, summary?.files],
+    [summaryReferences, summary?.files, flashHighlight],
   );
 
   useEffect(() => {
@@ -1647,38 +1718,6 @@ export default function SummaryView() {
             <main className="main">
               {/* Action bar */}
               <div className="act-bar">
-                <div className="act-bar-title-wrap">
-                  {!summaryLoading && !summaryError && summary && (
-                    <>
-                      {chatTitleEditing ? (
-                        <input
-                          ref={chatTitleInputRef}
-                          type="text"
-                          className="act-bar-chat-title-inp"
-                          value={chatTitleDraft}
-                          onChange={(e) => setChatTitleDraft(e.target.value)}
-                          onBlur={() => saveChatTitle()}
-                          onKeyDown={onChatTitleKeyDown}
-                          disabled={chatTitleSaving}
-                          maxLength={255}
-                          aria-label="Chat title"
-                        />
-                      ) : (
-                        <button
-                          type="button"
-                          className="act-bar-chat-title-btn"
-                          onClick={startChatTitleEdit}
-                          disabled={chatTitleSaving}
-                          title="Click to rename"
-                        >
-                          {summary.title?.trim()
-                            ? summary.title
-                            : "Untitled summary"}
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
                 <div className="act-bar-btns">
                   <Button variant="quiz" onClick={() => setQuizModal(true)}>
                     <QuizIco />{" "}
@@ -1688,6 +1727,22 @@ export default function SummaryView() {
                         ? "Generate class quiz"
                         : "Generate Quiz"}
                   </Button>
+                  {!isLecturerSummary && (
+                    <>
+                      <Button
+                        variant="flashcard"
+                        onClick={() => setFlashcardModal(true)}
+                      >
+                        {compactActBar ? "Gen cards" : "Generate flashcards"}
+                      </Button>
+                      <Button
+                        variant="flashcard"
+                        onClick={() => setCreateFlashcardOpen(true)}
+                      >
+                        {compactActBar ? "Create" : "Create flashcard"}
+                      </Button>
+                    </>
+                  )}
                   <Button
                     variant="pdf"
                     onClick={handlePDF}
@@ -1710,7 +1765,36 @@ export default function SummaryView() {
               <div className="sum-card">
                 <div className="sum-head">
                   <div className="sum-left">
-                    <div className="sum-title">Your summarized content</div>
+                    {!summaryLoading && !summaryError && summary && (
+                      <>
+                        {chatTitleEditing ? (
+                          <input
+                            ref={chatTitleInputRef}
+                            type="text"
+                            className="sum-head-title-inp"
+                            value={chatTitleDraft}
+                            onChange={(e) => setChatTitleDraft(e.target.value)}
+                            onBlur={() => saveChatTitle()}
+                            onKeyDown={onChatTitleKeyDown}
+                            disabled={chatTitleSaving}
+                            maxLength={255}
+                            aria-label="Summary title"
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            className="sum-head-title-btn"
+                            onClick={startChatTitleEdit}
+                            disabled={chatTitleSaving}
+                            title="Click to rename"
+                          >
+                            {summary.title?.trim()
+                              ? summary.title
+                              : "Untitled summary"}
+                          </button>
+                        )}
+                      </>
+                    )}
                     <div className="sum-tags">
                       <span className="tag tag-m">{summary?.model ?? "—"}</span>
                       <span
@@ -2385,6 +2469,17 @@ export default function SummaryView() {
                 onOpenSet: openSavedQuizSet,
                 onOpenAttempt: openQuizAttemptDetail,
               }}
+              flashcardSetsProps={{
+                flashcardSets,
+                flashcardSetsLoading,
+                flashcardSetOpeningId,
+                flashcardSetDeletingId,
+                flashcardEditorLoading,
+                onRefresh: () => void fetchFlashcardSets(),
+                onOpenSet: openFlashcardSet,
+                onEditSet: openFlashcardSetEditor,
+                onDeleteSet: deleteFlashcardSet,
+              }}
               highlightsProps={{
                 highlights,
                 pendingHighlights,
@@ -2421,7 +2516,36 @@ export default function SummaryView() {
         quizData={quizData}
         quizSettings={quizSettings}
         setQuizViewState={setQuizView}
+        flashcardModal={flashcardModal}
+        setFlashcardModal={setFlashcardModal}
+        flashcardView={flashcardView}
+        flashcardData={flashcardData}
+        setFlashcardData={setFlashcardData}
+        setFlashcardView={setFlashcardView}
+        fetchFlashcardSets={fetchFlashcardSets}
+        onUpdateFlashcard={updateCard}
+        onDeleteFlashcard={deleteCard}
+        onResetFlashcardStudy={resetStudyProgress}
       />
+
+      {createFlashcardOpen && !isLecturerSummary && (
+        <CreateFlashcardDialog
+          flashcardSets={flashcardSets}
+          fetchSetDetails={fetchSetDetails}
+          onClose={() => setCreateFlashcardOpen(false)}
+          onSave={handleManualFlashcardSave}
+        />
+      )}
+
+      {flashcardEditorSet && (
+        <FlashcardSetEditor
+          flashcardSet={flashcardEditorSet}
+          onClose={closeFlashcardSetEditor}
+          onUpdateCard={updateCard}
+          onDeleteCard={deleteCard}
+          onReorderCards={reorderCards}
+        />
+      )}
 
       {sourcePreviewOpen && sourcePreviewDoc && (
         <DocumentPreviewModal
@@ -2487,6 +2611,17 @@ export default function SummaryView() {
           onToggleHistory: toggleQuizHistoryPanel,
           onOpenSet: openSavedQuizSet,
           onOpenAttempt: openQuizAttemptDetail,
+        }}
+        flashcardSetsProps={{
+          flashcardSets,
+          flashcardSetsLoading,
+          flashcardSetOpeningId,
+          flashcardSetDeletingId,
+          flashcardEditorLoading,
+          onRefresh: () => void fetchFlashcardSets(),
+          onOpenSet: openFlashcardSet,
+          onEditSet: openFlashcardSetEditor,
+          onDeleteSet: deleteFlashcardSet,
         }}
         highlightsProps={{
           highlights,

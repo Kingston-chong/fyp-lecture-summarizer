@@ -38,7 +38,8 @@ export default function CitationPreviewPopover({
     if (top < margin) top = margin;
     left = Math.max(margin, Math.min(left, vw - cw - margin));
 
-    setPos({ top, left });
+    const next = { top, left };
+    requestAnimationFrame(() => setPos(next));
   }, [anchorRect, expanded, abstract]);
 
   useEffect(() => {

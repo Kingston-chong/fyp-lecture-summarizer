@@ -774,24 +774,21 @@
 .act-bar {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
   flex-shrink: 0;
   width: 100%;
   min-width: 0;
   animation: fadeUp 0.35s ease both;
 }
-.act-bar-title-wrap {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-}
 .act-bar-btns {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 7px;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 /* ── content card (sum-card avoids clash with auth .card { max-width: 400px }) ── */
@@ -834,6 +831,60 @@
   font-weight: 600;
   color: #ddddf0;
   letter-spacing: 0;
+}
+.sum-head-title-btn {
+  max-width: 100%;
+  text-align: left;
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  font-family: "Fraunces", serif;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #ddddf0;
+  letter-spacing: 0;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+.sum-head-title-btn:hover:not(:disabled) {
+  color: #a5b4fc;
+}
+.sum-head-title-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.sum-head-title-inp {
+  width: 100%;
+  max-width: min(480px, 100%);
+  box-sizing: border-box;
+  margin: 0;
+  padding: 4px 10px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  background: var(--sum-inp-bg);
+  font-family: "Fraunces", serif;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #ddddf0;
+  letter-spacing: 0;
+  line-height: 1.35;
+  outline: none;
+}
+.sum-head-title-inp:focus {
+  border-color: rgba(99, 102, 241, 0.55);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.12);
+}
+.sum-head-title-inp:disabled {
+  opacity: 0.65;
 }
 .sum-tags {
   display: flex;
@@ -2203,23 +2254,23 @@ mark.s2n-hl-pending {
     gap: 6px;
     width: 100%;
   }
-  .act-bar-title-wrap {
-    flex: 1 1 0;
-    min-width: 0;
-    max-width: 42%;
+  .sum-head-title-btn {
+    font-size: 13px;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
-  .act-bar-chat-title-btn {
-    font-size: 12px;
-    padding: 4px 6px;
-    width: 100%;
-  }
-  .act-bar-chat-title-inp {
+  .sum-head-title-inp {
     font-size: 12px;
     padding: 4px 8px;
     height: 30px;
+    max-width: 100%;
   }
   .act-bar-btns {
-    flex: 1 1 0;
+    flex: 1 1 100%;
+    width: 100%;
     min-width: 0;
     gap: 4px;
   }
@@ -2595,6 +2646,14 @@ html[data-theme="light"] .conv-divider {
 html[data-theme="light"] .act-bar-chat-title-inp {
   background: rgba(255, 255, 255, 0.9);
   border-color: rgba(99, 102, 241, 0.28);
+}
+html[data-theme="light"] .sum-head-title-btn {
+  color: var(--sum-title);
+}
+html[data-theme="light"] .sum-head-title-inp {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(99, 102, 241, 0.28);
+  color: var(--sum-title);
 }
 html[data-theme="light"] .conv-label {
   color: rgba(0, 0, 0, 0.45);
@@ -3044,6 +3103,69 @@ html[data-theme="light"] .sources {
 }
 .sum-text sup {
   line-height: 0;
+}
+
+/* Brief pulse on the sentence/paragraph when jumping to or clicking a citation */
+@keyframes cite-flash-pulse {
+  0%,
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+  18%,
+  45% {
+    background-color: rgba(250, 204, 21, 0.32);
+    box-shadow: inset 0 0 0 1px rgba(250, 204, 21, 0.5);
+  }
+}
+
+.sum-text p.cite-flash,
+.sum-text li.cite-flash,
+.sum-text blockquote.cite-flash,
+.sum-text h1.cite-flash,
+.sum-text h2.cite-flash,
+.sum-text h3.cite-flash,
+.sum-text h4.cite-flash,
+.sum-text h5.cite-flash,
+.sum-text h6.cite-flash,
+.sum-text td.cite-flash,
+.sum-text th.cite-flash,
+.sum-text pre.cite-flash,
+.sum-text .cite-marker.cite-flash {
+  animation: cite-flash-pulse 1.65s ease-out;
+  border-radius: 5px;
+}
+
+.sum-text .cite-marker.cite-flash {
+  box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.55);
+}
+
+html[data-theme="light"] .sum-text p.cite-flash,
+html[data-theme="light"] .sum-text li.cite-flash,
+html[data-theme="light"] .sum-text blockquote.cite-flash,
+html[data-theme="light"] .sum-text h1.cite-flash,
+html[data-theme="light"] .sum-text h2.cite-flash,
+html[data-theme="light"] .sum-text h3.cite-flash,
+html[data-theme="light"] .sum-text h4.cite-flash,
+html[data-theme="light"] .sum-text h5.cite-flash,
+html[data-theme="light"] .sum-text h6.cite-flash,
+html[data-theme="light"] .sum-text td.cite-flash,
+html[data-theme="light"] .sum-text th.cite-flash,
+html[data-theme="light"] .sum-text pre.cite-flash {
+  animation-name: cite-flash-pulse-light;
+}
+
+@keyframes cite-flash-pulse-light {
+  0%,
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+  18%,
+  45% {
+    background-color: rgba(250, 204, 21, 0.45);
+    box-shadow: inset 0 0 0 1px rgba(234, 179, 8, 0.55);
+  }
 }
 
 .ref-biblio {
@@ -3503,4 +3625,395 @@ html[data-theme="light"] .m-bub.user a {
    ═══════════════════════════════════════════════════════════════ */
 .attach-divider {
   display: none;
+}
+
+/* ── Flashcard study view ── */
+.fc-study-view {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(8, 10, 18, 0.92);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.fc-study-inner {
+  width: min(520px, 100%);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fc-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.fc-back-btn,
+.fc-close-btn {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.fc-close-btn {
+  padding: 6px 8px;
+  line-height: 0;
+}
+
+.fc-header-title {
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.fc-header-count {
+  font-size: 12px;
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
+.fc-progress-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.fc-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.fc-dot--active {
+  background: #6366f1;
+  transform: scale(1.15);
+}
+
+.fc-dot--known {
+  background: #34d399;
+}
+
+.fc-dot--unknown {
+  background: #fbbf24;
+}
+
+.fc-card-wrap {
+  position: relative;
+  perspective: 1000px;
+  min-height: 220px;
+}
+
+.fc-card-toolbar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 5;
+  display: flex;
+  gap: 6px;
+}
+
+.fc-card-tool-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.fc-card-tool-btn:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.45);
+  color: #c7d2fe;
+}
+
+.fc-card-tool-btn--danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #fca5a5;
+}
+
+.fc-card-tool-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fc-study-inner--busy {
+  pointer-events: none;
+}
+
+.fc-study-inner--busy .fc-card-toolbar {
+  pointer-events: auto;
+}
+
+.fc-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.fc-card-edit-panel {
+  width: 100%;
+  min-height: 220px;
+  padding: 20px 16px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--card-bg, rgba(255, 255, 255, 0.06));
+  box-sizing: border-box;
+}
+
+.fc-card-edit-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.55;
+  margin-bottom: 6px;
+}
+
+.fc-card-edit-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--sum-inp-border);
+  background: var(--sum-inp-bg);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--sum-inp-text);
+  margin-bottom: 12px;
+  resize: vertical;
+  outline: none;
+}
+
+.fc-card-edit-input:focus {
+  border-color: rgba(99, 102, 241, 0.45);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.12);
+}
+
+.fc-card-edit-input--area {
+  min-height: 72px;
+}
+
+.fc-card-edit-error {
+  font-size: 12px;
+  color: #fca5a5;
+  margin: 0 0 10px;
+}
+
+.fc-card-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.fc-card {
+  position: relative;
+  width: 100%;
+  min-height: 220px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transform-style: preserve-3d;
+  transition: transform 0.4s ease;
+  font-family: inherit;
+  padding: 0;
+}
+
+.fc-card.flipped {
+  transform: rotateY(180deg);
+}
+
+.fc-card-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--card-bg, rgba(255, 255, 255, 0.06));
+  text-align: center;
+}
+
+.fc-card-back {
+  transform: rotateY(180deg);
+}
+
+.fc-card-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.55;
+  margin-bottom: 10px;
+}
+
+.fc-card-text {
+  font-size: 18px;
+  line-height: 1.45;
+  margin: 0;
+  max-width: 100%;
+  word-break: break-word;
+}
+
+.fc-card-hint {
+  margin-top: 14px;
+  font-size: 11px;
+  opacity: 0.45;
+}
+
+.fc-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.fc-actions--study .fc-btn {
+  flex: 1;
+  min-width: 0;
+}
+
+.fc-actions .fc-btn {
+  flex: 1;
+}
+
+.fc-nav-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.fc-nav-row--study .fc-btn {
+  flex: 1;
+  min-width: 0;
+}
+
+.fc-btn--know.fc-btn--selected {
+  border-color: rgba(52, 211, 153, 0.65);
+  background: rgba(52, 211, 153, 0.22);
+  color: #6ee7b7;
+  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.2);
+}
+
+.fc-btn--learn.fc-btn--selected {
+  border-color: rgba(251, 191, 36, 0.65);
+  background: rgba(251, 191, 36, 0.18);
+  color: #fde68a;
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.18);
+}
+
+.fc-btn {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+}
+
+.fc-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.fc-btn--know {
+  border-color: rgba(52, 211, 153, 0.35);
+  background: rgba(52, 211, 153, 0.12);
+  color: #6ee7b7;
+}
+
+.fc-btn--learn {
+  border-color: rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.1);
+  color: #fde68a;
+}
+
+.fc-btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.fc-session-end {
+  text-align: center;
+  padding: 32px 16px;
+}
+
+.fc-session-title {
+  margin: 0 0 8px;
+  font-size: 22px;
+}
+
+.fc-session-stats {
+  margin: 0 0 20px;
+  opacity: 0.75;
+}
+
+.fc-session-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+html[data-theme="light"] .fc-study-view {
+  background: rgba(255, 255, 255, 0.94);
+}
+
+html[data-theme="light"] .fc-card-face {
+  background: #f8fafc;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+html[data-theme="light"] .fc-btn--know {
+  color: #047857;
+}
+
+html[data-theme="light"] .fc-btn--learn {
+  color: #b45309;
+}
+
+html[data-theme="light"] .fc-btn--know.fc-btn--selected {
+  color: #047857;
+}
+
+html[data-theme="light"] .fc-btn--learn.fc-btn--selected {
+  color: #b45309;
+}
+
+html[data-theme="light"] .fc-card-tool-btn {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: rgba(0, 0, 0, 0.55);
+}
+
+html[data-theme="light"] .fc-card-edit-error {
+  color: #b91c1c;
 }

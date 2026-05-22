@@ -248,7 +248,7 @@ export default function QuizSettingsModal({
           <div className="col-right">
             <SectionHead>Quiz Length & Difficulty</SectionHead>
             <FieldLabel>Number of questions:</FieldLabel>
-            <div className="radio-group" className="mb-3">
+            <div className="radio-group mb-3">
               <label
                 className={`radio-opt ${!questionCountAuto ? "on" : ""}`}
                 onClick={() => {

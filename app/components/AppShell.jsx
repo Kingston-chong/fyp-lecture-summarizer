@@ -10,11 +10,29 @@ import ThemeToggle from "./ThemeToggle";
 import { ArrowLeftIcon, LogoutIcon, MenuIcon } from "./icons";
 import AppHeader from "./AppHeader";
 
+function UserAvatar({ name, size = 32 }) {
+  const initials = name
+    ? name
+        .split(" ")
+        .slice(0, 2)
+        .map((w) => w[0]?.toUpperCase() ?? "")
+        .join("")
+    : "?";
+  return (
+    <span
+      className="shell-avatar"
+      style={{ width: size, height: size, fontSize: size * 0.38 }}
+      aria-hidden="true"
+    >
+      {initials}
+    </span>
+  );
+}
+
 export default function AppShell({
   children,
   showBackToDashboard = false,
   showSidebar = false,
-  /** When true, sidebar is only off-canvas + hamburger (no permanent column). Use on dashboard. */
   sidebarMobileOnly = false,
   hidePrevUploads = false,
 }) {
@@ -22,18 +40,33 @@ export default function AppShell({
   const pathname = usePathname();
   const { data: session } = useSession();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef(null);
   const prevPathnameRef = useRef(pathname);
 
+  /* ── Close user menu on outside click ─────────────────────────── */
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const handler = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [userMenuOpen]);
+
+  /* ── Close sidebar + user menu on route change ─────────────────── */
   useEffect(() => {
     const prev = prevPathnameRef.current;
     prevPathnameRef.current = pathname;
-
-    // Close only when the route changes (not when the user opens the drawer).
-    if (prev !== pathname && mobileNavOpen) {
-      const t = setTimeout(() => setMobileNavOpen(false), 0);
+    if (prev !== pathname) {
+      const t = setTimeout(() => {
+        if (mobileNavOpen) setMobileNavOpen(false);
+        setUserMenuOpen(false);
+      }, 0);
       return () => clearTimeout(t);
     }
-
     return undefined;
   }, [pathname, mobileNavOpen]);
 
@@ -55,7 +88,6 @@ export default function AppShell({
     return () => window.removeEventListener("keydown", onKey);
   }, [mobileNavOpen]);
 
-  /** Lock scroll when mobile drawer is open (shell/body scroll was moving content under fixed layers). */
   useEffect(() => {
     if (!showSidebar || !mobileNavOpen) return;
     const html = document.documentElement;
@@ -69,6 +101,9 @@ export default function AppShell({
       body.style.overflow = prevBody;
     };
   }, [showSidebar, mobileNavOpen]);
+
+  const displayName = session?.user?.name ?? session?.user?.username ?? "";
+  const role = session?.user?.role ?? "";
 
   return (
     <>
@@ -100,9 +135,9 @@ export default function AppShell({
             right={
               <>
                 <ThemeToggle />
-                {session?.user?.name && (
+                {displayName && (
                   <span className="shell-greet">
-                    Hi, {session.user.name.split(" ")[0]}
+                    Hi, {displayName.split(" ")[0]}
                   </span>
                 )}
                 {showBackToDashboard && (
@@ -115,14 +150,64 @@ export default function AppShell({
                     <span className="shell-btn-text">Dashboard</span>
                   </button>
                 )}
-                <button
-                  className="shell-btn"
-                  title="Sign out"
-                  onClick={() => signOut({ callbackUrl: "/" })}
-                >
-                  <LogoutIcon />{" "}
-                  <span className="shell-btn-text">Sign out</span>
-                </button>
+
+                {/* ── User avatar + dropdown ───────────────────── */}
+                <div className="shell-user-menu" ref={userMenuRef}>
+                  <button
+                    className="shell-user-trigger"
+                    aria-label="Open user menu"
+                    aria-expanded={userMenuOpen}
+                    aria-haspopup="true"
+                    onClick={() => setUserMenuOpen((v) => !v)}
+                  >
+                    <div className="shell-user-trigger-inner">
+                      <UserAvatar name={displayName} />
+                      <div className="shell-user-info">
+                        <span className="shell-user-name">{displayName}</span>
+                        {role && (
+                          <span className="shell-user-role">{role}</span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+
+                  {userMenuOpen && (
+                    <div className="shell-dropdown" role="menu">
+                      <div className="shell-dropdown-header">
+                        <UserAvatar name={displayName} size={36} />
+                        <div>
+                          <p className="shell-dropdown-name">{displayName}</p>
+                          {session?.user?.email && (
+                            <p className="shell-dropdown-email">
+                              {session.user.email}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="shell-dropdown-divider" />
+                      <button
+                        className="shell-dropdown-item"
+                        role="menuitem"
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          router.push("/account/settings");
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                        Account settings
+                      </button>
+                      <div className="shell-dropdown-divider" />
+                      <button
+                        className="shell-dropdown-item shell-dropdown-item--danger"
+                        role="menuitem"
+                        onClick={() => signOut({ callbackUrl: "/" })}
+                      >
+                        <LogoutIcon />
+                        Sign out
+                      </button>
+                    </div>
+                  )}
+                </div>
               </>
             }
             onLogoClick={() => router.push("/dashboard")}

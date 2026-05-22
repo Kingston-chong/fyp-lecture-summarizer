@@ -90,10 +90,8 @@ export default function QuizAttemptDetailModal({ detail, onClose }) {
           </div>
           <button
             type="button"
-            type="button"
             className="qadm-close qa-close-btn"
             onClick={onClose}
-            aria-label="Close"
             aria-label="Close"
           >
             ×

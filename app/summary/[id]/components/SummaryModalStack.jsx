@@ -1,10 +1,13 @@
 "use client";
 
+import { useCallback } from "react";
 import GenerateSlidesModal from "@/app/components/GenerateSlidesModal";
 import AlaiSlidesPreviewModal from "@/app/components/AlaiSlidesPreviewModal";
 import QuizSettingsModal from "@/app/components/QuizSettingsModal";
 import QuizViewModal from "@/app/components/QuizViewModal";
 import LecturerQuizReviewModal from "@/app/components/LecturerQuizReviewModal";
+import FlashcardGenerateModal from "./FlashcardGenerateModal";
+import FlashcardStudyView from "./FlashcardStudyView";
 import { parseNumericSummaryId, settingsFromQuizSet } from "../helpers";
 
 export default function SummaryModalStack({
@@ -29,9 +32,24 @@ export default function SummaryModalStack({
   quizData,
   quizSettings,
   setQuizViewState,
+  flashcardModal,
+  setFlashcardModal,
+  flashcardView,
+  flashcardData,
+  setFlashcardData,
+  setFlashcardView,
+  fetchFlashcardSets,
+  onUpdateFlashcard,
+  onDeleteFlashcard,
+  onResetFlashcardStudy,
 }) {
   const isLecturer = summary?.summarizeFor === "lecturer";
   const numericSummaryId = parseNumericSummaryId(summaryId);
+
+  const handleSlideDeckDownload = useCallback(async () => {
+    const fn = slideDeckDlRef.current;
+    if (typeof fn === "function") await fn();
+  }, [slideDeckDlRef]);
 
   return (
     <>
@@ -52,14 +70,7 @@ export default function SummaryModalStack({
           remotePptUrl={slideDeckRemotePptUrl}
           title={slideDeckPreviewTitle}
           subtitle="Saved slide deck"
-          onDownload={(() => {
-            const fn = slideDeckDlRef.current;
-            return typeof fn === "function"
-              ? async () => {
-                  await fn();
-                }
-              : undefined;
-          })()}
+          onDownload={handleSlideDeckDownload}
         />
       )}
 
@@ -100,6 +111,31 @@ export default function SummaryModalStack({
           summaryId={summaryId}
           onAttemptSaved={() => void fetchQuizSets()}
           onClose={() => setQuizViewState(false)}
+        />
+      )}
+
+      {flashcardModal && (
+        <FlashcardGenerateModal
+          summaryId={numericSummaryId ?? summaryId}
+          onClose={() => setFlashcardModal(false)}
+          onGenerated={(flashcardSet) => {
+            setFlashcardModal(false);
+            setFlashcardData(flashcardSet);
+            setFlashcardView(true);
+            void fetchFlashcardSets();
+          }}
+        />
+      )}
+
+      {flashcardView && flashcardData && (
+        <FlashcardStudyView
+          key={flashcardData.id}
+          flashcardSet={flashcardData}
+          onClose={() => setFlashcardView(false)}
+          onUpdateCard={onUpdateFlashcard}
+          onDeleteCard={onDeleteFlashcard}
+          onResetStudyProgress={onResetFlashcardStudy}
+          onFlashcardSetChange={setFlashcardData}
         />
       )}
     </>

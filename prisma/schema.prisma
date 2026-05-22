@@ -39,9 +39,10 @@ model User {
   summaries    Summary[]
   chatThreads  ChatThread[]
   highlights   SummaryHighlight[]
-  quizSets     QuizSet[]
-  quizAttempts QuizAttempt[]
-  slideDecks   SlideDeck[]
+  quizSets      QuizSet[]
+  quizAttempts  QuizAttempt[]
+  slideDecks    SlideDeck[]
+  flashcardSets FlashcardSet[]
 }
 
 model PasswordReset {
@@ -81,8 +82,9 @@ model Summary {
   references  SummaryReference[]
   highlights  SummaryHighlight[]
   chatThreads ChatThread[]
-  quizSets    QuizSet[]
-  slideDecks  SlideDeck[]
+  quizSets       QuizSet[]
+  slideDecks     SlideDeck[]
+  flashcardSets  FlashcardSet[]
 }
 
 model SummaryReference {
@@ -235,4 +237,35 @@ model SlideDeck {
 
   @@index([summaryId])
   @@index([userId])
+}
+
+model FlashcardSet {
+  id        Int         @id @default(autoincrement())
+  userId    Int
+  summaryId Int
+  title     String
+  settings  Json?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  summary Summary     @relation(fields: [summaryId], references: [id], onDelete: Cascade)
+  cards   Flashcard[]
+
+  @@index([userId])
+  @@index([summaryId])
+}
+
+model Flashcard {
+  id             Int          @id @default(autoincrement())
+  flashcardSetId Int
+  front          String       @db.Text
+  back           String       @db.Text
+  order          Int          @default(0)
+  /// "known" | "learning" — last study choice for this card
+  studyStatus    String?
+
+  set FlashcardSet @relation(fields: [flashcardSetId], references: [id], onDelete: Cascade)
+
+  @@index([flashcardSetId])
 }
