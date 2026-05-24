@@ -169,6 +169,23 @@ export const CopyIco = ({ size = 12 }) => (
   </svg>
 );
 
+/** Reply / quote preview in chat composer (ChatGPT-style) */
+export const ReplyQuoteIco = ({ size = 14 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <polyline points="9 17 4 12 9 7" />
+    <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+  </svg>
+);
+
 /** Regenerate / retry assistant reply (summary chat) */
 export const RegenIco = ({ size = 12 }) => (
   <svg

@@ -14,10 +14,13 @@ import {
   fetchChatReferenceSources,
   buildNumberedSourcesPrompt,
   referenceCitationRules,
+  lecturerChatWithoutReferenceSearchRules,
+  finalizeChatReplyReferences,
   formatSourcesForClient,
 } from "@/lib/chatReferences";
 import { extractCitationMarkers } from "@/lib/referenceUtils";
 import { getRoleProfile, normalizeSummarizeRole } from "@/lib/roleProfiles";
+import { resolveChatResponseLength } from "@/lib/chatResponseLength";
 
 const MAX_CONTEXT_CHARS = Number.parseInt(
   process.env.CHAT_MAX_CONTEXT_CHARS || "24000",
@@ -219,7 +222,10 @@ export const POST = apiHandler(async function POST(req) {
 
   /** @type {boolean|undefined} */
   const webSearchOverride = body?.webSearch;
+  const searchReferencesToggle = body?.searchReferences === true;
   const regenerate = body?.regenerate === true;
+  const responseLength = resolveChatResponseLength(body?.responseLength);
+  const chatMaxTokens = responseLength.maxTokens;
 
   if (!Number.isFinite(summaryId) || summaryId <= 0) {
     return NextResponse.json({ error: "Invalid summary id" }, { status: 400 });
@@ -292,7 +298,8 @@ export const POST = apiHandler(async function POST(req) {
   const webSearchKeyOk = Boolean(process.env.TAVILY_API_KEY);
   const webSearchGloballyOff = process.env.CHAT_WEB_SEARCH === "0";
   const toggleOn = webSearchOverride === true;
-  const wantsReferences = userRequestedReferences(lastUserSearchText);
+  const wantsReferences =
+    searchReferencesToggle || userRequestedReferences(lastUserSearchText);
   const phraseOn =
     wantsReferences || userRequestedBeyondSummaryWeb(lastUserSearchText);
   const autoWebEnabled = webSearchKeyOk && !webSearchGloballyOff;
@@ -322,15 +329,28 @@ export const POST = apiHandler(async function POST(req) {
     .join("\n");
   const lecturerCitationRules =
     summarizeRole === "lecturer" && !wantsReferences
-      ? `
-Citation requirements for lecturer mode:
-- Every meaningful factual claim should include one or more inline citation markers like [1], [2].
-- Use available sources only: summary, attached sources, and web excerpts.
-- End with a dedicated "References" section. Each reference must map to a marker and include source title plus URL/domain.
-- If no source supports a claim, explicitly state uncertainty and do not fabricate references.
-`
+      ? lecturerChatWithoutReferenceSearchRules()
       : "";
   const onDemandRefRules = wantsReferences ? referenceCitationRules() : "";
+
+  const isQuickLength = responseLength.id === "quick";
+  const quickModeBlock = isQuickLength
+    ? `
+QUICK REPLY MODE (highest priority — overrides other length or depth rules):
+- Maximum 2 short sentences in the whole reply (3 only if the user asked multiple separate questions in one message).
+- Single paragraph only — never use blank lines between paragraphs.
+- No bullet lists, numbered lists, headings, or step-by-step breakdowns.
+- Answer the question directly; do not restate the question or add "in summary" closers.
+`
+    : "";
+
+  const elaborationRules = isQuickLength
+    ? `For quick reply mode: answer only what was asked using the summary; do not elaborate, compare at length, or add extra context unless the user explicitly says "explain more" or "in detail".`
+    : `When the user asks for elaboration, definitions, background organizations, or other details that are missing or only briefly mentioned in the summary:
+- If a "Web search excerpts" section is present below, treat it as **external** evidence: prioritize facts that are **not already fully stated** in the summary. Do not merely paraphrase the summary using web snippets that only repeat the same points; add genuinely new information from the excerpts when available.
+- Prefer citing web sources (markdown links) for claims that go beyond the summary text.
+- If excerpts are empty, thin, or only restate what the summary already says, rely on the summary and careful general knowledge; label unsourced extrapolation as **Beyond the summary (general knowledge)**.
+- If there is no web section, use careful, well-established general knowledge and label that part clearly as **Beyond the summary (general knowledge)**.`;
 
   const buildSystemPrompt = ({
     webContext = "",
@@ -338,16 +358,12 @@ Citation requirements for lecturer mode:
     sourcesBlock = "",
   } = {}) => `You are a helpful assistant for Slide2Notes. The user is discussing a generated lecture/document summary.
 Audience mode: ${summarizeRole}.
-
+${quickModeBlock}
 The user may paste screenshots or diagrams into the chat; use what you see together with the summary when it is relevant.
 
 Use the summary below as the authoritative source for what appears in their materials. Answer clearly in markdown when formatting helps.
 
-When the user asks for elaboration, definitions, background organizations, or other details that are missing or only briefly mentioned in the summary:
-- If a "Web search excerpts" section is present below, treat it as **external** evidence: prioritize facts that are **not already fully stated** in the summary. Do not merely paraphrase the summary using web snippets that only repeat the same points; add genuinely new information from the excerpts when available.
-- Prefer citing web sources (markdown links) for claims that go beyond the summary text.
-- If excerpts are empty, thin, or only restate what the summary already says, rely on the summary and careful general knowledge; label unsourced extrapolation as **Beyond the summary (general knowledge)**.
-- If there is no web section, use careful, well-established general knowledge and label that part clearly as **Beyond the summary (general knowledge)**.
+${elaborationRules}
 
 If the summary and web excerpts disagree on lecture-specific claims, prefer the summary for what the materials said, and note any conflict briefly.
 
@@ -355,6 +371,7 @@ Role-specific output rules:
 ${roleSpecificRules}
 ${lecturerCitationRules}
 ${onDemandRefRules}
+${responseLength.instruction}
 
 --- Document title: ${summary.title || "Untitled"} ---
 
@@ -395,6 +412,7 @@ ${attachmentContext ? `\n\n--- Attached Sources (uploaded by user) ---\n${attach
       useVariant,
       buildSystemPrompt({ webContext, academicContext, sourcesBlock }),
       messages,
+      { maxTokens: chatMaxTokens },
     );
     trimmed = String(reply ?? "").trim();
   } else {
@@ -403,6 +421,7 @@ ${attachmentContext ? `\n\n--- Attached Sources (uploaded by user) ---\n${attach
       useVariant,
       buildSystemPrompt({}),
       messages,
+      { maxTokens: chatMaxTokens },
     );
     trimmed = String(reply ?? "").trim();
 
@@ -418,6 +437,7 @@ ${attachmentContext ? `\n\n--- Attached Sources (uploaded by user) ---\n${attach
           useVariant,
           buildSystemPrompt({ webContext }),
           messages,
+          { maxTokens: chatMaxTokens },
         );
         trimmed = String(reply ?? "").trim();
       }
@@ -442,30 +462,11 @@ ${attachmentContext ? `\n\n--- Attached Sources (uploaded by user) ---\n${attach
           ? { skippedReason: webSearchSkippedReason }
           : {}),
       };
-  const hasReferencesSection = /\n#{0,3}\s*references\s*\n/i.test(trimmed);
-  const citedInBody = new Set(extractCitationMarkers(trimmed));
-  let finalReply = trimmed;
-  if (wantsReferences && !hasReferencesSection) {
-    const refsForSection =
-      citedInBody.size > 0
-        ? chatSources.filter((s) => citedInBody.has(s.marker))
-        : [];
-    if (refsForSection.length > 0) {
-      const lines = refsForSection.map((s) => {
-        const link = s.url ? `[${s.title}](${s.url})` : s.title;
-        return `- [${s.marker}] ${link}`;
-      });
-      finalReply = `${trimmed}\n\n## References\n${lines.join("\n")}`;
-    } else {
-      finalReply = `${trimmed}\n\n## References\n- No verifiable sources were found for this query. Try rephrasing or check API keys (Tavily / academic search).`;
-    }
-  } else if (
-    summarizeRole === "lecturer" &&
-    !wantsReferences &&
-    !hasReferencesSection
-  ) {
-    finalReply = `${trimmed}\n\n## References\n- No verifiable source references were produced for this response.`;
-  }
+  let finalReply = finalizeChatReplyReferences(trimmed, chatSources, {
+    wantsReferences,
+    summarizeRole,
+    summaryTitle: summary.title || "",
+  });
 
   const citedMarkers = new Set(extractCitationMarkers(finalReply));
   const citedSources =

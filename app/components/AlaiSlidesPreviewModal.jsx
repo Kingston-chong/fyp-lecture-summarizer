@@ -52,6 +52,10 @@ export default function AlaiSlidesPreviewModal({
   previewUrl,
   /** Signed PPTX URL from Alai — used when there is no link/pdf preview */
   remotePptUrl = "",
+  /** View-token (or similar) still loading — show spinner, not unavailable */
+  previewLoading = false,
+  /** Set when view-token API returned 400/404 */
+  previewUnavailable = false,
   provider = "alai",
   title = "Create Presentation Slides...",
   subtitle = "Your presentation slides is ready..",
@@ -73,6 +77,12 @@ export default function AlaiSlidesPreviewModal({
     setIframeLoading(Boolean(iframeSrc));
   }, [iframeSrc]);
 
+  const showIframeLoading =
+    previewLoading || (Boolean(iframeSrc) && iframeLoading);
+  const showUnavailable =
+    !previewLoading && !iframeSrc && previewUnavailable;
+  const showPreparing = !previewLoading && !iframeSrc && !previewUnavailable;
+
   // Prevent background scrolling while modal is open
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -82,11 +92,11 @@ export default function AlaiSlidesPreviewModal({
     };
   }, []);
 
-  async function handleDownload() {
+  function handleDownload() {
     if (!onDownload) return;
     setDownloading(true);
     try {
-      await onDownload();
+      onDownload();
     } finally {
       setDownloading(false);
     }
@@ -125,10 +135,15 @@ export default function AlaiSlidesPreviewModal({
           </div>
 
           <div className="alai-body">
-            <div className={`alai-frame${iframeLoading ? " busy" : ""}`}>
-              {iframeSrc && iframeLoading ? (
+            <div className={`alai-frame${showIframeLoading ? " busy" : ""}`}>
+              {showIframeLoading || showPreparing ? (
                 <div className="alai-loading" aria-label="Loading preview">
                   <div className="alai-spinner" />
+                  <span className="alai-loading-label">
+                    {previewLoading || showPreparing
+                      ? "Preparing preview…"
+                      : "Loading preview…"}
+                  </span>
                 </div>
               ) : null}
               {iframeSrc ? (
@@ -142,17 +157,17 @@ export default function AlaiSlidesPreviewModal({
                     setTimeout(() => setIframeLoading(false), 650);
                   }}
                 />
-              ) : (
+              ) : showUnavailable ? (
                 <div className="alai-fallback">
                   <div style={{ fontWeight: 600, color: "#ddddf0" }}>
                     Preview link not available
                   </div>
                   <div style={{ fontSize: 12, opacity: 0.9 }}>
                     You can still download the PPTX, or open the presentation in
-                    Alai.
+                    a new tab when a link is available.
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
             {openInTabHref && (
               <div

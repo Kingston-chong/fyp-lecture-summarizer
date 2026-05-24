@@ -1,15 +1,9 @@
 import { NextResponse } from "next/server";
-import { get } from "@vercel/blob";
-import { prisma } from "@/lib/prisma";
-import { getRequestUser } from "@/lib/apiAuth";
-import { verifySlideDeckViewToken } from "@/lib/slideDeckViewToken";
-import { toBlobRef } from "@/lib/blobRef";
-
-function safeAsciiFilename(name) {
-  return String(name || "presentation")
-    .replace(/[^\x20-\x7E]/g, "_")
-    .replace(/"/g, "");
-}
+import {
+  fetchSlideDeckStream,
+  resolveSlideDeckAccess,
+  safeAsciiFilename,
+} from "@/lib/slideDeckAccess";
 
 /**
  * Stream a stored slide deck for inline viewing (Office embed/new tab).
@@ -24,53 +18,16 @@ export async function GET(req, context) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
     }
 
-    const urlObj = new URL(req.url);
-    const rawToken = urlObj.searchParams.get("t");
-    let userIdForDeck = null;
-
-    if (rawToken) {
-      const claims = verifySlideDeckViewToken(rawToken);
-      if (
-        !claims ||
-        claims.summaryId !== summaryId ||
-        claims.deckId !== deckId
-      ) {
-        return NextResponse.json(
-          { error: "Invalid or expired token" },
-          { status: 401 },
-        );
-      }
-      userIdForDeck = claims.userId;
-    } else {
-      const user = await getRequestUser();
-      if (!user)
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      userIdForDeck = user.id;
-    }
-
-    const deck = await prisma.slideDeck.findFirst({
-      where: { id: deckId, summaryId, userId: userIdForDeck },
-      select: { title: true, pptxUrl: true },
-    });
-    if (!deck) {
+    const access = await resolveSlideDeckAccess(req, { summaryId, deckId });
+    if (access.error) {
       return NextResponse.json(
-        { error: "Slide deck not found" },
-        { status: 404 },
+        { error: access.error },
+        { status: access.status },
       );
     }
 
-    const blobRef = toBlobRef(deck.pptxUrl);
-    if (!blobRef) {
-      return NextResponse.json(
-        { error: "Slide deck file is missing" },
-        { status: 404 },
-      );
-    }
-
-    const result = await get(blobRef, {
-      access: "private",
-      useCache: true,
-    });
+    const { deck, blobRef } = access;
+    const result = await fetchSlideDeckStream(blobRef);
     if (!result || result.statusCode !== 200 || !result.stream) {
       return NextResponse.json(
         { error: "Failed to fetch file" },

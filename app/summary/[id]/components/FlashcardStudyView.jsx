@@ -39,6 +39,7 @@ export default function FlashcardStudyView({
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [studyAgainLoading, setStudyAgainLoading] = useState(false);
 
   useEffect(() => {
     setDeck(cards);
@@ -201,32 +202,37 @@ export default function FlashcardStudyView({
   }, [cards, unknownIds]);
 
   const studyAgain = useCallback(async () => {
-    if (flashcardSet?.id && typeof onResetStudyProgress === "function") {
-      try {
-        const updated = await onResetStudyProgress(flashcardSet.id);
-        if (updated) {
-          onFlashcardSetChange?.(updated);
-          const sorted = sortCards(updated.cards);
-          setDeck(sorted);
-          setKnownIds(new Set());
-          setUnknownIds(new Set());
-          setCurrentIndex(0);
-          setFlipped(false);
-          setSessionComplete(false);
-          setEditing(false);
-          return;
+    setStudyAgainLoading(true);
+    try {
+      if (flashcardSet?.id && typeof onResetStudyProgress === "function") {
+        try {
+          const updated = await onResetStudyProgress(flashcardSet.id);
+          if (updated) {
+            onFlashcardSetChange?.(updated);
+            const sorted = sortCards(updated.cards);
+            setDeck(sorted);
+            setKnownIds(new Set());
+            setUnknownIds(new Set());
+            setCurrentIndex(0);
+            setFlipped(false);
+            setSessionComplete(false);
+            setEditing(false);
+            return;
+          }
+        } catch (e) {
+          console.warn("Failed to reset study progress:", e);
         }
-      } catch (e) {
-        console.warn("Failed to reset study progress:", e);
       }
+      setDeck(cards);
+      setCurrentIndex(0);
+      setFlipped(false);
+      setKnownIds(new Set());
+      setUnknownIds(new Set());
+      setSessionComplete(false);
+      setEditing(false);
+    } finally {
+      setStudyAgainLoading(false);
     }
-    setDeck(cards);
-    setCurrentIndex(0);
-    setFlipped(false);
-    setKnownIds(new Set());
-    setUnknownIds(new Set());
-    setSessionComplete(false);
-    setEditing(false);
   }, [cards, flashcardSet?.id, onResetStudyProgress, onFlashcardSetChange]);
 
   useEffect(() => {
@@ -344,9 +350,16 @@ export default function FlashcardStudyView({
             <button
               type="button"
               className="fc-btn fc-btn--ghost"
+              disabled={studyAgainLoading}
               onClick={() => void studyAgain()}
             >
-              Study again
+              {studyAgainLoading ? (
+                <>
+                  <Spinner size={13} /> Resetting…
+                </>
+              ) : (
+                "Study again"
+              )}
             </button>
             <button
               type="button"

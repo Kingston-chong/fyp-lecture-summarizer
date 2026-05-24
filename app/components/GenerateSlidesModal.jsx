@@ -41,6 +41,7 @@ export default function GenerateSlidesModal({
   /** Parsed slide list from /api/improve-ppt/parse (no LLM). */
   const [parsedSlides, setParsedSlides] = useState(null);
   const [parseLoading, setParseLoading] = useState(false);
+  const [enableOcr, setEnableOcr] = useState(false);
   /** Background LLM plan adjustments from /api/improve-ppt/plan (JSON). */
   const [planAdjustments, setPlanAdjustments] = useState([]);
   const [planLoading, setPlanLoading] = useState(false);
@@ -852,12 +853,19 @@ export default function GenerateSlidesModal({
                                   headers: {
                                     "Content-Type": "application/json",
                                   },
-                                  body: JSON.stringify({ documentId: doc.id }),
+                                  body: JSON.stringify({
+                                    documentId: doc.id,
+                                    ocr: enableOcr,
+                                    model: aiModel,
+                                  }),
                                 },
                               );
                               const d = await res.json().catch(() => ({}));
-                              if (res.ok && d?.slides)
+                              if (res.ok && d?.slides) {
                                 setParsedSlides(d.slides);
+                                if (d.ocrWarning)
+                                  setImproveErr(String(d.ocrWarning));
+                              }
                             } catch {
                               /* ignore */
                             } finally {
@@ -885,7 +893,9 @@ export default function GenerateSlidesModal({
                         }}
                       >
                         {parseLoading
-                          ? "Parsing slides…"
+                          ? enableOcr
+                            ? "Parsing slides (OCR)…"
+                            : "Parsing slides…"
                           : `✓ ${improveFile.name}${parsedSlides ? ` · ${parsedSlides.length} slides` : ""}`}
                       </span>
                     ) : (
@@ -896,6 +906,27 @@ export default function GenerateSlidesModal({
                       </span>
                     )}
                   </div>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 8,
+                      marginTop: 10,
+                      cursor: "pointer",
+                      fontSize: 12,
+                      color: "rgba(255,255,255,.65)",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={enableOcr}
+                      onChange={(e) => setEnableOcr(e.target.checked)}
+                      style={{ marginTop: 2 }}
+                    />
+                    <span>
+                      Deep scan images (OCR) — slower; use ChatGPT or Gemini
+                    </span>
+                  </label>
                 </div>
 
                 {/* Instructions */}

@@ -1,4 +1,6 @@
 export const MODELS = ["ChatGPT", "DeepSeek", "Gemini"];
+
+export { CHAT_RESPONSE_LENGTHS } from "@/lib/chatResponseLength";
 export const ACCEPTED = ".pdf,.pptx,.ppt,.docx,.doc,.txt,.xlsx,.xls,.csv,.md";
 /** Documents + images (one file picker for the clip button) */
 export const ATTACH_ACCEPT = `${ACCEPTED},image/*`;

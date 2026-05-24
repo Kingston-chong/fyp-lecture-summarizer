@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useMemo, useState } from "react";
 import { SaveIco, Spinner } from "@/app/components/icons";
 import SourcesListPanel from "./SourcesListPanel";
 import SlideDecksPanel from "./SlideDecksPanel";
@@ -7,7 +8,16 @@ import SavedQuizzesPanel from "./SavedQuizzesPanel";
 import FlashcardsPanel from "./FlashcardsPanel";
 import HighlightsPanel from "./HighlightsPanel";
 import ReferencesPanel from "./ReferencesPanel";
-import CollapsibleSidebarSection from "./CollapsibleSidebarSection";
+import CollapsibleSidebarSection, {
+  readSidebarSectionsStored,
+  writeSidebarSectionsStored,
+} from "./CollapsibleSidebarSection";
+
+function mergeSectionOpen(ids, stored, value) {
+  const next = { ...stored };
+  for (const id of ids) next[id] = value;
+  return next;
+}
 
 export default function SourcesSidebar({
   sourcesWidth,
@@ -26,6 +36,53 @@ export default function SourcesSidebar({
     summary?.summarizeFor === "lecturer" &&
     referencesProps != null &&
     (referencesProps.loading || refCount > 0);
+
+  const sectionIds = useMemo(() => {
+    const ids = ["files", "slideDecks", "quizzes", "flashcards", "highlights"];
+    if (showReferences) ids.splice(1, 0, "references");
+    return ids;
+  }, [showReferences]);
+
+  const sectionDefaults = useMemo(
+    () => ({
+      files: true,
+      references: true,
+      slideDecks: false,
+      quizzes: false,
+      flashcards: false,
+      highlights: false,
+    }),
+    [],
+  );
+
+  const [sectionOpen, setSectionOpen] = useState(() => ({
+    ...sectionDefaults,
+    ...readSidebarSectionsStored(),
+  }));
+
+  const isSectionOpen = useCallback(
+    (id) => {
+      if (typeof sectionOpen[id] === "boolean") return sectionOpen[id];
+      return sectionDefaults[id] ?? false;
+    },
+    [sectionOpen, sectionDefaults],
+  );
+
+  const setSection = useCallback((id, open) => {
+    setSectionOpen((prev) => {
+      const next = { ...prev, [id]: open };
+      writeSidebarSectionsStored(next);
+      return next;
+    });
+  }, []);
+
+  const collapseAll = useCallback(() => {
+    setSectionOpen((prev) => {
+      const next = mergeSectionOpen(sectionIds, prev, false);
+      writeSidebarSectionsStored(next);
+      return next;
+    });
+  }, [sectionIds]);
 
   const baseFiles = summary?.files || [];
   const extraFiles = (extraSources || []).filter(
@@ -54,6 +111,55 @@ export default function SourcesSidebar({
       >
         <div className="src-header">
           <span className="src-title">Sources</span>
+          <button
+            type="button"
+            className="src-sections-collapse-btn"
+            title="Collapse all sections"
+            aria-label="Collapse all sections"
+            onClick={collapseAll}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden
+            >
+              <rect
+                x="2"
+                y="2.5"
+                width="12"
+                height="3"
+                rx="0.75"
+                stroke="currentColor"
+                strokeWidth="1.2"
+              />
+              <rect
+                x="2"
+                y="7"
+                width="12"
+                height="3"
+                rx="0.75"
+                stroke="currentColor"
+                strokeWidth="1.2"
+              />
+              <rect
+                x="2"
+                y="11.5"
+                width="12"
+                height="3"
+                rx="0.75"
+                stroke="currentColor"
+                strokeWidth="1.2"
+              />
+              <path
+                d="M8 5.5v5"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
         </div>
 
         <div className="sources-scroll">
@@ -61,7 +167,8 @@ export default function SourcesSidebar({
             id="files"
             title="Attached files"
             badge={fileCount || null}
-            defaultOpen
+            open={isSectionOpen("files")}
+            onOpenChange={(v) => setSection("files", v)}
           >
             <SourcesListPanel
               summary={summary}
@@ -76,7 +183,8 @@ export default function SourcesSidebar({
               id="references"
               title="References"
               badge={refCount || null}
-              defaultOpen
+              open={isSectionOpen("references")}
+              onOpenChange={(v) => setSection("references", v)}
             >
               <ReferencesPanel {...referencesProps} embedded />
             </CollapsibleSidebarSection>
@@ -86,7 +194,8 @@ export default function SourcesSidebar({
             id="slideDecks"
             title="Slide decks"
             badge={deckCount || null}
-            defaultOpen={false}
+            open={isSectionOpen("slideDecks")}
+            onOpenChange={(v) => setSection("slideDecks", v)}
             actions={
               <button
                 type="button"
@@ -116,7 +225,8 @@ export default function SourcesSidebar({
               quizSetsProps?.isLecturer ? "Class quizzes" : "Saved quizzes"
             }
             badge={quizCount || null}
-            defaultOpen={false}
+            open={isSectionOpen("quizzes")}
+            onOpenChange={(v) => setSection("quizzes", v)}
             actions={
               <button
                 type="button"
@@ -140,7 +250,8 @@ export default function SourcesSidebar({
             id="flashcards"
             title="Flashcards"
             badge={flashcardCount || null}
-            defaultOpen={false}
+            open={isSectionOpen("flashcards")}
+            onOpenChange={(v) => setSection("flashcards", v)}
             actions={
               <button
                 type="button"
@@ -168,7 +279,8 @@ export default function SourcesSidebar({
             id="highlights"
             title="Highlights"
             badge={hlCount || null}
-            defaultOpen={false}
+            open={isSectionOpen("highlights")}
+            onOpenChange={(v) => setSection("highlights", v)}
             actions={
               <button
                 type="button"

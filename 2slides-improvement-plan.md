@@ -12,7 +12,7 @@ The current 2slides provider integration is functional but significantly under-u
 
 **File:** `app/api/themes/route.js`
 
-**Problem:** `GET /api/themes?provider=2slides` returns an empty array. Users cannot browse or select a 2slides theme, yet a `themeId` is *required* to generate slides — making the provider unusable without hardcoding a known ID.
+**Problem:** `GET /api/themes?provider=2slides` returns an empty array. Users cannot browse or select a 2slides theme, yet a `themeId` is _required_ to generate slides — making the provider unusable without hardcoding a known ID.
 
 **Fix:** Add a `provider === "2slides"` branch that calls `GET https://2slides.com/api/v1/themes/search` and returns normalised results.
 
@@ -21,7 +21,10 @@ if (provider === "2slides") {
   const query = url.searchParams.get("query") || "";
   const res = await fetch(
     `https://2slides.com/api/v1/themes/search?query=${encodeURIComponent(query)}`,
-    { headers: { Authorization: `Bearer ${process.env.TWOSLIDES_API_KEY}` }, cache: "no-store" }
+    {
+      headers: { Authorization: `Bearer ${process.env.TWOSLIDES_API_KEY}` },
+      cache: "no-store",
+    },
   );
   const data = await res.json().catch(() => ({}));
   return NextResponse.json({ themes: data.themes ?? [] });
@@ -44,7 +47,9 @@ if (provider === "2slides") {
 const result = await submitTwoSlidesGeneration({
   inputText: twoSlidesInput,
   themeId,
-  page: Number.isFinite(Number(body?.maxSlides)) ? Math.max(0, Number(body.maxSlides)) : 0,
+  page: Number.isFinite(Number(body?.maxSlides))
+    ? Math.max(0, Number(body.maxSlides))
+    : 0,
 });
 ```
 
@@ -67,7 +72,7 @@ return NextResponse.json({
   status: "completed",
   download_url: downloadEndpoint,
   remote_download_url: result.downloadUrl,
-  preview_url: result.downloadUrl ?? null,   // was hardcoded null
+  preview_url: result.downloadUrl ?? null, // was hardcoded null
 });
 ```
 
@@ -144,19 +149,34 @@ const POLL_INTERVAL_MS = provider === "2slides" ? 20_000 : 5_000;
 **Problem:** Only `/api/v1/slides/generate` (Fast PPT) is used. The `/api/v1/slides/create-pdf-slides` endpoint supports a free-form `designStyle` prompt and produces richer Nano Banana Pro slides.
 
 **Plan:**
+
 1. Add a `twoSlidesMode` field to the POST body (`"fast-ppt"` | `"custom-design"`).
 2. When `twoSlidesMode === "custom-design"`, route to `/api/v1/slides/create-pdf-slides` instead.
 3. Repurpose `body.slideUserPrompt` as `designStyle` in this mode (e.g. "dark tech aesthetic with bold typography").
 4. Always use `mode: "async"` for this endpoint.
 
 ```js
-const endpoint = twoSlidesMode === "custom-design"
-  ? "/api/v1/slides/create-pdf-slides"
-  : "/api/v1/slides/generate";
+const endpoint =
+  twoSlidesMode === "custom-design"
+    ? "/api/v1/slides/create-pdf-slides"
+    : "/api/v1/slides/generate";
 
-const payload = twoSlidesMode === "custom-design"
-  ? { userInput: twoSlidesInput, designStyle: body.slideUserPrompt, page, responseLanguage, mode: "async" }
-  : { themeId, userInput: twoSlidesInput, page, responseLanguage, mode: "async" };
+const payload =
+  twoSlidesMode === "custom-design"
+    ? {
+        userInput: twoSlidesInput,
+        designStyle: body.slideUserPrompt,
+        page,
+        responseLanguage,
+        mode: "async",
+      }
+    : {
+        themeId,
+        userInput: twoSlidesInput,
+        page,
+        responseLanguage,
+        mode: "async",
+      };
 ```
 
 **Acceptance criteria:** A `twoSlidesMode: "custom-design"` request generates a visually distinct, non-template deck.
@@ -170,6 +190,7 @@ const payload = twoSlidesMode === "custom-design"
 **Problem:** The app processes uploaded documents but doesn't leverage the document's visual identity when generating slides.
 
 **Plan:**
+
 1. Add a `referenceImageUrl` optional field to the POST body.
 2. When provided and `provider === "2slides"`, call `/api/v1/slides/create-like-this`.
 3. Surface this in the UI as "Match my document's style" — useful when users upload branded PDFs or reports.
@@ -193,14 +214,14 @@ if (body.referenceImageUrl && provider === "2slides") {
 
 ## File Change Summary
 
-| File | Change |
-|------|--------|
-| `app/api/themes/route.js` | Add 2slides branch — call `/api/v1/themes/search` |
-| `app/api/generate-slides/route.js` | Pass `page`, `responseLanguage`; add `twoSlidesMode` routing |
-| `app/api/generate-slides/[id]/route.js` | Surface `preview_url` from `downloadUrl` |
-| `app/api/generate-slides/[id]/download/route.js` | Document + enforce live re-poll |
-| `lib/twoSlidesGenerate.js` | Accept `page`, `responseLanguage`, `designStyle`, `referenceImageUrl`; add endpoint selection |
-| Client polling logic | Set 20s minimum poll interval for 2slides |
+| File                                             | Change                                                                                        |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| `app/api/themes/route.js`                        | Add 2slides branch — call `/api/v1/themes/search`                                             |
+| `app/api/generate-slides/route.js`               | Pass `page`, `responseLanguage`; add `twoSlidesMode` routing                                  |
+| `app/api/generate-slides/[id]/route.js`          | Surface `preview_url` from `downloadUrl`                                                      |
+| `app/api/generate-slides/[id]/download/route.js` | Document + enforce live re-poll                                                               |
+| `lib/twoSlidesGenerate.js`                       | Accept `page`, `responseLanguage`, `designStyle`, `referenceImageUrl`; add endpoint selection |
+| Client polling logic                             | Set 20s minimum poll interval for 2slides                                                     |
 
 ---
 

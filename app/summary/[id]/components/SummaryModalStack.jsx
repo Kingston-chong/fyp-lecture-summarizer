@@ -20,6 +20,8 @@ export default function SummaryModalStack({
   setSlideDeckPreviewOpen,
   slideDeckPreviewUrl,
   slideDeckRemotePptUrl,
+  slideDeckPreviewLoading,
+  slideDeckPreviewUnavailable,
   slideDeckPreviewTitle,
   slideDeckDlRef,
   quizModal,
@@ -46,9 +48,9 @@ export default function SummaryModalStack({
   const isLecturer = summary?.summarizeFor === "lecturer";
   const numericSummaryId = parseNumericSummaryId(summaryId);
 
-  const handleSlideDeckDownload = useCallback(async () => {
+  const handleSlideDeckDownload = useCallback(() => {
     const fn = slideDeckDlRef.current;
-    if (typeof fn === "function") await fn();
+    if (typeof fn === "function") fn();
   }, [slideDeckDlRef]);
 
   return (
@@ -68,6 +70,8 @@ export default function SummaryModalStack({
           onClose={() => setSlideDeckPreviewOpen(false)}
           previewUrl={slideDeckPreviewUrl}
           remotePptUrl={slideDeckRemotePptUrl}
+          previewLoading={slideDeckPreviewLoading}
+          previewUnavailable={slideDeckPreviewUnavailable}
           title={slideDeckPreviewTitle}
           subtitle="Saved slide deck"
           onDownload={handleSlideDeckDownload}

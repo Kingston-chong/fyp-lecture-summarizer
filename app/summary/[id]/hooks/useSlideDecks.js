@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { isViewTokenUnavailableStatus } from "@/lib/viewTokenPreview";
 import { parseNumericSummaryId } from "../helpers";
 
 export function useSlideDecks({ summaryId, status }) {
@@ -11,24 +12,26 @@ export function useSlideDecks({ summaryId, status }) {
   const [slideDeckPreviewOpen, setSlideDeckPreviewOpen] = useState(false);
   const [slideDeckPreviewUrl, setSlideDeckPreviewUrl] = useState("");
   const [slideDeckRemotePptUrl, setSlideDeckRemotePptUrl] = useState("");
+  const [slideDeckPreviewLoading, setSlideDeckPreviewLoading] = useState(false);
+  const [slideDeckPreviewUnavailable, setSlideDeckPreviewUnavailable] =
+    useState(false);
   const [slideDeckPreviewTitle, setSlideDeckPreviewTitle] = useState("");
   const slideDeckDlRef = useRef(null);
+  const slideDeckViewTokenRef = useRef(null);
 
-  function deckDownloadFilename(title) {
-    const base =
-      String(title || "presentation")
-        .replace(/[^a-z0-9]+/gi, "_")
-        .toLowerCase() || "presentation";
-    return `${base}.pptx`;
-  }
-
-  function triggerBlobDownload(blob, filename) {
-    const url = URL.createObjectURL(blob);
+  /** Native navigation download — streams from CDN, does not buffer in JS. */
+  function triggerNativeDownload(deck, viewToken) {
+    if (!numericSummaryId) throw new Error("Invalid summary id");
+    const base = `/api/summary/${numericSummaryId}/slide-decks/${deck.id}/download`;
+    const qs = viewToken
+      ? `t=${encodeURIComponent(viewToken)}`
+      : `v=${Date.now()}`;
     const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
+    a.href = `${base}?${qs}`;
+    a.rel = "noopener";
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    a.remove();
   }
 
   const fetchSlideDecks = useCallback(async () => {
@@ -53,20 +56,29 @@ export function useSlideDecks({ summaryId, status }) {
 
   async function openSlideDeckPreview(deck) {
     setSlideDeckPreviewUrl("");
+    setSlideDeckRemotePptUrl("");
+    setSlideDeckPreviewUnavailable(false);
     setSlideDeckPreviewTitle(
       String(deck.title || "Presentation").trim() || "Presentation",
     );
-    slideDeckDlRef.current = async () => {
-      await downloadSlideDeck(deck);
+    slideDeckViewTokenRef.current = null;
+    slideDeckDlRef.current = () => {
+      downloadSlideDeck(deck, slideDeckViewTokenRef.current);
     };
     setSlideDeckPreviewOpen(true);
+    setSlideDeckPreviewLoading(true);
     try {
       if (!numericSummaryId) throw new Error("Invalid summary id");
       const res = await fetch(
         `/api/summary/${numericSummaryId}/slide-decks/${deck.id}/view-token`,
       );
       const data = await res.json().catch(() => ({}));
+      if (isViewTokenUnavailableStatus(res.status)) {
+        setSlideDeckPreviewUnavailable(true);
+        return;
+      }
       if (!res.ok) throw new Error(data?.error || "Could not prepare preview");
+      slideDeckViewTokenRef.current = data.token;
       const origin =
         typeof window !== "undefined" ? window.location.origin : "";
       const viewUrl = `${origin}/api/summary/${numericSummaryId}/slide-decks/${deck.id}/view?t=${encodeURIComponent(
@@ -76,21 +88,14 @@ export function useSlideDecks({ summaryId, status }) {
     } catch (e) {
       setSlideDeckRemotePptUrl("");
       alert(e?.message || String(e));
+    } finally {
+      setSlideDeckPreviewLoading(false);
     }
   }
 
-  async function downloadSlideDeck(deck) {
+  function downloadSlideDeck(deck, viewToken = null) {
     try {
-      if (!numericSummaryId) throw new Error("Invalid summary id");
-      const r = await fetch(
-        `/api/summary/${numericSummaryId}/slide-decks/${deck.id}/view?v=${Date.now()}`,
-      );
-      if (!r.ok) {
-        const data = await r.json().catch(() => ({}));
-        throw new Error(data?.error || "Download failed");
-      }
-      const blob = await r.blob();
-      triggerBlobDownload(blob, deckDownloadFilename(deck.title));
+      triggerNativeDownload(deck, viewToken);
     } catch (e) {
       alert(e?.message || String(e));
     }
@@ -132,6 +137,8 @@ export function useSlideDecks({ summaryId, status }) {
     setSlideDeckPreviewOpen,
     slideDeckPreviewUrl,
     slideDeckRemotePptUrl,
+    slideDeckPreviewLoading,
+    slideDeckPreviewUnavailable,
     slideDeckPreviewTitle,
     slideDeckDlRef,
     fetchSlideDecks,

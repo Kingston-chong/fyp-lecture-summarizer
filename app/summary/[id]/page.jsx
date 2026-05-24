@@ -51,12 +51,18 @@ import QuizAttemptDetailModal from "./components/QuizAttemptDetailModal";
 import SourcesSidebar from "./components/SourcesSidebar";
 import MobileMoreSheet from "./components/MobileMoreSheet";
 import { useSourcesPanelResize } from "./hooks/useSourcesPanelResize";
+import { isViewTokenUnavailableStatus } from "@/lib/viewTokenPreview";
 import { useSlideDecks } from "./hooks/useSlideDecks";
 import { useQuizSets } from "./hooks/useQuizSets";
 import { useFlashcardSets, NEW_SET_VALUE } from "./hooks/useFlashcardSets";
 import CreateFlashcardDialog from "./components/CreateFlashcardDialog";
 import FlashcardSetEditor from "./components/FlashcardSetEditor";
-import { MODELS, ATTACH_ACCEPT, SUMMARY_BODY_INNER_STYLE } from "./constants";
+import {
+  MODELS,
+  CHAT_RESPONSE_LENGTHS,
+  ATTACH_ACCEPT,
+  SUMMARY_BODY_INNER_STYLE,
+} from "./constants";
 import {
   downscaleImageFileToJpegDataUrl,
   MAX_CHAT_PASTE_IMAGES,
@@ -78,6 +84,7 @@ import {
   PdfIco,
   SlidesIco,
   ClipIco,
+  ReplyQuoteIco,
 } from "@/app/components/icons";
 
 // Component
@@ -104,9 +111,13 @@ export default function SummaryView() {
   const [messages, setMessages] = useState([]);
   const [inputVal, setInputVal] = useState("");
   const [chatModel, setChatModel] = useState("ChatGPT");
+  const [chatResponseLength, setChatResponseLength] = useState("medium");
+  const [lengthOpen, setLengthOpen] = useState(false);
   const [modelOpen, setModelOpen] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
   const [chatNotice, setChatNotice] = useState("");
+  /** Lecturer chat: search Tavily + academic papers for journal/web references (default off). */
+  const [searchReferences, setSearchReferences] = useState(false);
   // Web fallback is automatic server-side (ChatGPT-like). No UI toggle needed.
   const [pdfLoading, setPdfLoading] = useState(false);
   const [aiChatSuggestions, setAiChatSuggestions] = useState([]);
@@ -191,6 +202,8 @@ export default function SummaryView() {
     setSlideDeckPreviewOpen,
     slideDeckPreviewUrl,
     slideDeckRemotePptUrl,
+    slideDeckPreviewLoading,
+    slideDeckPreviewUnavailable,
     slideDeckPreviewTitle,
     slideDeckDlRef,
     fetchSlideDecks,
@@ -1271,8 +1284,10 @@ export default function SummaryView() {
           summaryId: Number(summaryId),
           model: modelParam,
           modelLabel: chatModel,
+          responseLength: chatResponseLength,
           messages: historyPayload,
           documentIds: attachedDocumentIds,
+          ...(isLecturerSummary ? { searchReferences } : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -1341,9 +1356,11 @@ export default function SummaryView() {
           summaryId: Number(summaryId),
           model: modelParam,
           modelLabel: chatModel,
+          responseLength: chatResponseLength,
           messages: historyPayload,
           documentIds: attachedDocumentIds,
           regenerate: true,
+          ...(isLecturerSummary ? { searchReferences } : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -1451,6 +1468,13 @@ export default function SummaryView() {
       if (isOfficePreviewName(doc.name)) {
         const res = await fetch(`/api/documents/${doc.id}/view-token`);
         const data = await res.json().catch(() => ({}));
+        if (isViewTokenUnavailableStatus(res.status)) {
+          setSourcePreviewSetupErr(
+            data.error || "Preview link not available",
+          );
+          setSourcePreviewIframeLoading(false);
+          return;
+        }
         if (!res.ok) throw new Error(data.error || "Could not prepare preview");
         const viewUrl = `${origin}${basePath}?t=${encodeURIComponent(data.token)}`;
         const enc = encodeURIComponent(viewUrl);
@@ -1917,8 +1941,18 @@ export default function SummaryView() {
 
                 <div className="unified-scroll">
                   {summaryLoading ? (
-                    <div className="sum-text" style={{ paddingTop: 8 }}>
-                      Loading summary...
+                    <div
+                      className="sum-text sum-loading"
+                      style={{ paddingTop: 8 }}
+                      role="status"
+                      aria-live="polite"
+                    >
+                      Loading summary
+                      <span className="dots dots--inline" aria-hidden>
+                        <span className="dot" />
+                        <span className="dot" />
+                        <span className="dot" />
+                      </span>
                     </div>
                   ) : summaryError ? (
                     <div className="sum-text" style={{ paddingTop: 8 }}>
@@ -2206,6 +2240,23 @@ export default function SummaryView() {
                   </div>
                 ) : null}
 
+                {isLecturerSummary && (
+                  <label className="chat-ref-search-toggle">
+                    <input
+                      type="checkbox"
+                      checked={searchReferences}
+                      onChange={(e) => setSearchReferences(e.target.checked)}
+                    />
+                    <span className="chat-ref-search-toggle-text">
+                      Search journals &amp; web for references
+                    </span>
+                    <span className="chat-ref-search-toggle-hint">
+                      Lecture notes stay in the summary — not listed as
+                      References
+                    </span>
+                  </label>
+                )}
+
                 {/* Input */}
                 <div className="inp-row">
                   <input
@@ -2220,86 +2271,97 @@ export default function SummaryView() {
                     }}
                   />
                   <div
-                    className={`chatbox ${pendingSourceFiles.length > 0 || pendingPasteImages.length > 0 ? "with-files" : ""}`}
+                    className={`chatbox ${pendingSourceFiles.length > 0 || pendingPasteImages.length > 0 ? "with-files" : ""} ${pendingPasteImages.length > 0 ? "chatbox--with-paste" : ""} ${pendingChatReferences.length > 0 ? "chatbox--with-reply" : ""}`}
                   >
-                    <button
-                      type="button"
-                      className="attach-btn"
-                      title="Add attachment (documents or images)"
-                      aria-label="Add attachment"
-                      disabled={sourceUploadLoading || chatLoading}
-                      onClick={() => sourceInputRef.current?.click()}
-                    >
-                      {sourceUploadLoading ? (
-                        <Spinner size={12} />
-                      ) : (
-                        <ClipIco size={16} />
-                      )}
-                      {pendingSourceFiles.length > 0 && (
-                        <span className="attach-badge">
-                          {Math.min(99, pendingSourceFiles.length)}
-                        </span>
-                      )}
-                    </button>
-                    <span className="attach-divider" aria-hidden />
-                    <div className="chatbox-main">
-                      {(pendingSourceFiles.length > 0 ||
-                        pendingPasteImages.length > 0 ||
-                        pendingChatReferences.length > 0) && (
-                        <div
-                          className="chat-uploads"
-                          aria-label="Attached files and references"
-                        >
-                          {pendingChatReferences.map((r, i) => (
-                            <div
-                              key={r.id}
-                              className="chat-upload-chip chat-reference-chip"
-                              title={r.text}
+                    {pendingChatReferences.length > 0 && (
+                      <div
+                        className="chat-reply-stack"
+                        aria-label="Replying with selected text"
+                      >
+                        {pendingChatReferences.map((r, i) => (
+                          <div
+                            key={r.id}
+                            className="chat-reply-preview"
+                            title={r.text}
+                          >
+                            <span className="chat-reply-icon" aria-hidden>
+                              <ReplyQuoteIco size={15} />
+                            </span>
+                            <span className="chat-reply-text">{r.text}</span>
+                            <button
+                              type="button"
+                              className="chat-reply-close"
+                              onClick={() => removePendingChatReference(r.id)}
+                              aria-label={`Remove reply quote ${i + 1}`}
                             >
-                              <div className="chat-upload-badge" aria-hidden>
-                                #
-                              </div>
-                              <div className="chat-upload-content">
-                                <span className="chat-upload-name">
-                                  {r.text}
-                                </span>
-                              </div>
-                              <button
-                                type="button"
-                                className="chat-upload-rm"
-                                onClick={() => removePendingChatReference(r.id)}
-                                aria-label={`Remove reference ${i + 1}`}
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ))}
-                          {pendingPasteImages.map((p, pi) => (
-                            <div
-                              key={p.clientId}
-                              className="chat-upload-chip chat-paste-chip"
-                              title={`Image ${pi + 1}`}
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {pendingPasteImages.length > 0 && (
+                      <div
+                        className="chat-paste-previews"
+                        aria-label="Pasted images"
+                      >
+                        {pendingPasteImages.map((p, pi) => (
+                          <div
+                            key={p.clientId}
+                            className="chat-paste-thumb-wrap"
+                          >
+                            <img
+                              src={p.dataUrl}
+                              alt=""
+                              className="chat-paste-thumb"
+                            />
+                            <button
+                              type="button"
+                              className="chat-paste-thumb-rm"
+                              onClick={() =>
+                                removePendingPasteByClientId(p.clientId)
+                              }
+                              aria-label={`Remove pasted image ${pi + 1}`}
                             >
-                              <div className="chat-upload-badge" aria-hidden>
-                                <span className="chat-paste-ico" />
-                              </div>
-                              <div className="chat-upload-content chat-upload-content-single">
-                                <span className="chat-upload-name">
-                                  Image {pi + 1}
-                                </span>
-                              </div>
-                              <button
-                                type="button"
-                                className="chat-upload-rm"
-                                onClick={() =>
-                                  removePendingPasteByClientId(p.clientId)
-                                }
-                                aria-label={`Remove image ${pi + 1}`}
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ))}
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="chatbox-input-row">
+                      {pendingPasteImages.length === 0 && (
+                        <>
+                          <button
+                            type="button"
+                            className="attach-btn"
+                            title="Add attachment (documents or images)"
+                            aria-label="Add attachment"
+                            disabled={sourceUploadLoading || chatLoading}
+                            onClick={() => sourceInputRef.current?.click()}
+                          >
+                            {sourceUploadLoading ? (
+                              <Spinner size={12} />
+                            ) : (
+                              <ClipIco size={16} />
+                            )}
+                            {pendingSourceFiles.length > 0 && (
+                              <span className="attach-badge">
+                                {Math.min(99, pendingSourceFiles.length)}
+                              </span>
+                            )}
+                          </button>
+                          <span className="attach-divider" aria-hidden />
+                        </>
+                      )}
+                      <div
+                        className={`chatbox-main ${pendingPasteImages.length > 0 ? "chatbox-main--stacked" : ""}`}
+                      >
+                        {pendingSourceFiles.length > 0 && (
+                          <div
+                            className="chat-uploads"
+                            aria-label="Attached documents"
+                          >
                           {pendingSourceFiles.map((f) => (
                             <div
                               key={f.clientId}
@@ -2329,87 +2391,293 @@ export default function SummaryView() {
                               </button>
                             </div>
                           ))}
-                        </div>
-                      )}
-                      <div className="chatbox-row">
-                        <input
-                          ref={inputRef}
-                          className="inp"
-                          placeholder="Refine your summary or ask question..."
-                          value={inputVal}
-                          onChange={(e) => setInputVal(e.target.value)}
-                          onPaste={(e) => {
-                            const items = e.clipboardData?.items;
-                            if (!items?.length) return;
-                            for (const item of items) {
-                              if (
-                                item.kind === "file" &&
-                                item.type.startsWith("image/")
-                              ) {
-                                const file = item.getAsFile();
-                                if (file) {
-                                  e.preventDefault();
-                                  void addPastedImageFromFile(file);
-                                  break;
+                          </div>
+                        )}
+                        <div
+                          className={
+                            pendingPasteImages.length > 0
+                              ? "chatbox-compose"
+                              : "chatbox-row"
+                          }
+                        >
+                          <input
+                            ref={inputRef}
+                            className="inp"
+                            placeholder={
+                              pendingPasteImages.length > 0
+                                ? "Ask anything"
+                                : "Refine your summary or ask question..."
+                            }
+                            value={inputVal}
+                            onChange={(e) => setInputVal(e.target.value)}
+                            onPaste={(e) => {
+                              const items = e.clipboardData?.items;
+                              if (!items?.length) return;
+                              for (const item of items) {
+                                if (
+                                  item.kind === "file" &&
+                                  item.type.startsWith("image/")
+                                ) {
+                                  const file = item.getAsFile();
+                                  if (file) {
+                                    e.preventDefault();
+                                    void addPastedImageFromFile(file);
+                                    break;
+                                  }
                                 }
                               }
-                            }
-                          }}
-                          onKeyDown={(e) =>
-                            e.key === "Enter" && !e.shiftKey && sendMessage()
-                          }
-                          disabled={chatLoading || sourceUploadLoading}
-                        />
-                        <div className="mdl-wrap">
-                          <button
-                            className={`mdl-btn ${modelOpen ? "open" : ""}`}
-                            onClick={() => setModelOpen((v) => !v)}
-                            onBlur={() =>
-                              setTimeout(() => setModelOpen(false), 150)
+                            }}
+                            onKeyDown={(e) =>
+                              e.key === "Enter" && !e.shiftKey && sendMessage()
                             }
                             disabled={chatLoading || sourceUploadLoading}
-                          >
-                            {chatModel} <Chevron open={modelOpen} />
-                          </button>
-                          {modelOpen && (
-                            <div className="mdl-menu">
-                              {MODELS.map((m) => (
-                                <div
-                                  key={m}
-                                  className={`mdl-opt ${chatModel === m ? "on" : ""}`}
-                                  onMouseDown={() => {
-                                    setChatModel(m);
-                                    setModelOpen(false);
-                                  }}
+                          />
+                          {pendingPasteImages.length === 0 && (
+                            <div className="chatbox-controls">
+                              <div className="chat-control-labeled">
+                                <span
+                                  className="chat-control-label"
+                                  id="chat-response-length-label"
                                 >
-                                  {m} {chatModel === m && "✓"}
+                                  Text response length:
+                                </span>
+                                <div className="mdl-wrap">
+                                  <button
+                                    type="button"
+                                    className={`mdl-btn ${lengthOpen ? "open" : ""}`}
+                                    title="How long the AI reply should be"
+                                    aria-labelledby="chat-response-length-label"
+                                    onClick={() => {
+                                      setLengthOpen((v) => !v);
+                                      setModelOpen(false);
+                                    }}
+                                    onBlur={() =>
+                                      setTimeout(
+                                        () => setLengthOpen(false),
+                                        150,
+                                      )
+                                    }
+                                    disabled={
+                                      chatLoading || sourceUploadLoading
+                                    }
+                                  >
+                                    {CHAT_RESPONSE_LENGTHS.find(
+                                      (o) => o.id === chatResponseLength,
+                                    )?.label || "Medium"}{" "}
+                                    <Chevron open={lengthOpen} />
+                                  </button>
+                                  {lengthOpen && (
+                                    <div className="mdl-menu">
+                                      {CHAT_RESPONSE_LENGTHS.map((o) => (
+                                        <div
+                                          key={o.id}
+                                          className={`mdl-opt ${chatResponseLength === o.id ? "on" : ""}`}
+                                          onMouseDown={() => {
+                                            setChatResponseLength(o.id);
+                                            setLengthOpen(false);
+                                          }}
+                                        >
+                                          {o.label}{" "}
+                                          {chatResponseLength === o.id && "✓"}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
-                              ))}
+                              </div>
+                              <div className="mdl-wrap">
+                                <button
+                                  type="button"
+                                  className={`mdl-btn ${modelOpen ? "open" : ""}`}
+                                  title="AI model"
+                                  onClick={() => {
+                                    setModelOpen((v) => !v);
+                                    setLengthOpen(false);
+                                  }}
+                                  onBlur={() =>
+                                    setTimeout(() => setModelOpen(false), 150)
+                                  }
+                                  disabled={
+                                    chatLoading || sourceUploadLoading
+                                  }
+                                >
+                                  {chatModel} <Chevron open={modelOpen} />
+                                </button>
+                                {modelOpen && (
+                                  <div className="mdl-menu">
+                                    {MODELS.map((m) => (
+                                      <div
+                                        key={m}
+                                        className={`mdl-opt ${chatModel === m ? "on" : ""}`}
+                                        onMouseDown={() => {
+                                          setChatModel(m);
+                                          setModelOpen(false);
+                                        }}
+                                      >
+                                        {m} {chatModel === m && "✓"}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )}
                         </div>
+                        {pendingPasteImages.length > 0 && (
+                          <div className="chatbox-toolbar">
+                            <button
+                              type="button"
+                              className="attach-btn attach-btn--toolbar"
+                              title="Add attachment (documents or images)"
+                              aria-label="Add attachment"
+                              disabled={sourceUploadLoading || chatLoading}
+                              onClick={() => sourceInputRef.current?.click()}
+                            >
+                              {sourceUploadLoading ? (
+                                <Spinner size={12} />
+                              ) : (
+                                <ClipIco size={16} />
+                              )}
+                              {pendingSourceFiles.length > 0 && (
+                                <span className="attach-badge">
+                                  {Math.min(99, pendingSourceFiles.length)}
+                                </span>
+                              )}
+                            </button>
+                            <div className="chatbox-toolbar-end">
+                              <div className="chat-control-labeled">
+                                <span
+                                  className="chat-control-label"
+                                  id="chat-response-length-label-stacked"
+                                >
+                                  Text response length:
+                                </span>
+                                <div className="mdl-wrap">
+                                  <button
+                                    type="button"
+                                    className={`mdl-btn ${lengthOpen ? "open" : ""}`}
+                                    title="How long the AI reply should be"
+                                    aria-labelledby="chat-response-length-label-stacked"
+                                    onClick={() => {
+                                      setLengthOpen((v) => !v);
+                                      setModelOpen(false);
+                                    }}
+                                    onBlur={() =>
+                                      setTimeout(
+                                        () => setLengthOpen(false),
+                                        150,
+                                      )
+                                    }
+                                    disabled={
+                                      chatLoading || sourceUploadLoading
+                                    }
+                                  >
+                                    {CHAT_RESPONSE_LENGTHS.find(
+                                      (o) => o.id === chatResponseLength,
+                                    )?.label || "Medium"}{" "}
+                                    <Chevron open={lengthOpen} />
+                                  </button>
+                                  {lengthOpen && (
+                                    <div className="mdl-menu">
+                                      {CHAT_RESPONSE_LENGTHS.map((o) => (
+                                        <div
+                                          key={o.id}
+                                          className={`mdl-opt ${chatResponseLength === o.id ? "on" : ""}`}
+                                          onMouseDown={() => {
+                                            setChatResponseLength(o.id);
+                                            setLengthOpen(false);
+                                          }}
+                                        >
+                                          {o.label}{" "}
+                                          {chatResponseLength === o.id && "✓"}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="mdl-wrap">
+                                <button
+                                  type="button"
+                                  className={`mdl-btn ${modelOpen ? "open" : ""}`}
+                                  title="AI model"
+                                  onClick={() => {
+                                    setModelOpen((v) => !v);
+                                    setLengthOpen(false);
+                                  }}
+                                  onBlur={() =>
+                                    setTimeout(() => setModelOpen(false), 150)
+                                  }
+                                  disabled={
+                                    chatLoading || sourceUploadLoading
+                                  }
+                                >
+                                  {chatModel} <Chevron open={modelOpen} />
+                                </button>
+                                {modelOpen && (
+                                  <div className="mdl-menu">
+                                    {MODELS.map((m) => (
+                                      <div
+                                        key={m}
+                                        className={`mdl-opt ${chatModel === m ? "on" : ""}`}
+                                        onMouseDown={() => {
+                                          setChatModel(m);
+                                          setModelOpen(false);
+                                        }}
+                                      >
+                                        {m} {chatModel === m && "✓"}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              className="send-btn send-btn--toolbar"
+                              onClick={() => sendMessage()}
+                              disabled={
+                                chatLoading ||
+                                sourceUploadLoading ||
+                                (!inputVal.trim() &&
+                                  pendingChatReferences.length === 0 &&
+                                  pendingPasteImages.length === 0 &&
+                                  pendingSourceFiles.length === 0) ||
+                                !summary?.output
+                              }
+                            >
+                              {chatLoading || sourceUploadLoading ? (
+                                <Spinner size={14} />
+                              ) : (
+                                <SendIco />
+                              )}
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="send-btn send-btn--inline"
-                      onClick={() => sendMessage()}
-                      disabled={
-                        chatLoading ||
-                        sourceUploadLoading ||
-                        (!inputVal.trim() &&
-                          pendingChatReferences.length === 0 &&
-                          pendingPasteImages.length === 0 &&
-                          pendingSourceFiles.length === 0) ||
-                        !summary?.output
-                      }
-                    >
-                      {chatLoading || sourceUploadLoading ? (
-                        <Spinner size={14} />
-                      ) : (
-                        <SendIco />
+                      {pendingPasteImages.length === 0 && (
+                        <button
+                          type="button"
+                          className="send-btn send-btn--inline"
+                          onClick={() => sendMessage()}
+                          disabled={
+                            chatLoading ||
+                            sourceUploadLoading ||
+                            (!inputVal.trim() &&
+                              pendingChatReferences.length === 0 &&
+                              pendingPasteImages.length === 0 &&
+                              pendingSourceFiles.length === 0) ||
+                            !summary?.output
+                          }
+                        >
+                          {chatLoading || sourceUploadLoading ? (
+                            <Spinner size={14} />
+                          ) : (
+                            <SendIco />
+                          )}
+                        </button>
                       )}
-                    </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2494,6 +2762,8 @@ export default function SummaryView() {
         setSlideDeckPreviewOpen={setSlideDeckPreviewOpen}
         slideDeckPreviewUrl={slideDeckPreviewUrl}
         slideDeckRemotePptUrl={slideDeckRemotePptUrl}
+        slideDeckPreviewLoading={slideDeckPreviewLoading}
+        slideDeckPreviewUnavailable={slideDeckPreviewUnavailable}
         slideDeckPreviewTitle={slideDeckPreviewTitle}
         slideDeckDlRef={slideDeckDlRef}
         quizModal={quizModal}

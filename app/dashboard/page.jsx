@@ -163,6 +163,7 @@ export default function Dashboard() {
   const [improveGenLoading, setImproveGenLoading] = useState(false);
   const [improveErr, setImproveErr] = useState("");
   const [improveAiModel, setImproveAiModel] = useState("Gemini");
+  const [enableOcr, setEnableOcr] = useState(false);
   const [improveModelOpen, setImproveModelOpen] = useState(false);
   /** Final PPTX renderer: Alai (default) or 2slides Fast PPT */
   const [improveProvider, setImproveProvider] = useState("alai");
@@ -579,12 +580,19 @@ export default function Dashboard() {
           const res = await fetch("/api/improve-ppt/parse", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ documentId: selectedImproveSource.id }),
+            body: JSON.stringify({
+              documentId: selectedImproveSource.id,
+              ocr: enableOcr,
+              model: improveAiModel,
+            }),
           });
           const data = await res.json().catch(() => ({}));
           if (reqId !== parseRequestIdRef.current) return;
           if (!res.ok) throw new Error(data.error || "Could not read slides");
           setParsedSlides(Array.isArray(data.slides) ? data.slides : []);
+          if (data.ocrWarning) {
+            setImproveErr(String(data.ocrWarning));
+          }
         } catch (err) {
           if (reqId !== parseRequestIdRef.current) return;
           setImproveErr(err?.message || String(err));
@@ -603,7 +611,13 @@ export default function Dashboard() {
     setImproveErr(
       "File upload did not finish. Remove the file and upload again.",
     );
-  }, [dashMode, selectedImproveSourceKey, selectedImproveSource]);
+  }, [
+    dashMode,
+    selectedImproveSourceKey,
+    selectedImproveSource,
+    enableOcr,
+    improveAiModel,
+  ]);
 
   useEffect(() => {
     const onMove = (e) => {
@@ -930,6 +944,13 @@ export default function Dashboard() {
       if (isOfficePreviewName(doc.name)) {
         const res = await fetch(`/api/documents/${doc.id}/view-token`);
         const data = await res.json().catch(() => ({}));
+        if (res.status === 400 || res.status === 404) {
+          setDocPreviewSetupErr(
+            data.error || "Preview link not available",
+          );
+          setDocPreviewIframeLoading(false);
+          return;
+        }
         if (!res.ok) throw new Error(data.error || "Could not prepare preview");
         const viewUrl = `${origin}${basePath}?t=${encodeURIComponent(data.token)}`;
         const enc = encodeURIComponent(viewUrl);
@@ -1152,6 +1173,31 @@ export default function Dashboard() {
                       Describe design/content improvements for the lecture
                       slides
                     </div>
+                  </div>
+
+                  <div>
+                    <label
+                      className="improve-ocr-toggle"
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 8,
+                        cursor: "pointer",
+                        fontSize: 13,
+                        marginBottom: 12,
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={enableOcr}
+                        onChange={(e) => setEnableOcr(e.target.checked)}
+                        style={{ marginTop: 3 }}
+                      />
+                      <span>
+                        <strong>Deep scan images (OCR)</strong> — slower; reads
+                        text inside slide images (use ChatGPT or Gemini)
+                      </span>
+                    </label>
                   </div>
 
                   <div>

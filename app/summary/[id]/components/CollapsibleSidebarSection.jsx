@@ -2,22 +2,22 @@
 
 import { useCallback, useId, useState } from "react";
 
-const STORAGE_KEY = "sum-sources-sections-v1";
+export const SIDEBAR_SECTIONS_STORAGE_KEY = "sum-sources-sections-v1";
 
-function readStored() {
+export function readSidebarSectionsStored() {
   if (typeof window === "undefined") return {};
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(SIDEBAR_SECTIONS_STORAGE_KEY);
     return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
   }
 }
 
-function writeStored(next) {
+export function writeSidebarSectionsStored(next) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    localStorage.setItem(SIDEBAR_SECTIONS_STORAGE_KEY, JSON.stringify(next));
   } catch {
     /* ignore quota */
   }
@@ -28,26 +28,41 @@ export default function CollapsibleSidebarSection({
   title,
   badge,
   defaultOpen = true,
+  open: controlledOpen,
+  onOpenChange,
   actions = null,
   persist = true,
   children,
 }) {
   const panelId = useId();
-  const [open, setOpen] = useState(() => {
+  const isControlled = controlledOpen !== undefined;
+  const [internalOpen, setInternalOpen] = useState(() => {
     if (!persist || !id) return defaultOpen;
-    const stored = readStored();
+    const stored = readSidebarSectionsStored();
     return typeof stored[id] === "boolean" ? stored[id] : defaultOpen;
   });
+  const open = isControlled ? controlledOpen : internalOpen;
+
+  const setOpen = useCallback(
+    (next) => {
+      if (isControlled) {
+        onOpenChange?.(next);
+      } else {
+        setInternalOpen(next);
+      }
+      if (persist && id) {
+        writeSidebarSectionsStored({
+          ...readSidebarSectionsStored(),
+          [id]: next,
+        });
+      }
+    },
+    [id, isControlled, onOpenChange, persist],
+  );
 
   const toggle = useCallback(() => {
-    setOpen((prev) => {
-      const next = !prev;
-      if (persist && id) {
-        writeStored({ ...readStored(), [id]: next });
-      }
-      return next;
-    });
-  }, [id, persist]);
+    setOpen(!open);
+  }, [open, setOpen]);
 
   return (
     <section className={`src-section${open ? " is-open" : " is-collapsed"}`}>
