@@ -47,6 +47,7 @@ import { unwrapHighlightMarks, wrapQuoteInRoot } from "./hooks/highlightDom";
 import ChatBubbleContent from "./components/ChatBubbleContent";
 import ChatSourcesList from "./components/ChatSourcesList";
 import ChatSelectionPopover from "./components/ChatSelectionPopover";
+import ChatReplyQuote from "./components/ChatReplyQuote";
 import QuizAttemptDetailModal from "./components/QuizAttemptDetailModal";
 import SourcesSidebar from "./components/SourcesSidebar";
 import MobileMoreSheet from "./components/MobileMoreSheet";
@@ -84,7 +85,6 @@ import {
   PdfIco,
   SlidesIco,
   ClipIco,
-  ReplyQuoteIco,
 } from "@/app/components/icons";
 
 // Component
@@ -2054,19 +2054,37 @@ export default function SummaryView() {
                                           after refresh)
                                         </div>
                                       )}
+                                    {m.role === "user" &&
+                                      Array.isArray(m.references) &&
+                                      m.references.length > 0 && (
+                                        <ChatReplyQuote
+                                          references={m.references}
+                                          requestText={(m.content || "").trim()}
+                                          variant="message"
+                                        />
+                                      )}
                                     {(() => {
                                       const raw = (m.content || "").trim();
+                                      const hasReplyRefs =
+                                        m.role === "user" &&
+                                        Array.isArray(m.references) &&
+                                        m.references.length > 0;
                                       const hidePlaceholder =
                                         m.role === "user" &&
                                         raw === "[Image message]" &&
                                         ((m.imagePreviews?.length || 0) > 0 ||
                                           (m.lostPastedImageCount || 0) > 0);
+                                      const hideReplyRequestInBody =
+                                        hasReplyRefs && !!raw;
                                       const mdSrc = hidePlaceholder
                                         ? ""
-                                        : m.content || "";
+                                        : hideReplyRequestInBody
+                                          ? ""
+                                          : m.content || "";
                                       if (
                                         m.role === "user" &&
                                         !mdSrc.trim() &&
+                                        !hasReplyRefs &&
                                         ((m.imagePreviews?.length || 0) > 0 ||
                                           (m.lostPastedImageCount || 0) > 0)
                                       ) {
@@ -2085,6 +2103,7 @@ export default function SummaryView() {
                                           </div>
                                         );
                                       }
+                                      if (!mdSrc.trim()) return null;
                                       return (
                                         <ChatBubbleContent mdSrc={mdSrc} />
                                       );
@@ -2094,23 +2113,6 @@ export default function SummaryView() {
                                       Array.isArray(m.sources) &&
                                       m.sources.length > 0 && (
                                         <ChatSourcesList sources={m.sources} />
-                                      )}
-                                    {m.role === "user" &&
-                                      Array.isArray(m.references) &&
-                                      m.references.length > 0 && (
-                                        <div className="chat-msg-references">
-                                          {m.references.map((r) => (
-                                            <div
-                                              key={r.id || `${m.id}-${r.text}`}
-                                              className="chat-msg-reference-chip"
-                                              title={r.text}
-                                            >
-                                              <span className="ref-text">
-                                                {r.text}
-                                              </span>
-                                            </div>
-                                          ))}
-                                        </div>
                                       )}
                                   </div>
                                   {m.role === "ai" &&
@@ -2278,26 +2280,12 @@ export default function SummaryView() {
                         className="chat-reply-stack"
                         aria-label="Replying with selected text"
                       >
-                        {pendingChatReferences.map((r, i) => (
-                          <div
-                            key={r.id}
-                            className="chat-reply-preview"
-                            title={r.text}
-                          >
-                            <span className="chat-reply-icon" aria-hidden>
-                              <ReplyQuoteIco size={15} />
-                            </span>
-                            <span className="chat-reply-text">{r.text}</span>
-                            <button
-                              type="button"
-                              className="chat-reply-close"
-                              onClick={() => removePendingChatReference(r.id)}
-                              aria-label={`Remove reply quote ${i + 1}`}
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
+                        <ChatReplyQuote
+                          references={pendingChatReferences}
+                          requestText={inputVal}
+                          variant="composer"
+                          onRemoveReference={removePendingChatReference}
+                        />
                       </div>
                     )}
                     {pendingPasteImages.length > 0 && (
