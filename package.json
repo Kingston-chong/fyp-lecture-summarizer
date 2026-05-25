@@ -8,7 +8,7 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test lib/quizCollection.test.js lib/llmRateLimit.test.js lib/referenceUtils.test.js lib/ocrMerge.test.js lib/markdown.test.js lib/chatReferences.test.js lib/chatReplyDisplay.test.js"
+    "test": "node --test lib/quizCollection.test.js lib/llmRateLimit.test.js lib/referenceUtils.test.js lib/ocrMerge.test.js lib/markdown.test.js lib/chatReferences.test.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
