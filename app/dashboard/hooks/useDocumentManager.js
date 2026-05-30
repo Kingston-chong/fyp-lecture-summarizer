@@ -21,6 +21,16 @@ export function useDocumentManager({ status, setError, setSelectedFiles }) {
   const [removingDocId, setRemovingDocId] = useState(null);
   const [selectedPrevDocIds, setSelectedPrevDocIds] = useState([]);
   const [bulkRemoving, setBulkRemoving] = useState(false);
+  const [prevSelectionMode, setPrevSelectionMode] = useState(false);
+
+  function enterPrevSelectionMode() {
+    setPrevSelectionMode(true);
+  }
+
+  function exitPrevSelectionMode() {
+    setPrevSelectionMode(false);
+    setSelectedPrevDocIds([]);
+  }
 
   useEffect(() => {
     setSelectedPrevDocIds((prev) => {
@@ -108,6 +118,9 @@ export function useDocumentManager({ status, setError, setSelectedFiles }) {
       );
       setSelectedPrevDocIds([]);
       await mutateUploads();
+      if (failed === 0) {
+        exitPrevSelectionMode();
+      }
       if (failed > 0) {
         setError(`Could not remove ${failed} file${failed !== 1 ? "s" : ""}.`);
       }
@@ -123,6 +136,9 @@ export function useDocumentManager({ status, setError, setSelectedFiles }) {
     removingDocId,
     selectedPrevDocIds,
     bulkRemoving,
+    prevSelectionMode,
+    enterPrevSelectionMode,
+    exitPrevSelectionMode,
     handleRemoveDocument,
     handleRemoveSelectedDocuments,
     togglePrevDocSelection,

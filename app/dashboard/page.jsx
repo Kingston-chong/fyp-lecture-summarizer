@@ -106,6 +106,9 @@ export default function Dashboard() {
     removingDocId,
     selectedPrevDocIds,
     bulkRemoving,
+    prevSelectionMode,
+    enterPrevSelectionMode,
+    exitPrevSelectionMode,
     handleRemoveDocument,
     handleRemoveSelectedDocuments,
     togglePrevDocSelection,
@@ -1015,6 +1018,9 @@ export default function Dashboard() {
             toggleSelectAllPrevDocs={toggleSelectAllPrevDocs}
             handleRemoveSelectedDocuments={handleRemoveSelectedDocuments}
             bulkRemoving={bulkRemoving}
+            prevSelectionMode={prevSelectionMode}
+            enterPrevSelectionMode={enterPrevSelectionMode}
+            exitPrevSelectionMode={exitPrevSelectionMode}
             removingDocId={removingDocId}
             selectedFiles={selectedFiles}
             addPrevFile={addPrevFile}
@@ -1083,54 +1089,62 @@ export default function Dashboard() {
               )}
 
               {selectedFiles.length > 0 ? (
-                <div
-                  className={`file-list${dashMode === "improve" ? " improve-single" : ""}`}
-                >
-                  {selectedFiles.map((f) => (
-                    <div className="file-item" key={f.name}>
-                      <FileIcon type={f.type} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="file-name" title={f.name}>
-                          {f.name}
-                        </div>
-                        <div className="file-size">
-                          {f.size}
-                          {f.fromPrev && (
-                            <span className="file-prev-tag">
-                              {" "}
-                              · prev upload
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <span className="file-badge">{f.type}</span>
-                      <button
-                        className="file-remove"
-                        onClick={() => removeFile(f.name)}
-                      >
-                        <CloseIcon />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="empty-state">
-                  <FileIcon type={dashMode === "improve" ? "PPTX" : "PDF"} />
-                  <span>
-                    {dashMode === "improve"
-                      ? "No presentation selected"
-                      : "No files selected"}
-                  </span>
-                  <span>
-                    {dashMode === "improve"
-                      ? "Click upload below or drag a file onto this panel"
-                      : "Click upload below, drag files here, or pick from the sidebar"}
-                  </span>
-                </div>
-              )}
-
-              {(dashMode !== "improve" || selectedFiles.length === 0) && (
                 <>
+                  <div
+                    className={`file-list${dashMode === "improve" ? " improve-single" : ""}`}
+                  >
+                    {selectedFiles.map((f) => (
+                      <div className="file-item" key={f.name}>
+                        <FileIcon type={f.type} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="file-name" title={f.name}>
+                            {f.name}
+                          </div>
+                          <div className="file-size">
+                            {f.size}
+                            {f.fromPrev && (
+                              <span className="file-prev-tag">
+                                {" "}
+                                · prev upload
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <span className="file-badge">{f.type}</span>
+                        <button
+                          className="file-remove"
+                          onClick={() => removeFile(f.name)}
+                        >
+                          <CloseIcon />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {dashMode !== "improve" && (
+                    <button
+                      type="button"
+                      className={`file-add-more-btn${dragging ? " file-add-more-btn--drag-active" : ""}`}
+                      onClick={openFilePicker}
+                    >
+                      <UploadIcon /> Add more files
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="empty-state">
+                    <FileIcon type={dashMode === "improve" ? "PPTX" : "PDF"} />
+                    <span>
+                      {dashMode === "improve"
+                        ? "No presentation selected"
+                        : "No files selected"}
+                    </span>
+                    <span>
+                      {dashMode === "improve"
+                        ? "Upload a file or drag it onto this panel"
+                        : "Upload files, drag here, or pick from the sidebar"}
+                    </span>
+                  </div>
                   <button
                     type="button"
                     className={`upload-btn${dragging ? " upload-btn--drag-active" : ""}`}
@@ -1139,27 +1153,30 @@ export default function Dashboard() {
                     <UploadIcon />{" "}
                     {dashMode === "improve"
                       ? "Upload .pptx / .pdf"
-                      : "Upload Documents"}
+                      : "Upload documents"}
                   </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple={dashMode !== "improve"}
-                    accept={dashMode === "improve" ? IMPROVE_ACCEPT : ACCEPTED}
-                    style={{ display: "none" }}
-                    onChange={(e) => {
-                      addLocalFiles(e.target.files);
-                      e.target.value = "";
-                    }}
-                  />
                 </>
               )}
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple={dashMode !== "improve"}
+                accept={dashMode === "improve" ? IMPROVE_ACCEPT : ACCEPTED}
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  addLocalFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
               <div className="upload-hint">
                 {dashMode === "improve"
                   ? selectedFiles.length > 0
-                    ? "Remove the file above to upload a different one or pick from Previous Uploads."
-                    : "(or pick one .pptx or .pdf from Previous Uploads)"
-                  : "(or select from sidebar)"}
+                    ? "Remove the file above to choose a different one."
+                    : "(or pick one from Previous Uploads in the sidebar)"
+                  : selectedFiles.length > 0
+                    ? "Or add files from Previous Uploads in the sidebar."
+                    : "Supports PDF, PPTX, DOCX, and more."}
               </div>
             </div>
 

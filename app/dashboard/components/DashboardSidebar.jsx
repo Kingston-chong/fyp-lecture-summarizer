@@ -26,6 +26,9 @@ export default function DashboardSidebar({
   toggleSelectAllPrevDocs,
   handleRemoveSelectedDocuments,
   bulkRemoving,
+  prevSelectionMode,
+  enterPrevSelectionMode,
+  exitPrevSelectionMode,
   removingDocId,
   selectedFiles,
   addPrevFile,
@@ -118,14 +121,41 @@ export default function DashboardSidebar({
       <div className="sidebar-divider" />
 
       <div
-        className="sidebar-header"
+        className="sidebar-header sidebar-header--prev"
         onClick={() => setSidebarSection((s) => ({ ...s, prev: !s.prev }))}
       >
         <span className="sidebar-title">
           <UploadIcon /> Previous Uploaded
         </span>
-        <span className={`sidebar-chev ${sidebarSection.prev ? "open" : ""}`}>
-          <ChevronDownIcon />
+        <span className="sidebar-header-actions">
+          {sidebarSection.prev && prevUploads.length > 0 && (
+            prevSelectionMode ? (
+              <button
+                type="button"
+                className="prev-done-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  exitPrevSelectionMode();
+                }}
+              >
+                Done
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="prev-select-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  enterPrevSelectionMode();
+                }}
+              >
+                Select
+              </button>
+            )
+          )}
+          <span className={`sidebar-chev ${sidebarSection.prev ? "open" : ""}`}>
+            <ChevronDownIcon />
+          </span>
         </span>
       </div>
 
@@ -138,50 +168,62 @@ export default function DashboardSidebar({
           <div className="sidebar-empty">No uploads yet</div>
         ) : (
           <>
-            <div className="prev-controls">
-              <label className="prev-select-all">
-                <input
-                  type="checkbox"
-                  checked={
-                    prevUploads.length > 0 &&
-                    selectedPrevDocIds.length === prevUploads.length
+            {prevSelectionMode && (
+              <div className="prev-controls prev-controls--selection">
+                <label className="prev-select-all">
+                  <input
+                    type="checkbox"
+                    checked={
+                      prevUploads.length > 0 &&
+                      selectedPrevDocIds.length === prevUploads.length
+                    }
+                    onChange={toggleSelectAllPrevDocs}
+                  />
+                  Select all
+                </label>
+                <button
+                  type="button"
+                  className="prev-bulk-remove"
+                  onClick={handleRemoveSelectedDocuments}
+                  disabled={
+                    bulkRemoving ||
+                    removingDocId != null ||
+                    selectedPrevDocIds.length === 0
                   }
-                  onChange={toggleSelectAllPrevDocs}
-                />
-                Select all
-              </label>
-              <button
-                type="button"
-                className="prev-bulk-remove"
-                onClick={handleRemoveSelectedDocuments}
-                disabled={
-                  bulkRemoving ||
-                  removingDocId != null ||
-                  selectedPrevDocIds.length === 0
-                }
-                title="Delete selected files"
-              >
-                {bulkRemoving
-                  ? "Deleting..."
-                  : `Delete selected (${selectedPrevDocIds.length})`}
-              </button>
-            </div>
+                  title="Delete selected files"
+                >
+                  {bulkRemoving
+                    ? "Deleting..."
+                    : `Delete (${selectedPrevDocIds.length})`}
+                </button>
+              </div>
+            )}
             {prevUploads.map((doc) => {
               const isAdded = selectedFiles.some((f) => f.name === doc.name);
               const isRemoving = removingDocId === doc.id;
+              const isChecked = selectedPrevDocIds.includes(doc.id);
               return (
-                <div className="prev-item" key={doc.id}>
-                  <input
-                    type="checkbox"
-                    className="prev-check"
-                    checked={selectedPrevDocIds.includes(doc.id)}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={() => togglePrevDocSelection(doc.id)}
-                    aria-label={`Select ${doc.name}`}
-                  />
+                <div
+                  className={`prev-item${prevSelectionMode ? " prev-item--selection" : ""}`}
+                  key={doc.id}
+                >
+                  {prevSelectionMode && (
+                    <input
+                      type="checkbox"
+                      className="prev-check"
+                      checked={isChecked}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={() => togglePrevDocSelection(doc.id)}
+                      aria-label={`Select ${doc.name}`}
+                    />
+                  )}
                   <div
                     className="prev-item-main"
-                    onClick={() => addPrevFile(doc)}
+                    onClick={() =>
+                      prevSelectionMode
+                        ? togglePrevDocSelection(doc.id)
+                        : addPrevFile(doc)
+                    }
                   >
                     <FileIcon type={doc.type} />
                     <div className="prev-info">
@@ -203,27 +245,35 @@ export default function DashboardSidebar({
                     >
                       ⧉
                     </button>
-                    <button
-                      type="button"
-                      className="prev-remove"
-                      title="Remove from server"
-                      disabled={isRemoving || bulkRemoving}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveDocument(doc);
-                      }}
-                    >
-                      {isRemoving ? <span className="mini-spinner" /> : "×"}
-                    </button>
-                    <div
-                      className={`prev-add ${isAdded ? "added" : ""}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        addPrevFile(doc);
-                      }}
-                    >
-                      {isAdded ? "✓" : "+"}
-                    </div>
+                    {!prevSelectionMode && (
+                      <button
+                        type="button"
+                        className="prev-remove"
+                        title="Remove from server"
+                        disabled={isRemoving || bulkRemoving}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveDocument(doc);
+                        }}
+                      >
+                        {isRemoving ? (
+                          <span className="mini-spinner" />
+                        ) : (
+                          "×"
+                        )}
+                      </button>
+                    )}
+                    {!prevSelectionMode && (
+                      <div
+                        className={`prev-add ${isAdded ? "added" : ""}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addPrevFile(doc);
+                        }}
+                      >
+                        {isAdded ? "✓" : "+"}
+                      </div>
+                    )}
                   </div>
                 </div>
               );

@@ -223,6 +223,46 @@
 .sidebar-chev.open {
   transform: rotate(180deg);
 }
+.sidebar-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.prev-select-btn,
+.prev-done-btn {
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 10px;
+  font-weight: 600;
+  font-family: "Sora", sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    color 0.15s;
+}
+.prev-select-btn:hover {
+  border-color: rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.1);
+  color: #c7d2fe;
+}
+.prev-done-btn {
+  border-color: rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.12);
+  color: #c7d2fe;
+}
+.prev-done-btn:hover {
+  border-color: rgba(99, 102, 241, 0.5);
+  background: rgba(99, 102, 241, 0.2);
+  color: #e0e7ff;
+}
 .sidebar-divider {
   height: 1px;
   background: rgba(255, 255, 255, 0.05);
@@ -293,6 +333,26 @@
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
+}
+.prev-item:not(.prev-item--selection) .prev-peek,
+.prev-item:not(.prev-item--selection) .prev-remove,
+.prev-item:not(.prev-item--selection) .prev-add:not(.added) {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.prev-item:not(.prev-item--selection):hover .prev-peek,
+.prev-item:not(.prev-item--selection):hover .prev-remove,
+.prev-item:not(.prev-item--selection):hover .prev-add:not(.added),
+.prev-item:not(.prev-item--selection) .prev-add.added {
+  opacity: 1;
+  pointer-events: auto;
+}
+.prev-item--selection {
+  cursor: default;
+}
+.prev-item--selection .prev-item-main {
+  cursor: pointer;
 }
 .prev-controls {
   display: flex;
@@ -976,6 +1036,39 @@
     0 0 0 3px rgba(16, 185, 129, 0.22),
     0 10px 28px rgba(22, 163, 74, 0.35);
 }
+
+.file-add-more-btn {
+  width: 100%;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px dashed rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.06);
+  font-family: "Sora", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(199, 210, 254, 0.95);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    color 0.15s;
+  flex-shrink: 0;
+}
+.file-add-more-btn:hover {
+  border-color: rgba(99, 102, 241, 0.55);
+  background: rgba(99, 102, 241, 0.12);
+  color: #e0e7ff;
+}
+.file-add-more-btn--drag-active {
+  border-color: rgba(99, 102, 241, 0.65);
+  background: rgba(99, 102, 241, 0.16);
+  color: #eef2ff;
+}
+
 .upload-hint {
   font-size: 10.5px;
   color: rgba(255, 255, 255, 0.2);
@@ -2310,6 +2403,26 @@ html[data-theme="light"] .prev-meta {
 html[data-theme="light"] .prev-select-all {
   color: rgba(0, 0, 0, 0.55);
 }
+html[data-theme="light"] .prev-select-btn {
+  border-color: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.03);
+  color: rgba(0, 0, 0, 0.55);
+}
+html[data-theme="light"] .prev-select-btn:hover {
+  border-color: rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.1);
+  color: #4338ca;
+}
+html[data-theme="light"] .prev-done-btn {
+  border-color: rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.1);
+  color: #4338ca;
+}
+html[data-theme="light"] .prev-done-btn:hover {
+  border-color: rgba(99, 102, 241, 0.5);
+  background: rgba(99, 102, 241, 0.16);
+  color: #312e81;
+}
 html[data-theme="light"] .prev-bulk-remove {
   border-color: rgba(220, 38, 38, 0.25);
   background: rgba(220, 38, 38, 0.08);
@@ -2463,6 +2576,22 @@ html[data-theme="light"] .upload-btn:hover {
   box-shadow: 0 14px 36px rgba(21, 128, 61, 0.26);
 }
 
+html[data-theme="light"] .file-add-more-btn {
+  border-color: rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.08);
+  color: #4338ca;
+}
+html[data-theme="light"] .file-add-more-btn:hover {
+  border-color: rgba(99, 102, 241, 0.5);
+  background: rgba(99, 102, 241, 0.14);
+  color: #312e81;
+}
+html[data-theme="light"] .file-add-more-btn--drag-active {
+  border-color: rgba(99, 102, 241, 0.6);
+  background: rgba(99, 102, 241, 0.18);
+  color: #1e1b4b;
+}
+
 html[data-theme="light"] .radio-label {
   color: rgba(0, 0, 0, 0.45);
 }
@@ -2569,4 +2698,45 @@ html[data-theme="light"] .sidebar-toggle {
 }
 html[data-theme="light"] .sidebar-toggle span {
   color: rgba(0, 0, 0, 0.55);
+}
+
+html[data-theme="light"] .sidebar-search {
+  border-color: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.04);
+  color: #111827;
+}
+html[data-theme="light"] .sidebar-search::placeholder {
+  color: rgba(0, 0, 0, 0.38);
+}
+html[data-theme="light"] .sidebar-search:focus {
+  border-color: rgba(99, 102, 241, 0.45);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.12);
+}
+
+html[data-theme="light"] .output-placeholder {
+  color: rgba(0, 0, 0, 0.38);
+}
+
+html[data-theme="light"] .badge-lecturer {
+  background: rgba(99, 102, 241, 0.14);
+  color: #4338ca;
+}
+html[data-theme="light"] .badge-student {
+  background: rgba(16, 185, 129, 0.14);
+  color: #047857;
+}
+html[data-theme="light"] .badge-model {
+  background: rgba(249, 115, 22, 0.14);
+  color: #c2410c;
+}
+
+html[data-theme="light"] .improve-mini-spin {
+  border-color: rgba(0, 0, 0, 0.12);
+  border-top-color: #6366f1;
+}
+
+html[data-theme="light"] .app .main::-webkit-scrollbar-thumb,
+html[data-theme="light"] .file-list::-webkit-scrollbar-thumb,
+html[data-theme="light"] .output-area::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.14);
 }

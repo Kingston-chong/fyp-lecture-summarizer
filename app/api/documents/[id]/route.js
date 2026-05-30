@@ -28,18 +28,23 @@ export async function DELETE(req, context) {
         { status: 404 },
       );
 
-    // Delete blob from Vercel (ignore errors if already removed)
-    try {
-      await del(doc.url);
-    } catch (e) {
-      console.warn("Blob delete failed (may already be removed):", e?.message);
+    // Remove every upload with this filename (list shows one row per name)
+    const toRemove = await prisma.document.findMany({
+      where: { userId: user.id, name: doc.name },
+      select: { id: true, url: true },
+    });
+
+    for (const row of toRemove) {
+      try {
+        await del(row.url);
+      } catch (e) {
+        console.warn("Blob delete failed (may already be removed):", e?.message);
+      }
+      await prisma.summaryDocument.deleteMany({ where: { documentId: row.id } });
+      await prisma.document.delete({ where: { id: row.id } });
     }
 
-    // Remove link table rows then the document
-    await prisma.summaryDocument.deleteMany({ where: { documentId } });
-    await prisma.document.delete({ where: { id: documentId } });
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, removed: toRemove.length });
   } catch (err) {
     console.error(err);
     return NextResponse.json(

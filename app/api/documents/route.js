@@ -12,7 +12,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const documents = await prisma.document.findMany({
+    const rows = await prisma.document.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
       select: {
@@ -22,6 +22,14 @@ export async function GET() {
         size: true,
         createdAt: true,
       },
+    });
+
+    // One row per filename — keep the most recent upload (older duplicates stay in DB but hidden)
+    const seenNames = new Set();
+    const documents = rows.filter((doc) => {
+      if (seenNames.has(doc.name)) return false;
+      seenNames.add(doc.name);
+      return true;
     });
 
     return NextResponse.json({ documents });
