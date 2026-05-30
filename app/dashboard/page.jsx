@@ -1354,7 +1354,7 @@ export default function Dashboard() {
             </div>
 
             {/* Panel 3 — Controls */}
-            <div className="panel" style={{ minHeight: 340 }}>
+            <div className="panel panel--controls">
               {/* ── Mode dropdown ── */}
               <div className="mode-dropdown-wrap">
                 <div className="mode-dropdown-label">

@@ -291,6 +291,20 @@ body {
   }
 }
 
+/* Dashboard below wide desktop: scrollable shell (match stacked panel layout) */
+@media (max-width: 1319px) {
+  .shell.shell--dashboard-mobile .shell-content {
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+  .shell.shell--dashboard-mobile .shell-main {
+    height: auto;
+    min-height: 100%;
+  }
+}
+
 @media (min-width: 1024px) {
   .shell-menu-btn {
     display: none !important;
