@@ -15,6 +15,10 @@ import {
   UploadIcon,
 } from "./icons";
 import { formatSummarizeForLabel, timeAgo } from "@/app/dashboard/helpers";
+import HistorySummaryExpand, {
+  defaultHistoryExpandTab,
+  historyMatchesSearch,
+} from "@/app/components/HistorySummaryExpand";
 
 function formatBytes(bytes) {
   if (!bytes) return "";
@@ -123,6 +127,7 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
   const [historyOpen, setHistoryOpen] = useState(true);
   const [prevOpen, setPrevOpen] = useState(true);
   const [expandedHistory, setExpandedHistory] = useState(null);
+  const [historyExpandTab, setHistoryExpandTab] = useState("files");
 
   const [history, setHistory] = useState([]);
   const [historySearch, setHistorySearch] = useState("");
@@ -327,19 +332,7 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
   const filteredHistory = useMemo(() => {
     const q = historySearch.trim().toLowerCase();
     if (!q) return history;
-    return history.filter((h) => {
-      if (
-        String(h.title || "")
-          .toLowerCase()
-          .includes(q)
-      )
-        return true;
-      return (h.files || []).some((f) =>
-        String(f.name || "")
-          .toLowerCase()
-          .includes(q),
-      );
-    });
+    return history.filter((h) => historyMatchesSearch(h, q));
   }, [history, historySearch]);
 
   const historyMenuSummary = useMemo(
@@ -352,16 +345,12 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
   /** Move the history ⋮ menu horizontally: increase to shift right (pixels). */
   const historyMenuShiftRightPx = 0;
 
-  function openHistorySummary(h) {
+  function openHistorySummary(h, sources) {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("s2n-cancel-highlighter"));
     }
-    router.push(`/summary/${h.id}`);
-  }
-
-  function toggleHistoryFiles(e, id) {
-    e.stopPropagation();
-    setExpandedHistory((prev) => (prev === id ? null : id));
+    const q = sources ? `?sources=${encodeURIComponent(sources)}` : "";
+    router.push(`/summary/${h.id}${q}`);
   }
 
   return (
@@ -446,46 +435,31 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
                       )}
                     </button>
                   </div>
-                  <div className="as-hmeta-row">
-                    {h.files.length > 0 && (
-                      <button
-                        type="button"
-                        className={`as-hfile-chev${expandedHistory === h.id ? " expanded" : ""}`}
-                        aria-expanded={expandedHistory === h.id}
-                        aria-label={
-                          expandedHistory === h.id
-                            ? "Hide source files"
-                            : "Show source files"
-                        }
-                        title={
-                          expandedHistory === h.id
-                            ? "Hide source files"
-                            : "Show source files"
-                        }
-                        onClick={(e) => toggleHistoryFiles(e, h.id)}
-                      >
-                        <ChevronDownIcon size={10} />
-                      </button>
+                  <HistorySummaryExpand
+                    summary={h}
+                    expanded={expandedHistory === h.id}
+                    expandTab={historyExpandTab}
+                    onToggleExpand={() => {
+                      if (expandedHistory === h.id) {
+                        setExpandedHistory(null);
+                      } else {
+                        setExpandedHistory(h.id);
+                        setHistoryExpandTab(defaultHistoryExpandTab(h));
+                      }
+                    }}
+                    onExpandTabChange={setHistoryExpandTab}
+                    onNavigate={(id, sources) =>
+                      openHistorySummary({ id }, sources)
+                    }
+                    summarizeForLabel={formatSummarizeForLabel(
+                      h.summarizeFor,
                     )}
-                    <div className="as-hmeta">
-                      {[
-                        `${h.files.length} file${h.files.length !== 1 ? "s" : ""}`,
-                        formatSummarizeForLabel(h.summarizeFor),
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </div>
-                  </div>
-                  <div className="as-hdate">{timeAgo(h.createdAt)}</div>
+                    timeAgoLabel={timeAgo(h.createdAt)}
+                    chevronClassName="as-hfile-chev"
+                    metaClassName="as-hmeta"
+                  />
                 </div>
-                {expandedHistory === h.id &&
-                  h.files.map((f) => (
-                    <div className="as-hfile" key={f.id}>
-                      <FileIcon type={f.type} />
-                      <span title={f.name}>{f.name}</span>
-                    </div>
-                  ))}
-              </div>
+            </div>
             ))
           ))}
 

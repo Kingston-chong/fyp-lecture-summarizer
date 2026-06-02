@@ -6,7 +6,9 @@ import { useSession, signOut } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import AppSidebar from "./AppSidebar";
+import SidebarResizeSplitter from "./SidebarResizeSplitter";
 import ThemeToggle from "./ThemeToggle";
+import { useLeftSidebarResize } from "@/app/hooks/useLeftSidebarResize";
 import { ArrowLeftIcon, LogoutIcon, MenuIcon } from "./icons";
 import AppHeader from "./AppHeader";
 
@@ -107,6 +109,8 @@ export default function AppShell({
 
   const displayName = session?.user?.name ?? session?.user?.username ?? "";
   const role = session?.user?.role ?? "";
+  const { sidebarWidth, onSidebarResizeStart } = useLeftSidebarResize(260);
+  const sidebarResizable = showSidebar && !sidebarMobileOnly;
 
   return (
     <>
@@ -236,9 +240,23 @@ export default function AppShell({
               className={`shell-sidebar-wrap ${mobileNavOpen ? "is-open" : ""}${
                 sidebarMobileOnly ? " sidebar-always-drawer" : ""
               }`}
+              style={
+                sidebarResizable
+                  ? { "--shell-sidebar-w": `${sidebarWidth}px` }
+                  : undefined
+              }
             >
-              <AppSidebar hidePrevUploads={hidePrevUploads} />
+              <AppSidebar
+                width={sidebarResizable ? sidebarWidth : 260}
+                hidePrevUploads={hidePrevUploads}
+              />
             </div>
+          )}
+          {sidebarResizable && (
+            <SidebarResizeSplitter
+              className="shell-sidebar-splitter"
+              onMouseDown={onSidebarResizeStart}
+            />
           )}
           <div className="shell-main">{children}</div>
         </div>

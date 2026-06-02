@@ -17,7 +17,13 @@ export function useSlideDecks({ summaryId, status }) {
     useState(false);
   const [slideDeckPreviewTitle, setSlideDeckPreviewTitle] = useState("");
   const slideDeckDlRef = useRef(null);
+  const slideDeckPdfDlRef = useRef(null);
   const slideDeckViewTokenRef = useRef(null);
+
+  function filenameFromContentDisposition(cd, fallback) {
+    const match = String(cd || "").match(/filename="?([^"]+)"?/i);
+    return match?.[1] || fallback;
+  }
 
   /** Native navigation download — streams from CDN, does not buffer in JS. */
   function triggerNativeDownload(deck, viewToken) {
@@ -54,6 +60,44 @@ export function useSlideDecks({ summaryId, status }) {
     void fetchSlideDecks();
   }, [status, numericSummaryId, fetchSlideDecks]);
 
+  async function downloadSlideDeckPdf(deck) {
+    if (!numericSummaryId) throw new Error("Invalid summary id");
+    const deckId = Number.parseInt(String(deck?.id ?? ""), 10);
+    if (!Number.isFinite(deckId) || deckId <= 0) {
+      throw new Error("Invalid slide deck");
+    }
+    const res = await fetch(
+      `/api/summary/${numericSummaryId}/slide-decks/${deckId}/pdf?v=${Date.now()}`,
+    );
+    const contentType = res.headers.get("content-type") || "";
+    if (!res.ok) {
+      let message = "Could not download PDF";
+      if (contentType.includes("application/json")) {
+        const data = await res.json().catch(() => ({}));
+        message = data?.error || message;
+      }
+      throw new Error(message);
+    }
+    const blob = await res.blob();
+    const slug =
+      String(deck.title || "presentation")
+        .replace(/[^a-z0-9]+/gi, "_")
+        .replace(/^_+|_+$/g, "")
+        .toLowerCase() || "slides";
+    const filename = filenameFromContentDisposition(
+      res.headers.get("content-disposition"),
+      `${slug}.pdf`,
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   async function openSlideDeckPreview(deck) {
     setSlideDeckPreviewUrl("");
     setSlideDeckRemotePptUrl("");
@@ -64,6 +108,9 @@ export function useSlideDecks({ summaryId, status }) {
     slideDeckViewTokenRef.current = null;
     slideDeckDlRef.current = () => {
       downloadSlideDeck(deck, slideDeckViewTokenRef.current);
+    };
+    slideDeckPdfDlRef.current = async () => {
+      await downloadSlideDeckPdf(deck);
     };
     setSlideDeckPreviewOpen(true);
     setSlideDeckPreviewLoading(true);
@@ -141,9 +188,11 @@ export function useSlideDecks({ summaryId, status }) {
     slideDeckPreviewUnavailable,
     slideDeckPreviewTitle,
     slideDeckDlRef,
+    slideDeckPdfDlRef,
     fetchSlideDecks,
     openSlideDeckPreview,
     downloadSlideDeck,
+    downloadSlideDeckPdf,
     deleteSlideDeck,
   };
 }

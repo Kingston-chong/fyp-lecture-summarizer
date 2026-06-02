@@ -29,7 +29,9 @@ import {
 } from "@/lib/referenceUtils";
 import CitationPreviewPopover from "./components/CitationPreviewPopover";
 import { buildChatSuggestions } from "@/lib/chatSuggestionsFromSummary";
-import Button from "@/app/components/ui/Button";
+import SummaryActionBar from "./components/SummaryActionBar";
+import SummaryTitleBlock from "./components/SummaryTitleBlock";
+import SummaryHeadToolbar from "./components/SummaryHeadToolbar";
 import DocumentPreviewModal from "@/app/dashboard/components/DocumentPreviewModal";
 import { formatBytes, isOfficePreviewName } from "@/app/dashboard/helpers";
 import { uploadDocumentsViaClient } from "@/lib/clientDocumentUpload";
@@ -39,7 +41,6 @@ import {
   fmtDate,
   formatSlideDeckSavedAt,
   formatSummaryModelLabel,
-  HIGHLIGHT_PRESETS,
   parseNumericSummaryId,
   settingsFromQuizSet,
 } from "./helpers";
@@ -47,9 +48,14 @@ import { unwrapHighlightMarks, wrapQuoteInRoot } from "./hooks/highlightDom";
 import ChatBubbleContent from "./components/ChatBubbleContent";
 import ChatSourcesList from "./components/ChatSourcesList";
 import ChatSelectionPopover from "./components/ChatSelectionPopover";
+import ChatResponseLengthControl from "./components/ChatResponseLengthControl";
 import QuizAttemptDetailModal from "./components/QuizAttemptDetailModal";
 import SourcesSidebar from "./components/SourcesSidebar";
 import MobileMoreSheet from "./components/MobileMoreSheet";
+import MobileActionsSheet from "./components/MobileActionsSheet";
+import SummaryMobileToolbar from "./components/SummaryMobileToolbar";
+import SummaryHeaderFiles from "./components/SummaryHeaderFiles";
+import SummaryHighlightTags from "./components/SummaryHighlightTags";
 import { useSourcesPanelResize } from "./hooks/useSourcesPanelResize";
 import { isViewTokenUnavailableStatus } from "@/lib/viewTokenPreview";
 import { useSlideDecks } from "./hooks/useSlideDecks";
@@ -59,7 +65,6 @@ import CreateFlashcardDialog from "./components/CreateFlashcardDialog";
 import FlashcardSetEditor from "./components/FlashcardSetEditor";
 import {
   MODELS,
-  CHAT_RESPONSE_LENGTHS,
   ATTACH_ACCEPT,
   SUMMARY_BODY_INNER_STYLE,
 } from "./constants";
@@ -81,14 +86,10 @@ import {
   SendIco,
   CopyIco,
   RegenIco,
-  HighlightIco,
   SaveIco,
   BotIco,
   UserIco,
   DocIco,
-  QuizIco,
-  PdfIco,
-  SlidesIco,
   ClipIco,
   ReplyQuoteIco,
 } from "@/app/components/icons";
@@ -157,7 +158,6 @@ export default function SummaryView() {
   const [flashcardView, setFlashcardView] = useState(false);
   const [flashcardData, setFlashcardData] = useState(null);
 
-  const [compactActBar, setCompactActBar] = useState(false);
   const [highlights, setHighlights] = useState([]);
   const [pendingHighlights, setPendingHighlights] = useState([]);
   const [hlLoading, setHlLoading] = useState(false);
@@ -166,6 +166,19 @@ export default function SummaryView() {
   const [hlColorHex, setHlColorHex] = useState(DEFAULT_HL_HEX);
   const [hlSaving, setHlSaving] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const [mobileMoreInitialSection, setMobileMoreInitialSection] = useState(null);
+  const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
+
+  const openMobileMore = useCallback((section = null) => {
+    setMobileMoreInitialSection(section);
+    setMobileMoreOpen(true);
+  }, []);
+
+  const closeMobileMore = useCallback(() => {
+    setMobileMoreOpen(false);
+    setMobileMoreInitialSection(null);
+  }, []);
+
   const [sourcePreviewOpen, setSourcePreviewOpen] = useState(false);
   const [sourcePreviewDoc, setSourcePreviewDoc] = useState(null);
   const [sourcePreviewSrc, setSourcePreviewSrc] = useState("");
@@ -219,6 +232,7 @@ export default function SummaryView() {
     slideDeckPreviewUnavailable,
     slideDeckPreviewTitle,
     slideDeckDlRef,
+    slideDeckPdfDlRef,
     fetchSlideDecks,
     openSlideDeckPreview,
     downloadSlideDeck,
@@ -309,14 +323,6 @@ export default function SummaryView() {
   useEffect(() => {
     if (status === "unauthenticated") router.push("/");
   }, [status, router]);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 1023px)");
-    const fn = () => setCompactActBar(mq.matches);
-    fn();
-    mq.addEventListener("change", fn);
-    return () => mq.removeEventListener("change", fn);
-  }, []);
 
   /** Turn off highlighter when switching summaries (same route, new id) */
   useEffect(() => {
@@ -1472,7 +1478,7 @@ export default function SummaryView() {
     e?.stopPropagation?.();
     e?.preventDefault?.();
     if (!doc?.id) return;
-    setMobileMoreOpen(false);
+    closeMobileMore();
     setSourcePreviewDoc(doc);
     setSourcePreviewSetupErr("");
     setSourcePreviewSrc("");
@@ -1630,6 +1636,10 @@ export default function SummaryView() {
     setPendingHighlights((prev) => prev.filter((p) => p.clientId !== clientId));
   }
 
+  function clearAllPendingHighlights() {
+    setPendingHighlights([]);
+  }
+
   async function deleteHighlight(hid) {
     try {
       const res = await fetch(`/api/summary/${summaryId}/highlights/${hid}`, {
@@ -1752,212 +1762,119 @@ export default function SummaryView() {
           {/* ── Main + Sources ── */}
           <div className="main-wrap">
             <main className="main">
-              {/* Action bar */}
-              <div className="act-bar">
-                <div className="act-bar-btns">
-                  <Button variant="quiz" onClick={() => setQuizModal(true)}>
-                    <QuizIco />{" "}
-                    {compactActBar
-                      ? "Quiz"
-                      : isLecturerSummary
-                        ? "Generate class quiz"
-                        : "Generate Quiz"}
-                  </Button>
-                  {!isLecturerSummary && (
-                    <>
-                      <Button
-                        variant="flashcard"
-                        onClick={() => setFlashcardModal(true)}
-                      >
-                        {compactActBar ? "Gen cards" : "Generate flashcards"}
-                      </Button>
-                      <Button
-                        variant="flashcard"
-                        onClick={() => setCreateFlashcardOpen(true)}
-                      >
-                        {compactActBar ? "Create" : "Create flashcard"}
-                      </Button>
-                    </>
-                  )}
-                  <Button
-                    variant="pdf"
-                    onClick={handlePDF}
-                    disabled={pdfLoading || !summary}
-                  >
-                    {pdfLoading ? (
-                      <Spinner size={compactActBar ? 11 : 13} />
-                    ) : (
-                      <PdfIco />
-                    )}{" "}
-                    {compactActBar ? "PDF" : "Save as PDF"}
-                  </Button>
-                  <Button variant="slides" onClick={() => setSlidesModal(true)}>
-                    <SlidesIco /> {compactActBar ? "Slides" : "Generate Slides"}
-                  </Button>
+              <div className="sum-chrome">
+                <div className="sum-chrome-mobile">
+                  <SummaryMobileToolbar
+                    summaryLoading={summaryLoading}
+                    hasSummaryOutput={Boolean(summary?.output)}
+                    summaryCopied={summaryCopied}
+                    onCopySummary={handleCopySummary}
+                    hlModeActive={hlModeActive}
+                    onToggleHlMode={() => {
+                      setHlModeActive((v) => !v);
+                      setHlColorMenuOpen(false);
+                    }}
+                    hlColorMenuOpen={hlColorMenuOpen}
+                    onToggleHlColorMenu={() => setHlColorMenuOpen((v) => !v)}
+                    hlToolbarRef={hlToolbarRef}
+                    hlColorHex={hlColorHex}
+                    onHlColorPick={(hex) => {
+                      setHlColorHex(hex);
+                      setHlModeActive(true);
+                      setHlColorMenuOpen(false);
+                    }}
+                    onOpenMore={() => openMobileMore(null)}
+                    onOpenActions={() => setMobileActionsOpen(true)}
+                  />
                 </div>
+                <SummaryActionBar
+                  mode="desktop"
+                  isLecturerSummary={isLecturerSummary}
+                  pdfLoading={pdfLoading}
+                  hasSummary={Boolean(summary)}
+                  onQuiz={() => setQuizModal(true)}
+                  onGenerateFlashcards={() => setFlashcardModal(true)}
+                  onCreateFlashcardsManually={() =>
+                    setCreateFlashcardOpen(true)
+                  }
+                  onSavePdf={handlePDF}
+                  onGenerateSlides={() => setSlidesModal(true)}
+                />
               </div>
 
               {/* Card: summary + chat */}
               <div className="sum-card">
                 <div className="sum-head">
                   <div className="sum-left">
-                    {!summaryLoading && !summaryError && summary && (
-                      <>
-                        {chatTitleEditing ? (
-                          <input
-                            ref={chatTitleInputRef}
-                            type="text"
-                            className="sum-head-title-inp"
-                            value={chatTitleDraft}
-                            onChange={(e) => setChatTitleDraft(e.target.value)}
-                            onBlur={() => saveChatTitle()}
-                            onKeyDown={onChatTitleKeyDown}
-                            disabled={chatTitleSaving}
-                            maxLength={255}
-                            aria-label="Summary title"
-                          />
-                        ) : (
-                          <button
-                            type="button"
-                            className="sum-head-title-btn"
-                            onClick={startChatTitleEdit}
-                            disabled={chatTitleSaving}
-                            title="Click to rename"
-                          >
-                            {summary.title?.trim()
-                              ? summary.title
-                              : "Untitled summary"}
-                          </button>
-                        )}
-                      </>
-                    )}
-                    <div className="sum-tags">
-                      <span className="tag tag-m">{summary?.model ?? "—"}</span>
-                      <span
-                        className={`tag ${summary?.summarizeFor === "lecturer" ? "tag-lec" : "tag-stu"}`}
-                      >
-                        {summary?.summarizeFor ?? "—"}
-                      </span>
+                    <SummaryTitleBlock
+                      className="sum-head-title-slot--desktop"
+                      summaryLoading={summaryLoading}
+                      summaryError={summaryError}
+                      summary={summary}
+                      chatTitleEditing={chatTitleEditing}
+                      chatTitleDraft={chatTitleDraft}
+                      onChatTitleDraftChange={setChatTitleDraft}
+                      onSaveChatTitle={saveChatTitle}
+                      onChatTitleKeyDown={onChatTitleKeyDown}
+                      chatTitleSaving={chatTitleSaving}
+                      onStartChatTitleEdit={startChatTitleEdit}
+                      chatTitleInputRef={chatTitleInputRef}
+                    />
+                    <div className="sum-tags-row">
+                      <div className="sum-tags">
+                        <span className="tag tag-m">
+                          {summary?.model ?? "—"}
+                        </span>
+                        <span
+                          className={`tag ${summary?.summarizeFor === "lecturer" ? "tag-lec" : "tag-stu"}`}
+                        >
+                          {summary?.summarizeFor ?? "—"}
+                        </span>
+                      </div>
+                      <div className="sum-tags-aside">
+                        <SummaryHighlightTags
+                          count={pendingHighlights.length}
+                          hlSaving={hlSaving}
+                          disabled={summaryLoading || !summary?.output}
+                          onSave={() => void flushPendingHighlights()}
+                          onCancel={clearAllPendingHighlights}
+                        />
+                        <SummaryHeaderFiles
+                          files={headerSourceFiles}
+                          className="sum-files sum-files--tags-row"
+                          asButton
+                          disabled={summaryLoading || !summary?.output}
+                          onFileClick={() => openMobileMore("files")}
+                        />
+                      </div>
                     </div>
                   </div>
                   <div className="sum-right">
-                    <div className="sum-head-actions">
-                      <button
-                        type="button"
-                        className={`sum-copy-btn ${summaryCopied ? "copied" : ""}`}
-                        title={summaryCopied ? "Copied!" : "Copy summary"}
-                        onClick={handleCopySummary}
-                        disabled={summaryLoading || !summary?.output}
-                        aria-label="Copy summary"
-                      >
-                        {summaryCopied ? (
-                          <span className="sum-copy-txt">Copied</span>
-                        ) : (
-                          <CopyIco size={12} />
-                        )}
-                      </button>
-                      <div className="sum-hl-wrap" ref={hlToolbarRef}>
-                        <button
-                          type="button"
-                          className={`sum-hl-main ${hlModeActive ? "on" : ""}`}
-                          title={
-                            hlModeActive
-                              ? "Highlight on — drag to select text in the summary, then save highlights in the sidebar"
-                              : "Highlight — turn on, pick a color, select text in the summary to mark it"
-                          }
-                          aria-pressed={hlModeActive}
-                          aria-label={
-                            hlModeActive
-                              ? "Highlight mode on; select text in the summary"
-                              : "Turn on highlight mode to mark text in the summary"
-                          }
-                          disabled={summaryLoading || !summary?.output}
-                          onClick={() => {
-                            setHlModeActive((v) => !v);
-                            setHlColorMenuOpen(false);
-                          }}
-                        >
-                          <HighlightIco size={13} />
-                          <span className="sum-hl-main-txt">Highlight</span>
-                        </button>
-                        <button
-                          type="button"
-                          className={`sum-hl-chevron ${hlColorMenuOpen ? "open" : ""}`}
-                          title="Highlight color"
-                          aria-expanded={hlColorMenuOpen}
-                          aria-haspopup="true"
-                          disabled={summaryLoading || !summary?.output}
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => {
-                            setHlColorMenuOpen((v) => !v);
-                          }}
-                        >
-                          <Chevron open={hlColorMenuOpen} />
-                        </button>
-                        {hlColorMenuOpen && (
-                          <div
-                            className="sum-hl-menu"
-                            role="menu"
-                            aria-label="Highlight colors"
-                          >
-                            <div className="sum-hl-menu-label">Color</div>
-                            <div className="sum-hl-swatch-row">
-                              {HIGHLIGHT_PRESETS.map((p) => (
-                                <button
-                                  key={p.hex}
-                                  type="button"
-                                  role="menuitem"
-                                  title={p.label}
-                                  className={`sum-hl-swatch ${hlColorHex === p.hex ? "cur" : ""}`}
-                                  style={{ backgroundColor: p.hex }}
-                                  onMouseDown={(e) => e.preventDefault()}
-                                  onClick={() => {
-                                    setHlColorHex(p.hex);
-                                    setHlModeActive(true);
-                                    setHlColorMenuOpen(false);
-                                  }}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Mobile-only: three-dot "More" button → bottom sheet with full right panel */}
-                      <button
-                        type="button"
-                        className="mob-more-btn"
-                        title="More — sources, slide decks, quizzes, highlights"
-                        aria-label="More options"
-                        onClick={() => setMobileMoreOpen(true)}
-                        disabled={summaryLoading || !summary?.output}
-                      >
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 16 16"
-                          fill="currentColor"
-                          aria-hidden="true"
-                        >
-                          <circle cx="3" cy="8" r="1.5" />
-                          <circle cx="8" cy="8" r="1.5" />
-                          <circle cx="13" cy="8" r="1.5" />
-                        </svg>
-                        {pendingHighlights.length > 0 && (
-                          <span className="hl-list-badge">
-                            {Math.min(99, pendingHighlights.length)}
-                          </span>
-                        )}
-                      </button>
-                    </div>
-                    <div className="sum-files">
-                      {headerSourceFiles.map((f) => (
-                        <span key={f.id} className="fchip" title={f.name}>
-                          <DocIco ext={f.type} />
-                          {f.name}
-                        </span>
-                      ))}
-                    </div>
+                    <SummaryHeadToolbar
+                      className="sum-head-actions--desktop"
+                      summaryLoading={summaryLoading}
+                      hasSummaryOutput={Boolean(summary?.output)}
+                      summaryCopied={summaryCopied}
+                      onCopySummary={handleCopySummary}
+                      hlModeActive={hlModeActive}
+                      onToggleHlMode={() => {
+                        setHlModeActive((v) => !v);
+                        setHlColorMenuOpen(false);
+                      }}
+                      hlColorMenuOpen={hlColorMenuOpen}
+                      onToggleHlColorMenu={() =>
+                        setHlColorMenuOpen((v) => !v)
+                      }
+                      hlToolbarRef={hlToolbarRef}
+                      hlColorHex={hlColorHex}
+                      onHlColorPick={(hex) => {
+                        setHlColorHex(hex);
+                        setHlModeActive(true);
+                        setHlColorMenuOpen(false);
+                      }}
+                      onOpenMobileMore={() => setMobileMoreOpen(true)}
+                    />
+                    <SummaryHeaderFiles files={headerSourceFiles} />
                   </div>
                 </div>
 
@@ -2165,7 +2082,7 @@ export default function SummaryView() {
                                         type="button"
                                         className={`m-copy ${copiedId === m.id ? "copied" : ""}`}
                                         title={
-                                          copiedId === m.id ? "Copied!" : "Copy"
+                                          copiedId === m.id ? "Copied!" : "Copy Summary"
                                         }
                                         onClick={() => handleCopyMessage(m)}
                                         aria-label="Copy message"
@@ -2351,6 +2268,22 @@ export default function SummaryView() {
                         ))}
                       </div>
                     )}
+                    <div className="chat-pref-row">
+                      <ChatResponseLengthControl
+                        chatResponseLength={chatResponseLength}
+                        onSelectLength={(id) => {
+                          setChatResponseLength(id);
+                          setLengthOpen(false);
+                        }}
+                        lengthOpen={lengthOpen}
+                        onToggleLengthOpen={() => {
+                          setLengthOpen((v) => !v);
+                          setModelOpen(false);
+                        }}
+                        onCloseLength={() => setLengthOpen(false)}
+                        disabled={chatLoading || sourceUploadLoading}
+                      />
+                    </div>
                     <div className="chatbox-input-row">
                       {pendingPasteImages.length === 0 && (
                         <>
@@ -2456,57 +2389,6 @@ export default function SummaryView() {
                           />
                           {pendingPasteImages.length === 0 && (
                             <div className="chatbox-controls">
-                              <div className="chat-control-labeled">
-                                <span
-                                  className="chat-control-label"
-                                  id="chat-response-length-label"
-                                >
-                                  Text response length:
-                                </span>
-                                <div className="mdl-wrap">
-                                  <button
-                                    type="button"
-                                    className={`mdl-btn ${lengthOpen ? "open" : ""}`}
-                                    title="How long the AI reply should be"
-                                    aria-labelledby="chat-response-length-label"
-                                    onClick={() => {
-                                      setLengthOpen((v) => !v);
-                                      setModelOpen(false);
-                                    }}
-                                    onBlur={() =>
-                                      setTimeout(
-                                        () => setLengthOpen(false),
-                                        150,
-                                      )
-                                    }
-                                    disabled={
-                                      chatLoading || sourceUploadLoading
-                                    }
-                                  >
-                                    {CHAT_RESPONSE_LENGTHS.find(
-                                      (o) => o.id === chatResponseLength,
-                                    )?.label || "Medium"}{" "}
-                                    <Chevron open={lengthOpen} />
-                                  </button>
-                                  {lengthOpen && (
-                                    <div className="mdl-menu">
-                                      {CHAT_RESPONSE_LENGTHS.map((o) => (
-                                        <div
-                                          key={o.id}
-                                          className={`mdl-opt ${chatResponseLength === o.id ? "on" : ""}`}
-                                          onMouseDown={() => {
-                                            setChatResponseLength(o.id);
-                                            setLengthOpen(false);
-                                          }}
-                                        >
-                                          {o.label}{" "}
-                                          {chatResponseLength === o.id && "✓"}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
                               <div className="mdl-wrap">
                                 <button
                                   type="button"
@@ -2567,57 +2449,6 @@ export default function SummaryView() {
                               )}
                             </button>
                             <div className="chatbox-toolbar-end">
-                              <div className="chat-control-labeled">
-                                <span
-                                  className="chat-control-label"
-                                  id="chat-response-length-label-stacked"
-                                >
-                                  Text response length:
-                                </span>
-                                <div className="mdl-wrap">
-                                  <button
-                                    type="button"
-                                    className={`mdl-btn ${lengthOpen ? "open" : ""}`}
-                                    title="How long the AI reply should be"
-                                    aria-labelledby="chat-response-length-label-stacked"
-                                    onClick={() => {
-                                      setLengthOpen((v) => !v);
-                                      setModelOpen(false);
-                                    }}
-                                    onBlur={() =>
-                                      setTimeout(
-                                        () => setLengthOpen(false),
-                                        150,
-                                      )
-                                    }
-                                    disabled={
-                                      chatLoading || sourceUploadLoading
-                                    }
-                                  >
-                                    {CHAT_RESPONSE_LENGTHS.find(
-                                      (o) => o.id === chatResponseLength,
-                                    )?.label || "Medium"}{" "}
-                                    <Chevron open={lengthOpen} />
-                                  </button>
-                                  {lengthOpen && (
-                                    <div className="mdl-menu">
-                                      {CHAT_RESPONSE_LENGTHS.map((o) => (
-                                        <div
-                                          key={o.id}
-                                          className={`mdl-opt ${chatResponseLength === o.id ? "on" : ""}`}
-                                          onMouseDown={() => {
-                                            setChatResponseLength(o.id);
-                                            setLengthOpen(false);
-                                          }}
-                                        >
-                                          {o.label}{" "}
-                                          {chatResponseLength === o.id && "✓"}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
                               <div className="mdl-wrap">
                                 <button
                                   type="button"
@@ -2788,6 +2619,7 @@ export default function SummaryView() {
         slideDeckPreviewUnavailable={slideDeckPreviewUnavailable}
         slideDeckPreviewTitle={slideDeckPreviewTitle}
         slideDeckDlRef={slideDeckDlRef}
+        slideDeckPdfDlRef={slideDeckPdfDlRef}
         quizModal={quizModal}
         setQuizModal={setQuizModal}
         setQuizData={setQuizData}
@@ -2851,9 +2683,23 @@ export default function SummaryView() {
       />
 
       {/* ── Mobile "More" bottom sheet ── */}
+      <MobileActionsSheet
+        open={mobileActionsOpen}
+        onClose={() => setMobileActionsOpen(false)}
+        isLecturerSummary={isLecturerSummary}
+        pdfLoading={pdfLoading}
+        hasSummary={Boolean(summary)}
+        onQuiz={() => setQuizModal(true)}
+        onGenerateFlashcards={() => setFlashcardModal(true)}
+        onCreateFlashcardsManually={() => setCreateFlashcardOpen(true)}
+        onSavePdf={handlePDF}
+        onGenerateSlides={() => setSlidesModal(true)}
+      />
+
       <MobileMoreSheet
         open={mobileMoreOpen}
-        onClose={() => setMobileMoreOpen(false)}
+        onClose={closeMobileMore}
+        initialSection={mobileMoreInitialSection}
         summary={summary}
         extraSources={extraSources}
         onSourcePreview={openSourceDocPreview}

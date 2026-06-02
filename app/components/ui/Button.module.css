@@ -35,10 +35,42 @@
   background: rgba(251, 191, 36, 0.07);
 }
 
+.flashcard {
+  border-color: rgba(45, 212, 191, 0.22);
+  color: rgba(153, 246, 228, 0.88);
+  background: rgba(45, 212, 191, 0.06);
+}
+
 .flashcard:hover {
   border-color: rgba(45, 212, 191, 0.4);
   color: #99f6e4;
   background: rgba(45, 212, 191, 0.08);
+}
+
+.flashcardManual {
+  border-style: dashed;
+  border-color: rgba(45, 212, 191, 0.28);
+  color: rgba(153, 246, 228, 0.72);
+  background: transparent;
+}
+
+.flashcardManual:hover {
+  border-style: dashed;
+  border-color: rgba(45, 212, 191, 0.45);
+  color: #99f6e4;
+  background: rgba(45, 212, 191, 0.06);
+}
+
+.quiz {
+  border-color: rgba(251, 191, 36, 0.22);
+  color: rgba(253, 230, 138, 0.9);
+  background: rgba(251, 191, 36, 0.06);
+}
+
+.pdf {
+  border-color: rgba(248, 113, 113, 0.22);
+  color: rgba(252, 165, 165, 0.9);
+  background: rgba(248, 113, 113, 0.06);
 }
 
 .pdf:hover {
@@ -98,8 +130,32 @@ html[data-theme="light"] .btn.slides:hover {
   filter: brightness(1.04);
 }
 
+html[data-theme="light"] .flashcard {
+  border-color: rgba(13, 148, 136, 0.28);
+  color: #0f766e;
+  background: rgba(45, 212, 191, 0.08);
+}
+
 html[data-theme="light"] .flashcard:hover {
   border-color: rgba(13, 148, 136, 0.35);
   color: #0f766e;
   background: rgba(45, 212, 191, 0.12);
+}
+
+html[data-theme="light"] .flashcardManual {
+  border-color: rgba(13, 148, 136, 0.32);
+  color: #115e59;
+  background: transparent;
+}
+
+html[data-theme="light"] .flashcardManual:hover {
+  border-color: rgba(13, 148, 136, 0.45);
+  color: #0f766e;
+  background: rgba(45, 212, 191, 0.08);
+}
+
+html[data-theme="light"] .quiz {
+  border-color: rgba(180, 83, 9, 0.28);
+  color: #b45309;
+  background: rgba(251, 191, 36, 0.08);
 }

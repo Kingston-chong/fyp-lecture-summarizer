@@ -98,20 +98,37 @@ function buildAlaiAdditionalInstructions(body, roleProfile) {
 }
 
 /**
- * Full input for 2slides (single `input_text` field).
+ * 2slides Fast PPT `userInput` — only fields the API accepts as text guidance.
  * @param {Record<string, unknown>} body
  * @param {ReturnType<typeof getRoleProfile>} roleProfile
  */
 function buildTwoSlidesInputText(body, roleProfile) {
   const parts = [];
+
+  const deckTitle = String(body?.title || "").trim();
+  if (deckTitle) parts.push(`Presentation title: ${deckTitle}`);
+
   const page = parseTwoSlidesPage(body?.maxSlides);
   if (page > 0) {
     parts.push(
       `Target slide count: approximately ${page} slides. Do not exceed ${page + 1} slides.`,
     );
   }
-  const instructions = buildAlaiAdditionalInstructions(body, roleProfile);
-  if (instructions) parts.push(instructions);
+
+  const roleLines = roleProfile.slideInstructions
+    .map((line) => `- ${line}`)
+    .join("\n");
+  if (roleLines) {
+    parts.push(`Role guidance:\n${roleLines}`);
+  }
+
+  const userExtra = String(body?.slideUserPrompt || body?.userPrompt || "")
+    .trim()
+    .slice(0, MAX_SLIDE_USER_PROMPT_CHARS);
+  if (userExtra) {
+    parts.push(`Additional user instructions:\n${userExtra}`);
+  }
+
   const summary = String(body.summaryText || "").trim();
   if (summary) parts.push(`Summary:\n${summary}`);
   return parts.join("\n\n");
@@ -204,6 +221,7 @@ export async function POST(req) {
         slide_range: toSlideRange(body?.maxSlides),
       };
 
+      const alaiLanguage = String(body?.alaiLanguage || "").trim();
       const payload = {
         input_text: summaryText,
         additional_instructions: additionalInstructions || undefined,
@@ -214,6 +232,7 @@ export async function POST(req) {
         },
         image_options: imageOptions,
         ...(imageIds.length > 0 ? { image_ids: imageIds } : {}),
+        ...(alaiLanguage ? { text_options: { language: alaiLanguage } } : {}),
       };
 
       const res = await fetch(`${ALAI_BASE}/generations`, {
@@ -269,7 +288,6 @@ export async function POST(req) {
     const result = await submitTwoSlidesGeneration({
       inputText: twoSlidesInput,
       themeId,
-      page: parseTwoSlidesPage(body?.maxSlides),
       responseLanguage:
         String(body?.responseLanguage || "Auto").trim() || "Auto",
     });

@@ -51,6 +51,9 @@ export default function GenerateSlidesModal({
   const [twoSlidesThemesHint, setTwoSlidesThemesHint] = useState("");
   const [twoSlidesThemeQuery, setTwoSlidesThemeQuery] = useState("");
   const [responseLanguage, setResponseLanguage] = useState("Auto");
+  const [alaiLanguage, setAlaiLanguage] = useState("");
+  const [includeAiImages, setIncludeAiImages] = useState(true);
+  const [includeWebImages, setIncludeWebImages] = useState(true);
 
   const [generating, setGenerating] = useState(false);
   const [generateErr, setGenerateErr] = useState("");
@@ -272,6 +275,28 @@ export default function GenerateSlidesModal({
     };
   }, [provider]);
 
+  useEffect(() => {
+    if (provider !== "2slides") return;
+    if (twoSlidesThemes.length > 0) return;
+    void handleTwoSlidesThemeSearch();
+  }, [provider]);
+
+  function handleProviderChange(next) {
+    setProvider(next);
+    if (next === "2slides") {
+      setSelectedThemeId(null);
+    } else if (alaiThemes.length > 0) {
+      const first = String(
+        alaiThemes[0]?.id || alaiThemes[0]?.theme_id || "",
+      ).trim();
+      if (first) setSelectedThemeId(first);
+    }
+  }
+
+  const canGenerate =
+    !generating &&
+    (provider !== "2slides" || Boolean(selectedThemeId?.trim()));
+
   async function handleCreate() {
     setGenerateErr("");
     setGenerateProgress("");
@@ -304,9 +329,22 @@ export default function GenerateSlidesModal({
           numImageVariants: provider === "alai" ? numImageVariants : undefined,
           imageIds:
             provider === "alai" && imageIds.length > 0 ? imageIds : undefined,
-          bulletLimit: String(bulletLimit || "").trim() || undefined,
+          bulletLimit:
+            provider === "alai"
+              ? String(bulletLimit || "").trim() || undefined
+              : undefined,
+          alaiLanguage: provider === "alai" ? alaiLanguage || undefined : undefined,
+          includeAiImages: provider === "alai" ? includeAiImages : undefined,
+          includeWebImages:
+            provider === "alai" ? includeWebImages : undefined,
           responseLanguage:
             provider === "2slides" ? responseLanguage : undefined,
+          slideLength: provider === "alai" ? slideLength : undefined,
+          textStyle: provider === "alai" ? textStyle : undefined,
+          strictness: provider === "alai" ? strictness : undefined,
+          highlightDefs: provider === "alai" ? highlightDefs : undefined,
+          boldKeywords: provider === "alai" ? boldKeywords : undefined,
+          speakerNotes: provider === "alai" ? speakerNotes : undefined,
         }),
       });
 
@@ -426,7 +464,7 @@ export default function GenerateSlidesModal({
         <div className="sl-modal">
           <div className="sl-head">
             <div className="sl-title">
-              <SlidesIco /> Presentation Slides
+              <SlidesIco /> Generate Slides from Summary
             </div>
             <button className="sl-close" onClick={onClose}>
               <CloseIco />
@@ -436,7 +474,7 @@ export default function GenerateSlidesModal({
           <div className="sl-body slides-sl-body">
             <CreateSlidesForm
               provider={provider}
-              setProvider={setProvider}
+              setProvider={handleProviderChange}
               quickInstructionPresets={quickInstructionPresets}
               applyQuickInstruction={applyQuickInstruction}
               slideUserPrompt={slideUserPrompt}
@@ -485,6 +523,12 @@ export default function GenerateSlidesModal({
               onTwoSlidesThemeSearch={handleTwoSlidesThemeSearch}
               responseLanguage={responseLanguage}
               setResponseLanguage={setResponseLanguage}
+              alaiLanguage={alaiLanguage}
+              setAlaiLanguage={setAlaiLanguage}
+              includeAiImages={includeAiImages}
+              setIncludeAiImages={setIncludeAiImages}
+              includeWebImages={includeWebImages}
+              setIncludeWebImages={setIncludeWebImages}
             />
           </div>
 
@@ -493,7 +537,12 @@ export default function GenerateSlidesModal({
               type="button"
               className="btn-create"
               onClick={handleCreate}
-              disabled={generating}
+              disabled={!canGenerate}
+              title={
+                provider === "2slides" && !selectedThemeId
+                  ? "Search and select a 2slides theme first"
+                  : undefined
+              }
             >
               {generating ? <div className="mini-spin" /> : <SlidesIco />}
               Generate {generating && generateProgress ? "" : "Slides"}

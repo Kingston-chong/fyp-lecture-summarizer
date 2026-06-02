@@ -682,3 +682,52 @@
 .slides-modal-light .gs-progress-track {
   background: rgba(0, 0, 0, 0.08);
 }
+
+.csf-theme-search-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  align-items: stretch;
+}
+
+.csf-theme-search-inp {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0 !important;
+}
+
+.csf-theme-search-btn {
+  flex-shrink: 0;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(99, 102, 241, 0.22);
+  color: #e0e7ff;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.csf-theme-search-btn:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.35);
+  border-color: rgba(99, 102, 241, 0.45);
+}
+
+.csf-theme-search-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.slides-modal-light .csf-theme-search-btn {
+  border-color: rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.12);
+  color: #4338ca;
+}
+
+.slides-modal-light .csf-theme-search-btn:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.2);
+}

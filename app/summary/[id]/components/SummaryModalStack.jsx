@@ -24,6 +24,7 @@ export default function SummaryModalStack({
   slideDeckPreviewUnavailable,
   slideDeckPreviewTitle,
   slideDeckDlRef,
+  slideDeckPdfDlRef,
   quizModal,
   setQuizModal,
   setQuizData,
@@ -53,6 +54,11 @@ export default function SummaryModalStack({
     if (typeof fn === "function") fn();
   }, [slideDeckDlRef]);
 
+  const handleSlideDeckPdfDownload = useCallback(async () => {
+    const fn = slideDeckPdfDlRef.current;
+    if (typeof fn === "function") await fn();
+  }, [slideDeckPdfDlRef]);
+
   return (
     <>
       {slidesModal && (
@@ -75,6 +81,7 @@ export default function SummaryModalStack({
           title={slideDeckPreviewTitle}
           subtitle="Saved slide deck"
           onDownload={handleSlideDeckDownload}
+          onDownloadPdf={handleSlideDeckPdfDownload}
         />
       )}
 

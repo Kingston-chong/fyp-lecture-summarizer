@@ -49,6 +49,8 @@ function officeViewSrc(pptUrl) {
 export default function AlaiSlidesPreviewModal({
   onClose,
   onDownload,
+  /** Saved deck: export PDF via `/slide-decks/:id/pdf` (may convert on first request). */
+  onDownloadPdf,
   previewUrl,
   /** Signed PPTX URL from Alai — used when there is no link/pdf preview */
   remotePptUrl = "",
@@ -61,6 +63,7 @@ export default function AlaiSlidesPreviewModal({
   subtitle = "Your presentation slides is ready..",
 }) {
   const [downloading, setDownloading] = useState(false);
+  const [pdfDownloading, setPdfDownloading] = useState(false);
   const [iframeLoading, setIframeLoading] = useState(true);
 
   // Prefer Office Online embed for the PPTX when we have a signed URL. Alai's own
@@ -102,6 +105,18 @@ export default function AlaiSlidesPreviewModal({
     }
   }
 
+  async function handlePdfDownload() {
+    if (!onDownloadPdf) return;
+    setPdfDownloading(true);
+    try {
+      await onDownloadPdf();
+    } catch (e) {
+      alert(e?.message || String(e));
+    } finally {
+      setPdfDownloading(false);
+    }
+  }
+
   return (
     <>
       <div
@@ -120,15 +135,34 @@ export default function AlaiSlidesPreviewModal({
               <div className="alai-sub">{subtitle}</div>
             </div>
             <div className="alai-actions">
+              {onDownloadPdf ? (
+                <button
+                  type="button"
+                  className="alai-btn alai-btn--pdf"
+                  onClick={() => void handlePdfDownload()}
+                  disabled={pdfDownloading || downloading}
+                  title="Download as PDF"
+                >
+                  <DownloadIco />
+                  {pdfDownloading ? "Preparing…" : "PDF"}
+                </button>
+              ) : null}
               <button
+                type="button"
                 className="alai-btn"
                 onClick={handleDownload}
-                disabled={!onDownload || downloading}
+                disabled={!onDownload || downloading || pdfDownloading}
+                title="Download PowerPoint (.pptx)"
               >
                 <DownloadIco />
                 {downloading ? "Downloading…" : "PPTX"}
               </button>
-              <button className="alai-close" onClick={onClose}>
+              <button
+                type="button"
+                className="alai-close"
+                onClick={onClose}
+                aria-label="Close"
+              >
                 <CloseIco />
               </button>
             </div>

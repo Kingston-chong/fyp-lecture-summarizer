@@ -1,0 +1,67 @@
+.no-select {
+  user-select: none !important;
+  cursor: col-resize !important;
+}
+
+.splitter-v {
+  width: 8px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  z-index: 10;
+  touch-action: none;
+}
+
+.splitter-v::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 3px;
+  width: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.splitter-v:hover::after {
+  background: rgba(99, 102, 241, 0.35);
+}
+
+.splitter-v.active::after {
+  background: rgba(99, 102, 241, 0.55);
+}
+
+/* Dashboard: fixed column + splitter at wide desktop */
+.sidebar-splitter-desktop {
+  display: none;
+}
+
+@media (min-width: 1320px) {
+  .sidebar-splitter-desktop {
+    display: block;
+  }
+}
+
+/* AppShell summary layout: column sidebar from 1024px */
+.shell-sidebar-splitter {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .shell:not(.shell--dashboard-mobile) .shell-sidebar-splitter {
+    display: block;
+  }
+}
+
+html[data-theme="light"] .splitter-v::after {
+  background: rgba(15, 23, 42, 0.08);
+}
+
+html[data-theme="light"] .splitter-v:hover::after {
+  background: rgba(99, 102, 241, 0.35);
+}
+
+html[data-theme="light"] .splitter-v.active::after {
+  background: rgba(99, 102, 241, 0.45);
+}

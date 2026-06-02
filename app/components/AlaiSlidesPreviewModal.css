@@ -110,6 +110,14 @@
   opacity: 0.55;
   cursor: not-allowed;
 }
+.alai-btn--pdf {
+  border-color: rgba(248, 113, 113, 0.28);
+  color: #fecaca;
+}
+.alai-btn--pdf:hover:not(:disabled) {
+  border-color: rgba(248, 113, 113, 0.45);
+  background: rgba(248, 113, 113, 0.1);
+}
 .alai-close {
   width: 30px;
   height: 30px;

@@ -6,6 +6,9 @@ import {
   HistoryIcon,
   UploadIcon,
 } from "@/app/components/icons";
+import HistorySummaryExpand, {
+  defaultHistoryExpandTab,
+} from "@/app/components/HistorySummaryExpand";
 import { formatSummarizeForLabel } from "../helpers";
 
 export default function DashboardSidebar({
@@ -18,6 +21,8 @@ export default function DashboardSidebar({
   onHistorySearchChange,
   expandedHistory,
   setExpandedHistory,
+  historyExpandTab,
+  setHistoryExpandTab,
   onHistoryNavigate,
   timeAgo,
   prevLoading,
@@ -93,59 +98,26 @@ export default function DashboardSidebar({
                 <div className="history-name" title={h.title}>
                   {h.title}
                 </div>
-                <div className="history-meta-row">
-                  {h.files.length > 0 && (
-                    <button
-                      type="button"
-                      className={`history-file-chev${expandedHistory === h.id ? " expanded" : ""}`}
-                      aria-expanded={expandedHistory === h.id}
-                      aria-label={
-                        expandedHistory === h.id
-                          ? "Hide source files"
-                          : "Show source files"
-                      }
-                      title={
-                        expandedHistory === h.id
-                          ? "Hide source files"
-                          : "Show source files"
-                      }
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setExpandedHistory(
-                          expandedHistory === h.id ? null : h.id,
-                        );
-                      }}
-                    >
-                      <ChevronDownIcon size={10} />
-                    </button>
-                  )}
-                  <div className="history-meta">
-                    {[
-                      `${h.files.length} file${h.files.length !== 1 ? "s" : ""}`,
-                      formatSummarizeForLabel(h.summarizeFor),
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </div>
-                </div>
-                <div className="history-date">{timeAgo(h.createdAt)}</div>
+                <HistorySummaryExpand
+                  summary={h}
+                  expanded={expandedHistory === h.id}
+                  expandTab={historyExpandTab}
+                  onToggleExpand={() => {
+                    if (expandedHistory === h.id) {
+                      setExpandedHistory(null);
+                    } else {
+                      setExpandedHistory(h.id);
+                      setHistoryExpandTab(defaultHistoryExpandTab(h));
+                    }
+                  }}
+                  onExpandTabChange={setHistoryExpandTab}
+                  onNavigate={(id, sources) => onHistoryNavigate(id, sources)}
+                  summarizeForLabel={formatSummarizeForLabel(h.summarizeFor)}
+                  timeAgoLabel={timeAgo(h.createdAt)}
+                  chevronClassName="history-file-chev"
+                  metaClassName="history-meta"
+                />
               </div>
-              {expandedHistory === h.id &&
-                h.files.map((f) => (
-                  <div className="history-file-chip" key={f.id}>
-                    <FileIcon type={f.type} />
-                    <span
-                      title={f.name}
-                      style={{
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {f.name}
-                    </span>
-                  </div>
-                ))}
             </div>
           ))
         ))}

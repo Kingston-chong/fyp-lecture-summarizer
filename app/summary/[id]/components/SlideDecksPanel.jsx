@@ -1,7 +1,10 @@
 "use client";
 
 import { Spinner } from "@/app/components/icons";
-import { formatSlideDeckSavedAt } from "../helpers";
+import {
+  formatSlideDeckProviderLabel,
+  formatSlideDeckSavedAt,
+} from "../helpers";
 
 export default function SlideDecksPanel({
   slideDecks,
@@ -46,11 +49,7 @@ export default function SlideDecksPanel({
                 {d.title}
               </div>
               <div className="sd-deck-meta">
-                {d.provider === "2slides"
-                  ? "2slides"
-                  : d.provider === "alai"
-                    ? "Alai"
-                    : null}
+                {formatSlideDeckProviderLabel(d.provider)}
                 {d.provider ? " · " : ""}
                 {formatSlideDeckSavedAt(d.createdAt)}
               </div>

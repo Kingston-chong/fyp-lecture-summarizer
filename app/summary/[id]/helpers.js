@@ -9,6 +9,15 @@ export function fmtDate(iso) {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}, ${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/** Human-readable label for slide generation provider (Alai, 2slides, etc.). */
+export function formatSlideDeckProviderLabel(provider) {
+  if (!provider) return null;
+  const key = String(provider).toLowerCase();
+  if (key === "2slides") return "2slides";
+  if (key === "alai") return "Alai";
+  return String(provider);
+}
+
 export function formatSlideDeckSavedAt(iso) {
   try {
     const d = new Date(iso);

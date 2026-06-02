@@ -2,6 +2,13 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { FieldLabel, SectionHead, Divider, SelectMenu, UploadCloudIco } from "./ui.jsx";
+import {
+  ALAI_OUTPUT_LANGUAGES,
+  ALAI_SLIDE_RANGE_HINT,
+  TWOSLIDES_RESPONSE_LANGUAGES,
+  TWOSLIDES_SLIDE_COUNT_HINT,
+} from "./slideGenOptions.js";
+import { themesToSelectOptions } from "./themeHelpers.js";
 import "./CreateSlidesForm.css";
 
 function ExtraInstructionsField({ value, onChange, presets, onApplyPreset }) {
@@ -145,17 +152,6 @@ const ALLOWED_IMAGE_TYPES = [
 const MAX_IMAGE_FILES = 10;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
-function themeOptionLabel(theme) {
-  return (
-    String(theme?.name || theme?.title || theme?.label || "").trim() ||
-    String(theme?.id || theme?.theme_id || "Theme")
-  );
-}
-
-function themeOptionId(theme) {
-  return String(theme?.id || theme?.theme_id || "").trim();
-}
-
 // ── Image upload sub-component ────────────────────────────────────────────────
 
 function ImageUploadSection({
@@ -287,12 +283,6 @@ export default function CreateSlidesForm({
   setSlideUserPrompt,
   quickInstructionPresets,
   applyQuickInstruction,
-  template,
-  setTemplate,
-  fontSize,
-  setFontSize,
-  textDensity,
-  setTextDensity,
   bulletLimit,
   setBulletLimit,
   generateErr,
@@ -301,6 +291,12 @@ export default function CreateSlidesForm({
   alaiThemes = [],
   alaiThemesLoading = false,
   alaiThemesHint = "",
+  twoSlidesThemes = [],
+  twoSlidesThemesLoading = false,
+  twoSlidesThemesHint = "",
+  twoSlidesThemeQuery = "",
+  setTwoSlidesThemeQuery,
+  onTwoSlidesThemeSearch,
   selectedThemeId,
   setSelectedThemeId,
   imageStyle,
@@ -309,16 +305,26 @@ export default function CreateSlidesForm({
   alaiVibesLoading = false,
   selectedVibeId,
   setSelectedVibeId,
-  // ── NEW ───────────────────────────────────────────────────────────────────
+  alaiLanguage = "",
+  setAlaiLanguage,
+  includeAiImages = true,
+  setIncludeAiImages,
+  includeWebImages = true,
+  setIncludeWebImages,
+  responseLanguage = "Auto",
+  setResponseLanguage,
   imageIds = [],
   onImageIdsChange,
   numImageVariants = 1,
   onVariantsChange,
 }) {
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [localImageVariants, setLocalImageVariants] =
     useState(numImageVariants);
   const isAlai = provider === "alai";
+  const activeThemes = isAlai ? alaiThemes : twoSlidesThemes;
+  const activeThemesLoading = isAlai ? alaiThemesLoading : twoSlidesThemesLoading;
+  const activeThemesHint = isAlai ? alaiThemesHint : twoSlidesThemesHint;
+  const themeSelectOptions = themesToSelectOptions(activeThemes);
   const effectiveImageVariants = onVariantsChange
     ? numImageVariants
     : localImageVariants;
@@ -461,86 +467,116 @@ export default function CreateSlidesForm({
             onChange={(e) => setMaxSlides(e.target.value)}
           />
         </div>
+        <div className="tag-hint" style={{ marginBottom: 12 }}>
+          {isAlai ? ALAI_SLIDE_RANGE_HINT : TWOSLIDES_SLIDE_COUNT_HINT}
+        </div>
+
+        <FieldLabel>Output language</FieldLabel>
+        <SelectMenu
+          value={isAlai ? alaiLanguage : responseLanguage}
+          onChange={(v) =>
+            isAlai ? setAlaiLanguage(v) : setResponseLanguage(v || "Auto")
+          }
+          width="100%"
+          maxMenuHeight={240}
+          options={isAlai ? ALAI_OUTPUT_LANGUAGES : TWOSLIDES_RESPONSE_LANGUAGES}
+        />
 
         <Divider />
-        <SectionHead>Slide length</SectionHead>
-        <div className="create-pill-row">
-          {["Short (summary)", "Medium (lecture-ready)", "Long (detailed)"].map(
-            (opt) => (
-              <Pill
-                key={opt}
-                label={opt}
-                active={slideLength === opt}
-                onClick={() => setSlideLength(opt)}
-              />
-            ),
-          )}
-        </div>
-
-        <SectionHead>Tone</SectionHead>
-        <div className="create-pill-row">
-          {["Academic", "Professional", "Simple", "Technical"].map((opt) => (
-            <Pill
-              key={opt}
-              label={opt}
-              active={textStyle === opt}
-              onClick={() => setTextStyle(opt)}
+        <SectionHead>{isAlai ? "Alai theme" : "2slides theme"}</SectionHead>
+        {!isAlai ? (
+          <div className="csf-theme-search-row">
+            <input
+              className="txt-inp csf-theme-search-inp"
+              placeholder="Search themes (e.g. business, academic)…"
+              value={twoSlidesThemeQuery}
+              onChange={(e) => setTwoSlidesThemeQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  onTwoSlidesThemeSearch?.();
+                }
+              }}
             />
-          ))}
-        </div>
-
-        <SectionHead>Fidelity to summary</SectionHead>
-        <div className="create-pill-row">
-          {["Strict", "Flexible"].map((opt) => (
-            <Pill
-              key={opt}
-              label={opt}
-              active={strictness === opt}
-              onClick={() => setStrictness(opt)}
-            />
-          ))}
-        </div>
-        <FieldLabel style={{ marginTop: -6, marginBottom: 12 }}>
-          Strict = slides only use what&apos;s in the summary. Flexible = AI may
-          add relevant context.
-        </FieldLabel>
-
-        {isAlai || provider === "2slides" ? (
-          <>
-            <Divider />
-            <SectionHead>{isAlai ? "Alai theme" : "2slides theme"}</SectionHead>
-            {alaiThemesLoading ? (
-              <div className="tag-hint">Loading themes…</div>
-            ) : alaiThemes.length > 0 ? (
-              <SelectMenu
-                value={selectedThemeId || ""}
-                onChange={(id) => setSelectedThemeId(id || null)}
-                placeholder="Choose a theme…"
-                maxMenuHeight={260}
-                options={alaiThemes
-                  .map((t) => ({
-                    value: themeOptionId(t),
-                    label: themeOptionLabel(t),
-                  }))
-                  .filter((o) => o.value)}
-              />
-            ) : (
-              <div className="tag-hint" style={{ marginBottom: 8 }}>
-                {alaiThemesHint ||
-                  (isAlai
-                    ? "No themes available. Configure ALAI_API_KEY to browse Alai themes."
-                    : "No themes available. Configure TWOSLIDES_API_KEY and pick a theme before generating.")}
-              </div>
-            )}
-          </>
+            <button
+              type="button"
+              className="csf-theme-search-btn"
+              onClick={() => onTwoSlidesThemeSearch?.()}
+              disabled={twoSlidesThemesLoading}
+            >
+              {twoSlidesThemesLoading ? "…" : "Search"}
+            </button>
+          </div>
         ) : null}
+        {activeThemesLoading ? (
+          <div className="tag-hint">Loading themes…</div>
+        ) : themeSelectOptions.length > 0 ? (
+          <SelectMenu
+            value={selectedThemeId || ""}
+            onChange={(id) => setSelectedThemeId(id || null)}
+            placeholder="Choose a theme…"
+            maxMenuHeight={260}
+            options={themeSelectOptions}
+          />
+        ) : (
+          <div className="tag-hint" style={{ marginBottom: 8 }}>
+            {activeThemesHint ||
+              (isAlai
+                ? "No themes available. Configure ALAI_API_KEY in .env.local."
+                : "Search for a theme above (required before generating).")}
+          </div>
+        )}
 
         {isAlai ? (
           <>
             <Divider />
+            <SectionHead>Slide length</SectionHead>
+            <div className="create-pill-row">
+              {[
+                "Short (summary)",
+                "Medium (lecture-ready)",
+                "Long (detailed)",
+              ].map((opt) => (
+                <Pill
+                  key={opt}
+                  label={opt}
+                  active={slideLength === opt}
+                  onClick={() => setSlideLength(opt)}
+                />
+              ))}
+            </div>
+
+            <SectionHead>Tone</SectionHead>
+            <div className="create-pill-row">
+              {["Academic", "Professional", "Simple", "Technical"].map((opt) => (
+                <Pill
+                  key={opt}
+                  label={opt}
+                  active={textStyle === opt}
+                  onClick={() => setTextStyle(opt)}
+                />
+              ))}
+            </div>
+
+            <SectionHead>Fidelity to summary</SectionHead>
+            <div className="create-pill-row">
+              {["Strict", "Flexible"].map((opt) => (
+                <Pill
+                  key={opt}
+                  label={opt}
+                  active={strictness === opt}
+                  onClick={() => setStrictness(opt)}
+                />
+              ))}
+            </div>
+            <div className="tag-hint" style={{ marginBottom: 12 }}>
+              Strict = slides only use the summary. Flexible = AI may add
+              relevant context. Applied via Alai instructions.
+            </div>
+
             <SectionHead>Picture density</SectionHead>
             <div className="tag-hint" style={{ marginBottom: 8 }}>
-              How many AI-generated images Alai adds to slides
+              How many AI image-led slide variants to generate (0–2).
             </div>
             <DensityPicker
               value={effectiveImageVariants}
@@ -551,33 +587,87 @@ export default function CreateSlidesForm({
       </div>
 
       <div className="col-right">
-        <SectionHead>Formatting extras</SectionHead>
-        {[
-          {
-            label: "Highlight key definitions",
-            val: highlightDefs,
-            set: setHighlightDefs,
-          },
-          {
-            label: "Bold important keywords",
-            val: boldKeywords,
-            set: setBoldKeywords,
-          },
-          {
-            label: "Add speaker notes",
-            val: speakerNotes,
-            set: setSpeakerNotes,
-          },
-        ].map(({ label, val, set }) => (
-          <label key={label} className="chk-row" onClick={() => set((v) => !v)}>
-            <div className={`chk-box ${val ? "on" : ""}`}>
-              {val ? <span className="chk-tick">✓</span> : null}
-            </div>
-            {label}
-          </label>
-        ))}
+        {isAlai ? (
+          <>
+            <SectionHead>Formatting (Alai instructions)</SectionHead>
+            {[
+              {
+                label: "Highlight key definitions",
+                val: highlightDefs,
+                set: setHighlightDefs,
+              },
+              {
+                label: "Bold important keywords",
+                val: boldKeywords,
+                set: setBoldKeywords,
+              },
+              {
+                label: "Add speaker notes in deck",
+                val: speakerNotes,
+                set: setSpeakerNotes,
+              },
+            ].map(({ label, val, set }) => (
+              <label
+                key={label}
+                className="chk-row"
+                onClick={() => set((v) => !v)}
+              >
+                <div className={`chk-box ${val ? "on" : ""}`}>
+                  {val ? <span className="chk-tick">✓</span> : null}
+                </div>
+                {label}
+              </label>
+            ))}
 
-        <Divider />
+            <div className="gs-inline-field" style={{ marginTop: 8 }}>
+              <FieldLabel style={{ marginBottom: 0, whiteSpace: "nowrap" }}>
+                Max bullets per slide:
+              </FieldLabel>
+              <input
+                className="num-inp"
+                type="number"
+                min={1}
+                max={20}
+                placeholder="—"
+                value={bulletLimit}
+                onChange={(e) => setBulletLimit(e.target.value)}
+              />
+            </div>
+
+            <Divider />
+            <SectionHead>Image sources</SectionHead>
+            {[
+              {
+                label: "Include AI-generated images",
+                val: includeAiImages,
+                set: setIncludeAiImages,
+              },
+              {
+                label: "Include web images",
+                val: includeWebImages,
+                set: setIncludeWebImages,
+              },
+            ].map(({ label, val, set }) => (
+              <label
+                key={label}
+                className="chk-row"
+                onClick={() => set((v) => !v)}
+              >
+                <div className={`chk-box ${val ? "on" : ""}`}>
+                  {val ? <span className="chk-tick">✓</span> : null}
+                </div>
+                {label}
+              </label>
+            ))}
+            <Divider />
+          </>
+        ) : (
+          <div className="tag-hint" style={{ marginBottom: 12 }}>
+            2slides Fast PPT uses your summary plus optional instructions below.
+            Style, tone, and formatting are not separate API fields for this
+            provider.
+          </div>
+        )}
 
         <SectionHead>Extra instructions (optional)</SectionHead>
         <ExtraInstructionsField
@@ -645,78 +735,6 @@ export default function CreateSlidesForm({
               credits.
             </div>
           </>
-        ) : null}
-
-        <Divider />
-
-        <button
-          type="button"
-          className="gs-advanced-toggle"
-          onClick={() => setAdvancedOpen((v) => !v)}
-        >
-          <span
-            className="gs-advanced-chev"
-            style={{ transform: advancedOpen ? "rotate(90deg)" : "none" }}
-          >
-            ›
-          </span>
-          Advanced options
-        </button>
-
-        {advancedOpen ? (
-          <div className="gs-advanced-grid">
-            <div>
-              <FieldLabel>Template:</FieldLabel>
-              <SelectMenu
-                value={template}
-                onChange={setTemplate}
-                width={110}
-                options={[
-                  "Academic",
-                  "Professional",
-                  "Creative",
-                  "Minimal",
-                  "Corporate",
-                ].map((o) => ({ value: o, label: o }))}
-              />
-            </div>
-            <div>
-              <FieldLabel>Font size:</FieldLabel>
-              <SelectMenu
-                value={fontSize}
-                onChange={setFontSize}
-                width={90}
-                options={["Small", "Normal", "Large"].map((o) => ({
-                  value: o,
-                  label: o,
-                }))}
-              />
-            </div>
-            <div>
-              <FieldLabel>Text density:</FieldLabel>
-              <SelectMenu
-                value={textDensity}
-                onChange={setTextDensity}
-                width={100}
-                options={["Compact", "Balanced", "Spacious"].map((o) => ({
-                  value: o,
-                  label: o,
-                }))}
-              />
-            </div>
-            <div>
-              <FieldLabel>Bullet limit/slide:</FieldLabel>
-              <input
-                className="num-inp"
-                type="number"
-                min={1}
-                max={20}
-                placeholder="—"
-                value={bulletLimit}
-                onChange={(e) => setBulletLimit(e.target.value)}
-              />
-            </div>
-          </div>
         ) : null}
 
         {generateErr ? (

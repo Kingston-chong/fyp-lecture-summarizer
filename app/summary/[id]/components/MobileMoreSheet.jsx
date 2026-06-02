@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { SaveIco, Spinner } from "@/app/components/icons";
 import SourcesListPanel from "./SourcesListPanel";
 import SlideDecksPanel from "./SlideDecksPanel";
@@ -9,9 +10,36 @@ import HighlightsPanel from "./HighlightsPanel";
 import ReferencesPanel from "./ReferencesPanel";
 import CollapsibleSidebarSection from "./CollapsibleSidebarSection";
 
+function withSheetClose(onClose, fn) {
+  if (typeof fn !== "function") return fn;
+  return (...args) => {
+    onClose();
+    return fn(...args);
+  };
+}
+
+function buildSectionOpenState({
+  initialSection,
+  showReferences,
+  isLecturer,
+}) {
+  const ids = ["files"];
+  if (showReferences) ids.push("references");
+  ids.push("slideDecks", "quizzes");
+  if (!isLecturer) ids.push("flashcards");
+  ids.push("highlights");
+
+  const next = {};
+  for (const id of ids) {
+    next[id] = initialSection ? id === initialSection : id === "files";
+  }
+  return next;
+}
+
 export default function MobileMoreSheet({
   open,
   onClose,
+  initialSection = null,
   summary,
   extraSources,
   onSourcePreview,
@@ -41,6 +69,28 @@ export default function MobileMoreSheet({
     (highlightsProps?.highlights?.length ?? 0) +
     (highlightsProps?.pendingHighlights?.length ?? 0);
 
+  const [sectionOpen, setSectionOpen] = useState(() =>
+    buildSectionOpenState({ initialSection, showReferences, isLecturer }),
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    setSectionOpen(
+      buildSectionOpenState({ initialSection, showReferences, isLecturer }),
+    );
+    if (!initialSection) return;
+    const t = window.setTimeout(() => {
+      document
+        .getElementById(`mob-more-sec-${initialSection}`)
+        ?.scrollIntoView({ block: "start", behavior: "smooth" });
+    }, 100);
+    return () => window.clearTimeout(t);
+  }, [open, initialSection, showReferences, isLecturer]);
+
+  const setSection = (id, value) => {
+    setSectionOpen((prev) => ({ ...prev, [id]: value }));
+  };
+
   return (
     <div
       className="mob-more-overlay"
@@ -63,12 +113,15 @@ export default function MobileMoreSheet({
           </button>
         </div>
         <div className="mob-more-body sources-scroll">
-          <CollapsibleSidebarSection
-            id="files"
-            title="Attached files"
-            badge={fileCount || null}
-            defaultOpen
-          >
+          <div id="mob-more-sec-files">
+            <CollapsibleSidebarSection
+              id="files"
+              title="Attached files"
+              badge={fileCount || null}
+              open={sectionOpen.files ?? true}
+              onOpenChange={(v) => setSection("files", v)}
+              persist={false}
+            >
             <SourcesListPanel
               summary={summary}
               extraSources={extraSources}
@@ -76,24 +129,32 @@ export default function MobileMoreSheet({
               emptyMessage="No attached sources."
               listClassName="src-list src-list--section"
             />
-          </CollapsibleSidebarSection>
+            </CollapsibleSidebarSection>
+          </div>
 
           {showReferences && (
-            <CollapsibleSidebarSection
-              id="references"
-              title="References"
-              badge={refCount || null}
-              defaultOpen
-            >
+            <div id="mob-more-sec-references">
+              <CollapsibleSidebarSection
+                id="references"
+                title="References"
+                badge={refCount || null}
+                open={sectionOpen.references ?? false}
+                onOpenChange={(v) => setSection("references", v)}
+                persist={false}
+              >
               <ReferencesPanel {...referencesProps} embedded />
-            </CollapsibleSidebarSection>
+              </CollapsibleSidebarSection>
+            </div>
           )}
 
-          <CollapsibleSidebarSection
-            id="slideDecks"
-            title="Slide decks"
-            badge={deckCount || null}
-            defaultOpen={false}
+          <div id="mob-more-sec-slideDecks">
+            <CollapsibleSidebarSection
+              id="slideDecks"
+              title="Slide decks"
+              badge={deckCount || null}
+              open={sectionOpen.slideDecks ?? false}
+              onOpenChange={(v) => setSection("slideDecks", v)}
+              persist={false}
             actions={
               <button
                 type="button"
@@ -114,16 +175,21 @@ export default function MobileMoreSheet({
               {...slideDecksProps}
               embedded
               panelClassName="hl-panel sd-panel hl-panel--embedded"
+              onPreview={withSheetClose(onClose, slideDecksProps?.onPreview)}
             />
-          </CollapsibleSidebarSection>
+            </CollapsibleSidebarSection>
+          </div>
 
-          <CollapsibleSidebarSection
-            id="quizzes"
-            title={
-              quizSetsProps?.isLecturer ? "Class quizzes" : "Saved quizzes"
-            }
-            badge={quizCount || null}
-            defaultOpen={false}
+          <div id="mob-more-sec-quizzes">
+            <CollapsibleSidebarSection
+              id="quizzes"
+              title={
+                quizSetsProps?.isLecturer ? "Class quizzes" : "Saved quizzes"
+              }
+              badge={quizCount || null}
+              open={sectionOpen.quizzes ?? false}
+              onOpenChange={(v) => setSection("quizzes", v)}
+              persist={false}
             actions={
               <button
                 type="button"
@@ -141,15 +207,24 @@ export default function MobileMoreSheet({
               embedded
               panelClassName="hl-panel sd-panel hl-panel--embedded"
               showHelpText={false}
+              onOpenSet={withSheetClose(onClose, quizSetsProps?.onOpenSet)}
+              onOpenAttempt={withSheetClose(
+                onClose,
+                quizSetsProps?.onOpenAttempt,
+              )}
             />
-          </CollapsibleSidebarSection>
+            </CollapsibleSidebarSection>
+          </div>
 
           {!isLecturer && (
-            <CollapsibleSidebarSection
-              id="flashcards"
-              title="Flashcards"
-              badge={flashcardCount || null}
-              defaultOpen={false}
+            <div id="mob-more-sec-flashcards">
+              <CollapsibleSidebarSection
+                id="flashcards"
+                title="Flashcards"
+                badge={flashcardCount || null}
+                open={sectionOpen.flashcards ?? false}
+                onOpenChange={(v) => setSection("flashcards", v)}
+                persist={false}
               actions={
                 <button
                   type="button"
@@ -171,15 +246,27 @@ export default function MobileMoreSheet({
                 embedded
                 panelClassName="hl-panel sd-panel hl-panel--embedded"
                 showHelpText={false}
+                onOpenSet={withSheetClose(
+                  onClose,
+                  flashcardSetsProps?.onOpenSet,
+                )}
+                onEditSet={withSheetClose(
+                  onClose,
+                  flashcardSetsProps?.onEditSet,
+                )}
               />
-            </CollapsibleSidebarSection>
+              </CollapsibleSidebarSection>
+            </div>
           )}
 
-          <CollapsibleSidebarSection
-            id="highlights"
-            title="Highlights"
-            badge={hlCount || null}
-            defaultOpen={false}
+          <div id="mob-more-sec-highlights">
+            <CollapsibleSidebarSection
+              id="highlights"
+              title="Highlights"
+              badge={hlCount || null}
+              open={sectionOpen.highlights ?? false}
+              onOpenChange={(v) => setSection("highlights", v)}
+              persist={false}
             actions={
               <button
                 type="button"
@@ -211,7 +298,8 @@ export default function MobileMoreSheet({
               panelClassName="hl-panel hl-panel--embedded"
               onHighlightClick={onClose}
             />
-          </CollapsibleSidebarSection>
+            </CollapsibleSidebarSection>
+          </div>
         </div>
       </div>
     </div>

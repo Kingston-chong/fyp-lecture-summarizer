@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { SaveIco, Spinner } from "@/app/components/icons";
 import SourcesListPanel from "./SourcesListPanel";
 import SlideDecksPanel from "./SlideDecksPanel";
@@ -31,6 +32,7 @@ export default function SourcesSidebar({
   flashcardSetsProps,
   highlightsProps,
 }) {
+  const searchParams = useSearchParams();
   const refCount = referencesProps?.references?.length ?? 0;
   const isLecturer = summary?.summarizeFor === "lecturer";
   const showReferences =
@@ -78,6 +80,18 @@ export default function SourcesSidebar({
       return next;
     });
   }, []);
+
+  useEffect(() => {
+    const sources = searchParams?.get("sources");
+    if (!sources || !["files", "slideDecks", "quizzes"].includes(sources)) {
+      return;
+    }
+    setSectionOpen((prev) => {
+      const next = { ...prev, [sources]: true };
+      writeSidebarSectionsStored(next);
+      return next;
+    });
+  }, [searchParams]);
 
   const collapseAll = useCallback(() => {
     setSectionOpen((prev) => {

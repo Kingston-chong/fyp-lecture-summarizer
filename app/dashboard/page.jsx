@@ -28,6 +28,8 @@ import {
   UploadIcon,
   CloseIcon,
 } from "../components/icons";
+import SidebarResizeSplitter from "@/app/components/SidebarResizeSplitter";
+import { useLeftSidebarResize } from "@/app/hooks/useLeftSidebarResize";
 import DashboardSidebar from "./components/DashboardSidebar";
 import DocumentPreviewModal from "./components/DocumentPreviewModal";
 import TemplatePickerModal from "./components/TemplatePickerModal";
@@ -57,12 +59,12 @@ export default function Dashboard() {
   const [copied, setCopied] = useState(false);
 
   const [expandedHistory, setExpandedHistory] = useState(null);
+  const [historyExpandTab, setHistoryExpandTab] = useState("files");
   const [sidebarSection, setSidebarSection] = useState({
     history: true,
     prev: true,
   });
-  const [sidebarWidth, setSidebarWidth] = useState(220);
-  const sidebarDragRef = useRef({ active: false, startX: 0, startW: 220 });
+  const { sidebarWidth, onSidebarResizeStart } = useLeftSidebarResize(220);
 
   const [docPreviewOpen, setDocPreviewOpen] = useState(false);
   const [docPreviewDoc, setDocPreviewDoc] = useState(null);
@@ -91,11 +93,31 @@ export default function Dashboard() {
           .includes(q)
       )
         return true;
-      return (h.files || []).some((f) =>
-        String(f.name || "")
-          .toLowerCase()
-          .includes(q),
-      );
+      if (
+        (h.files || []).some((f) =>
+          String(f.name || "")
+            .toLowerCase()
+            .includes(q),
+        )
+      )
+        return true;
+      if (
+        (h.slideDecks || []).some((d) =>
+          String(d.title || "")
+            .toLowerCase()
+            .includes(q),
+        )
+      )
+        return true;
+      if (
+        (h.quizzes || []).some((item) =>
+          String(item.title || "")
+            .toLowerCase()
+            .includes(q),
+        )
+      )
+        return true;
+      return false;
     });
   }, [history, historySearch]);
 
@@ -622,31 +644,6 @@ export default function Dashboard() {
     improveAiModel,
   ]);
 
-  useEffect(() => {
-    const onMove = (e) => {
-      if (!sidebarDragRef.current.active) return;
-      const dx = e.clientX - sidebarDragRef.current.startX;
-      const w = Math.min(
-        440,
-        Math.max(176, sidebarDragRef.current.startW + dx),
-      );
-      setSidebarWidth(w);
-    };
-    const onUp = () => {
-      if (sidebarDragRef.current.active) {
-        sidebarDragRef.current.active = false;
-        document.body.classList.remove("no-select");
-      }
-    };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-      document.body.classList.remove("no-select");
-    };
-  }, []);
-
   const DEFAULT_2SLIDES_THEME_QUERY = "business";
 
   const loadImproveThemeList = useCallback(
@@ -917,16 +914,6 @@ export default function Dashboard() {
     }
   }
 
-  function onSidebarResizeStart(e) {
-    e.preventDefault();
-    sidebarDragRef.current = {
-      active: true,
-      startX: e.clientX,
-      startW: sidebarWidth,
-    };
-    document.body.classList.add("no-select");
-  }
-
   async function openDocFilePreview(doc, e) {
     e?.stopPropagation?.();
     e?.preventDefault?.();
@@ -1008,8 +995,13 @@ export default function Dashboard() {
             onHistorySearchChange={setHistorySearch}
             expandedHistory={expandedHistory}
             setExpandedHistory={setExpandedHistory}
-            onHistoryNavigate={(id) => {
-              router.push(`/summary/${id}`);
+            historyExpandTab={historyExpandTab}
+            setHistoryExpandTab={setHistoryExpandTab}
+            onHistoryNavigate={(id, sources) => {
+              const q = sources
+                ? `?sources=${encodeURIComponent(sources)}`
+                : "";
+              router.push(`/summary/${id}${q}`);
             }}
             timeAgo={timeAgo}
             prevLoading={prevLoading}
@@ -1030,11 +1022,8 @@ export default function Dashboard() {
             formatBytes={formatBytes}
           />
 
-          <div
-            className="splitter-v sidebar-splitter-desktop"
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize sidebar"
+          <SidebarResizeSplitter
+            className="sidebar-splitter-desktop"
             onMouseDown={onSidebarResizeStart}
           />
 

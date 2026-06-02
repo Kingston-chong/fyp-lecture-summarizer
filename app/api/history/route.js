@@ -53,6 +53,14 @@ export async function GET(req) {
               },
             },
           },
+          slideDecks: {
+            select: { id: true, title: true, provider: true, createdAt: true },
+            orderBy: { createdAt: "desc" },
+          },
+          quizSets: {
+            select: { id: true, title: true, createdAt: true },
+            orderBy: { createdAt: "desc" },
+          },
         },
       }),
       prisma.summary.count({ where: { userId: user.id } }),
@@ -69,6 +77,17 @@ export async function GET(req) {
         id: d.document.id,
         name: d.document.name,
         type: d.document.type,
+      })),
+      slideDecks: s.slideDecks.map((d) => ({
+        id: d.id,
+        title: d.title,
+        provider: d.provider,
+        createdAt: d.createdAt,
+      })),
+      quizzes: s.quizSets.map((q) => ({
+        id: q.id,
+        title: q.title,
+        createdAt: q.createdAt,
       })),
     }));
 
