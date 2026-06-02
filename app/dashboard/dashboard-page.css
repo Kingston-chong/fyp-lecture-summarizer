@@ -2339,6 +2339,7 @@ html[data-theme="light"] .template-card-desc {
   .app {
     height: auto;
     min-height: 100vh;
+    min-height: 100dvh;
   }
 
   .app .body {

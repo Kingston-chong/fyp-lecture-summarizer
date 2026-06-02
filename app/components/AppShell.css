@@ -224,16 +224,22 @@ body {
     background: var(--app-shell-chrome-mobile);
   }
   .shell {
+    height: 100vh;
     height: 100dvh;
     overflow: hidden;
     padding-top: var(--shell-chrome-top);
+    display: flex;
+    flex-direction: column;
   }
   .shell.shell--menu-open {
     overflow: hidden;
     overscroll-behavior: none;
   }
+  /* Flex fill avoids 100vh/100dvh mismatch when Android Chrome shows/hides the URL bar */
   .shell-content {
-    height: calc(100vh - var(--chrome-h));
+    flex: 1;
+    min-height: 0;
+    height: auto;
     overflow: hidden;
   }
   /* Dashboard (drawer sidebar): main column is tall; allow scroll so controls below the fold stay reachable */
@@ -318,9 +324,12 @@ body {
 /* Dashboard tablet: viewport-locked shell so 3-column panel grid can fill height */
 @media (min-width: 768px) and (max-width: 1319px) {
   .shell.shell--dashboard-mobile {
+    height: 100vh;
     height: 100dvh;
     overflow: hidden;
     padding-top: var(--shell-chrome-top);
+    display: flex;
+    flex-direction: column;
   }
   .shell.shell--dashboard-mobile .shell-chrome {
     position: fixed;
@@ -332,7 +341,9 @@ body {
     background: var(--app-shell-chrome-mobile);
   }
   .shell.shell--dashboard-mobile .shell-content {
-    height: calc(100dvh - var(--chrome-h));
+    flex: 1;
+    min-height: 0;
+    height: auto;
     overflow: hidden;
   }
   .shell.shell--dashboard-mobile .shell-main {
