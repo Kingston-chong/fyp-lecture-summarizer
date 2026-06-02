@@ -541,7 +541,7 @@ ${attachmentContext ? `\n\n--- Attached Sources (uploaded by user) ---\n${attach
     await prisma.chatMessage.deleteMany({
       where: { threadId, turn: assistantTurn },
     });
-    await prisma.chatMessage.create({
+    const regenRow = await prisma.chatMessage.create({
       data: {
         threadId,
         turn: assistantTurn,
@@ -549,6 +549,17 @@ ${attachmentContext ? `\n\n--- Attached Sources (uploaded by user) ---\n${attach
         content: finalReply,
         modelLabel,
       },
+      select: { id: true },
+    });
+    return NextResponse.json({
+      reply: finalReply,
+      webSearch: {
+        ...webSearch,
+        referencesRequested: wantsReferences,
+        referenceSearchAttempted,
+      },
+      sources: clientSources,
+      assistantMessageId: regenRow.id,
     });
   } else {
     const agg = await prisma.chatMessage.aggregate({
@@ -578,15 +589,23 @@ ${attachmentContext ? `\n\n--- Attached Sources (uploaded by user) ---\n${attach
         },
       ],
     });
+    const persisted = await prisma.chatMessage.findMany({
+      where: { threadId, turn: { in: [nextTurn, nextTurn + 1] } },
+      orderBy: { turn: "asc" },
+      select: { id: true, role: true },
+    });
+    const userRow = persisted.find((r) => r.role === "user");
+    const assistantRow = persisted.find((r) => r.role === "assistant");
+    return NextResponse.json({
+      reply: finalReply,
+      webSearch: {
+        ...webSearch,
+        referencesRequested: wantsReferences,
+        referenceSearchAttempted,
+      },
+      sources: clientSources,
+      userMessageId: userRow?.id ?? null,
+      assistantMessageId: assistantRow?.id ?? null,
+    });
   }
-
-  return NextResponse.json({
-    reply: finalReply,
-    webSearch: {
-      ...webSearch,
-      referencesRequested: wantsReferences,
-      referenceSearchAttempted,
-    },
-    sources: clientSources,
-  });
 });

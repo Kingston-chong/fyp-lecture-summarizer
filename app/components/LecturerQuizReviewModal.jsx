@@ -3,6 +3,8 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { CloseIcon, QuizIco } from "./icons";
 import "./LecturerQuizReviewModal.css";
+import QuizAttemptDetailModal from "@/app/summary/[id]/components/QuizAttemptDetailModal";
+import { formatSlideDeckSavedAt } from "@/app/summary/[id]/helpers";
 import {
   formatQuizMarkdown,
   formatQuizPlainText,
@@ -112,6 +114,12 @@ export default function LecturerQuizReviewModal({
   const [publishLoading, setPublishLoading] = useState(false);
   const [collectionLoading, setCollectionLoading] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
+
+  const [responsesLoading, setResponsesLoading] = useState(false);
+  const [responsesErr, setResponsesErr] = useState("");
+  const [attempts, setAttempts] = useState([]);
+  const [attemptQuestions, setAttemptQuestions] = useState([]);
+  const [attemptDetail, setAttemptDetail] = useState(null);
 
   useEffect(() => {
     setPublished(Boolean(quizSet?.published));
@@ -225,21 +233,81 @@ export default function LecturerQuizReviewModal({
 
   if (!quizSet) return null;
 
-  const listMode = tab === "answerKey" ? "answerKey" : "student";
+  const listMode = "answerKey";
+
+  const fetchResponses = useCallback(async () => {
+    if (!summaryId || !quizSet?.id) return;
+    setResponsesLoading(true);
+    setResponsesErr("");
+    try {
+      const res = await fetch(
+        `/api/summary/${summaryId}/quiz-sets/${quizSet.id}/attempts`,
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to load responses");
+      setAttempts(Array.isArray(data.attempts) ? data.attempts : []);
+      setAttemptQuestions(Array.isArray(data.questions) ? data.questions : []);
+    } catch (e) {
+      setAttempts([]);
+      setAttemptQuestions([]);
+      setResponsesErr(e?.message || "Failed to load responses");
+    } finally {
+      setResponsesLoading(false);
+    }
+  }, [summaryId, quizSet?.id]);
+
+  useEffect(() => {
+    if (tab !== "responses") return;
+    void fetchResponses();
+  }, [tab, fetchResponses]);
+
+  const openAttemptDetail = useCallback(
+    (attempt) => {
+      if (!attempt) return;
+      const answers =
+        attempt.answers && typeof attempt.answers === "object"
+          ? attempt.answers
+          : {};
+      const rows = attemptQuestions.map((q, idx) => {
+        const userAnswer = answers[String(idx)] ?? null;
+        const correctAnswer = q.answer ?? "";
+        return {
+          id: q.id ?? `${idx}`,
+          questionNumber: idx + 1,
+          question: q.question ?? "",
+          userAnswer,
+          correctAnswer,
+          explanation: q.explanation?.trim() || null,
+          isCorrect:
+            userAnswer != null &&
+            String(userAnswer).trim() === String(correctAnswer).trim(),
+        };
+      });
+      setAttemptDetail({
+        id: attempt.id,
+        createdAt: attempt.createdAt,
+        score: attempt.score,
+        totalQuestions: attempt.totalQuestions,
+        rows,
+      });
+    },
+    [attemptQuestions],
+  );
 
   return (
-    <div
-      className="sl-overlay lqr-overlay"
-      role="presentation"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
+    <>
       <div
-        className="sl-modal sl-modal--wide lqr-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="lqr-title"
-        onClick={(e) => e.stopPropagation()}
+        className="sl-overlay lqr-overlay"
+        role="presentation"
+        onClick={(e) => e.target === e.currentTarget && onClose()}
       >
+        <div
+          className="sl-modal sl-modal--wide lqr-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="lqr-title"
+          onClick={(e) => e.stopPropagation()}
+        >
         <div className="sl-head">
           <div>
             <div className="sl-title" id="lqr-title">
@@ -259,8 +327,8 @@ export default function LecturerQuizReviewModal({
 
         <div className="lqr-tabs">
           {[
-            { id: "questions", label: "Questions" },
             { id: "answerKey", label: "Answer key" },
+            { id: "responses", label: "Responses" },
             { id: "share", label: "Share" },
           ].map((t) => (
             <button
@@ -441,6 +509,113 @@ export default function LecturerQuizReviewModal({
                 </div>
               </div>
             </div>
+          ) : tab === "responses" ? (
+            <div className="lqr-share-card" style={{ marginBottom: 0 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
+                  marginBottom: 10,
+                }}
+              >
+                <div>
+                  <div className="lqr-share-title" style={{ marginBottom: 4 }}>
+                    Student responses
+                  </div>
+                  <div className="lqr-share-desc" style={{ marginBottom: 0 }}>
+                    {attempts.length === 0
+                      ? "No submissions yet."
+                      : `${attempts.length} submission(s) found.`}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="lqr-btn secondary"
+                  disabled={responsesLoading}
+                  onClick={() => void fetchResponses()}
+                >
+                  {responsesLoading ? "Loading…" : "Refresh"}
+                </button>
+              </div>
+
+              {responsesErr ? (
+                <div
+                  style={{
+                    marginTop: 8,
+                    fontSize: 12,
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(239,68,68,0.35)",
+                    background: "rgba(239,68,68,0.10)",
+                    color: "#fecaca",
+                  }}
+                >
+                  {responsesErr}
+                </div>
+              ) : null}
+
+              {responsesLoading && attempts.length === 0 ? (
+                <div style={{ opacity: 0.7, fontSize: 12, padding: "10px 2px" }}>
+                  Loading responses…
+                </div>
+              ) : attempts.length === 0 ? (
+                <div style={{ opacity: 0.65, fontSize: 12, padding: "10px 2px" }}>
+                  When students finish the quiz (while you’re collecting), their
+                  submissions will appear here.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {attempts.map((a) => {
+                    const label =
+                      a.respondentLabel ||
+                      a.user?.username ||
+                      a.user?.email ||
+                      "Student";
+                    const when = a.createdAt ? formatSlideDeckSavedAt(a.createdAt) : "";
+                    return (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => openAttemptDetail(a)}
+                        style={{
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "10px 12px",
+                          borderRadius: 10,
+                          border: "1px solid rgba(255,255,255,.10)",
+                          background: "rgba(255,255,255,.04)",
+                          color: "inherit",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: 10,
+                          }}
+                        >
+                          <div style={{ fontWeight: 700, fontSize: 12 }}>
+                            {label}
+                          </div>
+                          <div style={{ fontWeight: 700, fontSize: 12 }}>
+                            {a.score}/{a.totalQuestions}
+                          </div>
+                        </div>
+                        {when ? (
+                          <div style={{ marginTop: 4, fontSize: 11, opacity: 0.6 }}>
+                            {when}
+                          </div>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           ) : (
             questions.map((q, i) => (
               <QuestionCard key={q.id ?? i} q={q} idx={i} mode={listMode} />
@@ -458,7 +633,12 @@ export default function LecturerQuizReviewModal({
             Close
           </button>
         </div>
+        </div>
       </div>
-    </div>
+      <QuizAttemptDetailModal
+        detail={attemptDetail}
+        onClose={() => setAttemptDetail(null)}
+      />
+    </>
   );
 }

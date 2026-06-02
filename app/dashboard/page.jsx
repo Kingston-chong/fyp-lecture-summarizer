@@ -58,13 +58,11 @@ export default function Dashboard() {
   const [summaryOutput, setSummaryOutput] = useState(null); // latest result
   const [copied, setCopied] = useState(false);
 
-  const [expandedHistory, setExpandedHistory] = useState(null);
-  const [historyExpandTab, setHistoryExpandTab] = useState("files");
   const [sidebarSection, setSidebarSection] = useState({
     history: true,
     prev: true,
   });
-  const { sidebarWidth, onSidebarResizeStart } = useLeftSidebarResize(220);
+  const { sidebarWidth, onSidebarResizeStart } = useLeftSidebarResize(260);
 
   const [docPreviewOpen, setDocPreviewOpen] = useState(false);
   const [docPreviewDoc, setDocPreviewDoc] = useState(null);
@@ -993,10 +991,6 @@ export default function Dashboard() {
             history={filteredHistory}
             historySearch={historySearch}
             onHistorySearchChange={setHistorySearch}
-            expandedHistory={expandedHistory}
-            setExpandedHistory={setExpandedHistory}
-            historyExpandTab={historyExpandTab}
-            setHistoryExpandTab={setHistoryExpandTab}
             onHistoryNavigate={(id, sources) => {
               const q = sources
                 ? `?sources=${encodeURIComponent(sources)}`

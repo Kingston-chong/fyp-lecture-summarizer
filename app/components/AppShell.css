@@ -105,6 +105,32 @@ body {
   border-color: var(--app-btn-hover-border);
   color: var(--app-btn-hover-text);
 }
+.shell-sidebar-toggle-btn {
+  height: 32px;
+  width: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--app-btn-border);
+  background: var(--app-btn-bg);
+  color: var(--app-btn-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.shell-sidebar-toggle-btn:hover {
+  border-color: var(--app-btn-hover-border);
+  color: var(--app-btn-hover-text);
+}
+.shell-sidebar-toggle-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.18s ease;
+}
+.shell-sidebar-toggle-ico.collapsed {
+  transform: rotate(180deg);
+}
 @media (max-width: 639px) {
   .shell-greet {
     display: none;
@@ -116,6 +142,9 @@ body {
     padding: 0 8px;
     width: 32px;
     justify-content: center;
+  }
+  .shell-sidebar-toggle-btn {
+    display: none;
   }
 }
 
@@ -174,6 +203,14 @@ body {
   height: 100%;
   flex-shrink: 0;
   position: relative;
+  transition:
+    width 0.24s ease,
+    opacity 0.2s ease;
+}
+.shell--sidebar-collapsed .shell-sidebar-wrap:not(.sidebar-always-drawer) {
+  width: 0 !important;
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* Dashboard: drawer only, never a fixed column on wide screens */
@@ -371,6 +408,9 @@ body {
 @media (min-width: 1024px) {
   .shell:not(.shell--dashboard-mobile) .shell-menu-btn {
     display: none !important;
+  }
+  .shell--dashboard-mobile .shell-sidebar-toggle-btn {
+    display: none;
   }
 }
 

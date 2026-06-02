@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRequestUser } from "@/lib/apiAuth";
+import {
+  assertChatMessageOwnedBySummary,
+  normalizeHighlightContext,
+} from "@/lib/summaryHighlight";
 
 const MAX_QUOTE = 2000;
 
@@ -50,7 +54,14 @@ export async function GET(_req, ctx) {
     const rows = await prisma.summaryHighlight.findMany({
       where: { summaryId },
       orderBy: { createdAt: "desc" },
-      select: { id: true, quote: true, color: true, createdAt: true },
+      select: {
+        id: true,
+        context: true,
+        messageId: true,
+        quote: true,
+        color: true,
+        createdAt: true,
+      },
     });
 
     return NextResponse.json({ highlights: rows });
@@ -98,15 +109,55 @@ export async function POST(req, ctx) {
     }
 
     const color = normalizeHighlightColor(body?.color);
+    const context = normalizeHighlightContext(body?.context);
+    const messageIdRaw = body?.messageId;
+    const messageId =
+      messageIdRaw == null || messageIdRaw === ""
+        ? null
+        : Number(messageIdRaw);
+
+    if (context === "chat") {
+      if (!Number.isFinite(messageId)) {
+        return NextResponse.json(
+          { error: "messageId is required for chat highlights" },
+          { status: 400 },
+        );
+      }
+      const ok = await assertChatMessageOwnedBySummary(prisma, {
+        summaryId,
+        userId: user.id,
+        messageId,
+      });
+      if (!ok) {
+        return NextResponse.json(
+          { error: "Chat message not found" },
+          { status: 404 },
+        );
+      }
+    } else if (messageId != null && Number.isFinite(messageId)) {
+      return NextResponse.json(
+        { error: "messageId is only allowed for chat highlights" },
+        { status: 400 },
+      );
+    }
 
     const created = await prisma.summaryHighlight.create({
       data: {
         userId: user.id,
         summaryId,
+        context,
+        messageId: context === "chat" ? messageId : null,
         quote,
         color,
       },
-      select: { id: true, quote: true, color: true, createdAt: true },
+      select: {
+        id: true,
+        context: true,
+        messageId: true,
+        quote: true,
+        color: true,
+        createdAt: true,
+      },
     });
 
     return NextResponse.json({ highlight: created });

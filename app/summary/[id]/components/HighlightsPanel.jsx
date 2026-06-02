@@ -54,8 +54,8 @@ export default function HighlightsPanel({
         </div>
       ) : highlights.length === 0 && pendingHighlights.length === 0 ? (
         <div className="hl-empty">
-          Turn on the highlighter, pick a color, select text in the summary,
-          then save here.
+          Turn on the highlighter, pick a color, then select text in the summary
+          or chat replies. Save here when you are done.
         </div>
       ) : (
         <>
@@ -73,8 +73,13 @@ export default function HighlightsPanel({
               title={p.quote}
             >
               <span className="hl-color-dot" />
-              <div className="hl-quote">
-                {p.quote.length > 140 ? `${p.quote.slice(0, 140)}…` : p.quote}
+              <div className="hl-quote-wrap">
+                {p.context === "chat" && (
+                  <span className="hl-context-tag">Chat</span>
+                )}
+                <div className="hl-quote">
+                  {p.quote.length > 140 ? `${p.quote.slice(0, 140)}…` : p.quote}
+                </div>
               </div>
               <button
                 type="button"
@@ -103,8 +108,13 @@ export default function HighlightsPanel({
               title={h.quote}
             >
               <span className="hl-color-dot" />
-              <div className="hl-quote">
-                {h.quote.length > 140 ? `${h.quote.slice(0, 140)}…` : h.quote}
+              <div className="hl-quote-wrap">
+                {(h.context || "summary") === "chat" && (
+                  <span className="hl-context-tag">Chat</span>
+                )}
+                <div className="hl-quote">
+                  {h.quote.length > 140 ? `${h.quote.slice(0, 140)}…` : h.quote}
+                </div>
               </div>
               <button
                 type="button"

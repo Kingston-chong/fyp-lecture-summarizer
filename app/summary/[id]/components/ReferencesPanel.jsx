@@ -757,6 +757,7 @@ function ReferenceItem({
   style,
   isActive,
   isMutating,
+  isDeleting,
   canDelete,
   onSelect,
   onHover,
@@ -784,7 +785,7 @@ function ReferenceItem({
 
   return (
     <li
-      className={`rp-item ${isActive ? "active" : ""} ${isMutating ? "mutating" : ""}`}
+      className={`rp-item ${isActive ? "active" : ""} ${isMutating || isDeleting ? "mutating" : ""}`}
     >
       {missing.length > 0 && (
         <div
@@ -931,16 +932,25 @@ function ReferenceItem({
         {canDelete && (
           <button
             type="button"
-            className="rp-item-delete-btn"
-            title="Remove reference"
-            aria-label={`Remove reference ${reference.marker}`}
-            disabled={isMutating}
+            className={`rp-item-delete-btn${isDeleting ? " is-deleting" : ""}`}
+            title={isDeleting ? "Removing…" : "Remove reference"}
+            aria-label={
+              isDeleting
+                ? `Removing reference ${reference.marker}`
+                : `Remove reference ${reference.marker}`
+            }
+            aria-busy={isDeleting}
+            disabled={isMutating || isDeleting}
             onClick={(e) => {
               e.stopPropagation();
               onDelete(reference);
             }}
           >
-            <TrashIcon size={11} />
+            {isDeleting ? (
+              <span className="rp-item-delete-spinner" aria-hidden="true" />
+            ) : (
+              <TrashIcon size={11} />
+            )}
           </button>
         )}
       </div>
@@ -960,6 +970,7 @@ export default function ReferencesPanel({
   onUpdateReference, // (updatedRef) => void  — caller persists to API
   onJumpToAnchor,
   mutatingRefId = null,
+  deletingRefId = null,
   embedded = false,
 }) {
   const [citationStyle, setCitationStyle] = useState("apa");
@@ -1079,6 +1090,7 @@ export default function ReferencesPanel({
                 style={citationStyle}
                 isActive={activeMarker === ref.marker}
                 isMutating={mutatingRefId === ref.id}
+                isDeleting={deletingRefId === ref.id}
                 canDelete={canDelete}
                 onSelect={onSelectReference}
                 onHover={onMarkerHover}

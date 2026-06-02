@@ -114,13 +114,17 @@ model SummaryHighlight {
   id        Int      @id @default(autoincrement())
   userId    Int
   summaryId Int
+  context   String   @default("summary") @db.VarChar(16) // summary | chat
+  messageId Int?
   quote     String   @db.VarChar(2000)
   color     String   @default("#fef08a") @db.VarChar(16)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   summary   Summary  @relation(fields: [summaryId], references: [id], onDelete: Cascade)
+  message   ChatMessage? @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@index([summaryId])
+  @@index([messageId])
 }
 
 // Stores persistent chat turns for the "summary -> continue conversation" view.
@@ -150,7 +154,8 @@ model ChatMessage {
   modelLabel String?  @db.VarChar(32) // e.g. "ChatGPT" / "DeepSeek" / "Gemini" (assistant only)
   createdAt  DateTime @default(now())
 
-  thread ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  thread     ChatThread         @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  highlights SummaryHighlight[]
 
   @@index([threadId])
   @@unique([threadId, turn])

@@ -9,7 +9,7 @@ import AppSidebar from "./AppSidebar";
 import SidebarResizeSplitter from "./SidebarResizeSplitter";
 import ThemeToggle from "./ThemeToggle";
 import { useLeftSidebarResize } from "@/app/hooks/useLeftSidebarResize";
-import { ArrowLeftIcon, LogoutIcon, MenuIcon } from "./icons";
+import { ArrowLeftIcon, ChevRight, LogoutIcon, MenuIcon } from "./icons";
 import AppHeader from "./AppHeader";
 
 function UserAvatar({ name, size = 32 }) {
@@ -43,6 +43,7 @@ export default function AppShell({
   const { data: session } = useSession();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
   const userMenuRef = useRef(null);
   const prevPathnameRef = useRef(pathname);
 
@@ -117,7 +118,7 @@ export default function AppShell({
       <div
         className={`shell${showSidebar && mobileNavOpen ? " shell--menu-open" : ""}${
           sidebarMobileOnly ? " shell--dashboard-mobile" : ""
-        }`}
+        }${sidebarResizable && desktopSidebarCollapsed ? " shell--sidebar-collapsed" : ""}`}
       >
         <div className="shell-blobs">
           <div className="blob1" />
@@ -142,6 +143,28 @@ export default function AppShell({
             right={
               <>
                 <ThemeToggle />
+                {sidebarResizable && (
+                  <button
+                    type="button"
+                    className="shell-sidebar-toggle-btn"
+                    title={
+                      desktopSidebarCollapsed ? "Show sidebar" : "Hide sidebar"
+                    }
+                    aria-label={
+                      desktopSidebarCollapsed ? "Show sidebar" : "Hide sidebar"
+                    }
+                    aria-pressed={desktopSidebarCollapsed}
+                    onClick={() => setDesktopSidebarCollapsed((v) => !v)}
+                  >
+                    <span
+                      className={`shell-sidebar-toggle-ico${
+                        desktopSidebarCollapsed ? " collapsed" : ""
+                      }`}
+                    >
+                      <ChevRight />
+                    </span>
+                  </button>
+                )}
                 {displayName && (
                   <span className="shell-greet">
                     Hi, {displayName.split(" ")[0]}
@@ -239,6 +262,8 @@ export default function AppShell({
             <div
               className={`shell-sidebar-wrap ${mobileNavOpen ? "is-open" : ""}${
                 sidebarMobileOnly ? " sidebar-always-drawer" : ""
+              }${
+                sidebarResizable && desktopSidebarCollapsed ? " is-collapsed" : ""
               }`}
               style={
                 sidebarResizable
@@ -249,10 +274,11 @@ export default function AppShell({
               <AppSidebar
                 width={sidebarResizable ? sidebarWidth : 260}
                 hidePrevUploads={hidePrevUploads}
+                isCollapsed={sidebarResizable && desktopSidebarCollapsed}
               />
             </div>
           )}
-          {sidebarResizable && (
+          {sidebarResizable && !desktopSidebarCollapsed && (
             <SidebarResizeSplitter
               className="shell-sidebar-splitter"
               onMouseDown={onSidebarResizeStart}

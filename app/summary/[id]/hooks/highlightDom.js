@@ -34,15 +34,24 @@ function collectTextNodesInOrder(root) {
   return nodes;
 }
 
+function normalizeHighlightText(s) {
+  return String(s || "")
+    .normalize("NFKC")
+    .replace(/\u00a0/g, " ")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function findRangeForSubstring(root, quote) {
   if (!root || !quote) return null;
   const nodes = collectTextNodesInOrder(root);
   if (!nodes.length) return null;
-  const big = nodes
-    .map((node) => node.textContent ?? "")
-    .join("")
-    .replace(/\s+/g, " ");
-  const normalizedQuote = quote.replace(/\s+/g, " ").trim();
+  const big = normalizeHighlightText(
+    nodes.map((node) => node.textContent ?? "").join(""),
+  );
+  const normalizedQuote = normalizeHighlightText(quote);
+  if (!normalizedQuote) return null;
   const idx = big.indexOf(normalizedQuote);
   if (idx === -1) return null;
   const endIdx = idx + normalizedQuote.length;
@@ -71,6 +80,38 @@ function findRangeForSubstring(root, quote) {
   range.setStart(startNode, startOff);
   range.setEnd(endNode, endOff);
   return range;
+}
+
+export function canHighlightQuote(root, quote) {
+  if (!root || !quote) return false;
+  return findRangeForSubstring(root, quote) != null;
+}
+
+export function applyHighlightsToRoot(root, rows, defaultColorHex) {
+  const appliedIds = [];
+  const failedIds = [];
+  if (!root) return { appliedIds, failedIds };
+  unwrapHighlightMarks(root);
+  const sorted = [...rows].sort((a, b) => a.quote.length - b.quote.length);
+  for (const h of sorted) {
+    const c =
+      h.color && /^#[0-9a-f]{6}$/i.test(h.color)
+        ? h.color
+        : defaultColorHex;
+    const ok = wrapQuoteInRoot(root, h.quote, h.id, c, Boolean(h.pending));
+    if (ok) appliedIds.push(String(h.id));
+    else failedIds.push(String(h.id));
+  }
+  return { appliedIds, failedIds };
+}
+
+export function getChatHighlightRoot(messageId) {
+  if (messageId == null) return null;
+  const safe =
+    typeof CSS !== "undefined" && CSS.escape
+      ? CSS.escape(String(messageId))
+      : String(messageId).replace(/"/g, '\\"');
+  return document.querySelector(`[data-chat-hl-root="${safe}"]`);
 }
 
 export function wrapQuoteInRoot(root, quote, hlId, colorHex, pending) {

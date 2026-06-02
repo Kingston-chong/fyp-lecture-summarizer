@@ -1,8 +1,10 @@
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import "./HistorySummaryExpand.css";
-import { formatSlideDeckProviderLabel } from "@/app/summary/[id]/helpers";
-import { ChevronDownIcon, FileIcon } from "./icons";
+import HistorySummaryDetailsContent from "./HistorySummaryDetailsContent";
+import { ChevronDownIcon } from "./icons";
 
 export const HISTORY_EXPAND_TABS = ["files", "slideDecks", "quizzes"];
 
@@ -72,57 +74,168 @@ export function historyMatchesSearch(h, q) {
   return false;
 }
 
+const POPOVER_WIDTH = 288;
+const HOVER_OPEN_MS = 280;
+const HOVER_CLOSE_MS = 120;
+
+function computePopoverPosition(anchorRect) {
+  const pad = 12;
+  const maxH = Math.min(420, window.innerHeight - pad * 2);
+  let left = anchorRect.right + 10;
+  let top = anchorRect.top;
+
+  if (left + POPOVER_WIDTH > window.innerWidth - pad) {
+    left = anchorRect.left - POPOVER_WIDTH - 10;
+  }
+  if (left < pad) left = pad;
+
+  top = Math.max(pad, Math.min(top, window.innerHeight - maxH - pad));
+
+  return { left, top, maxHeight: maxH };
+}
+
 /**
- * Chevron + meta line + expandable tabs (files, slide decks, quizzes) for a history row.
+ * Meta chips + chevron; details in a hover / pinned popover (Canva-style).
  */
 export default function HistorySummaryExpand({
   summary,
   expanded,
-  expandTab,
   onToggleExpand,
-  onExpandTabChange,
   onNavigate,
   summarizeForLabel,
   timeAgoLabel,
   chevronClassName = "hist-expand-chev",
   metaClassName = "hist-expand-meta",
+  suppressPopover = false,
 }) {
-  const hasDetails = historyItemHasDetails(summary);
-  const tabs = HISTORY_EXPAND_TABS.filter((id) => {
-    if (id === "files") return (summary.files?.length ?? 0) > 0;
-    if (id === "slideDecks") return (summary.slideDecks?.length ?? 0) > 0;
-    if (id === "quizzes") return (summary.quizzes?.length ?? 0) > 0;
-    return false;
-  });
-  const activeTab = tabs.includes(expandTab)
-    ? expandTab
-    : tabs[0] || "files";
+  const hasAssets = historyItemHasDetails(summary);
+  const showPopover =
+    !suppressPopover && (hasAssets || Boolean(summarizeForLabel));
 
-  const tabLabels = {
-    files: "Files",
-    slideDecks: "Decks",
-    quizzes: "Quizzes",
+  const triggerRef = useRef(null);
+  const popoverRef = useRef(null);
+  const hoverOpenTimer = useRef(null);
+  const hoverCloseTimer = useRef(null);
+  const pointerInZone = useRef(false);
+
+  const [hoverOpen, setHoverOpen] = useState(false);
+  const [popoverStyle, setPopoverStyle] = useState(null);
+  const [portalTarget, setPortalTarget] = useState(null);
+
+  const pinnedOpen = Boolean(expanded);
+  const popoverVisible = showPopover && (pinnedOpen || hoverOpen);
+
+  useEffect(() => {
+    setPortalTarget(typeof document !== "undefined" ? document.body : null);
+  }, []);
+
+  const updatePosition = useCallback(() => {
+    const el = triggerRef.current;
+    if (!el) return;
+    setPopoverStyle(computePopoverPosition(el.getBoundingClientRect()));
+  }, []);
+
+  useEffect(() => {
+    if (!popoverVisible) return;
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [popoverVisible, updatePosition]);
+
+  const clearHoverTimers = useCallback(() => {
+    if (hoverOpenTimer.current) {
+      clearTimeout(hoverOpenTimer.current);
+      hoverOpenTimer.current = null;
+    }
+    if (hoverCloseTimer.current) {
+      clearTimeout(hoverCloseTimer.current);
+      hoverCloseTimer.current = null;
+    }
+  }, []);
+
+  const scheduleHoverOpen = useCallback(() => {
+    if (pinnedOpen || !showPopover) return;
+    clearHoverTimers();
+    hoverOpenTimer.current = setTimeout(() => {
+      if (pointerInZone.current) setHoverOpen(true);
+    }, HOVER_OPEN_MS);
+  }, [pinnedOpen, showPopover, clearHoverTimers]);
+
+  const scheduleHoverClose = useCallback(() => {
+    clearHoverTimers();
+    hoverCloseTimer.current = setTimeout(() => {
+      if (!pointerInZone.current && !pinnedOpen) setHoverOpen(false);
+    }, HOVER_CLOSE_MS);
+  }, [pinnedOpen, clearHoverTimers]);
+
+  useEffect(() => {
+    if (!pinnedOpen) return;
+    setHoverOpen(false);
+    clearHoverTimers();
+  }, [pinnedOpen, clearHoverTimers]);
+
+  useEffect(() => {
+    if (!pinnedOpen) return;
+    function onDocPointer(e) {
+      const t = e.target;
+      if (triggerRef.current?.contains(t)) return;
+      if (popoverRef.current?.contains(t)) return;
+      onToggleExpand?.();
+    }
+    document.addEventListener("pointerdown", onDocPointer);
+    return () => document.removeEventListener("pointerdown", onDocPointer);
+  }, [pinnedOpen, onToggleExpand]);
+
+  useEffect(() => () => clearHoverTimers(), [clearHoverTimers]);
+
+  const onZoneEnter = () => {
+    pointerInZone.current = true;
+    scheduleHoverOpen();
+  };
+
+  const onZoneLeave = () => {
+    pointerInZone.current = false;
+    scheduleHoverClose();
   };
 
   return (
     <>
       <div className="hist-expand-meta-row">
-        {hasDetails && (
+        {hasAssets && (
           <button
             type="button"
-            className={`${chevronClassName}${expanded ? " expanded" : ""}`}
-            aria-expanded={expanded}
-            aria-label={expanded ? "Hide details" : "Show files, decks, and quizzes"}
-            title={expanded ? "Hide details" : "Show files, decks, and quizzes"}
+            className={`${chevronClassName}${pinnedOpen ? " expanded" : ""}`}
+            aria-expanded={pinnedOpen}
+            aria-label={
+              pinnedOpen
+                ? "Close details"
+                : "Show files, decks, and quizzes"
+            }
+            title={
+              pinnedOpen
+                ? "Close details"
+                : "Show files, decks, and quizzes"
+            }
             onClick={(e) => {
               e.stopPropagation();
-              onToggleExpand();
+              onToggleExpand?.();
             }}
           >
             <ChevronDownIcon size={10} />
           </button>
         )}
-        <div className={metaClassName}>
+        <div
+          ref={triggerRef}
+          className={`hist-expand-meta-trigger${metaClassName ? ` ${metaClassName}` : ""}`}
+          onMouseEnter={showPopover ? onZoneEnter : undefined}
+          onMouseLeave={showPopover ? onZoneLeave : undefined}
+          onFocus={showPopover ? onZoneEnter : undefined}
+          onBlur={showPopover ? onZoneLeave : undefined}
+        >
           <span className="hist-expand-meta-chips">
             {(summary.files?.length ?? 0) > 0 && (
               <span className="hist-expand-count-chip hist-expand-count-chip--file">
@@ -144,94 +257,45 @@ export default function HistorySummaryExpand({
             )}
           </span>
           {summarizeForLabel ? (
-            <span className="hist-expand-meta-for"> · {summarizeForLabel}</span>
+            <span className="hist-expand-role-chip">{summarizeForLabel}</span>
           ) : null}
         </div>
       </div>
       {timeAgoLabel != null && (
         <div className="hist-expand-date">{timeAgoLabel}</div>
       )}
-      {expanded && hasDetails && (
-        <div className="hist-expand-panel" onClick={(e) => e.stopPropagation()}>
-          {tabs.length > 1 && (
-            <div className="hist-expand-tabs" role="tablist">
-              {tabs.map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={activeTab === id}
-                  className={`hist-expand-tab hist-expand-tab--${id}${activeTab === id ? " active" : ""}`}
-                  onClick={() => onExpandTabChange(id)}
-                >
-                  {tabLabels[id]}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="hist-expand-chips">
-            {activeTab === "files" &&
-              (summary.files || []).map((f) => (
-                <button
-                  type="button"
-                  key={f.id}
-                  className="hist-expand-chip hist-expand-chip--file"
-                  title={f.name}
-                  onClick={() => onNavigate(summary.id, "files")}
-                >
-                  <span className="hist-expand-chip-ico" aria-hidden>
-                    <FileIcon type={f.type} />
-                  </span>
-                  <span className="hist-expand-chip-label">{f.name}</span>
-                </button>
-              ))}
-            {activeTab === "slideDecks" &&
-              (summary.slideDecks || []).map((d) => {
-                const providerLabel = formatSlideDeckProviderLabel(d.provider);
-                return (
-                  <button
-                    type="button"
-                    key={d.id}
-                    className="hist-expand-chip hist-expand-chip--deck"
-                    title={
-                      providerLabel
-                        ? `${d.title} — ${providerLabel}`
-                        : d.title
-                    }
-                    onClick={() => onNavigate(summary.id, "slideDecks")}
-                  >
-                    <span className="hist-expand-chip-ico" aria-hidden>
-                      ▦
-                    </span>
-                    <span className="hist-expand-chip-text">
-                      <span className="hist-expand-chip-label">{d.title}</span>
-                      {providerLabel ? (
-                        <span className="hist-expand-chip-api">
-                          {providerLabel}
-                        </span>
-                      ) : null}
-                    </span>
-                  </button>
-                );
-              })}
-            {activeTab === "quizzes" &&
-              (summary.quizzes || []).map((q) => (
-                <button
-                  type="button"
-                  key={q.id}
-                  className="hist-expand-chip hist-expand-chip--quiz"
-                  title={q.title}
-                  onClick={() => onNavigate(summary.id, "quizzes")}
-                >
-                  <span className="hist-expand-chip-ico" aria-hidden>
-                    ?
-                  </span>
-                  <span className="hist-expand-chip-label">{q.title}</span>
-                </button>
-              ))}
-          </div>
-        </div>
-      )}
+
+      {portalTarget &&
+        popoverVisible &&
+        popoverStyle &&
+        createPortal(
+          <div
+            ref={popoverRef}
+            className="hist-details-popover"
+            style={{
+              position: "fixed",
+              left: popoverStyle.left,
+              top: popoverStyle.top,
+              width: POPOVER_WIDTH,
+              maxHeight: popoverStyle.maxHeight,
+              zIndex: 10025,
+            }}
+            role="dialog"
+            aria-label="Summary details"
+            onMouseEnter={onZoneEnter}
+            onMouseLeave={onZoneLeave}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <HistorySummaryDetailsContent
+              summary={summary}
+              summarizeForLabel={summarizeForLabel}
+              timeAgoLabel={timeAgoLabel}
+              onNavigate={onNavigate}
+              variant="popover"
+            />
+          </div>,
+          portalTarget,
+        )}
     </>
   );
 }

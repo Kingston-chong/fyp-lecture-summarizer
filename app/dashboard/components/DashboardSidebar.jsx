@@ -1,14 +1,15 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import {
   ChevronDownIcon,
+  DotsIcon,
   FileIcon,
   HistoryIcon,
   UploadIcon,
 } from "@/app/components/icons";
-import HistorySummaryExpand, {
-  defaultHistoryExpandTab,
-} from "@/app/components/HistorySummaryExpand";
+import HistorySummaryMenuPortal from "@/app/components/HistorySummaryMenuPortal";
+import { useActiveSummaryId } from "@/app/hooks/useActiveSummaryId";
 import { formatSummarizeForLabel } from "../helpers";
 
 export default function DashboardSidebar({
@@ -19,10 +20,6 @@ export default function DashboardSidebar({
   history,
   historySearch = "",
   onHistorySearchChange,
-  expandedHistory,
-  setExpandedHistory,
-  historyExpandTab,
-  setHistoryExpandTab,
   onHistoryNavigate,
   timeAgo,
   prevLoading,
@@ -42,6 +39,46 @@ export default function DashboardSidebar({
   handleRemoveDocument,
   formatBytes,
 }) {
+  const activeSummaryId = useActiveSummaryId();
+  const [historyMenu, setHistoryMenu] = useState(null);
+
+  const historyMenuSummary = useMemo(
+    () => (historyMenu ? history.find((x) => x.id === historyMenu.id) : null),
+    [history, historyMenu],
+  );
+
+  useEffect(() => {
+    if (!historyMenu) return;
+    const close = () => setHistoryMenu(null);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [historyMenu]);
+
+  useEffect(() => {
+    if (!historyMenu) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setHistoryMenu(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [historyMenu]);
+
+  useEffect(() => {
+    if (!historyMenu) return;
+    const onDown = (e) => {
+      const t = e.target;
+      if (t.closest?.(".hist-history-menu")) return;
+      if (t.closest?.(".history-dots")) return;
+      setHistoryMenu(null);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [historyMenu]);
+
   return (
     <aside className="sidebar" style={{ width: sidebarWidth }}>
       <div
@@ -84,7 +121,11 @@ export default function DashboardSidebar({
           history.map((h) => (
             <div key={h.id}>
               <div
-                className={`history-item ${expandedHistory === h.id ? "active" : ""}`}
+                className={`history-item${
+                  activeSummaryId != null && Number(h.id) === activeSummaryId
+                    ? " active"
+                    : ""
+                }${historyMenu?.id === h.id ? " menu-open" : ""}`}
                 role="button"
                 tabIndex={0}
                 onClick={() => onHistoryNavigate(h.id)}
@@ -95,28 +136,33 @@ export default function DashboardSidebar({
                   }
                 }}
               >
-                <div className="history-name" title={h.title}>
-                  {h.title}
+                <div className="history-row">
+                  <div className="history-name" title={h.title}>
+                    {h.title}
+                  </div>
+                  <button
+                    type="button"
+                    className="history-dots"
+                    title="Summary details"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const r = e.currentTarget.getBoundingClientRect();
+                      setHistoryMenu((prev) =>
+                        prev?.id === h.id
+                          ? null
+                          : {
+                              id: h.id,
+                              top: r.top,
+                              left: r.left,
+                              right: r.right,
+                              bottom: r.bottom,
+                            },
+                      );
+                    }}
+                  >
+                    <DotsIcon />
+                  </button>
                 </div>
-                <HistorySummaryExpand
-                  summary={h}
-                  expanded={expandedHistory === h.id}
-                  expandTab={historyExpandTab}
-                  onToggleExpand={() => {
-                    if (expandedHistory === h.id) {
-                      setExpandedHistory(null);
-                    } else {
-                      setExpandedHistory(h.id);
-                      setHistoryExpandTab(defaultHistoryExpandTab(h));
-                    }
-                  }}
-                  onExpandTabChange={setHistoryExpandTab}
-                  onNavigate={(id, sources) => onHistoryNavigate(id, sources)}
-                  summarizeForLabel={formatSummarizeForLabel(h.summarizeFor)}
-                  timeAgoLabel={timeAgo(h.createdAt)}
-                  chevronClassName="history-file-chev"
-                  metaClassName="history-meta"
-                />
               </div>
             </div>
           ))
@@ -284,6 +330,21 @@ export default function DashboardSidebar({
             })}
           </>
         ))}
+      {historyMenu && historyMenuSummary && (
+        <HistorySummaryMenuPortal
+          summary={historyMenuSummary}
+          anchor={historyMenu}
+          onClose={() => setHistoryMenu(null)}
+          onNavigate={(id, sources) => {
+            setHistoryMenu(null);
+            onHistoryNavigate(id, sources);
+          }}
+          summarizeForLabel={formatSummarizeForLabel(
+            historyMenuSummary.summarizeFor,
+          )}
+          timeAgoLabel={timeAgo(historyMenuSummary.createdAt)}
+        />
+      )}
     </aside>
   );
 }

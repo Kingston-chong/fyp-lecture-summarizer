@@ -7,6 +7,12 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  transition: width 0.22s ease;
+}
+.as-side.is-collapsed {
+  border-right: none;
+  overflow: hidden;
+  pointer-events: none;
 }
 .as-side::-webkit-scrollbar {
   width: 3px;
@@ -77,6 +83,37 @@
   font-size: 11px;
   color: rgba(255, 255, 255, 0.2);
 }
+.as-history-group {
+  padding-top: 2px;
+}
+.as-history-group + .as-history-group {
+  margin-top: 4px;
+}
+.as-history-group-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: rgba(255, 255, 255, 0.36);
+  padding: 6px 16px 3px;
+}
+.as-history-group-toggle {
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.as-history-group-toggle svg {
+  color: rgba(255, 255, 255, 0.38);
+  transition: transform 0.15s ease;
+}
+.as-history-group-toggle.folded svg {
+  transform: rotate(-90deg);
+}
 .as-spin {
   width: 12px;
   height: 12px;
@@ -92,18 +129,32 @@
 }
 
 .as-hi {
-  padding: 8px 16px;
+  padding: 7px 10px 7px 14px;
   cursor: pointer;
   transition: background 0.15s;
   position: relative;
   border-left: 2px solid transparent;
+  border-radius: 8px;
+  margin: 1px 8px;
 }
-.as-hi:hover {
-  background: rgba(255, 255, 255, 0.03);
+.as-hi:hover,
+.as-hi.menu-open {
+  background: rgba(255, 255, 255, 0.06);
 }
+
 .as-hi.act {
-  background: rgba(99, 102, 241, 0.08);
+  background: rgba(99, 102, 241, 0.12);
   border-left-color: #6366f1;
+}
+
+.as-hi.act .as-hname {
+  color: #e8e8ff;
+  font-weight: 600;
+}
+
+.as-hi.act:hover,
+.as-hi.act.menu-open {
+  background: rgba(99, 102, 241, 0.16);
 }
 .as-hrow {
   display: flex;
@@ -166,9 +217,9 @@
   margin-top: 1px;
 }
 .as-hdots {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
   border: none;
   background: transparent;
   color: rgba(255, 255, 255, 0.34);
@@ -177,6 +228,18 @@
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.12s ease,
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.as-hi:hover .as-hdots,
+.as-hi.menu-open .as-hdots {
+  opacity: 1;
+  pointer-events: auto;
 }
 .as-hdots:hover {
   background: rgba(255, 255, 255, 0.06);
@@ -380,10 +443,13 @@
   flex-direction: column;
   gap: 4px;
 }
-.as-history-menu-portal.as-menu {
+.as-history-menu-portal.as-menu,
+.hist-history-menu.as-menu {
   margin: 0;
-  min-width: 200px;
+  min-width: 280px;
   z-index: 10020;
+  overflow: visible;
+  max-height: none;
 }
 .as-menu-btn {
   width: 100%;
@@ -581,21 +647,42 @@ html[data-theme="light"] .as-empty {
 html[data-theme="light"] .as-loading {
   color: rgba(0, 0, 0, 0.45);
 }
+html[data-theme="light"] .as-history-group-title {
+  color: rgba(0, 0, 0, 0.52);
+}
+html[data-theme="light"] .as-history-group-toggle svg {
+  color: rgba(0, 0, 0, 0.5);
+}
 html[data-theme="light"] .as-spin {
   border-color: rgba(0, 0, 0, 0.12);
   border-top-color: #6366f1;
 }
-html[data-theme="light"] .as-hi:hover {
-  background: rgba(0, 0, 0, 0.04);
+html[data-theme="light"] .as-hi:hover,
+html[data-theme="light"] .as-hi.menu-open {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+html[data-theme="light"] .as-hi.act {
+  background: rgba(99, 102, 241, 0.12);
+  border-left-color: #6366f1;
+}
+
+html[data-theme="light"] .as-hi.act .as-hname {
+  color: #312e81;
+}
+
+html[data-theme="light"] .as-hi.act:hover,
+html[data-theme="light"] .as-hi.act.menu-open {
+  background: rgba(99, 102, 241, 0.16);
 }
 html[data-theme="light"] .as-hname {
   color: #111827;
 }
 html[data-theme="light"] .as-hmeta {
-  color: rgba(0, 0, 0, 0.45);
+  color: rgba(0, 0, 0, 0.58);
 }
 html[data-theme="light"] .as-hdate {
-  color: rgba(0, 0, 0, 0.38);
+  color: rgba(0, 0, 0, 0.5);
 }
 html[data-theme="light"] .as-hdots {
   color: rgba(0, 0, 0, 0.45);
@@ -612,7 +699,7 @@ html[data-theme="light"] .as-hfile-chev:hover {
   color: rgba(0, 0, 0, 0.65);
 }
 html[data-theme="light"] .as-hfile {
-  color: rgba(0, 0, 0, 0.45);
+  color: rgba(0, 0, 0, 0.62);
 }
 html[data-theme="light"] .as-pi:hover {
   background: rgba(0, 0, 0, 0.04);

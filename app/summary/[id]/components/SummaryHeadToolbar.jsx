@@ -1,6 +1,12 @@
 "use client";
 
-import { Chevron, CopyIco, HighlightIco } from "@/app/components/icons";
+import {
+  Chevron,
+  CopyIco,
+  HighlightIco,
+  SaveIco,
+  Spinner,
+} from "@/app/components/icons";
 import { HIGHLIGHT_PRESETS } from "../helpers";
 
 export default function SummaryHeadToolbar({
@@ -17,6 +23,9 @@ export default function SummaryHeadToolbar({
   hlToolbarRef,
   hlColorHex,
   onHlColorPick,
+  pendingHighlightsCount = 0,
+  hlSaving = false,
+  onSaveHighlights,
   onOpenMobileMore,
 }) {
   return (
@@ -37,7 +46,11 @@ export default function SummaryHeadToolbar({
           <CopyIco size={12} />
         )}
       </button>
-      <div className="sum-hl-wrap" ref={hlToolbarRef}>
+      <div
+        className="sum-hl-wrap"
+        ref={hlToolbarRef}
+        style={{ "--hl-pick": hlColorHex }}
+      >
         <button
           type="button"
           className={`sum-hl-main ${hlModeActive ? "on" : ""}`}
@@ -90,6 +103,24 @@ export default function SummaryHeadToolbar({
           </div>
         )}
       </div>
+      {pendingHighlightsCount > 0 && (
+        <button
+          type="button"
+          className="sum-hl-save-btn"
+          title={
+            hlSaving
+              ? "Saving highlights..."
+              : `Save ${pendingHighlightsCount} highlight(s)`
+          }
+          aria-label={`Save ${pendingHighlightsCount} pending highlights`}
+          onClick={onSaveHighlights}
+          disabled={summaryLoading || !hasSummaryOutput || hlSaving}
+          style={{ "--hl-pick": hlColorHex }}
+        >
+          {hlSaving ? <Spinner size={12} /> : <SaveIco size={12} />}
+          <span className="sum-hl-save-count">{pendingHighlightsCount}</span>
+        </button>
+      )}
       <button
         type="button"
         className="mob-more-btn"

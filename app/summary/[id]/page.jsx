@@ -44,7 +44,12 @@ import {
   parseNumericSummaryId,
   settingsFromQuizSet,
 } from "./helpers";
-import { unwrapHighlightMarks, wrapQuoteInRoot } from "./hooks/highlightDom";
+import {
+  applyHighlightsToRoot,
+  canHighlightQuote,
+  getChatHighlightRoot,
+  unwrapHighlightMarks,
+} from "./hooks/highlightDom";
 import ChatBubbleContent from "./components/ChatBubbleContent";
 import ChatSourcesList from "./components/ChatSourcesList";
 import ChatSelectionPopover from "./components/ChatSelectionPopover";
@@ -54,8 +59,6 @@ import SourcesSidebar from "./components/SourcesSidebar";
 import MobileMoreSheet from "./components/MobileMoreSheet";
 import MobileActionsSheet from "./components/MobileActionsSheet";
 import SummaryMobileToolbar from "./components/SummaryMobileToolbar";
-import SummaryHeaderFiles from "./components/SummaryHeaderFiles";
-import SummaryHighlightTags from "./components/SummaryHighlightTags";
 import { useSourcesPanelResize } from "./hooks/useSourcesPanelResize";
 import { isViewTokenUnavailableStatus } from "@/lib/viewTokenPreview";
 import { useSlideDecks } from "./hooks/useSlideDecks";
@@ -78,7 +81,6 @@ import {
   mapChatModelToApi,
   mergeChatDocumentIds,
 } from "./lib/chatApi";
-import { mergeSummarySourceFiles } from "./lib/sourceFiles";
 import { exportSummaryPdf } from "./lib/exportSummaryPdf";
 import {
   Chevron,
@@ -86,7 +88,6 @@ import {
   SendIco,
   CopyIco,
   RegenIco,
-  SaveIco,
   BotIco,
   UserIco,
   DocIco,
@@ -134,10 +135,6 @@ export default function SummaryView() {
   const [chatAttachedDocIds, setChatAttachedDocIds] = useState([]);
   const [pendingSourceFiles, setPendingSourceFiles] = useState([]); // { clientId, file, name, type }
 
-  const headerSourceFiles = useMemo(
-    () => mergeSummarySourceFiles(summary, extraSources),
-    [summary, extraSources],
-  );
   /** Pasted screenshots for the next chat send — { clientId, dataUrl } */
   const [pendingPasteImages, setPendingPasteImages] = useState([]);
   /** Temporary selected chat text waiting for explicit "Reply" click */
@@ -193,6 +190,7 @@ export default function SummaryView() {
   const [activeCitationMarker, setActiveCitationMarker] = useState(null);
   const [citationPreview, setCitationPreview] = useState(null);
   const [referenceMutatingId, setReferenceMutatingId] = useState(null);
+  const [referenceDeletingId, setReferenceDeletingId] = useState(null);
 
   const lecturerReferences = useMemo(() => {
     if (
@@ -421,6 +419,7 @@ export default function SummaryView() {
   }
 
   function handleChatBubbleMouseUp(e, message) {
+    if (message?.streaming) return;
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) return;
     const bubbleEl = e.currentTarget;
@@ -429,11 +428,51 @@ export default function SummaryView() {
     const startInside = bubbleEl.contains(range.startContainer);
     const endInside = bubbleEl.contains(range.endContainer);
     if (!startInside || !endInside) return;
+    const text = selection.toString().replace(/\s+/g, " ").trim();
+    if (!text || text.length > 2000) return;
+
+    if (hlModeActive) {
+      if (hlSaving) return;
+      const messageId = Number(message?.id);
+      if (!Number.isFinite(messageId) || messageId >= 1_000_000_000) return;
+      const hlRoot =
+        getChatHighlightRoot(messageId) ||
+        bubbleEl.querySelector("[data-chat-hl-root]");
+      if (!hlRoot || !canHighlightQuote(hlRoot, text)) return;
+      const clientId = `p-${crypto.randomUUID()}`;
+      setPendingHighlights((prev) => [
+        {
+          clientId,
+          quote: text,
+          color: hlColorHex,
+          context: "chat",
+          messageId,
+        },
+        ...prev,
+      ]);
+      window.getSelection()?.removeAllRanges();
+      return;
+    }
+
     openReplyPopoverFromSelection(selection, range, message?.id, {
       x: e?.clientX,
       y: e?.clientY,
     });
   }
+
+  const handleToggleHlMode = useCallback(() => {
+    setHlColorMenuOpen(false);
+    setHlModeActive((prev) => {
+      const next = !prev;
+      if (!next) {
+        setPendingHighlights([]);
+        if (typeof window !== "undefined") {
+          window.getSelection()?.removeAllRanges();
+        }
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (!chatSelectionDraft) return;
@@ -725,29 +764,85 @@ export default function SummaryView() {
 
   useLayoutEffect(() => {
     const root = summaryBodyRef.current;
-    if (!root || !summary?.output) return;
-    unwrapHighlightMarks(root);
-    const pendingRows = pendingHighlights.map((p) => ({
-      id: p.clientId,
-      quote: p.quote,
-      color: p.color,
-      pending: true,
-    }));
-    const savedRows = highlights.map((h) => ({
-      id: h.id,
-      quote: h.quote,
-      color: h.color,
-      pending: false,
-    }));
-    const sorted = [...pendingRows, ...savedRows].sort(
-      (a, b) => a.quote.length - b.quote.length,
-    );
-    for (const h of sorted) {
-      const c =
-        h.color && /^#[0-9a-f]{6}$/i.test(h.color) ? h.color : DEFAULT_HL_HEX;
-      wrapQuoteInRoot(root, h.quote, h.id, c, h.pending);
+    if (!root) return;
+    if (!summary?.output) {
+      unwrapHighlightMarks(root);
+      return;
     }
-  }, [summaryHtml, highlights, pendingHighlights]);
+    const pendingRows = pendingHighlights
+      .filter((p) => (p.context || "summary") === "summary")
+      .map((p) => ({
+        id: p.clientId,
+        quote: p.quote,
+        color: p.color,
+        pending: true,
+      }));
+    const savedRows = highlights
+      .filter((h) => (h.context || "summary") === "summary")
+      .map((h) => ({
+        id: h.id,
+        quote: h.quote,
+        color: h.color,
+        pending: false,
+      }));
+    const pendingIds = new Set(pendingRows.map((p) => String(p.id)));
+    const { failedIds } = applyHighlightsToRoot(
+      root,
+      [...pendingRows, ...savedRows],
+      DEFAULT_HL_HEX,
+    );
+    const failedPending = failedIds.filter((id) => pendingIds.has(id));
+    if (failedPending.length > 0) {
+      const drop = new Set(failedPending);
+      setPendingHighlights((prev) =>
+        prev.filter((p) => !drop.has(p.clientId)),
+      );
+    }
+  }, [summaryHtml, highlights, pendingHighlights, summary?.output]);
+
+  useLayoutEffect(() => {
+    const pendingRows = pendingHighlights
+      .filter((p) => p.context === "chat" && p.messageId != null)
+      .map((p) => ({
+        id: p.clientId,
+        quote: p.quote,
+        color: p.color,
+        pending: true,
+        messageId: p.messageId,
+      }));
+    const savedRows = highlights
+      .filter((h) => h.context === "chat" && h.messageId != null)
+      .map((h) => ({
+        id: h.id,
+        quote: h.quote,
+        color: h.color,
+        pending: false,
+        messageId: h.messageId,
+      }));
+    const allRows = [...pendingRows, ...savedRows];
+    const messageIds = new Set([
+      ...messages.map((m) => m.id),
+      ...allRows.map((r) => r.messageId),
+    ]);
+    const failedPending = new Set();
+    for (const messageId of messageIds) {
+      const root = getChatHighlightRoot(messageId);
+      if (!root) continue;
+      const rows = allRows.filter((r) => r.messageId === messageId);
+      const pendingIds = new Set(
+        rows.filter((r) => r.pending).map((r) => String(r.id)),
+      );
+      const { failedIds } = applyHighlightsToRoot(root, rows, DEFAULT_HL_HEX);
+      for (const id of failedIds) {
+        if (pendingIds.has(id)) failedPending.add(id);
+      }
+    }
+    if (failedPending.size > 0) {
+      setPendingHighlights((prev) =>
+        prev.filter((p) => !failedPending.has(p.clientId)),
+      );
+    }
+  }, [messages, highlights, pendingHighlights]);
 
   useEffect(() => {
     function onDocDown(e) {
@@ -947,7 +1042,7 @@ export default function SummaryView() {
         "Remove this entry from your reference list? It will disappear from the sidebar and the summary bibliography preview. Inline [n] markers in the saved summary text are unchanged until you edit the summary.",
       );
       if (!ok) return;
-      setReferenceMutatingId(ref.id);
+      setReferenceDeletingId(ref.id);
       try {
         const res = await fetch(
           `/api/summary/${summaryId}/references/${ref.id}`,
@@ -964,7 +1059,7 @@ export default function SummaryView() {
         setCitationPreview((p) => (p?.marker === ref.marker ? null : p));
         setActiveCitationMarker((m) => (m === ref.marker ? null : m));
       } finally {
-        setReferenceMutatingId(null);
+        setReferenceDeletingId(null);
       }
     },
     [summaryId],
@@ -1170,9 +1265,13 @@ export default function SummaryView() {
     modelLabel,
     webSearch = null,
     sources = null,
+    assistantMessageId = null,
   ) {
     const text = String(reply || "");
-    const msgId = Date.now() + 1;
+    const msgId =
+      assistantMessageId != null && Number.isFinite(Number(assistantMessageId))
+        ? Number(assistantMessageId)
+        : Date.now() + 1;
     const sourceList = Array.isArray(sources) ? sources : [];
     // One assistant bubble: loading dots live here until text replaces them.
     setChatLoading(false);
@@ -1334,7 +1433,20 @@ export default function SummaryView() {
           ? data.webSearch
           : null;
       const src = Array.isArray(data?.sources) ? data.sources : [];
-      await appendAssistantReplyGradually(reply, chatModel, ws, src);
+      const userMessageId = Number(data?.userMessageId);
+      const assistantMessageId = Number(data?.assistantMessageId);
+      if (Number.isFinite(userMessageId)) {
+        setMessages((p) =>
+          p.map((m) => (m.id === userMsg.id ? { ...m, id: userMessageId } : m)),
+        );
+      }
+      await appendAssistantReplyGradually(
+        reply,
+        chatModel,
+        ws,
+        src,
+        Number.isFinite(assistantMessageId) ? assistantMessageId : null,
+      );
     } catch (e) {
       setMessages((p) => [
         ...p,
@@ -1402,7 +1514,14 @@ export default function SummaryView() {
           ? data.webSearch
           : null;
       const src = Array.isArray(data?.sources) ? data.sources : [];
-      await appendAssistantReplyGradually(reply, chatModel, ws, src);
+      const assistantMessageId = Number(data?.assistantMessageId);
+      await appendAssistantReplyGradually(
+        reply,
+        chatModel,
+        ws,
+        src,
+        Number.isFinite(assistantMessageId) ? assistantMessageId : null,
+      );
     } catch (e) {
       setMessages((p) => [...p, removed]);
       setChatNotice(
@@ -1551,9 +1670,16 @@ export default function SummaryView() {
         return;
       }
       if (hlSaving) return;
+      if (!canHighlightQuote(root, text)) return;
       const clientId = `p-${crypto.randomUUID()}`;
       setPendingHighlights((prev) => [
-        { clientId, quote: text, color: hlColorHex },
+        {
+          clientId,
+          quote: text,
+          color: hlColorHex,
+          context: "summary",
+          messageId: null,
+        },
         ...prev,
       ]);
       window.getSelection()?.removeAllRanges();
@@ -1605,7 +1731,14 @@ export default function SummaryView() {
         const res = await fetch(`/api/summary/${summaryId}/highlights`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ quote: p.quote, color: p.color }),
+          body: JSON.stringify({
+            quote: p.quote,
+            color: p.color,
+            context: p.context || "summary",
+            ...(p.context === "chat" && p.messageId != null
+              ? { messageId: p.messageId }
+              : {}),
+          }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.highlight) {
@@ -1634,10 +1767,6 @@ export default function SummaryView() {
 
   function removePendingHighlight(clientId) {
     setPendingHighlights((prev) => prev.filter((p) => p.clientId !== clientId));
-  }
-
-  function clearAllPendingHighlights() {
-    setPendingHighlights([]);
   }
 
   async function deleteHighlight(hid) {
@@ -1767,13 +1896,8 @@ export default function SummaryView() {
                   <SummaryMobileToolbar
                     summaryLoading={summaryLoading}
                     hasSummaryOutput={Boolean(summary?.output)}
-                    summaryCopied={summaryCopied}
-                    onCopySummary={handleCopySummary}
                     hlModeActive={hlModeActive}
-                    onToggleHlMode={() => {
-                      setHlModeActive((v) => !v);
-                      setHlColorMenuOpen(false);
-                    }}
+                    onToggleHlMode={handleToggleHlMode}
                     hlColorMenuOpen={hlColorMenuOpen}
                     onToggleHlColorMenu={() => setHlColorMenuOpen((v) => !v)}
                     hlToolbarRef={hlToolbarRef}
@@ -1832,20 +1956,6 @@ export default function SummaryView() {
                         </span>
                       </div>
                       <div className="sum-tags-aside">
-                        <SummaryHighlightTags
-                          count={pendingHighlights.length}
-                          hlSaving={hlSaving}
-                          disabled={summaryLoading || !summary?.output}
-                          onSave={() => void flushPendingHighlights()}
-                          onCancel={clearAllPendingHighlights}
-                        />
-                        <SummaryHeaderFiles
-                          files={headerSourceFiles}
-                          className="sum-files sum-files--tags-row"
-                          asButton
-                          disabled={summaryLoading || !summary?.output}
-                          onFileClick={() => openMobileMore("files")}
-                        />
                       </div>
                     </div>
                   </div>
@@ -1857,10 +1967,7 @@ export default function SummaryView() {
                       summaryCopied={summaryCopied}
                       onCopySummary={handleCopySummary}
                       hlModeActive={hlModeActive}
-                      onToggleHlMode={() => {
-                        setHlModeActive((v) => !v);
-                        setHlColorMenuOpen(false);
-                      }}
+                      onToggleHlMode={handleToggleHlMode}
                       hlColorMenuOpen={hlColorMenuOpen}
                       onToggleHlColorMenu={() =>
                         setHlColorMenuOpen((v) => !v)
@@ -1872,9 +1979,11 @@ export default function SummaryView() {
                         setHlModeActive(true);
                         setHlColorMenuOpen(false);
                       }}
+                      pendingHighlightsCount={pendingHighlights.length}
+                      hlSaving={hlSaving}
+                      onSaveHighlights={() => void flushPendingHighlights()}
                       onOpenMobileMore={() => setMobileMoreOpen(true)}
                     />
-                    <SummaryHeaderFiles files={headerSourceFiles} />
                   </div>
                 </div>
 
@@ -1930,7 +2039,15 @@ export default function SummaryView() {
                       <div className="conv-label">
                         Continue the conversation
                       </div>
-                      <div className="chat-thread">
+                      <div
+                        className={`hl-select-ctx chat-hl-ctx${hlModeActive ? " hl-mode-active" : ""}`}
+                        style={
+                          hlModeActive
+                            ? { ["--hl-pick"]: hlColorHex }
+                            : undefined
+                        }
+                      >
+                        <div className="chat-thread">
                         {messages.map((m, i) => {
                           const showRegen =
                             m.role === "ai" &&
@@ -2025,7 +2142,10 @@ export default function SummaryView() {
                                         );
                                       }
                                       return (
-                                        <ChatBubbleContent mdSrc={mdSrc} />
+                                        <ChatBubbleContent
+                                          mdSrc={mdSrc}
+                                          messageId={m.id}
+                                        />
                                       );
                                     })()}
                                     {m.role === "ai" &&
@@ -2118,6 +2238,7 @@ export default function SummaryView() {
                               </div>
                             </div>
                           )}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -2555,6 +2676,7 @@ export default function SummaryView() {
                       onUpdateReference: handleUpdateSummaryReference,
                       onJumpToAnchor: scrollToId,
                       mutatingRefId: referenceMutatingId,
+                      deletingRefId: referenceDeletingId,
                     }
                   : null
               }
@@ -2715,6 +2837,7 @@ export default function SummaryView() {
                 onUpdateReference: handleUpdateSummaryReference,
                 onJumpToAnchor: scrollToId,
                 mutatingRefId: referenceMutatingId,
+                deletingRefId: referenceDeletingId,
               }
             : null
         }

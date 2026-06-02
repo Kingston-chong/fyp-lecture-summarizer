@@ -4,6 +4,7 @@ import "./AppSidebar.css";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import { useActiveSummaryId } from "@/app/hooks/useActiveSummaryId";
 import {
   ChevronDownIcon,
   DotsIcon,
@@ -15,10 +16,8 @@ import {
   UploadIcon,
 } from "./icons";
 import { formatSummarizeForLabel, timeAgo } from "@/app/dashboard/helpers";
-import HistorySummaryExpand, {
-  defaultHistoryExpandTab,
-  historyMatchesSearch,
-} from "@/app/components/HistorySummaryExpand";
+import { historyMatchesSearch } from "@/app/components/HistorySummaryExpand";
+import HistorySummaryMenuPortal from "@/app/components/HistorySummaryMenuPortal";
 
 function formatBytes(bytes) {
   if (!bytes) return "";
@@ -122,18 +121,21 @@ function SectionBullet({ level }) {
   return null;
 }
 
-export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
+export default function AppSidebar({
+  width = 260,
+  hidePrevUploads = false,
+  isCollapsed = false,
+}) {
   const router = useRouter();
+  const activeSummaryId = useActiveSummaryId();
   const [historyOpen, setHistoryOpen] = useState(true);
   const [prevOpen, setPrevOpen] = useState(true);
-  const [expandedHistory, setExpandedHistory] = useState(null);
-  const [historyExpandTab, setHistoryExpandTab] = useState("files");
-
   const [history, setHistory] = useState([]);
   const [historySearch, setHistorySearch] = useState("");
   const [prevUploads, setPrevUploads] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [prevLoading, setPrevLoading] = useState(true);
+  const [collapsedHistoryRoles, setCollapsedHistoryRoles] = useState({});
   const [removingDocId, setRemovingDocId] = useState(null);
   const [renamingId, setRenamingId] = useState(null);
   const [sections, setSections] = useState([]);
@@ -335,6 +337,35 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
     return history.filter((h) => historyMatchesSearch(h, q));
   }, [history, historySearch]);
 
+  const groupedHistory = useMemo(() => {
+    const roleOrder = ["lecturer", "student"];
+    const groups = new Map();
+    for (const item of filteredHistory) {
+      const rawRole = String(item?.summarizeFor || "").toLowerCase();
+      const role = rawRole || "other";
+      if (!groups.has(role)) groups.set(role, []);
+      groups.get(role).push(item);
+    }
+    const ordered = [
+      ...roleOrder.filter((role) => groups.has(role)),
+      ...Array.from(groups.keys())
+        .filter((role) => !roleOrder.includes(role))
+        .sort(),
+    ];
+    return ordered.map((role) => ({
+      role,
+      label: formatSummarizeForLabel(role),
+      items: groups.get(role) || [],
+    }));
+  }, [filteredHistory]);
+
+  function toggleHistoryRole(role) {
+    setCollapsedHistoryRoles((prev) => ({
+      ...prev,
+      [role]: !prev[role],
+    }));
+  }
+
   const historyMenuSummary = useMemo(
     () => (historyMenu ? history.find((x) => x.id === historyMenu.id) : null),
     [history, historyMenu],
@@ -356,9 +387,9 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
   return (
     <>
       <aside
-        className="as-side"
+        className={`as-side${isCollapsed ? " is-collapsed" : ""}`}
         aria-label="Sidebar"
-        style={{ "--as-side-width": `${width}px` }}
+        style={{ "--as-side-width": isCollapsed ? "0px" : `${width}px` }}
       >
         <div className="as-head" onClick={() => setHistoryOpen((v) => !v)}>
           <span className="as-title">
@@ -392,74 +423,73 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
           ) : filteredHistory.length === 0 ? (
             <div className="as-empty">No matches</div>
           ) : (
-            filteredHistory.map((h) => (
-              <div key={h.id}>
-                <div
-                  className={`as-hi ${expandedHistory === h.id ? "act" : ""}`}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openHistorySummary(h)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      openHistorySummary(h);
-                    }
-                  }}
+            groupedHistory.map((group) => (
+              <div key={group.role} className="as-history-group">
+                <button
+                  type="button"
+                  className={`as-history-group-title as-history-group-toggle${
+                    collapsedHistoryRoles[group.role] ? " folded" : ""
+                  }`}
+                  onClick={() => toggleHistoryRole(group.role)}
+                  aria-expanded={!collapsedHistoryRoles[group.role]}
                 >
-                  <div className="as-hrow">
-                    <div className="as-hname" title={h.title}>
-                      {h.title}
-                    </div>
-                    <button
-                      type="button"
-                      className="as-hdots"
-                      title="Options"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const r = e.currentTarget.getBoundingClientRect();
-                        setHistoryMenu((prev) =>
-                          prev?.id === h.id
-                            ? null
-                            : {
-                                id: h.id,
-                                bottom: r.bottom,
-                                right: r.right,
-                              },
-                        );
+                  <ChevronDownIcon size={11} />
+                  <span>{group.label}</span>
+                </button>
+                {!collapsedHistoryRoles[group.role] &&
+                  group.items.map((h) => (
+                  <div key={h.id}>
+                    <div
+                      className={`as-hi${
+                        activeSummaryId != null && Number(h.id) === activeSummaryId
+                          ? " act"
+                          : ""
+                      }${historyMenu?.id === h.id ? " menu-open" : ""}`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openHistorySummary(h)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          openHistorySummary(h);
+                        }
                       }}
                     >
-                      {renamingId === h.id ? (
-                        <span className="as-spin" />
-                      ) : (
-                        <DotsIcon />
-                      )}
-                    </button>
+                      <div className="as-hrow">
+                        <div className="as-hname" title={h.title}>
+                          {h.title}
+                        </div>
+                        <button
+                          type="button"
+                          className="as-hdots"
+                          title="Options"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const r = e.currentTarget.getBoundingClientRect();
+                            setHistoryMenu((prev) =>
+                              prev?.id === h.id
+                                ? null
+                                : {
+                                    id: h.id,
+                                    top: r.top,
+                                    left: r.left,
+                                    right: r.right,
+                                    bottom: r.bottom,
+                                  },
+                            );
+                          }}
+                        >
+                          {renamingId === h.id ? (
+                            <span className="as-spin" />
+                          ) : (
+                            <DotsIcon />
+                          )}
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <HistorySummaryExpand
-                    summary={h}
-                    expanded={expandedHistory === h.id}
-                    expandTab={historyExpandTab}
-                    onToggleExpand={() => {
-                      if (expandedHistory === h.id) {
-                        setExpandedHistory(null);
-                      } else {
-                        setExpandedHistory(h.id);
-                        setHistoryExpandTab(defaultHistoryExpandTab(h));
-                      }
-                    }}
-                    onExpandTabChange={setHistoryExpandTab}
-                    onNavigate={(id, sources) =>
-                      openHistorySummary({ id }, sources)
-                    }
-                    summarizeForLabel={formatSummarizeForLabel(
-                      h.summarizeFor,
-                    )}
-                    timeAgoLabel={timeAgo(h.createdAt)}
-                    chevronClassName="as-hfile-chev"
-                    metaClassName="as-hmeta"
-                  />
-                </div>
-            </div>
+                ))}
+              </div>
             ))
           ))}
 
@@ -542,68 +572,59 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
         )}
       </aside>
 
-      {portalTarget &&
-        historyMenu &&
-        historyMenuSummary &&
-        createPortal(
-          <div
-            className="as-menu as-history-menu-portal"
-            style={{
-              position: "fixed",
-              top: historyMenu.bottom + 6,
-              left:
-                Math.max(
-                  12,
-                  Math.min(
-                    historyMenu.right - 220,
-                    window.innerWidth - 220 - 12,
-                  ),
-                ) + historyMenuShiftRightPx,
+      {historyMenu && historyMenuSummary && (
+        <HistorySummaryMenuPortal
+          summary={historyMenuSummary}
+          anchor={historyMenu}
+          onClose={() => setHistoryMenu(null)}
+          onNavigate={(id, sources) => openHistorySummary({ id }, sources)}
+          summarizeForLabel={formatSummarizeForLabel(
+            historyMenuSummary.summarizeFor,
+          )}
+          timeAgoLabel={timeAgo(historyMenuSummary.createdAt)}
+          shiftRightPx={historyMenuShiftRightPx}
+        >
+          <button
+            type="button"
+            className="as-menu-btn"
+            onClick={() => {
+              setHistoryMenu(null);
+              openRenameModal(historyMenuSummary);
             }}
-            role="menu"
           >
-            <button
-              type="button"
-              className="as-menu-btn"
-              onClick={() => {
-                setHistoryMenu(null);
-                openRenameModal(historyMenuSummary);
-              }}
-            >
-              <span className="as-menu-ico">
-                <EditIcon size={16} />
-              </span>
-              Rename
-            </button>
-            <button
-              type="button"
-              className="as-menu-btn"
-              onClick={() => {
-                setHistoryMenu(null);
-                handleShareSummary(historyMenuSummary);
-              }}
-            >
-              <span className="as-menu-ico">
-                <ShareIcon size={16} />
-              </span>
-              Share
-            </button>
-            <button
-              type="button"
-              className="as-menu-btn danger"
-              onClick={() => {
-                setHistoryMenu(null);
-                handleDeleteSummary(historyMenuSummary);
-              }}
-            >
-              <span className="as-menu-ico">
-                <TrashIcon size={16} />
-              </span>
-              Delete
-            </button>
-          </div>,
-          portalTarget,
-        )}
+            <span className="as-menu-ico">
+              <EditIcon size={16} />
+            </span>
+            Rename
+          </button>
+          <button
+            type="button"
+            className="as-menu-btn"
+            onClick={() => {
+              setHistoryMenu(null);
+              handleShareSummary(historyMenuSummary);
+            }}
+          >
+            <span className="as-menu-ico">
+              <ShareIcon size={16} />
+            </span>
+            Share
+          </button>
+          <button
+            type="button"
+            className="as-menu-btn danger"
+            onClick={() => {
+              setHistoryMenu(null);
+              handleDeleteSummary(historyMenuSummary);
+            }}
+          >
+            <span className="as-menu-ico">
+              <TrashIcon size={16} />
+            </span>
+            Delete
+          </button>
+        </HistorySummaryMenuPortal>
+      )}
 
       {portalTarget &&
         renameModal &&

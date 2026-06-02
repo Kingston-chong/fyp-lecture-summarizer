@@ -447,6 +447,19 @@ html[data-theme="light"] .rp-abstract-display::-webkit-scrollbar-thumb {
   opacity: 0.35;
   cursor: not-allowed;
 }
+.rp-item-delete-btn.is-deleting:disabled {
+  opacity: 1;
+  cursor: wait;
+}
+.rp-item-delete-spinner {
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid rgba(248, 113, 113, 0.25);
+  border-top-color: #f87171;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
 
 /* ═══════════════════════════════════════════════════════════════
    Light-theme overrides
@@ -528,8 +541,21 @@ html[data-theme="light"] .rp-copy-all:hover:not(:disabled) {
   color: rgba(0, 0, 0, 0.75);
 }
 html[data-theme="light"] .rp-kind-paper {
-  background: rgba(79, 70, 229, 0.1);
-  color: #4f46e5;
+  background: rgba(79, 70, 229, 0.14);
+  border: 1px solid rgba(79, 70, 229, 0.28);
+  color: #3730a3;
+}
+
+html[data-theme="light"] .rp-kind-web {
+  background: rgba(5, 150, 105, 0.12);
+  border: 1px solid rgba(5, 150, 105, 0.28);
+  color: #047857;
+}
+
+html[data-theme="light"] .rp-kind-upload {
+  background: rgba(180, 83, 9, 0.12);
+  border: 1px solid rgba(180, 83, 9, 0.28);
+  color: #92400e;
 }
 
 /* ═══════════════════════════════════════════════════════════════

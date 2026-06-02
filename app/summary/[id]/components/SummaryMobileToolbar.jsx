@@ -4,20 +4,17 @@ import {
   ActionsMenuIco,
   Chevron,
   ChevronDownIcon,
-  CopyIco,
   DotsIcon,
   HighlightIco,
 } from "@/app/components/icons";
 import { HIGHLIGHT_PRESETS } from "../helpers";
 
 /**
- * Mobile summary toolbar: Copy, Highlight, More, Actions — uniform chips.
+ * Mobile summary toolbar: Highlight, More, Actions — uniform chips.
  */
 export default function SummaryMobileToolbar({
   summaryLoading,
   hasSummaryOutput,
-  summaryCopied,
-  onCopySummary,
   hlModeActive,
   onToggleHlMode,
   hlColorMenuOpen,
@@ -31,25 +28,11 @@ export default function SummaryMobileToolbar({
   return (
     <div className="sum-chrome-mobile-block">
     <div className="sum-chrome-toolbar sum-chrome-toolbar--fill sum-head-actions sum-head-actions--labeled">
-      <button
-        type="button"
-        className={`sum-chrome-chip sum-chrome-chip--copy ${summaryCopied ? "copied" : ""}`}
-        title={summaryCopied ? "Copied!" : "Copy summary"}
-        onClick={onCopySummary}
-        disabled={summaryLoading || !hasSummaryOutput}
-        aria-label="Copy summary"
+      <div
+        className="sum-chrome-chip-group sum-hl-wrap"
+        ref={hlToolbarRef}
+        style={{ "--hl-pick": hlColorHex }}
       >
-        {summaryCopied ? (
-          <span className="sum-chrome-chip-txt">Copied</span>
-        ) : (
-          <>
-            <CopyIco size={12} />
-            <span className="sum-chrome-chip-txt">Copy Summary</span>
-          </>
-        )}
-      </button>
-
-      <div className="sum-chrome-chip-group sum-hl-wrap" ref={hlToolbarRef}>
         <button
           type="button"
           className={`sum-chrome-chip sum-chrome-chip--hl sum-hl-main ${hlModeActive ? "on" : ""}`}
