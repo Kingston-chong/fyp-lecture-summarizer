@@ -67,7 +67,13 @@ import {
   downscaleImageFileToJpegDataUrl,
   MAX_CHAT_PASTE_IMAGES,
 } from "./lib/chatImages";
-import { chatMessageToApiPayload, mapChatModelToApi } from "./lib/chatApi";
+import {
+  buildAttachedFilesNotice,
+  chatMessageToApiPayload,
+  mapChatModelToApi,
+  mergeChatDocumentIds,
+} from "./lib/chatApi";
+import { mergeSummarySourceFiles } from "./lib/sourceFiles";
 import { exportSummaryPdf } from "./lib/exportSummaryPdf";
 import {
   Chevron,
@@ -123,7 +129,14 @@ export default function SummaryView() {
   const [aiChatSuggestions, setAiChatSuggestions] = useState([]);
   const [sourceUploadLoading, setSourceUploadLoading] = useState(false);
   const [extraSources, setExtraSources] = useState([]);
+  /** Document IDs attached in this chat session (includes re-attached summary sources). */
+  const [chatAttachedDocIds, setChatAttachedDocIds] = useState([]);
   const [pendingSourceFiles, setPendingSourceFiles] = useState([]); // { clientId, file, name, type }
+
+  const headerSourceFiles = useMemo(
+    () => mergeSummarySourceFiles(summary, extraSources),
+    [summary, extraSources],
+  );
   /** Pasted screenshots for the next chat send — { clientId, dataUrl } */
   const [pendingPasteImages, setPendingPasteImages] = useState([]);
   /** Temporary selected chat text waiting for explicit "Reply" click */
@@ -1193,9 +1206,19 @@ export default function SummaryView() {
             .map((r, i) => `${i + 1}. "${r.text}"`)
             .join("\n")}`
         : "";
-    const apiContent = referencesBlock
+    const stagedDocSnapshot = pendingSourceFiles.map((f) => ({
+      name: f.name,
+      type: f.type,
+    }));
+    const attachmentNotice = buildAttachedFilesNotice(stagedDocSnapshot);
+    let apiContent = referencesBlock
       ? `${referencesBlock}${msg ? `\n\nUser request: ${msg}` : ""}`
       : msg;
+    if (attachmentNotice) {
+      apiContent = apiContent
+        ? `${attachmentNotice}\n\n${apiContent}`
+        : attachmentNotice;
+    }
     if (
       (!msg &&
         refSnapshot.length === 0 &&
@@ -1223,10 +1246,6 @@ export default function SummaryView() {
     setChatSelectionDraft(null);
     setPendingChatReferences([]);
     const pasteSnapshot = pendingPasteImages.map((x) => x.dataUrl);
-    const stagedDocSnapshot = pendingSourceFiles.map((f) => ({
-      name: f.name,
-      type: f.type,
-    }));
     setPendingPasteImages([]);
     const userMsg = {
       id: Date.now(),
@@ -1246,12 +1265,23 @@ export default function SummaryView() {
     try {
       // Upload staged attachments right before sending (ChatGPT-like "upload on send").
       let nextExtraSources = extraSources;
+      let nextChatAttachedDocIds = chatAttachedDocIds;
       if (pendingSourceFiles.length > 0) {
         setSourceUploadLoading(true);
         try {
           const docs = await uploadDocumentsViaClient(
             pendingSourceFiles.map((p) => p.file),
           );
+          const uploadedIds = docs
+            .map((d) => d?.id)
+            .filter((id) => Number.isFinite(Number(id)))
+            .map((id) => Number(id));
+          nextChatAttachedDocIds = mergeChatDocumentIds(
+            chatAttachedDocIds,
+            uploadedIds,
+          );
+          setChatAttachedDocIds(nextChatAttachedDocIds);
+
           const baseIds = new Set(
             (summary?.files || []).map((d) => d?.id).filter(Boolean),
           );
@@ -1272,10 +1302,7 @@ export default function SummaryView() {
         }
       }
 
-      const attachedDocumentIds = nextExtraSources
-        .map((d) => d?.id)
-        .filter((id) => Number.isFinite(Number(id)))
-        .map((id) => Number(id));
+      const attachedDocumentIds = nextChatAttachedDocIds;
 
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -1344,11 +1371,6 @@ export default function SummaryView() {
     setMessages((p) => p.slice(0, -1));
     setChatLoading(true);
     try {
-      const attachedDocumentIds = extraSources
-        .map((d) => d?.id)
-        .filter((id) => Number.isFinite(Number(id)))
-        .map((id) => Number(id));
-
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1358,7 +1380,7 @@ export default function SummaryView() {
           modelLabel: chatModel,
           responseLength: chatResponseLength,
           messages: historyPayload,
-          documentIds: attachedDocumentIds,
+          documentIds: chatAttachedDocIds,
           regenerate: true,
           ...(isLecturerSummary ? { searchReferences } : {}),
         }),
@@ -1929,8 +1951,8 @@ export default function SummaryView() {
                       </button>
                     </div>
                     <div className="sum-files">
-                      {summary?.files?.map?.((f) => (
-                        <span key={f.id} className="fchip">
+                      {headerSourceFiles.map((f) => (
+                        <span key={f.id} className="fchip" title={f.name}>
                           <DocIco ext={f.type} />
                           {f.name}
                         </span>
@@ -2797,7 +2819,7 @@ export default function SummaryView() {
         />
       )}
 
-      {flashcardEditorSet && (
+      {flashcardEditorSet && !isLecturerSummary && (
         <FlashcardSetEditor
           flashcardSet={flashcardEditorSet}
           onClose={closeFlashcardSetEditor}

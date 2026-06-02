@@ -1,42 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDownIcon, CloseIcon, QuizIco } from "./icons";
+import { CloseIcon, QuizIco } from "./icons";
+import CustomSelect from "./CustomSelect";
+import "./CustomSelect.css";
 import "./QuizSettingsModal.css";
-
-// ─── Reusable Components ──────────────────────────────────
-function Dropdown({ value, onChange, options, width = 120 }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="qsm-dropdown" style={{ width }}>
-      <button
-        type="button"
-        className="qsm-dropdown-btn"
-        onClick={() => setOpen((v) => !v)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
-      >
-        {value} <ChevronDownIcon size={12} />
-      </button>
-      {open && (
-        <div className="qsm-dropdown-menu">
-          {options.map((o) => (
-            <div
-              key={o}
-              role="option"
-              className={`qsm-dropdown-item${value === o ? " qsm-dropdown-item--selected" : ""}`}
-              onMouseDown={() => {
-                onChange(o);
-                setOpen(false);
-              }}
-            >
-              {o}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function SectionHead({ children, className = "" }) {
   return (
@@ -185,7 +153,7 @@ export default function QuizSettingsModal({
         <div className="sl-body qsm-body">
           <div className="col-left">
             <SectionHead>AI Model Selection</SectionHead>
-            <Dropdown
+            <CustomSelect
               value={aiModel}
               onChange={setAiModel}
               options={["ChatGPT", "DeepSeek", "Gemini"]}
@@ -202,7 +170,7 @@ export default function QuizSettingsModal({
                 }
               />
             </div>
-            <Dropdown
+            <CustomSelect
               value={generationMode}
               onChange={setGenerationMode}
               options={["Strict", "Creative"]}

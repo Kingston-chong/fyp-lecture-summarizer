@@ -2,41 +2,9 @@
 
 import { useState } from "react";
 import { CloseIcon, Spinner } from "@/app/components/icons";
-import "@/app/components/GenerateSlidesModal.css";
+import CustomSelect from "@/app/components/CustomSelect";
+import "@/app/components/CustomSelect.css";
 import "@/app/components/QuizSettingsModal.css";
-
-function Dropdown({ value, onChange, options, width = 120 }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="qsm-dropdown" style={{ width }}>
-      <button
-        type="button"
-        className="qsm-dropdown-btn"
-        onClick={() => setOpen((v) => !v)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
-      >
-        {value} <span aria-hidden>▾</span>
-      </button>
-      {open && (
-        <div className="qsm-dropdown-menu">
-          {options.map((o) => (
-            <div
-              key={o}
-              role="option"
-              className={`qsm-dropdown-item${value === o ? " qsm-dropdown-item--selected" : ""}`}
-              onMouseDown={() => {
-                onChange(o);
-                setOpen(false);
-              }}
-            >
-              {o}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 const FOCUS_AREAS = [
   { id: "Key concepts", label: "Key concepts" },
@@ -115,7 +83,7 @@ export default function FlashcardGenerateModal({
 
         <div className="sl-body qsm-body">
           <div className="qsm-section-head">AI model</div>
-          <Dropdown
+          <CustomSelect
             value={aiModel}
             onChange={setAiModel}
             options={["ChatGPT", "DeepSeek", "Gemini"]}

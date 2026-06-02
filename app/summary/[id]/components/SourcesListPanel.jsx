@@ -1,6 +1,7 @@
 "use client";
 
 import { DocIco } from "@/app/components/icons";
+import { mergeSummarySourceFiles } from "../lib/sourceFiles";
 
 export default function SourcesListPanel({
   summary,
@@ -10,9 +11,7 @@ export default function SourcesListPanel({
   listClassName = "src-list",
   wrapInPanel = false,
 }) {
-  const base = summary?.files || [];
-  const extras = extraSources.filter((es) => !base.some((f) => f.id === es.id));
-  const all = [...base, ...extras];
+  const all = mergeSummarySourceFiles(summary, extraSources);
 
   const list = (
     <div

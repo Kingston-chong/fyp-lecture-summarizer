@@ -291,8 +291,60 @@ body {
   }
 }
 
-/* Dashboard below wide desktop: scrollable shell (match stacked panel layout) */
+/* Dashboard below wide desktop: drawer sidebar + menu (tablet + mobile) */
 @media (max-width: 1319px) {
+  .shell.shell--dashboard-mobile .shell-menu-btn {
+    display: flex;
+  }
+  .shell.shell--dashboard-mobile .shell-scrim.is-visible {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: var(--shell-chrome-top);
+    bottom: 0;
+    z-index: 110;
+    background: var(--app-scrim);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Dashboard tablet: viewport-locked shell so 3-column panel grid can fill height */
+@media (min-width: 768px) and (max-width: 1319px) {
+  .shell.shell--dashboard-mobile {
+    height: 100dvh;
+    overflow: hidden;
+    padding-top: var(--shell-chrome-top);
+  }
+  .shell.shell--dashboard-mobile .shell-chrome {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    padding-top: env(safe-area-inset-top, 0px);
+    background: var(--app-shell-chrome-mobile);
+  }
+  .shell.shell--dashboard-mobile .shell-content {
+    height: calc(100dvh - var(--chrome-h));
+    overflow: hidden;
+  }
+  .shell.shell--dashboard-mobile .shell-main {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/* Dashboard phone: page scroll + stacked panels */
+@media (max-width: 767px) {
   .shell.shell--dashboard-mobile .shell-content {
     overflow-x: hidden;
     overflow-y: auto;
@@ -306,7 +358,13 @@ body {
 }
 
 @media (min-width: 1024px) {
-  .shell-menu-btn {
+  .shell:not(.shell--dashboard-mobile) .shell-menu-btn {
+    display: none !important;
+  }
+}
+
+@media (min-width: 1320px) {
+  .shell.shell--dashboard-mobile .shell-menu-btn {
     display: none !important;
   }
 }

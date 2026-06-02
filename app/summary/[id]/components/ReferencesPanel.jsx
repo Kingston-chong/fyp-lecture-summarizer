@@ -3,6 +3,8 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { TrashIcon, Spinner } from "@/app/components/icons";
+import CustomSelect from "@/app/components/CustomSelect";
+import "@/app/components/CustomSelect.css";
 import { citationLetterForIndex } from "@/lib/referenceUtils";
 
 // ─── Citation style formatters ────────────────────────────────────────────────
@@ -350,16 +352,18 @@ function EditReferenceModal({
               <label className="rp-field-label" htmlFor="rp-edit-kind">
                 Source type
               </label>
-              <select
+              <CustomSelect
                 id="rp-edit-kind"
-                className="rp-field-input rp-field-select"
+                className="rp-custom-select"
                 value={draft.kind}
-                onChange={(e) => set("kind", e.target.value)}
-              >
-                <option value="paper">Academic paper</option>
-                <option value="web">Web / Online</option>
-                <option value="upload">Uploaded file</option>
-              </select>
+                onChange={(v) => set("kind", v)}
+                options={[
+                  { value: "paper", label: "Academic paper" },
+                  { value: "web", label: "Web / Online" },
+                  { value: "upload", label: "Uploaded file" },
+                ]}
+                menuZIndex={10050}
+              />
             </div>
           </div>
 

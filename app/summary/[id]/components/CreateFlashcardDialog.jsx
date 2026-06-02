@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { CloseIcon, Spinner, ChevronDownIcon } from "@/app/components/icons";
+import { CloseIcon, Spinner } from "@/app/components/icons";
+import CustomSelect from "@/app/components/CustomSelect";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
 import { NEW_SET_VALUE } from "../hooks/useFlashcardSets";
+import "@/app/components/CustomSelect.css";
 import "@/app/components/QuizSettingsModal.css";
 import "../flashcard-manual.css";
 
@@ -22,50 +24,6 @@ function shortenFlashcardSetLabel(title, maxLen = 34) {
     return `${prefix}${shortRest}`;
   }
   return `${t.slice(0, maxLen - 1)}…`;
-}
-
-function OptionDropdown({ value, onChange, options, disabled = false, title }) {
-  const [open, setOpen] = useState(false);
-  const selected = options.find((o) => o.value === value);
-  const label = selected?.label ?? value;
-
-  return (
-    <div
-      className={`qsm-dropdown fc-create-dropdown${open ? " fc-create-dropdown--open" : ""}`}
-    >
-      <button
-        type="button"
-        className="qsm-dropdown-btn"
-        disabled={disabled}
-        title={title ?? label}
-        onClick={() => !disabled && setOpen((v) => !v)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
-      >
-        <span className="fc-create-dropdown-label">{label}</span>
-        <span className="fc-create-dropdown-chevron" aria-hidden>
-          <ChevronDownIcon size={12} />
-        </span>
-      </button>
-      {open && !disabled && (
-        <div className="qsm-dropdown-menu">
-          {options.map((o) => (
-            <div
-              key={o.value}
-              role="option"
-              title={o.fullLabel ?? o.label}
-              className={`qsm-dropdown-item${value === o.value ? " qsm-dropdown-item--selected" : ""}`}
-              onMouseDown={() => {
-                onChange(o.value);
-                setOpen(false);
-              }}
-            >
-              {o.menuLabel ?? o.label}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
 }
 
 export default function CreateFlashcardDialog({
@@ -240,7 +198,8 @@ export default function CreateFlashcardDialog({
           <div className="fc-field-row">
             <div className="fc-field-cell fc-field-cell--grow">
               <label className="fc-field-label">Save in</label>
-              <OptionDropdown
+              <CustomSelect
+                className="fc-create-dropdown"
                 value={saveIn}
                 onChange={setSaveIn}
                 options={setOptions}
@@ -251,7 +210,8 @@ export default function CreateFlashcardDialog({
               <label className="fc-field-label">
                 At page{loadingMeta ? " …" : ""}
               </label>
-              <OptionDropdown
+              <CustomSelect
+                className="fc-create-dropdown"
                 value={atPage}
                 onChange={setAtPage}
                 options={pageOptions}

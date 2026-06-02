@@ -3,17 +3,9 @@
 import "./GenerateSlidesModal.css";
 import { useState, useRef, useEffect } from "react";
 import AlaiSlidesPreviewModal from "./AlaiSlidesPreviewModal";
-import {
-  CloseIco,
-  Divider,
-  FieldLabel,
-  SectionHead,
-  SlidesIco,
-  UploadCloudIco,
-} from "./generateSlides/ui.jsx";
+import { CloseIco, SlidesIco } from "./generateSlides/ui.jsx";
 import CreateSlidesForm from "./generateSlides/CreateSlidesForm.jsx";
 import { useTheme } from "./ThemeProvider";
-import { uploadDocumentViaClient } from "@/lib/clientDocumentUpload";
 
 // ─── Main Modal ───────────────────────────────────────────
 export default function GenerateSlidesModal({
@@ -28,62 +20,15 @@ export default function GenerateSlidesModal({
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
-  const pptxInputRef = useRef();
   /** Latest download action for the open Alai preview (fresh proxy vs saved blob) */
   const slideDownloadRef = useRef(null);
 
-  // ── Active tab: "create" | "improve" ──────────────────────────────────────
-  const [activeTab, setActiveTab] = useState("create");
-
-  // Improve existing PPT
-  const [improveFile, setImproveFile] = useState(null);
-  const [improveInstructions, setImproveInstructions] = useState("");
-  /** Parsed slide list from /api/improve-ppt/parse (no LLM). */
-  const [parsedSlides, setParsedSlides] = useState(null);
-  const [parseLoading, setParseLoading] = useState(false);
-  const [enableOcr, setEnableOcr] = useState(false);
-  /** Background LLM plan adjustments from /api/improve-ppt/plan (JSON). */
-  const [planAdjustments, setPlanAdjustments] = useState([]);
-  const [planLoading, setPlanLoading] = useState(false);
-  const [planError, setPlanError] = useState("");
-  const parseRequestIdRef = useRef(0);
-  const [improveGenLoading, setImproveGenLoading] = useState(false);
-  const [improveErr, setImproveErr] = useState("");
-  const [addStockImages, setAddStockImages] = useState(true);
-  /** When true (default), use neutral theme, skip extra cover slide, and prompt for additive changes */
-  const [additiveImprove, setAdditiveImprove] = useState(true);
-  const [improveDetailLevel, setImproveDetailLevel] = useState("lecture");
-  const [improveImgQuery, setImproveImgQuery] = useState("");
-  const [improveImgSearchLoading, setImproveImgSearchLoading] = useState(false);
-  const [improveImgResults, setImproveImgResults] = useState([]);
-  const [improveImgSearchHint, setImproveImgSearchHint] = useState("");
-  /** "unsplash" | "none" | null (unknown) */
-  const [improveImageProvider, setImproveImageProvider] = useState(null);
-  const [improveTargetSlide, setImproveTargetSlide] = useState(1);
-  /** @type {{ slideIndex: number; url: string; thumb?: string }[]} */
-  const [pickedUserImages, setPickedUserImages] = useState([]);
-  const [improvePasteUrl, setImprovePasteUrl] = useState("");
-  // slide theme finder
-  // 2slides theme search
-  const [themeQuery, setThemeQuery] = useState("");
-  const [themeSearchLoading, setThemeSearchLoading] = useState(false);
-  const [themeResults, setThemeResults] = useState([]); // each item now includes templateSpec
-  /** `q` that produced the current `themeResults` (used so spec fetch matches list order) */
-  const [themeResultsQuery, setThemeResultsQuery] = useState("");
   const [selectedThemeId, setSelectedThemeId] = useState(null);
-  const [selectedTemplateSpec, setSelectedTemplateSpec] = useState(null);
-  const [themeSearchErr, setThemeSearchErr] = useState("");
-  // Slide length & detail
   const [title, setTitle] = useState("");
   const [slideUserPrompt, setSlideUserPrompt] = useState("");
   const [slideLength, setSlideLength] = useState("Short (summary)");
   const [maxSlides, setMaxSlides] = useState("");
-
-  // AI model & processing
-  const [aiModel, setAiModel] = useState("Gemini");
   const [strictness, setStrictness] = useState("Strict");
-
-  // Content style
   const [textStyle, setTextStyle] = useState("Academic");
   const [bulletLimit, setBulletLimit] = useState("");
   const [highlightDefs, setHighlightDefs] = useState(() =>
@@ -101,13 +46,10 @@ export default function GenerateSlidesModal({
   const [alaiVibesLoading, setAlaiVibesLoading] = useState(false);
   const [imageIds, setImageIds] = useState([]);
   const [numImageVariants, setNumImageVariants] = useState(1);
-
-  // 2slides theme search (separate from improve-ppt theme search)
   const [twoSlidesThemes, setTwoSlidesThemes] = useState([]);
   const [twoSlidesThemesLoading, setTwoSlidesThemesLoading] = useState(false);
   const [twoSlidesThemesHint, setTwoSlidesThemesHint] = useState("");
   const [twoSlidesThemeQuery, setTwoSlidesThemeQuery] = useState("");
-  // 2slides output language
   const [responseLanguage, setResponseLanguage] = useState("Auto");
 
   const [generating, setGenerating] = useState(false);
@@ -115,7 +57,6 @@ export default function GenerateSlidesModal({
   const [generateProgress, setGenerateProgress] = useState("");
   const [alaiPreviewOpen, setAlaiPreviewOpen] = useState(false);
   const [alaiPreviewUrl, setAlaiPreviewUrl] = useState("");
-  const [alaiDownloadUrl, setAlaiDownloadUrl] = useState("");
   /** Alai signed PPTX URL — used for Office Web Viewer when no link preview exists */
   const [alaiRemotePptUrl, setAlaiRemotePptUrl] = useState("");
   const [lastGenerationId, setLastGenerationId] = useState("");
@@ -221,109 +162,7 @@ export default function GenerateSlidesModal({
     }
   }
 
-  function addPickedImageFromUrl(url, thumb) {
-    const u = String(url || "").trim();
-    if (!u.startsWith("http")) return;
-    const maxSlide = parsedSlides?.length || 1;
-    const slideIndex = Math.max(
-      1,
-      Math.min(Number(improveTargetSlide) || 1, maxSlide),
-    );
-    setPickedUserImages((prev) => {
-      const without = prev.filter((p) => p.slideIndex !== slideIndex);
-      const merged = [...without, { slideIndex, url: u, thumb: thumb || u }];
-      if (merged.length > 10) return prev;
-      return merged;
-    });
-  }
-
-  function removePickedImage(slideIndex) {
-    setPickedUserImages((prev) =>
-      prev.filter((p) => p.slideIndex !== slideIndex),
-    );
-  }
-  async function handleThemeSearch() {
-    const q = themeQuery.trim();
-    if (!q) return;
-    setThemeSearchLoading(true);
-    setThemeSearchErr("");
-    setThemeResults([]);
-    setThemeResultsQuery("");
-    setSelectedTemplateSpec(null);
-    try {
-      const res = await fetch(
-        `/api/improve-ppt/theme-search?q=${encodeURIComponent(q)}&model=${encodeURIComponent(aiModel)}`,
-      );
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Theme search failed");
-      const themes = Array.isArray(data.themes) ? data.themes : [];
-      // Attach the top result's templateSpec to the first theme entry
-      // (others will be fetched individually on click)
-      if (themes.length > 0 && data.templateSpec) {
-        themes[0]._templateSpec = data.templateSpec;
-      }
-      setThemeResults(themes);
-      setThemeResultsQuery(q);
-      setSelectedThemeId(themes[0]?.id ?? null);
-      if (data.templateSpec) setSelectedTemplateSpec(data.templateSpec);
-    } catch (e) {
-      setThemeSearchErr(e?.message || String(e));
-    } finally {
-      setThemeSearchLoading(false);
-    }
-  }
-
-  async function handleImproveImageSearch() {
-    const q = improveImgQuery.trim();
-    if (!q) return;
-    setImproveImgSearchLoading(true);
-    setImproveImgSearchHint("");
-    setImproveImgResults([]);
-    try {
-      const res = await fetch(
-        `/api/improve-ppt/image-search?q=${encodeURIComponent(q.slice(0, 200))}`,
-      );
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Search failed");
-      setImproveImgResults(Array.isArray(data.items) ? data.items : []);
-      setImproveImgSearchHint(String(data.hint || "").trim());
-      if (data.provider) setImproveImageProvider(data.provider);
-    } catch (e) {
-      setImproveImgSearchHint(e?.message || String(e));
-    } finally {
-      setImproveImgSearchLoading(false);
-    }
-  }
-
   useEffect(() => {
-    if (!parsedSlides?.length) {
-      setImproveImageProvider(null);
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await fetch("/api/improve-ppt/image-search");
-        const data = await res.json().catch(() => ({}));
-        if (!cancelled && res.ok && data.provider)
-          setImproveImageProvider(data.provider);
-      } catch {
-        /* ignore */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [parsedSlides]);
-
-  useEffect(() => {
-    // Planning is now on-demand (Build click), so invalidate old plan output on edits.
-    setPlanAdjustments([]);
-    setPlanError("");
-  }, [improveInstructions, aiModel]);
-
-  useEffect(() => {
-    // Only auto-load Alai themes on mount
     let cancelled = false;
     setAlaiThemesLoading(true);
     setAlaiThemesHint("");
@@ -433,34 +272,6 @@ export default function GenerateSlidesModal({
     };
   }, [provider]);
 
-  async function runImprovePlanNow() {
-    if (!parsedSlides?.length || !improveInstructions.trim()) return [];
-    setPlanLoading(true);
-    setPlanError("");
-    try {
-      const res = await fetch("/api/improve-ppt/plan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slides: parsedSlides,
-          instructions: improveInstructions.trim(),
-          model: aiModel,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Planning failed");
-      const adj = Array.isArray(data.adjustments) ? data.adjustments : [];
-      setPlanAdjustments(adj);
-      return adj;
-    } catch (e) {
-      setPlanError(e?.message || String(e));
-      setPlanAdjustments([]);
-      return [];
-    } finally {
-      setPlanLoading(false);
-    }
-  }
-
   async function handleCreate() {
     setGenerateErr("");
     setGenerateProgress("");
@@ -513,7 +324,6 @@ export default function GenerateSlidesModal({
       let exportWaitAttempts = 0;
       const MAX_EXPORT_WAIT_ATTEMPTS = 60;
 
-      // Poll for completion (2slides: ≥20s per API guidance; Alai: 3s)
       while (true) {
         const pollRes = await fetch(
           `/api/generate-slides/${genId}?provider=${encodeURIComponent(activeProvider)}`,
@@ -538,7 +348,6 @@ export default function GenerateSlidesModal({
 
         if (pollData.status === "completed" && hasArtifact) {
           setAlaiPreviewUrl(pollData.preview_url || "");
-          setAlaiDownloadUrl(pollData.download_url || "");
           setAlaiRemotePptUrl(pollData.remote_download_url || "");
           setFreshSlideDownload(pollData, activeProvider);
 
@@ -608,110 +417,13 @@ export default function GenerateSlidesModal({
     }
   }
 
-  async function handleImproveGenerate() {
-    setImproveErr("");
-    if (!parsedSlides?.length) {
-      setImproveErr(
-        "Upload a .pptx file and wait until slides finish loading.",
-      );
-      return;
-    }
-    if (!improveInstructions.trim()) {
-      setImproveErr("Describe what you want to improve.");
-      return;
-    }
-    setImproveGenLoading(true);
-    try {
-      // Plan starts only when Build is clicked, then generation follows.
-      const adjustmentsForBuild = await runImprovePlanNow();
-      const payload = {
-        instructions: improveInstructions.trim(),
-        model: aiModel,
-        slides: parsedSlides,
-        adjustments: adjustmentsForBuild,
-        addStockImages,
-        sourceName: improveFile?.name || "",
-        additiveImprove,
-        detailLevel: improveDetailLevel,
-        themeId: selectedThemeId || undefined,
-        templateSpec: selectedTemplateSpec ?? undefined,
-        userImageRefs: pickedUserImages.map((p) => ({
-          slideIndex: p.slideIndex,
-          url: p.url,
-        })),
-      };
-      const fd = new FormData();
-      if (improveFile) fd.append("file", improveFile);
-      fd.append("payload", JSON.stringify(payload));
-      const res = await fetch("/api/improve-ppt/generate", {
-        method: "POST",
-        body: fd,
-      });
-      if (!res.ok) {
-        let msg = "Generate failed";
-        try {
-          const err = await res.json();
-          if (err?.error) msg = err.error;
-        } catch {
-          /* ignore */
-        }
-        throw new Error(msg);
-      }
-      const pptxBlob = await res.blob();
-      const url = URL.createObjectURL(pptxBlob);
-      const a = document.createElement("a");
-      a.href = url;
-
-      // Prefer the filename suggested by the server.
-      const cd = res.headers.get("content-disposition") || "";
-      const match = cd.match(/filename="?([^"]+)"?/i);
-      const downloadName = match?.[1] || "improved-slides.pptx";
-      a.download = downloadName;
-      a.click();
-      URL.revokeObjectURL(url);
-
-      if (summaryId) {
-        try {
-          const saveTitle =
-            String(improveFile?.name || "")
-              .replace(/\.pptx$/i, "")
-              .trim() ||
-            title.trim() ||
-            "Improved slides";
-          const fd = new FormData();
-          fd.append("file", pptxBlob, downloadName);
-          fd.append("title", saveTitle.slice(0, 512));
-          const ar = await fetch(
-            `/api/summary/${summaryId}/slide-decks/upload`,
-            { method: "POST", body: fd },
-          );
-          const aj = await ar.json().catch(() => ({}));
-          if (ar.ok) {
-            onSlideDecksChanged?.();
-          } else if (aj?.error) {
-            setImproveErr(
-              `Could not save a copy to Slide decks: ${aj.error} (file was still downloaded).`,
-            );
-          }
-        } catch {
-          /* optional archive failed; download already succeeded */
-        }
-      }
-    } catch (e) {
-      setImproveErr(e.message || String(e));
-    } finally {
-      setImproveGenLoading(false);
-    }
-  }
-
   return (
     <>
       <div
-        className={`sl-overlay${isDark ? "" : " slides-modal-light"}`}
+        className={`sl-overlay slides-gen-overlay${isDark ? "" : " slides-modal-light"}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sl-modal">
-          {/* ── Header ── */}
           <div className="sl-head">
             <div className="sl-title">
               <SlidesIco /> Presentation Slides
@@ -721,458 +433,72 @@ export default function GenerateSlidesModal({
             </button>
           </div>
 
-          {/* ── Tabs ── */}
-          <div className="sl-tabs">
-            <button
-              type="button"
-              className={`sl-tab${activeTab === "create" ? " on" : ""}`}
-              onClick={() => setActiveTab("create")}
-            >
-              ✦ Create slides
-            </button>
-            <button
-              type="button"
-              className={`sl-tab${activeTab === "improve" ? " on" : ""}`}
-              onClick={() => setActiveTab("improve")}
-            >
-              ✎ Improve existing
-            </button>
+          <div className="sl-body slides-sl-body">
+            <CreateSlidesForm
+              provider={provider}
+              setProvider={setProvider}
+              quickInstructionPresets={quickInstructionPresets}
+              applyQuickInstruction={applyQuickInstruction}
+              slideUserPrompt={slideUserPrompt}
+              setSlideUserPrompt={setSlideUserPrompt}
+              title={title}
+              setTitle={setTitle}
+              slideLength={slideLength}
+              setSlideLength={setSlideLength}
+              maxSlides={maxSlides}
+              setMaxSlides={setMaxSlides}
+              strictness={strictness}
+              setStrictness={setStrictness}
+              textStyle={textStyle}
+              setTextStyle={setTextStyle}
+              bulletLimit={bulletLimit}
+              setBulletLimit={setBulletLimit}
+              highlightDefs={highlightDefs}
+              setHighlightDefs={setHighlightDefs}
+              boldKeywords={boldKeywords}
+              setBoldKeywords={setBoldKeywords}
+              speakerNotes={speakerNotes}
+              setSpeakerNotes={setSpeakerNotes}
+              generateErr={generateErr}
+              generateProgress={generateProgress}
+              archiveNote={archiveNote}
+              alaiThemes={alaiThemes}
+              alaiThemesLoading={alaiThemesLoading}
+              alaiThemesHint={alaiThemesHint}
+              selectedThemeId={selectedThemeId}
+              setSelectedThemeId={setSelectedThemeId}
+              imageStyle={imageStyle}
+              setImageStyle={setImageStyle}
+              alaiVibes={alaiVibes}
+              alaiVibesLoading={alaiVibesLoading}
+              selectedVibeId={selectedVibeId}
+              setSelectedVibeId={setSelectedVibeId}
+              imageIds={imageIds}
+              onImageIdsChange={setImageIds}
+              numImageVariants={numImageVariants}
+              onVariantsChange={setNumImageVariants}
+              twoSlidesThemes={twoSlidesThemes}
+              twoSlidesThemesLoading={twoSlidesThemesLoading}
+              twoSlidesThemesHint={twoSlidesThemesHint}
+              twoSlidesThemeQuery={twoSlidesThemeQuery}
+              setTwoSlidesThemeQuery={setTwoSlidesThemeQuery}
+              onTwoSlidesThemeSearch={handleTwoSlidesThemeSearch}
+              responseLanguage={responseLanguage}
+              setResponseLanguage={setResponseLanguage}
+            />
           </div>
 
-          {/* ── Scrollable body ── */}
-          {activeTab === "create" ? (
-            <>
-              <div className="sl-body slides-sl-body">
-                <CreateSlidesForm
-                  provider={provider}
-                  setProvider={setProvider}
-                  quickInstructionPresets={quickInstructionPresets}
-                  applyQuickInstruction={applyQuickInstruction}
-                  slideUserPrompt={slideUserPrompt}
-                  setSlideUserPrompt={setSlideUserPrompt}
-                  title={title}
-                  setTitle={setTitle}
-                  slideLength={slideLength}
-                  setSlideLength={setSlideLength}
-                  maxSlides={maxSlides}
-                  setMaxSlides={setMaxSlides}
-                  strictness={strictness}
-                  setStrictness={setStrictness}
-                  textStyle={textStyle}
-                  setTextStyle={setTextStyle}
-                  bulletLimit={bulletLimit}
-                  setBulletLimit={setBulletLimit}
-                  highlightDefs={highlightDefs}
-                  setHighlightDefs={setHighlightDefs}
-                  boldKeywords={boldKeywords}
-                  setBoldKeywords={setBoldKeywords}
-                  speakerNotes={speakerNotes}
-                  setSpeakerNotes={setSpeakerNotes}
-                  generateErr={generateErr}
-                  generateProgress={generateProgress}
-                  archiveNote={archiveNote}
-                  alaiThemes={alaiThemes}
-                  alaiThemesLoading={alaiThemesLoading}
-                  alaiThemesHint={alaiThemesHint}
-                  selectedThemeId={selectedThemeId}
-                  setSelectedThemeId={setSelectedThemeId}
-                  imageStyle={imageStyle}
-                  setImageStyle={setImageStyle}
-                  alaiVibes={alaiVibes}
-                  alaiVibesLoading={alaiVibesLoading}
-                  selectedVibeId={selectedVibeId}
-                  setSelectedVibeId={setSelectedVibeId}
-                  imageIds={imageIds}
-                  onImageIdsChange={setImageIds}
-                  numImageVariants={numImageVariants}
-                  onVariantsChange={setNumImageVariants}
-                  twoSlidesThemes={twoSlidesThemes}
-                  twoSlidesThemesLoading={twoSlidesThemesLoading}
-                  twoSlidesThemesHint={twoSlidesThemesHint}
-                  twoSlidesThemeQuery={twoSlidesThemeQuery}
-                  setTwoSlidesThemeQuery={setTwoSlidesThemeQuery}
-                  onTwoSlidesThemeSearch={handleTwoSlidesThemeSearch}
-                  responseLanguage={responseLanguage}
-                  setResponseLanguage={setResponseLanguage}
-                />
-              </div>
-              <div className="sl-foot">
-                <button
-                  type="button"
-                  className="btn-create"
-                  onClick={handleCreate}
-                  disabled={generating}
-                >
-                  {generating ? <div className="mini-spin" /> : <SlidesIco />}
-                  Generate {generating && generateProgress ? "" : "Slides"}
-                </button>
-              </div>
-            </>
-          ) : (
-            /* ── Improve existing PPTX tab (Alai only) ── */
-            <>
-              <div
-                className="sl-body"
-                style={{
-                  padding: "20px 24px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 16,
-                }}
-              >
-                {/* File upload */}
-                <div>
-                  <SectionHead>Upload your PPTX or PDF</SectionHead>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      marginTop: 6,
-                    }}
-                  >
-                    <input
-                      ref={pptxInputRef}
-                      type="file"
-                      accept=".pptx,.pdf"
-                      style={{ display: "none" }}
-                      onChange={(e) => {
-                        const f = e.target.files?.[0] || null;
-                        setImproveFile(f);
-                        setParsedSlides(null);
-                        setPlanAdjustments([]);
-                        if (f) {
-                          setParseLoading(true);
-                          void (async () => {
-                            try {
-                              const doc = await uploadDocumentViaClient(f);
-                              const res = await fetch(
-                                "/api/improve-ppt/parse",
-                                {
-                                  method: "POST",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  body: JSON.stringify({
-                                    documentId: doc.id,
-                                    ocr: enableOcr,
-                                    model: aiModel,
-                                  }),
-                                },
-                              );
-                              const d = await res.json().catch(() => ({}));
-                              if (res.ok && d?.slides) {
-                                setParsedSlides(d.slides);
-                                if (d.ocrWarning)
-                                  setImproveErr(String(d.ocrWarning));
-                              }
-                            } catch {
-                              /* ignore */
-                            } finally {
-                              setParseLoading(false);
-                            }
-                          })();
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="gs-pill on"
-                      onClick={() => pptxInputRef.current?.click()}
-                    >
-                      <UploadCloudIco /> Choose file
-                    </button>
-                    {improveFile ? (
-                      <span
-                        style={{
-                          fontSize: 12,
-                          color: "rgba(255,255,255,.6)",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {parseLoading
-                          ? enableOcr
-                            ? "Parsing slides (OCR)…"
-                            : "Parsing slides…"
-                          : `✓ ${improveFile.name}${parsedSlides ? ` · ${parsedSlides.length} slides` : ""}`}
-                      </span>
-                    ) : (
-                      <span
-                        style={{ fontSize: 12, color: "rgba(255,255,255,.3)" }}
-                      >
-                        .pptx or .pdf · max 50 MB
-                      </span>
-                    )}
-                  </div>
-                  <label
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: 8,
-                      marginTop: 10,
-                      cursor: "pointer",
-                      fontSize: 12,
-                      color: "rgba(255,255,255,.65)",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={enableOcr}
-                      onChange={(e) => setEnableOcr(e.target.checked)}
-                      style={{ marginTop: 2 }}
-                    />
-                    <span>
-                      Deep scan images (OCR) — slower; use ChatGPT or Gemini
-                    </span>
-                  </label>
-                </div>
-
-                {/* Instructions */}
-                <div>
-                  <SectionHead>What to improve</SectionHead>
-                  <textarea
-                    className="create-prompt-area"
-                    rows={3}
-                    maxLength={2000}
-                    placeholder='e.g. "Make slides more concise", "Add a worked example after each concept", "Use a professional dark theme"…'
-                    value={improveInstructions}
-                    onChange={(e) => setImproveInstructions(e.target.value)}
-                  />
-                  <div className="create-prompt-hint">
-                    {improveInstructions.length} / 2000
-                  </div>
-                </div>
-
-                {/* Two columns for options */}
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "16px 24px",
-                  }}
-                >
-                  {/* Left col */}
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 14,
-                    }}
-                  >
-                    <div>
-                      <SectionHead>Detail level</SectionHead>
-                      <div className="create-pill-row">
-                        {[
-                          { value: "concise", label: "Concise" },
-                          { value: "lecture", label: "Lecture" },
-                          { value: "deep", label: "Deep" },
-                        ].map((opt) => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            className={`gs-pill${improveDetailLevel === opt.value ? " on" : ""}`}
-                            onClick={() => setImproveDetailLevel(opt.value)}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                      <FieldLabel
-                        style={{
-                          marginTop: 4,
-                          fontSize: 10.5,
-                          color: "rgba(255,255,255,.3)",
-                        }}
-                      >
-                        {improveDetailLevel === "concise" &&
-                          "2+ bullets, brief notes"}
-                        {improveDetailLevel === "lecture" &&
-                          "3–6 bullets, 3–5 sentence notes"}
-                        {improveDetailLevel === "deep" &&
-                          "4–8 bullets, rich notes with examples"}
-                      </FieldLabel>
-                    </div>
-
-                    <div>
-                      <SectionHead>Edit mode</SectionHead>
-                      <div className="create-pill-row">
-                        <button
-                          type="button"
-                          className={`gs-pill${additiveImprove ? " on" : ""}`}
-                          onClick={() => setAdditiveImprove(true)}
-                        >
-                          Additive
-                        </button>
-                        <button
-                          type="button"
-                          className={`gs-pill${!additiveImprove ? " on" : ""}`}
-                          onClick={() => setAdditiveImprove(false)}
-                        >
-                          Full redesign
-                        </button>
-                      </div>
-                      <FieldLabel
-                        style={{
-                          marginTop: 4,
-                          fontSize: 10.5,
-                          color: "rgba(255,255,255,.3)",
-                        }}
-                      >
-                        {additiveImprove
-                          ? "Keeps all original content, adds new bullets marked →"
-                          : "AI may rewrite titles, bullets, and structure"}
-                      </FieldLabel>
-                    </div>
-
-                    <div>
-                      <SectionHead>AI model</SectionHead>
-                      <div className="create-pill-row">
-                        {["Gemini", "ChatGPT", "DeepSeek"].map((m) => (
-                          <button
-                            key={m}
-                            type="button"
-                            className={`gs-pill${aiModel === m ? " on" : ""}`}
-                            onClick={() => setAiModel(m)}
-                          >
-                            {m}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right col */}
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 14,
-                    }}
-                  >
-                    <div>
-                      <SectionHead>2slides theme (optional)</SectionHead>
-                      <div className="tag-hint" style={{ marginBottom: 6 }}>
-                        Search for a visual template to apply to the improved
-                        deck
-                      </div>
-                      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                        <input
-                          className="txt-inp"
-                          placeholder="e.g. academic, minimal…"
-                          value={themeQuery}
-                          onChange={(e) => setThemeQuery(e.target.value)}
-                          onKeyDown={(e) =>
-                            e.key === "Enter" && handleThemeSearch()
-                          }
-                          style={{ flex: 1 }}
-                        />
-                        <button
-                          type="button"
-                          className="gs-pill on"
-                          style={{ whiteSpace: "nowrap", padding: "0 10px" }}
-                          onClick={handleThemeSearch}
-                          disabled={themeSearchLoading}
-                        >
-                          {themeSearchLoading ? "…" : "Search"}
-                        </button>
-                      </div>
-                      {themeSearchErr && (
-                        <div className="tag-hint" style={{ color: "#f87171" }}>
-                          {themeSearchErr}
-                        </div>
-                      )}
-                      {themeResults.length > 0 && (
-                        <select
-                          className="txt-inp"
-                          value={selectedThemeId || ""}
-                          onChange={(e) => {
-                            const id = e.target.value;
-                            setSelectedThemeId(id || null);
-                            const found = themeResults.find(
-                              (t) => String(t?.id || t?.theme_id) === id,
-                            );
-                            setSelectedTemplateSpec(
-                              found?.templateSpec ?? null,
-                            );
-                          }}
-                          style={{ width: "100%", marginTop: 4 }}
-                        >
-                          <option value="">None (Alai picks design)</option>
-                          {themeResults.map((t) => {
-                            const id = String(t?.id || t?.theme_id || "");
-                            const label =
-                              String(t?.name || t?.title || "").trim() || id;
-                            return (
-                              <option key={id} value={id}>
-                                {label}
-                              </option>
-                            );
-                          })}
-                        </select>
-                      )}
-                    </div>
-
-                    <div>
-                      <SectionHead>Stock images</SectionHead>
-                      <label
-                        className="chk-row"
-                        onClick={() => setAddStockImages((v) => !v)}
-                      >
-                        <div
-                          className={`chk-box ${addStockImages ? "on" : ""}`}
-                        >
-                          {addStockImages ? (
-                            <span className="chk-tick">✓</span>
-                          ) : null}
-                        </div>
-                        Search and add stock images
-                      </label>
-                      <div className="tag-hint" style={{ marginTop: 4 }}>
-                        Alai finds relevant images from Unsplash
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Error / progress */}
-                {improveErr && <div className="improve-err">{improveErr}</div>}
-                {improveGenLoading && (
-                  <div className="gs-progress-bar-wrap">
-                    <div className="gs-progress-track">
-                      <div className="gs-progress-fill" />
-                    </div>
-                    <div className="gs-progress-label">
-                      <span className="gs-progress-dot" />
-                      Improving your slides with Alai…
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="sl-foot">
-                <button
-                  type="button"
-                  className="btn-create"
-                  onClick={handleImproveGenerate}
-                  disabled={
-                    improveGenLoading ||
-                    !improveFile ||
-                    !improveInstructions.trim()
-                  }
-                >
-                  {improveGenLoading ? (
-                    <div className="mini-spin" />
-                  ) : (
-                    <SlidesIco />
-                  )}
-                  {improveGenLoading ? "Improving…" : "Improve Slides"}
-                </button>
-              </div>
-            </>
-          )}
+          <div className="sl-foot">
+            <button
+              type="button"
+              className="btn-create"
+              onClick={handleCreate}
+              disabled={generating}
+            >
+              {generating ? <div className="mini-spin" /> : <SlidesIco />}
+              Generate {generating && generateProgress ? "" : "Slides"}
+            </button>
+          </div>
         </div>
       </div>
 

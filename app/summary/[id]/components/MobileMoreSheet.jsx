@@ -24,8 +24,9 @@ export default function MobileMoreSheet({
   if (!open) return null;
 
   const refCount = referencesProps?.references?.length ?? 0;
+  const isLecturer = summary?.summarizeFor === "lecturer";
   const showReferences =
-    summary?.summarizeFor === "lecturer" &&
+    isLecturer &&
     referencesProps != null &&
     (referencesProps.loading || refCount > 0);
   const baseFiles = summary?.files || [];
@@ -143,34 +144,36 @@ export default function MobileMoreSheet({
             />
           </CollapsibleSidebarSection>
 
-          <CollapsibleSidebarSection
-            id="flashcards"
-            title="Flashcards"
-            badge={flashcardCount || null}
-            defaultOpen={false}
-            actions={
-              <button
-                type="button"
-                className="sd-refresh-btn"
-                title="Refresh saved flashcards"
-                disabled={flashcardSetsProps?.flashcardSetsLoading}
-                onClick={flashcardSetsProps?.onRefresh}
-              >
-                {flashcardSetsProps?.flashcardSetsLoading ? (
-                  <Spinner size={11} />
-                ) : (
-                  "↻"
-                )}
-              </button>
-            }
-          >
-            <FlashcardsPanel
-              {...flashcardSetsProps}
-              embedded
-              panelClassName="hl-panel sd-panel hl-panel--embedded"
-              showHelpText={false}
-            />
-          </CollapsibleSidebarSection>
+          {!isLecturer && (
+            <CollapsibleSidebarSection
+              id="flashcards"
+              title="Flashcards"
+              badge={flashcardCount || null}
+              defaultOpen={false}
+              actions={
+                <button
+                  type="button"
+                  className="sd-refresh-btn"
+                  title="Refresh saved flashcards"
+                  disabled={flashcardSetsProps?.flashcardSetsLoading}
+                  onClick={flashcardSetsProps?.onRefresh}
+                >
+                  {flashcardSetsProps?.flashcardSetsLoading ? (
+                    <Spinner size={11} />
+                  ) : (
+                    "↻"
+                  )}
+                </button>
+              }
+            >
+              <FlashcardsPanel
+                {...flashcardSetsProps}
+                embedded
+                panelClassName="hl-panel sd-panel hl-panel--embedded"
+                showHelpText={false}
+              />
+            </CollapsibleSidebarSection>
+          )}
 
           <CollapsibleSidebarSection
             id="highlights"

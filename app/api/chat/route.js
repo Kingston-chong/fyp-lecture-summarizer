@@ -359,6 +359,8 @@ QUICK REPLY MODE (highest priority — overrides other length or depth rules):
   } = {}) => `You are a helpful assistant for Slide2Notes. The user is discussing a generated lecture/document summary.
 Audience mode: ${summarizeRole}.
 ${quickModeBlock}
+When the user attaches documents in chat, their full extracted text appears in the "Attached Sources" section below — treat that as readable content; do not ask them to re-upload, paste, or screenshot the file.
+
 The user may paste screenshots or diagrams into the chat; use what you see together with the summary when it is relevant.
 
 Use the summary below as the authoritative source for what appears in their materials. Answer clearly in markdown when formatting helps.

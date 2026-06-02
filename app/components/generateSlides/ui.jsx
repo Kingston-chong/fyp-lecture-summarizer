@@ -19,10 +19,10 @@ export const CloseIco = () => (
   </svg>
 );
 
-export const UploadCloudIco = () => (
+export const UploadCloudIco = ({ size = 36 }) => (
   <svg
-    width="36"
-    height="36"
+    width={size}
+    height={size}
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -325,8 +325,16 @@ export function FieldLabel({ children, style }) {
   );
 }
 
-export const Divider = () => (
-  <div
-    style={{ height: 1, background: "rgba(255,255,255,.07)", margin: "16px 0" }}
-  />
-);
+export function Divider() {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  return (
+    <div
+      style={{
+        height: 1,
+        background: isDark ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.08)",
+        margin: "16px 0",
+      }}
+    />
+  );
+}

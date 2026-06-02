@@ -71,13 +71,16 @@ export default function AppShell({
   }, [pathname, mobileNavOpen]);
 
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 1023px)");
+    const query = sidebarMobileOnly
+      ? "(max-width: 1319px)"
+      : "(max-width: 1023px)";
+    const mq = window.matchMedia(query);
     const onChange = () => {
       if (!mq.matches) setMobileNavOpen(false);
     };
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
-  }, []);
+  }, [sidebarMobileOnly]);
 
   useEffect(() => {
     if (!mobileNavOpen) return;

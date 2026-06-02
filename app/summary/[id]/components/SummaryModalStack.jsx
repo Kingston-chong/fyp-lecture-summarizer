@@ -118,7 +118,7 @@ export default function SummaryModalStack({
         />
       )}
 
-      {flashcardModal && (
+      {flashcardModal && !isLecturer && (
         <FlashcardGenerateModal
           summaryId={numericSummaryId ?? summaryId}
           onClose={() => setFlashcardModal(false)}
@@ -131,7 +131,7 @@ export default function SummaryModalStack({
         />
       )}
 
-      {flashcardView && flashcardData && (
+      {flashcardView && flashcardData && !isLecturer && (
         <FlashcardStudyView
           key={flashcardData.id}
           flashcardSet={flashcardData}

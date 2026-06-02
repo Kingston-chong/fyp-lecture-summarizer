@@ -853,7 +853,7 @@
   font-family: "Fraunces", serif;
   font-size: 14.5px;
   font-weight: 600;
-  color: #ddddf0;
+  color: var(--sum-title);
   letter-spacing: 0;
 }
 .sum-head-title-btn {
@@ -868,7 +868,7 @@
   font-family: "Fraunces", serif;
   font-size: 14.5px;
   font-weight: 600;
-  color: #ddddf0;
+  color: var(--sum-title);
   letter-spacing: 0;
   line-height: 1.35;
   white-space: nowrap;
@@ -898,7 +898,7 @@
   font-family: "Fraunces", serif;
   font-size: 14.5px;
   font-weight: 600;
-  color: #ddddf0;
+  color: var(--sum-title);
   letter-spacing: 0;
   line-height: 1.35;
   outline: none;
@@ -1154,7 +1154,7 @@
   font-family: "Fraunces", serif;
   font-size: 14.5px;
   font-weight: 600;
-  color: #ddddf0;
+  color: var(--sum-title);
   letter-spacing: 0;
   line-height: 1.35;
   white-space: nowrap;
@@ -1186,7 +1186,7 @@
   font-family: "Fraunces", serif;
   font-size: 14.5px;
   font-weight: 600;
-  color: #ddddf0;
+  color: var(--sum-title);
   letter-spacing: 0;
   line-height: 1.35;
   outline: none;
@@ -1217,7 +1217,7 @@
 .sum-text {
   font-size: 13.5px;
   font-weight: 400;
-  color: #c8c8e0;
+  color: var(--sum-text);
   line-height: 1.8;
   font-family:
     "Sora",
@@ -1321,12 +1321,13 @@
 }
 
 .sum-selectable ::selection {
-  background: rgba(99, 102, 241, 0.35);
-  color: #f0f0ff;
+  background: rgba(99, 102, 241, 0.30);
+  /* keep original text color for readability */
+  color: inherit;
 }
 .m-bub ::selection {
-  background: rgba(99, 102, 241, 0.35);
-  color: #f0f0ff;
+  background: rgba(99, 102, 241, 0.30);
+  color: inherit;
 }
 .hl-select-ctx.hl-mode-active .sum-selectable ::selection {
   background: color-mix(in srgb, var(--hl-pick, #fef08a) 72%, transparent);
@@ -3113,6 +3114,18 @@ html[data-theme="light"] .mob-more-btn:hover:not(:disabled) {
   border-color: rgba(79, 70, 229, 0.42);
   background: rgba(79, 70, 229, 0.1);
   color: #4338ca;
+}
+html[data-theme="light"] .sum-splitter::after {
+  background: rgba(0, 0, 0, 0.08);
+}
+html[data-theme="light"] .mob-more-handle {
+  background: rgba(0, 0, 0, 0.14);
+}
+html[data-theme="light"] .mob-more-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+}
+html[data-theme="light"] .act-bar-chat-title-btn {
+  color: var(--sum-title);
 }
 html[data-theme="light"] .inp-web-label {
   color: rgba(0, 0, 0, 0.45);

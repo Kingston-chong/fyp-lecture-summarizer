@@ -80,21 +80,53 @@ export default function DashboardSidebar({
             <div key={h.id}>
               <div
                 className={`history-item ${expandedHistory === h.id ? "active" : ""}`}
-                onClick={() => {
-                  setExpandedHistory(expandedHistory === h.id ? null : h.id);
-                  onHistoryNavigate(h.id);
+                role="button"
+                tabIndex={0}
+                onClick={() => onHistoryNavigate(h.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onHistoryNavigate(h.id);
+                  }
                 }}
               >
                 <div className="history-name" title={h.title}>
                   {h.title}
                 </div>
-                <div className="history-meta">
-                  {[
-                    `${h.files.length} file${h.files.length !== 1 ? "s" : ""}`,
-                    formatSummarizeForLabel(h.summarizeFor),
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
+                <div className="history-meta-row">
+                  {h.files.length > 0 && (
+                    <button
+                      type="button"
+                      className={`history-file-chev${expandedHistory === h.id ? " expanded" : ""}`}
+                      aria-expanded={expandedHistory === h.id}
+                      aria-label={
+                        expandedHistory === h.id
+                          ? "Hide source files"
+                          : "Show source files"
+                      }
+                      title={
+                        expandedHistory === h.id
+                          ? "Hide source files"
+                          : "Show source files"
+                      }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedHistory(
+                          expandedHistory === h.id ? null : h.id,
+                        );
+                      }}
+                    >
+                      <ChevronDownIcon size={10} />
+                    </button>
+                  )}
+                  <div className="history-meta">
+                    {[
+                      `${h.files.length} file${h.files.length !== 1 ? "s" : ""}`,
+                      formatSummarizeForLabel(h.summarizeFor),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </div>
                 </div>
                 <div className="history-date">{timeAgo(h.createdAt)}</div>
               </div>

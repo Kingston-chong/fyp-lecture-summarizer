@@ -44,6 +44,15 @@
   color: #a5b4fc;
 }
 
+html[data-theme="light"] .lqr-tab {
+  color: var(--modal-text-secondary);
+}
+
+html[data-theme="light"] .lqr-tab.on {
+  background: rgba(99, 102, 241, 0.14);
+  color: #4f46e5;
+}
+
 .lqr-share-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

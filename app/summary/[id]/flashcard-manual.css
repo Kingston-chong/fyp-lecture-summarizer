@@ -128,7 +128,7 @@
   z-index: 1;
 }
 
-.fc-create-dropdown--open {
+.fc-create-dropdown.custom-select--open {
   z-index: 20;
 }
 
@@ -149,20 +149,13 @@
   box-sizing: border-box;
 }
 
-.fc-create-dropdown-label {
+.fc-create-dropdown .custom-select-label {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: left;
-}
-
-.fc-create-dropdown-chevron {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  margin-left: 4px;
 }
 
 .fc-create-dropdown .qsm-dropdown-item {

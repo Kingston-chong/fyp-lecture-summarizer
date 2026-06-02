@@ -352,6 +352,18 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
   /** Move the history ⋮ menu horizontally: increase to shift right (pixels). */
   const historyMenuShiftRightPx = 0;
 
+  function openHistorySummary(h) {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("s2n-cancel-highlighter"));
+    }
+    router.push(`/summary/${h.id}`);
+  }
+
+  function toggleHistoryFiles(e, id) {
+    e.stopPropagation();
+    setExpandedHistory((prev) => (prev === id ? null : id));
+  }
+
   return (
     <>
       <aside
@@ -395,21 +407,17 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
               <div key={h.id}>
                 <div
                   className={`as-hi ${expandedHistory === h.id ? "act" : ""}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openHistorySummary(h)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      openHistorySummary(h);
+                    }
+                  }}
                 >
-                  <div
-                    className="as-hrow"
-                    onClick={() => {
-                      if (typeof window !== "undefined") {
-                        window.dispatchEvent(
-                          new CustomEvent("s2n-cancel-highlighter"),
-                        );
-                      }
-                      setExpandedHistory(
-                        expandedHistory === h.id ? null : h.id,
-                      );
-                      router.push(`/summary/${h.id}`);
-                    }}
-                  >
+                  <div className="as-hrow">
                     <div className="as-hname" title={h.title}>
                       {h.title}
                     </div>
@@ -438,13 +446,35 @@ export default function AppSidebar({ width = 260, hidePrevUploads = false }) {
                       )}
                     </button>
                   </div>
-                  <div className="as-hmeta">
-                    {[
-                      `${h.files.length} file${h.files.length !== 1 ? "s" : ""}`,
-                      formatSummarizeForLabel(h.summarizeFor),
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
+                  <div className="as-hmeta-row">
+                    {h.files.length > 0 && (
+                      <button
+                        type="button"
+                        className={`as-hfile-chev${expandedHistory === h.id ? " expanded" : ""}`}
+                        aria-expanded={expandedHistory === h.id}
+                        aria-label={
+                          expandedHistory === h.id
+                            ? "Hide source files"
+                            : "Show source files"
+                        }
+                        title={
+                          expandedHistory === h.id
+                            ? "Hide source files"
+                            : "Show source files"
+                        }
+                        onClick={(e) => toggleHistoryFiles(e, h.id)}
+                      >
+                        <ChevronDownIcon size={10} />
+                      </button>
+                    )}
+                    <div className="as-hmeta">
+                      {[
+                        `${h.files.length} file${h.files.length !== 1 ? "s" : ""}`,
+                        formatSummarizeForLabel(h.summarizeFor),
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </div>
                   </div>
                   <div className="as-hdate">{timeAgo(h.createdAt)}</div>
                 </div>

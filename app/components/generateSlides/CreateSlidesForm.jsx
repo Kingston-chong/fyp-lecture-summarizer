@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { FieldLabel, SectionHead, Divider, SelectMenu } from "./ui.jsx";
+import { FieldLabel, SectionHead, Divider, SelectMenu, UploadCloudIco } from "./ui.jsx";
 import "./CreateSlidesForm.css";
 
 function ExtraInstructionsField({ value, onChange, presets, onApplyPreset }) {
@@ -18,38 +18,21 @@ function ExtraInstructionsField({ value, onChange, presets, onApplyPreset }) {
   }, []);
 
   return (
-    <div style={{ position: "relative", marginBottom: 4 }} ref={wrapRef}>
-      <div style={{ position: "relative" }}>
+    <div className="csf-extra-wrap" ref={wrapRef}>
+      <div className="csf-textarea-wrap">
         <textarea
           className="create-prompt-area"
           rows={3}
           maxLength={4000}
-          placeholder='e.g. "focus on diagrams", "add a recap slide at the end"ΓÇª'
+          placeholder='e.g. "focus on diagrams", "add a recap slide at the end"…'
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          style={{ paddingRight: 36 }}
         />
         <button
           type="button"
           title="Pick a suggestion"
+          className={`csf-suggest-btn${open ? " csf-suggest-btn--open" : ""}`}
           onClick={() => setOpen((v) => !v)}
-          style={{
-            position: "absolute",
-            top: 7,
-            right: 7,
-            width: 24,
-            height: 24,
-            borderRadius: 6,
-            border: "1px solid rgba(255,255,255,.15)",
-            background: open ? "rgba(99,102,241,.25)" : "rgba(255,255,255,.07)",
-            color: open ? "#a5b4fc" : "rgba(255,255,255,.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            transition: "all .15s",
-            flexShrink: 0,
-          }}
         >
           <svg
             width="11"
@@ -69,65 +52,16 @@ function ExtraInstructionsField({ value, onChange, presets, onApplyPreset }) {
       <div className="create-prompt-hint">{value.length} / 4000</div>
 
       {open && (
-        <div
-          style={{
-            position: "absolute",
-            top: "calc(100% - 18px)",
-            left: 0,
-            right: 0,
-            zIndex: 300,
-            background: "rgba(18,18,30,.98)",
-            border: "1px solid rgba(255,255,255,.12)",
-            borderRadius: 10,
-            boxShadow: "0 12px 32px rgba(0,0,0,.55)",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              padding: "8px 12px 6px",
-              fontSize: 10.5,
-              color: "rgba(255,255,255,.3)",
-              letterSpacing: ".04em",
-              textTransform: "uppercase",
-              borderBottom: "1px solid rgba(255,255,255,.07)",
-            }}
-          >
-            Suggestions ΓÇö click to add
-          </div>
-          {presets.map((preset, i) => (
+        <div className="csf-suggest-menu">
+          <div className="csf-suggest-menu-head">Suggestions — click to add</div>
+          {presets.map((preset) => (
             <button
               key={preset}
               type="button"
+              className="csf-suggest-option"
               onMouseDown={() => {
                 onApplyPreset(preset);
                 setOpen(false);
-              }}
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "left",
-                padding: "9px 14px",
-                background: "transparent",
-                border: "none",
-                borderBottom:
-                  i < presets.length - 1
-                    ? "1px solid rgba(255,255,255,.05)"
-                    : "none",
-                color: "rgba(255,255,255,.72)",
-                fontSize: 12,
-                fontFamily: "'Sora', sans-serif",
-                cursor: "pointer",
-                lineHeight: 1.4,
-                transition: "background .12s, color .12s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(99,102,241,.18)";
-                e.currentTarget.style.color = "#c7d2fe";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = "rgba(255,255,255,.72)";
               }}
             >
               {preset}
@@ -222,7 +156,7 @@ function themeOptionId(theme) {
   return String(theme?.id || theme?.theme_id || "").trim();
 }
 
-// ΓöÇΓöÇ Image upload sub-component ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Image upload sub-component ────────────────────────────────────────────────
 
 function ImageUploadSection({
   uploadedFiles,
@@ -239,10 +173,18 @@ function ImageUploadSection({
     onUpload(Array.from(e.dataTransfer.files));
   };
 
+  const zoneClass = [
+    "csf-upload-zone",
+    isDragging ? "csf-upload-zone--dragging" : "",
+    isUploading ? "csf-upload-zone--disabled" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div style={{ marginTop: 2 }}>
-      {/* Drop zone */}
+    <div className="csf-upload-wrap">
       <div
+        className={zoneClass}
         onDrop={onDrop}
         onDragOver={(e) => {
           e.preventDefault();
@@ -253,23 +195,6 @@ function ImageUploadSection({
         role="button"
         tabIndex={0}
         onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 3,
-          padding: "14px 12px",
-          border: `1.5px dashed ${isDragging ? "rgba(99,102,241,.7)" : "rgba(255,255,255,.15)"}`,
-          borderRadius: 9,
-          background: isDragging
-            ? "rgba(99,102,241,.1)"
-            : "rgba(255,255,255,.03)",
-          cursor: isUploading ? "default" : "pointer",
-          transition: "border-color .15s, background .15s",
-          opacity: isUploading ? 0.6 : 1,
-          minHeight: 72,
-        }}
       >
         <input
           ref={inputRef}
@@ -279,131 +204,55 @@ function ImageUploadSection({
           style={{ display: "none" }}
           onChange={(e) => onUpload(Array.from(e.target.files))}
         />
-        <span style={{ fontSize: 18, color: "rgba(255,255,255,.3)" }}>Γåæ</span>
-        <span
-          style={{
-            fontSize: 11.5,
-            color: "rgba(255,255,255,.5)",
-            fontWeight: 500,
-          }}
-        >
+        <span className="csf-upload-icon">
+          <UploadCloudIco size={20} />
+        </span>
+        <span className="csf-upload-label">
           {isUploading
-            ? "UploadingΓÇª"
+            ? "Uploading…"
             : isDragging
               ? "Drop to upload"
               : "Drag & drop or click to browse"}
         </span>
-        <span style={{ fontSize: 10.5, color: "rgba(255,255,255,.25)" }}>
-          PNG, JPEG, WebP, GIF, AVIF, SVG ┬╖ max 10 MB ┬╖ up to{" "}
+        <span className="csf-upload-hint">
+          PNG, JPEG, WebP, GIF, AVIF, SVG · max 10 MB · up to{" "}
           {MAX_IMAGE_FILES} files
         </span>
       </div>
 
-      {/* File chips */}
       {uploadedFiles.length > 0 && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 5,
-            marginTop: 8,
-          }}
-        >
+        <div className="csf-file-list">
           {uploadedFiles.map((f, i) => (
             <div
               key={i}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "5px 8px",
-                background:
-                  f.status === "error"
-                    ? "rgba(239,68,68,.1)"
-                    : "rgba(255,255,255,.05)",
-                border: `1px solid ${f.status === "error" ? "rgba(239,68,68,.3)" : "rgba(255,255,255,.1)"}`,
-                borderRadius: 7,
-              }}
+              className={`csf-file-chip${f.status === "error" ? " csf-file-chip--error" : ""}`}
             >
               {f.localUrl && f.status !== "error" && (
                 <img
                   src={f.localUrl}
                   alt={f.name}
-                  style={{
-                    width: 28,
-                    height: 28,
-                    objectFit: "cover",
-                    borderRadius: 4,
-                    flexShrink: 0,
-                    border: "1px solid rgba(255,255,255,.1)",
-                  }}
+                  className="csf-file-thumb"
                 />
               )}
-              {/* Status dot */}
               <span
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  flexShrink: 0,
-                  background:
-                    f.status === "uploading"
-                      ? "#facc15"
-                      : f.status === "done"
-                        ? "#4ade80"
-                        : "#f87171",
-                  boxShadow:
-                    f.status === "uploading"
-                      ? "0 0 6px #facc15"
-                      : f.status === "done"
-                        ? "0 0 6px #4ade80"
-                        : "0 0 6px #f87171",
-                }}
+                className={`csf-file-status csf-file-status--${f.status === "uploading" ? "uploading" : f.status === "done" ? "done" : "error"}`}
               />
-              <span
-                style={{
-                  flex: 1,
-                  fontSize: 11.5,
-                  color:
-                    f.status === "error" ? "#f87171" : "rgba(255,255,255,.65)",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
+              <span className="csf-file-name">
                 {f.name}
                 {f.status === "uploading" && (
-                  <span style={{ color: "rgba(255,255,255,.3)" }}>
-                    {" "}
-                    ┬╖ uploadingΓÇª
-                  </span>
+                  <span className="csf-file-uploading"> · uploading…</span>
                 )}
                 {f.status === "error" && (
-                  <span style={{ color: "#f87171" }}> ┬╖ {f.error}</span>
+                  <span className="csf-file-error"> · {f.error}</span>
                 )}
               </span>
               <button
                 type="button"
+                className="csf-file-remove"
                 onClick={() => onRemove(i)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "rgba(255,255,255,.3)",
-                  fontSize: 13,
-                  lineHeight: 1,
-                  padding: "2px 4px",
-                  borderRadius: 4,
-                  flexShrink: 0,
-                  transition: "color .12s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "#f87171")}
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.color = "rgba(255,255,255,.3)")
-                }
                 aria-label={`Remove ${f.name}`}
               >
-                Γ£ò
+                ×
               </button>
             </div>
           ))}
@@ -413,7 +262,7 @@ function ImageUploadSection({
   );
 }
 
-// ΓöÇΓöÇ Main export ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Main export ───────────────────────────────────────────────────────────────
 
 export default function CreateSlidesForm({
   provider,
@@ -460,7 +309,7 @@ export default function CreateSlidesForm({
   alaiVibesLoading = false,
   selectedVibeId,
   setSelectedVibeId,
-  // ΓöÇΓöÇ NEW ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── NEW ───────────────────────────────────────────────────────────────────
   imageIds = [],
   onImageIdsChange,
   numImageVariants = 1,
@@ -593,7 +442,7 @@ export default function CreateSlidesForm({
         <FieldLabel>Presentation title (optional)</FieldLabel>
         <input
           className="txt-inp"
-          placeholder="Auto from summaryΓÇª"
+          placeholder="Auto from summary…"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           style={{ marginBottom: 10 }}
@@ -661,12 +510,12 @@ export default function CreateSlidesForm({
             <Divider />
             <SectionHead>{isAlai ? "Alai theme" : "2slides theme"}</SectionHead>
             {alaiThemesLoading ? (
-              <div className="tag-hint">Loading themesΓÇª</div>
+              <div className="tag-hint">Loading themes…</div>
             ) : alaiThemes.length > 0 ? (
               <SelectMenu
                 value={selectedThemeId || ""}
                 onChange={(id) => setSelectedThemeId(id || null)}
-                placeholder="Choose a themeΓÇª"
+                placeholder="Choose a theme…"
                 maxMenuHeight={260}
                 options={alaiThemes
                   .map((t) => ({
@@ -722,7 +571,7 @@ export default function CreateSlidesForm({
         ].map(({ label, val, set }) => (
           <label key={label} className="chk-row" onClick={() => set((v) => !v)}>
             <div className={`chk-box ${val ? "on" : ""}`}>
-              {val ? <span className="chk-tick">Γ£ô</span> : null}
+              {val ? <span className="chk-tick">✓</span> : null}
             </div>
             {label}
           </label>
@@ -750,23 +599,10 @@ export default function CreateSlidesForm({
 
             <Divider />
             <SectionHead>
-              Your images{" "}
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 400,
-                  color: "rgba(255,255,255,.3)",
-                  background: "rgba(255,255,255,.07)",
-                  borderRadius: 4,
-                  padding: "1px 5px",
-                  marginLeft: 4,
-                }}
-              >
-                optional
-              </span>
+              Your images <span className="csf-optional-badge">optional</span>
             </SectionHead>
             <div className="tag-hint" style={{ marginBottom: 8 }}>
-              Upload your own photos or diagrams ΓÇö Alai places them on
+              Upload your own photos or diagrams — Alai places them on
               relevant slides automatically
             </div>
             <ImageUploadSection
@@ -779,7 +615,7 @@ export default function CreateSlidesForm({
             <Divider />
             <FieldLabel>Visual vibe (optional)</FieldLabel>
             {alaiVibesLoading ? (
-              <div className="tag-hint">Loading vibesΓÇª</div>
+              <div className="tag-hint">Loading vibes…</div>
             ) : (
               <SelectMenu
                 value={selectedVibeId}
@@ -822,7 +658,7 @@ export default function CreateSlidesForm({
             className="gs-advanced-chev"
             style={{ transform: advancedOpen ? "rotate(90deg)" : "none" }}
           >
-            ΓÇ║
+            ›
           </span>
           Advanced options
         </button>
@@ -831,48 +667,42 @@ export default function CreateSlidesForm({
           <div className="gs-advanced-grid">
             <div>
               <FieldLabel>Template:</FieldLabel>
-              <select
-                className="txt-inp"
+              <SelectMenu
                 value={template}
-                onChange={(e) => setTemplate(e.target.value)}
-                style={{ width: 110 }}
-              >
-                {[
+                onChange={setTemplate}
+                width={110}
+                options={[
                   "Academic",
                   "Professional",
                   "Creative",
                   "Minimal",
                   "Corporate",
-                ].map((o) => (
-                  <option key={o}>{o}</option>
-                ))}
-              </select>
+                ].map((o) => ({ value: o, label: o }))}
+              />
             </div>
             <div>
               <FieldLabel>Font size:</FieldLabel>
-              <select
-                className="txt-inp"
+              <SelectMenu
                 value={fontSize}
-                onChange={(e) => setFontSize(e.target.value)}
-                style={{ width: 90 }}
-              >
-                {["Small", "Normal", "Large"].map((o) => (
-                  <option key={o}>{o}</option>
-                ))}
-              </select>
+                onChange={setFontSize}
+                width={90}
+                options={["Small", "Normal", "Large"].map((o) => ({
+                  value: o,
+                  label: o,
+                }))}
+              />
             </div>
             <div>
               <FieldLabel>Text density:</FieldLabel>
-              <select
-                className="txt-inp"
+              <SelectMenu
                 value={textDensity}
-                onChange={(e) => setTextDensity(e.target.value)}
-                style={{ width: 100 }}
-              >
-                {["Compact", "Balanced", "Spacious"].map((o) => (
-                  <option key={o}>{o}</option>
-                ))}
-              </select>
+                onChange={setTextDensity}
+                width={100}
+                options={["Compact", "Balanced", "Spacious"].map((o) => ({
+                  value: o,
+                  label: o,
+                }))}
+              />
             </div>
             <div>
               <FieldLabel>Bullet limit/slide:</FieldLabel>
@@ -881,7 +711,7 @@ export default function CreateSlidesForm({
                 type="number"
                 min={1}
                 max={20}
-                placeholder="ΓÇö"
+                placeholder="—"
                 value={bulletLimit}
                 onChange={(e) => setBulletLimit(e.target.value)}
               />

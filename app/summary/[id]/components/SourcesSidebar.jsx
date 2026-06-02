@@ -32,16 +32,19 @@ export default function SourcesSidebar({
   highlightsProps,
 }) {
   const refCount = referencesProps?.references?.length ?? 0;
+  const isLecturer = summary?.summarizeFor === "lecturer";
   const showReferences =
-    summary?.summarizeFor === "lecturer" &&
+    isLecturer &&
     referencesProps != null &&
     (referencesProps.loading || refCount > 0);
 
   const sectionIds = useMemo(() => {
-    const ids = ["files", "slideDecks", "quizzes", "flashcards", "highlights"];
+    const ids = ["files", "slideDecks", "quizzes"];
+    if (!isLecturer) ids.push("flashcards");
+    ids.push("highlights");
     if (showReferences) ids.splice(1, 0, "references");
     return ids;
-  }, [showReferences]);
+  }, [showReferences, isLecturer]);
 
   const sectionDefaults = useMemo(
     () => ({
@@ -246,34 +249,36 @@ export default function SourcesSidebar({
             />
           </CollapsibleSidebarSection>
 
-          <CollapsibleSidebarSection
-            id="flashcards"
-            title="Flashcards"
-            badge={flashcardCount || null}
-            open={isSectionOpen("flashcards")}
-            onOpenChange={(v) => setSection("flashcards", v)}
-            actions={
-              <button
-                type="button"
-                className="sd-refresh-btn"
-                title="Refresh saved flashcards"
-                disabled={flashcardSetsProps?.flashcardSetsLoading}
-                onClick={flashcardSetsProps?.onRefresh}
-              >
-                {flashcardSetsProps?.flashcardSetsLoading ? (
-                  <Spinner size={11} />
-                ) : (
-                  "↻"
-                )}
-              </button>
-            }
-          >
-            <FlashcardsPanel
-              {...flashcardSetsProps}
-              embedded
-              panelClassName="hl-panel sd-panel hl-panel--embedded"
-            />
-          </CollapsibleSidebarSection>
+          {!isLecturer && (
+            <CollapsibleSidebarSection
+              id="flashcards"
+              title="Flashcards"
+              badge={flashcardCount || null}
+              open={isSectionOpen("flashcards")}
+              onOpenChange={(v) => setSection("flashcards", v)}
+              actions={
+                <button
+                  type="button"
+                  className="sd-refresh-btn"
+                  title="Refresh saved flashcards"
+                  disabled={flashcardSetsProps?.flashcardSetsLoading}
+                  onClick={flashcardSetsProps?.onRefresh}
+                >
+                  {flashcardSetsProps?.flashcardSetsLoading ? (
+                    <Spinner size={11} />
+                  ) : (
+                    "↻"
+                  )}
+                </button>
+              }
+            >
+              <FlashcardsPanel
+                {...flashcardSetsProps}
+                embedded
+                panelClassName="hl-panel sd-panel hl-panel--embedded"
+              />
+            </CollapsibleSidebarSection>
+          )}
 
           <CollapsibleSidebarSection
             id="highlights"
