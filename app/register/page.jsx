@@ -2,6 +2,7 @@
 
 import "./register-page.css";
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { ChevronDownIcon, EyeIcon, EyeOffIcon } from "../components/icons";
@@ -138,29 +139,30 @@ export default function Slide2NotesRegister() {
   return (
     <>
       <AuthPageChrome header={<AuthMarketingNav />} blobCount={3}>
-        <main className="login-main">
-          <div className="card">
-            <div className="card-glow" />
+        <main className="auth-reg-page">
+          <div className="auth-reg-card">
+            <div className="auth-reg-card-glow" />
 
-            <p className="card-eyebrow">Get started</p>
-            <h1 className="card-title">
+            <p className="auth-reg-eyebrow">Get started</p>
+            <h1 className="auth-reg-title">
               Register New Account — <em>Slide2Notes</em>
             </h1>
-            <p className="card-sub">
-              Already have an account? <a href="#">Sign in instead</a>
+            <p className="auth-reg-sub">
+              Already have an account?{" "}
+              <Link href="/login">Sign in instead</Link>
             </p>
 
-            <div className="form-grid">
+            <div className="auth-reg-grid">
               {/* Email */}
-              <div className="field-group">
+              <div className="auth-reg-field">
                 <label
-                  className={`field-label ${focused === "email" ? "focused" : ""}`}
+                  className={`auth-reg-label ${focused === "email" ? "focused" : ""}`}
                 >
                   Email Address
                 </label>
-                <div className="field-wrapper">
+                <div className="auth-reg-field-wrap">
                   <input
-                    className="field-input"
+                    className="auth-reg-input"
                     type="email"
                     placeholder="ex: example@gmail.com"
                     value={form.email}
@@ -172,15 +174,15 @@ export default function Slide2NotesRegister() {
               </div>
 
               {/* Password */}
-              <div className="field-group">
+              <div className="auth-reg-field">
                 <label
-                  className={`field-label ${focused === "password" ? "focused" : ""}`}
+                  className={`auth-reg-label ${focused === "password" ? "focused" : ""}`}
                 >
                   Password
                 </label>
-                <div className="field-wrapper">
+                <div className="auth-reg-field-wrap">
                   <input
-                    className={`field-input with-icon ${form.password && allRulesMet ? "match" : ""}`}
+                    className={`auth-reg-input with-icon ${form.password && allRulesMet ? "match" : ""}`}
                     type={showPass ? "text" : "password"}
                     placeholder="Enter a strong password"
                     value={form.password}
@@ -189,7 +191,7 @@ export default function Slide2NotesRegister() {
                     onBlur={() => setFocused("")}
                   />
                   <button
-                    className="field-toggle"
+                    className="auth-reg-toggle"
                     onClick={() => setShowPass((v) => !v)}
                   >
                     {showPass ? <EyeIcon /> : <EyeOffIcon />}
@@ -198,28 +200,28 @@ export default function Slide2NotesRegister() {
               </div>
 
               {/* Rules panel */}
-              <div className="rules-panel">
-                <p className="rules-title">Password requirements</p>
-                <div className="rule-row">
+              <div className="auth-reg-rules">
+                <p className="auth-reg-rules-title">Password requirements</p>
+                <div className="auth-reg-rule-row">
                   <CheckCircle met={rules.length} />
                   <span
-                    className={`rule-text ${rules.length ? "met" : "unmet"}`}
+                    className={`auth-reg-rule-text ${rules.length ? "met" : "unmet"}`}
                   >
                     More than 8 characters
                   </span>
                 </div>
-                <div className="rule-row">
+                <div className="auth-reg-rule-row">
                   <CheckCircle met={rules.symbol} />
                   <span
-                    className={`rule-text ${rules.symbol ? "met" : "unmet"}`}
+                    className={`auth-reg-rule-text ${rules.symbol ? "met" : "unmet"}`}
                   >
                     Symbol used
                   </span>
                 </div>
-                <div className="rule-row">
+                <div className="auth-reg-rule-row">
                   <CheckCircle met={rules.alpha} />
                   <span
-                    className={`rule-text ${rules.alpha ? "met" : "unmet"}`}
+                    className={`auth-reg-rule-text ${rules.alpha ? "met" : "unmet"}`}
                   >
                     Alphabets used
                   </span>
@@ -227,18 +229,18 @@ export default function Slide2NotesRegister() {
               </div>
 
               {/* Divider */}
-              <div className="section-divider" />
+              <div className="auth-reg-divider" />
 
               {/* Username */}
-              <div className="field-group">
+              <div className="auth-reg-field">
                 <label
-                  className={`field-label ${focused === "username" ? "focused" : ""}`}
+                  className={`auth-reg-label ${focused === "username" ? "focused" : ""}`}
                 >
                   Username
                 </label>
-                <div className="field-wrapper">
+                <div className="auth-reg-field-wrap">
                   <input
-                    className="field-input"
+                    className="auth-reg-input"
                     type="text"
                     placeholder="ex: james123"
                     value={form.username}
@@ -250,15 +252,15 @@ export default function Slide2NotesRegister() {
               </div>
 
               {/* Confirm password */}
-              <div className="field-group">
+              <div className="auth-reg-field">
                 <label
-                  className={`field-label ${focused === "confirm" ? "focused" : ""}`}
+                  className={`auth-reg-label ${focused === "confirm" ? "focused" : ""}`}
                 >
                   Confirm Password
                 </label>
-                <div className="field-wrapper">
+                <div className="auth-reg-field-wrap">
                   <input
-                    className={`field-input with-icon ${form.confirm ? (passwordMatch ? "match" : "mismatch") : ""}`}
+                    className={`auth-reg-input with-icon ${form.confirm ? (passwordMatch ? "match" : "mismatch") : ""}`}
                     type={showConfirm ? "text" : "password"}
                     placeholder="Repeat your password"
                     value={form.confirm}
@@ -267,7 +269,7 @@ export default function Slide2NotesRegister() {
                     onBlur={() => setFocused("")}
                   />
                   <button
-                    className="field-toggle"
+                    className="auth-reg-toggle"
                     onClick={() => setShowConfirm((v) => !v)}
                   >
                     {showConfirm ? <EyeIcon /> : <EyeOffIcon />}
@@ -276,15 +278,15 @@ export default function Slide2NotesRegister() {
               </div>
 
               {/* Role */}
-              <div className="field-group" style={{ position: "relative" }}>
+              <div className="auth-reg-field" style={{ position: "relative" }}>
                 <label
-                  className={`field-label ${focused === "role" ? "focused" : ""}`}
+                  className={`auth-reg-label ${focused === "role" ? "focused" : ""}`}
                 >
                   Role
                 </label>
-                <div className="dropdown-wrapper">
+                <div className="auth-reg-dropdown-wrap">
                   <button
-                    className={`dropdown-btn ${dropOpen ? "open" : ""}`}
+                    className={`auth-reg-dropdown-btn ${dropOpen ? "open" : ""}`}
                     onClick={() => {
                       setDropOpen((v) => !v);
                       setFocused("role");
@@ -303,11 +305,11 @@ export default function Slide2NotesRegister() {
                     </span>
                   </button>
                   {dropOpen && (
-                    <div className="dropdown-menu">
+                    <div className="auth-reg-dropdown-menu">
                       {ROLES.map((r) => (
                         <div
                           key={r}
-                          className={`dropdown-option ${role === r ? "selected" : ""}`}
+                          className={`auth-reg-dropdown-option ${role === r ? "selected" : ""}`}
                           onMouseDown={() => {
                             setRole(r);
                             setDropOpen(false);
@@ -323,7 +325,7 @@ export default function Slide2NotesRegister() {
             </div>
 
             {/* Footer */}
-            <div className="form-footer">
+            <div className="auth-reg-footer">
               {error && (
                 <p
                   style={{
@@ -339,7 +341,7 @@ export default function Slide2NotesRegister() {
 
               {/* Update the button */}
               <button
-                className="btn-signup"
+                className="auth-reg-submit"
                 onClick={handleSignUp}
                 disabled={loading}
               >

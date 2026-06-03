@@ -54,6 +54,7 @@ import ChatBubbleContent from "./components/ChatBubbleContent";
 import ChatSourcesList from "./components/ChatSourcesList";
 import ChatSelectionPopover from "./components/ChatSelectionPopover";
 import ChatResponseLengthControl from "./components/ChatResponseLengthControl";
+import ShareChatButton from "./components/ShareChatButton";
 import QuizAttemptDetailModal from "./components/QuizAttemptDetailModal";
 import SourcesSidebar from "./components/SourcesSidebar";
 import MobileMoreSheet from "./components/MobileMoreSheet";
@@ -2036,8 +2037,18 @@ export default function SummaryView() {
 
                   {(messages.length > 0 || chatLoading) && (
                     <div className="conv-divider">
-                      <div className="conv-label">
-                        Continue the conversation
+                      <div className="conv-label-row">
+                        <div className="conv-label">
+                          Continue the conversation
+                        </div>
+                        <ShareChatButton
+                          summaryId={summaryId}
+                          disabled={
+                            messages.filter(
+                              (m) => !m.streaming && !m.error && m.content,
+                            ).length === 0
+                          }
+                        />
                       </div>
                       <div
                         className={`hl-select-ctx chat-hl-ctx${hlModeActive ? " hl-mode-active" : ""}`}

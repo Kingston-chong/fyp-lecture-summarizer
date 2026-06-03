@@ -38,6 +38,7 @@ model User {
   documents    Document[]
   summaries    Summary[]
   chatThreads  ChatThread[]
+  chatShares   ChatShare[]
   highlights   SummaryHighlight[]
   quizSets      QuizSet[]
   quizAttempts  QuizAttempt[]
@@ -82,6 +83,7 @@ model Summary {
   references  SummaryReference[]
   highlights  SummaryHighlight[]
   chatThreads ChatThread[]
+  chatShare   ChatShare?
   quizSets       QuizSet[]
   slideDecks     SlideDeck[]
   flashcardSets  FlashcardSet[]
@@ -159,6 +161,23 @@ model ChatMessage {
 
   @@index([threadId])
   @@unique([threadId, turn])
+}
+
+// Public read-only snapshot of summary + chat (ChatGPT-style share link).
+model ChatShare {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  summaryId  Int      @unique
+  shareToken String   @unique @db.VarChar(64)
+  published  Boolean  @default(false)
+  snapshot   Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  summary Summary @relation(fields: [summaryId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // Links summaries to which documents were used

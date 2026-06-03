@@ -6,14 +6,8 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import {
-  EyeIcon,
-  EyeOffIcon,
-  GoogleIcon,
-  UserCircleIcon,
-} from "@/app/components/icons";
-import ThemeToggle from "@/app/components/ThemeToggle";
-import AppHeader from "@/app/components/AppHeader";
+import { EyeIcon, EyeOffIcon, GoogleIcon } from "@/app/components/icons";
+import AuthMarketingNav from "@/app/components/AuthMarketingNav";
 import AuthPageChrome from "@/app/components/AuthPageChrome";
 
 export default function Slide2NotesLogin() {
@@ -78,47 +72,32 @@ export default function Slide2NotesLogin() {
 
   return (
     <>
-      <AuthPageChrome
-        shell="themed"
-        blobCount={3}
-        header={
-          <AppHeader
-            right={
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <ThemeToggle />
-                <button type="button" className="login-user-ico">
-                  <UserCircleIcon />
-                </button>
-              </div>
-            }
-          />
-        }
-      >
-        <main className="login-main">
-          <div className="card">
-            <div className="card-top-glow" />
+      <AuthPageChrome header={<AuthMarketingNav />} blobCount={3}>
+        <main className="auth-login-page">
+          <div className="auth-login-card">
+            <div className="auth-login-card-glow" />
             {showRedirecting ? (
-              <div className="auth-loading">
-                <div className="auth-spinner" />
-                <p className="auth-loading-text">Redirecting to dashboard...</p>
+              <div className="auth-login-loading">
+                <div className="auth-login-spinner" />
+                <p className="auth-login-loading-text">Redirecting to dashboard...</p>
               </div>
             ) : (
               <>
-                <p className="card-eyebrow">Welcome back</p>
-                <h1 className="card-title">
+                <p className="auth-login-eyebrow">Welcome back</p>
+                <h1 className="auth-login-title">
                   Login to <em>Slide2Notes</em>
                 </h1>
 
                 {/* Email */}
-                <div className="field-group">
+                <div className="auth-login-field">
                   <label
-                    className={`field-label ${emailFocused ? "focused" : ""}`}
+                    className={`auth-login-label ${emailFocused ? "focused" : ""}`}
                   >
                     Email address
                   </label>
-                  <div className="field-wrapper">
+                  <div className="auth-login-field-wrap">
                     <input
-                      className="field-input"
+                      className="auth-login-input"
                       type="email"
                       placeholder="you@example.com"
                       value={email}
@@ -130,15 +109,15 @@ export default function Slide2NotesLogin() {
                 </div>
 
                 {/* Password */}
-                <div className="field-group">
+                <div className="auth-login-field">
                   <label
-                    className={`field-label ${passFocused ? "focused" : ""}`}
+                    className={`auth-login-label ${passFocused ? "focused" : ""}`}
                   >
                     Password
                   </label>
-                  <div className="field-wrapper">
+                  <div className="auth-login-field-wrap">
                     <input
-                      className="field-input"
+                      className="auth-login-input"
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••••"
                       value={password}
@@ -147,7 +126,7 @@ export default function Slide2NotesLogin() {
                       onBlur={() => setPassFocused(false)}
                     />
                     <button
-                      className="field-toggle"
+                      className="auth-login-toggle"
                       onClick={() => setShowPassword((v) => !v)}
                     >
                       {showPassword ? <EyeIcon /> : <EyeOffIcon />}
@@ -156,23 +135,23 @@ export default function Slide2NotesLogin() {
                 </div>
 
                 <button
-                  className="btn-signin"
+                  className="auth-login-submit"
                   onClick={handleSignIn}
                   disabled={loading}
                 >
                   {loading ? "Signing in..." : "Sign In"}
                 </button>
 
-                {error && <p className="error-text">{error}</p>}
+                {error && <p className="auth-login-error">{error}</p>}
 
-                <div className="or-row">
-                  <div className="or-line" />
-                  <span className="or-text">or</span>
-                  <div className="or-line" />
+                <div className="auth-login-or">
+                  <div className="auth-login-or-line" />
+                  <span className="auth-login-or-text">or</span>
+                  <div className="auth-login-or-line" />
                 </div>
 
                 <button
-                  className="btn-google"
+                  className="auth-login-google"
                   onClick={() =>
                     signIn("google", { callbackUrl: "/dashboard" })
                   }
@@ -181,12 +160,12 @@ export default function Slide2NotesLogin() {
                   Continue with Google
                 </button>
 
-                <div className="card-footer">
-                  <Link href="/register" className="footer-link cta">
+                <div className="auth-login-footer">
+                  <Link href="/register" className="auth-login-footer-link cta">
                     New? Register an account
                   </Link>
                   <button
-                    className="footer-link"
+                    className="auth-login-footer-link"
                     onClick={() => router.push("/reset-password")}
                   >
                     Forgot password?
