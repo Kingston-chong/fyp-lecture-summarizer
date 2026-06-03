@@ -49,9 +49,9 @@ export default function SummaryModalStack({
   const isLecturer = summary?.summarizeFor === "lecturer";
   const numericSummaryId = parseNumericSummaryId(summaryId);
 
-  const handleSlideDeckDownload = useCallback(() => {
+  const handleSlideDeckDownload = useCallback(async () => {
     const fn = slideDeckDlRef.current;
-    if (typeof fn === "function") fn();
+    if (typeof fn === "function") await Promise.resolve(fn());
   }, [slideDeckDlRef]);
 
   const handleSlideDeckPdfDownload = useCallback(async () => {

@@ -17,8 +17,9 @@ import {
   lecturerChatWithoutReferenceSearchRules,
   finalizeChatReplyReferences,
   formatSourcesForClient,
+  userWantsNumericCitations,
+  rankChatReferenceSources,
 } from "@/lib/chatReferences";
-import { extractCitationMarkers } from "@/lib/referenceUtils";
 import { getRoleProfile, normalizeSummarizeRole } from "@/lib/roleProfiles";
 import { resolveChatResponseLength } from "@/lib/chatResponseLength";
 
@@ -331,18 +332,29 @@ export const POST = apiHandler(async function POST(req) {
     summarizeRole === "lecturer" && !wantsReferences
       ? lecturerChatWithoutReferenceSearchRules()
       : "";
-  const onDemandRefRules = wantsReferences ? referenceCitationRules() : "";
+  const numericCitations =
+    wantsReferences && userWantsNumericCitations(lastUserSearchText);
+  const onDemandRefRules = wantsReferences
+    ? referenceCitationRules({ numericCitations })
+    : "";
 
   const isQuickLength = responseLength.id === "quick";
-  const quickModeBlock = isQuickLength
-    ? `
+  const quickModeBlock =
+    isQuickLength && !wantsReferences
+      ? `
 QUICK REPLY MODE (highest priority — overrides other length or depth rules):
 - Maximum 2 short sentences in the whole reply (3 only if the user asked multiple separate questions in one message).
 - Single paragraph only — never use blank lines between paragraphs.
 - No bullet lists, numbered lists, headings, or step-by-step breakdowns.
 - Answer the question directly; do not restate the question or add "in summary" closers.
 `
-    : "";
+      : isQuickLength && wantsReferences
+        ? `
+QUICK REPLY MODE with reference search:
+- Up to 5 bullets; each must be [title](url) from the source list only.
+- One short intro sentence maximum; no generic advice to search external databases.
+`
+        : "";
 
   const elaborationRules = isQuickLength
     ? `For quick reply mode: answer only what was asked using the summary; do not elaborate, compare at length, or add extra context unless the user explicitly says "explain more" or "in detail".`
@@ -379,7 +391,7 @@ ${responseLength.instruction}
 
 --- Summary (context) ---
 ${context}
-${sourcesBlock ? `\n\n--- Numbered sources (cite with [n]) ---\n${sourcesBlock}` : ""}
+${sourcesBlock ? `\n\n--- Sources found (use these URLs in your answer) ---\n${sourcesBlock}` : ""}
 ${webContext ? `\n\n--- Web search excerpts ---\n${webContext}` : ""}
 ${academicContext ? `\n\n--- Academic papers ---\n${academicContext}` : ""}
 ${attachmentContext ? `\n\n--- Attached Sources (uploaded by user) ---\n${attachmentContext}` : ""}`;
@@ -468,14 +480,18 @@ ${attachmentContext ? `\n\n--- Attached Sources (uploaded by user) ---\n${attach
     wantsReferences,
     summarizeRole,
     summaryTitle: summary.title || "",
+    userText: lastUserSearchText,
   });
 
-  const citedMarkers = new Set(extractCitationMarkers(finalReply));
-  const citedSources =
-    wantsReferences && citedMarkers.size > 0
-      ? chatSources.filter((s) => citedMarkers.has(s.marker))
-      : [];
-  const clientSources = formatSourcesForClient(citedSources);
+  const clientSources = wantsReferences
+    ? formatSourcesForClient(
+        rankChatReferenceSources(
+          chatSources,
+          lastUserSearchText,
+          summary.title || "",
+        ),
+      )
+    : [];
 
   // Persist the newest turn so refresh/resume keeps conversation context.
   const thread = await prisma.chatThread.upsert({

@@ -19,6 +19,10 @@ const CloseIco = () => (
   </svg>
 );
 
+const BtnSpinner = () => (
+  <span className="alai-btn-spin" aria-hidden />
+);
+
 const DownloadIco = () => (
   <svg
     width="14"
@@ -95,13 +99,15 @@ export default function AlaiSlidesPreviewModal({
     };
   }, []);
 
-  function handleDownload() {
-    if (!onDownload) return;
+  async function handleDownload() {
+    if (!onDownload || downloading) return;
     setDownloading(true);
     try {
-      onDownload();
+      await Promise.resolve(onDownload());
+    } catch (e) {
+      alert(e?.message || String(e));
     } finally {
-      setDownloading(false);
+      window.setTimeout(() => setDownloading(false), 1200);
     }
   }
 
@@ -143,18 +149,18 @@ export default function AlaiSlidesPreviewModal({
                   disabled={pdfDownloading || downloading}
                   title="Download as PDF"
                 >
-                  <DownloadIco />
+                  {pdfDownloading ? <BtnSpinner /> : <DownloadIco />}
                   {pdfDownloading ? "Preparing…" : "PDF"}
                 </button>
               ) : null}
               <button
                 type="button"
                 className="alai-btn"
-                onClick={handleDownload}
+                onClick={() => void handleDownload()}
                 disabled={!onDownload || downloading || pdfDownloading}
                 title="Download PowerPoint (.pptx)"
               >
-                <DownloadIco />
+                {downloading ? <BtnSpinner /> : <DownloadIco />}
                 {downloading ? "Downloading…" : "PPTX"}
               </button>
               <button

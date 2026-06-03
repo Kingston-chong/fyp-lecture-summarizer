@@ -3,6 +3,22 @@ import { extractPptxUrlFromAlaiGenerationJson } from "@/lib/alaiSlidePptx";
 import { pollTwoSlidesGeneration } from "@/lib/twoSlidesGenerate";
 import { apiHandler } from "@/lib/apiHandler";
 
+/** @param {string} url */
+function isAllowedUpstreamPptUrl(url) {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return (
+      host.endsWith(".getalai.com") ||
+      host.includes("alai") ||
+      host.endsWith(".amazonaws.com") ||
+      host.endsWith(".cloudfront.net") ||
+      host.endsWith(".blob.vercel-storage.com")
+    );
+  } catch {
+    return false;
+  }
+}
+
 function pptxResponse(fileRes, titleParam) {
   const title = (titleParam || "presentation").trim();
   const safeBase =
@@ -150,6 +166,11 @@ export const GET = apiHandler(async function GET(req, context) {
         headers: { "Content-Type": "application/json" },
       },
     );
+  }
+
+  const proxyOnly = url.searchParams.get("mode") === "proxy";
+  if (!proxyOnly && isAllowedUpstreamPptUrl(pptUrl)) {
+    return Response.redirect(pptUrl, 307);
   }
 
   const fileRes = await fetch(pptUrl, { cache: "no-store" });

@@ -6,6 +6,12 @@ import AlaiSlidesPreviewModal from "./AlaiSlidesPreviewModal";
 import { CloseIco, SlidesIco } from "./generateSlides/ui.jsx";
 import CreateSlidesForm from "./generateSlides/CreateSlidesForm.jsx";
 import { useTheme } from "./ThemeProvider";
+import { getAlaiSlideGenLoadingMessage } from "@/lib/alaiSlideGenLoadingMessage";
+import {
+  buildSlidePptxDownloadUrl,
+  triggerDirectFileDownload,
+  triggerSlidePptxApiDownload,
+} from "@/lib/slidePptxClientDownload";
 
 // ─── Main Modal ───────────────────────────────────────────
 export default function GenerateSlidesModal({
@@ -22,6 +28,44 @@ export default function GenerateSlidesModal({
 
   /** Latest download action for the open Alai preview (fresh proxy vs saved blob) */
   const slideDownloadRef = useRef(null);
+  const alaiLoadingTimerRef = useRef(null);
+  const alaiLoadingStartRef = useRef(0);
+  const alaiApiStatusRef = useRef("");
+
+  function clearAlaiLoadingTimer() {
+    if (alaiLoadingTimerRef.current) {
+      clearInterval(alaiLoadingTimerRef.current);
+      alaiLoadingTimerRef.current = null;
+    }
+  }
+
+  function startAlaiLoadingTimer() {
+    clearAlaiLoadingTimer();
+    alaiLoadingStartRef.current = Date.now();
+    alaiApiStatusRef.current = "Preparing your presentation…";
+    setGenerateProgress(
+      getAlaiSlideGenLoadingMessage(0, alaiApiStatusRef.current),
+    );
+    alaiLoadingTimerRef.current = setInterval(() => {
+      const elapsed = Date.now() - alaiLoadingStartRef.current;
+      setGenerateProgress(
+        getAlaiSlideGenLoadingMessage(elapsed, alaiApiStatusRef.current),
+      );
+    }, 1000);
+  }
+
+  function setAlaiApiStatus(message) {
+    const msg = String(message || "").trim();
+    if (msg) alaiApiStatusRef.current = msg;
+    if (alaiLoadingTimerRef.current) {
+      const elapsed = Date.now() - alaiLoadingStartRef.current;
+      setGenerateProgress(
+        getAlaiSlideGenLoadingMessage(elapsed, alaiApiStatusRef.current),
+      );
+    }
+  }
+
+  useEffect(() => () => clearAlaiLoadingTimer(), []);
 
   const [selectedThemeId, setSelectedThemeId] = useState(null);
   const [title, setTitle] = useState("");
@@ -81,26 +125,23 @@ export default function GenerateSlidesModal({
 
   function setFreshSlideDownload(pollData, slideProvider = provider) {
     const dl = pollData.download_url;
-    if (!dl) {
+    const directUrl = String(pollData.remote_download_url || "").trim();
+    if (!dl && !directUrl) {
       slideDownloadRef.current = null;
       return;
     }
     const t = title || "presentation";
     const prov = slideProvider || "alai";
     slideDownloadRef.current = async () => {
-      const dlRes = await fetch(
-        `${dl}?title=${encodeURIComponent(t)}&provider=${encodeURIComponent(prov)}`,
-      );
-      if (!dlRes.ok) throw new Error("Failed to download presentation file");
-      const blob = await dlRes.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const fileName =
-        t.replace(/[^a-z0-9]/gi, "_").toLowerCase() || "presentation";
-      a.download = `${fileName}.pptx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      if (directUrl) {
+        triggerDirectFileDownload(directUrl);
+        return;
+      }
+      const href = buildSlidePptxDownloadUrl(dl, {
+        title: t,
+        provider: prov,
+      });
+      triggerSlidePptxApiDownload(href);
     };
   }
 
@@ -357,6 +398,8 @@ export default function GenerateSlidesModal({
       setLastGenerationId(String(genId));
 
       const pollIntervalMs = activeProvider === "2slides" ? 20_000 : 3_000;
+      const isAlaiProvider = activeProvider === "alai";
+      if (isAlaiProvider) startAlaiLoadingTimer();
 
       /** Alai often sets `completed` before `formats.ppt` is populated — keep polling. */
       let exportWaitAttempts = 0;
@@ -393,20 +436,14 @@ export default function GenerateSlidesModal({
             setGenerateProgress("Ready — opening preview...");
             setAlaiPreviewOpen(true);
           } else if (pollData.download_url) {
-            setGenerateProgress("Slides are ready. Downloading…");
+            setGenerateProgress("Slides are ready. Starting download…");
             const t = title || "presentation";
-            const dlRes = await fetch(
-              `${pollData.download_url}?title=${encodeURIComponent(t)}&provider=${encodeURIComponent(activeProvider)}`,
+            triggerSlidePptxApiDownload(
+              buildSlidePptxDownloadUrl(pollData.download_url, {
+                title: t,
+                provider: activeProvider,
+              }),
             );
-            if (!dlRes.ok)
-              throw new Error("Failed to download presentation file");
-            const blob = await dlRes.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = blobUrl;
-            a.download = `${t.replace(/[^a-z0-9]/gi, "_").toLowerCase() || "presentation"}.pptx`;
-            a.click();
-            URL.revokeObjectURL(blobUrl);
           }
 
           void saveDeckToArchive({
@@ -427,9 +464,10 @@ export default function GenerateSlidesModal({
                 "Slide generation completed but no preview/download link was provided.",
             );
           }
-          setGenerateProgress(
-            String(pollData.error || "").trim() || "Waiting for PPTX export…",
-          );
+          const exportMsg =
+            String(pollData.error || "").trim() || "Waiting for PPTX export…";
+          if (isAlaiProvider) setAlaiApiStatus(exportMsg);
+          else setGenerateProgress(exportMsg);
           await new Promise((r) => setTimeout(r, pollIntervalMs));
           continue;
         }
@@ -442,14 +480,17 @@ export default function GenerateSlidesModal({
           rendering: "Rendering slides…",
           exporting: "Exporting to PPTX…",
         };
-        setGenerateProgress(
-          statusMessages[pollData.status] ?? `Working… (${pollData.status})`,
-        );
+        const statusMsg =
+          statusMessages[pollData.status] ??
+          `Working… (${pollData.status})`;
+        if (isAlaiProvider) setAlaiApiStatus(statusMsg);
+        else setGenerateProgress(statusMsg);
         await new Promise((r) => setTimeout(r, pollIntervalMs));
       }
     } catch (e) {
       setGenerateErr(e.message || String(e));
     } finally {
+      clearAlaiLoadingTimer();
       setGenerating(false);
       setGenerateProgress("");
     }

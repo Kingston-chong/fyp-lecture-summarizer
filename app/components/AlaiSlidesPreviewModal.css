@@ -190,6 +190,16 @@
   border-top-color: rgba(99, 102, 241, 0.95);
   animation: spin 0.7s linear infinite;
 }
+.alai-btn-spin {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-top-color: rgba(99, 102, 241, 0.95);
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
 .alai-fallback {
   height: 100%;
   display: flex;
