@@ -11,6 +11,7 @@ import {
   EditIcon,
   FileIcon,
   HistoryIcon,
+  PinIcon,
   ShareIcon,
   TrashIcon,
   UploadIcon,
@@ -18,6 +19,27 @@ import {
 import { formatSummarizeForLabel, timeAgo } from "@/app/dashboard/helpers";
 import { historyMatchesSearch } from "@/app/components/HistorySummaryExpand";
 import HistorySummaryMenuPortal from "@/app/components/HistorySummaryMenuPortal";
+import ShareChatDialog from "@/app/components/ShareChatDialog";
+import {
+  dispatchSummaryRenamed,
+  SUMMARY_RENAMED_EVENT,
+} from "@/lib/summaryRenameSync";
+import {
+  copyTextToClipboard,
+  publishPublicChatShare,
+} from "@/lib/publishPublicChatShare";
+
+function sortHistoryItems(items) {
+  return [...items].sort((a, b) => {
+    const ap = a.pinned ? 1 : 0;
+    const bp = b.pinned ? 1 : 0;
+    if (ap !== bp) return bp - ap;
+    const at = new Date(a.pinnedAt || a.createdAt).getTime();
+    const bt = new Date(b.pinnedAt || b.createdAt).getTime();
+    if (at !== bt) return bt - at;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+}
 
 function formatBytes(bytes) {
   if (!bytes) return "";
@@ -146,7 +168,10 @@ export default function AppSidebar({
   const [historyMenu, setHistoryMenu] = useState(null); // { id, bottom, right, width }
   const [renameModal, setRenameModal] = useState(null); // { summary, value }
   const [deleteModal, setDeleteModal] = useState(null); // { summary }
-  const [toast, setToast] = useState(null); // { message } for share feedback
+  const [toast, setToast] = useState(null); // { message } for errors
+  const [shareDialog, setShareDialog] = useState(null);
+  const [shareLoadingId, setShareLoadingId] = useState(null);
+  const [pinningId, setPinningId] = useState(null);
 
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -201,6 +226,21 @@ export default function AppSidebar({
     return () => window.removeEventListener("s2n-summary-headings", handler);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = (e) => {
+      const { id, title } = e.detail || {};
+      if (id == null) return;
+      setHistory((prev) =>
+        prev.map((h) =>
+          String(h.id) === String(id) ? { ...h, title: title ?? h.title } : h,
+        ),
+      );
+    };
+    window.addEventListener(SUMMARY_RENAMED_EVENT, handler);
+    return () => window.removeEventListener(SUMMARY_RENAMED_EVENT, handler);
+  }, []);
+
   function toggleSectionGroupFold(mainId) {
     setFoldedSectionGroups((prev) => ({
       ...prev,
@@ -246,7 +286,13 @@ export default function AppSidebar({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: next }),
       });
-      if (res.ok) await fetchHistory();
+      if (res.ok) {
+        setHistory((prev) =>
+          prev.map((h) => (h.id === summary.id ? { ...h, title: next } : h)),
+        );
+        dispatchSummaryRenamed(summary.id, next);
+        await fetchHistory();
+      }
     } finally {
       setRenamingId(null);
     }
@@ -274,23 +320,24 @@ export default function AppSidebar({
     }
   }
 
-  function handleShareSummary(summary) {
+  async function handleShareSummary(summary) {
     if (typeof window === "undefined" || !summary?.id) return;
-    const url = `${window.location.origin}/summary/${summary.id}`;
-    if (navigator.share) {
-      navigator
-        .share({ title: summary.title || "Slide2Notes summary", url })
-        .catch(() => {});
-      return;
+    setShareLoadingId(summary.id);
+    try {
+      const { url, shareToken } = await publishPublicChatShare(summary.id);
+      await copyTextToClipboard(url);
+      setShareDialog({
+        title: summary.title?.trim() || "Share conversation",
+        shareUrl: url,
+        shareToken,
+      });
+    } catch (e) {
+      setToast({
+        message: e?.message || "Could not create share link.",
+      });
+    } finally {
+      setShareLoadingId(null);
     }
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard
-        .writeText(url)
-        .then(() => setToast({ message: "Link copied to clipboard." }))
-        .catch(() => setToast({ message: url }));
-      return;
-    }
-    setToast({ message: url });
   }
 
   useEffect(() => {
@@ -325,6 +372,7 @@ export default function AppSidebar({
       const t = e.target;
       if (t.closest?.(".as-history-menu-portal")) return;
       if (t.closest?.(".as-hdots")) return;
+      if (t.closest?.(".as-hpin")) return;
       setHistoryMenu(null);
     };
     document.addEventListener("mousedown", onDown);
@@ -355,9 +403,44 @@ export default function AppSidebar({
     return ordered.map((role) => ({
       role,
       label: formatSummarizeForLabel(role),
-      items: groups.get(role) || [],
+      items: sortHistoryItems(groups.get(role) || []),
     }));
   }, [filteredHistory]);
+
+  async function togglePinSummary(summary, e) {
+    e?.stopPropagation?.();
+    if (!summary?.id || pinningId === summary.id) return;
+    const nextPinned = !summary.pinned;
+    setPinningId(summary.id);
+    try {
+      const res = await fetch(`/api/summary/${summary.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pinned: nextPinned }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not update pin");
+      setHistory((prev) =>
+        sortHistoryItems(
+          prev.map((h) =>
+            h.id === summary.id
+              ? {
+                  ...h,
+                  pinned: nextPinned,
+                  pinnedAt: nextPinned ? data.pinnedAt || new Date().toISOString() : null,
+                }
+              : h,
+          ),
+        ),
+      );
+    } catch (err) {
+      setToast({
+        message: err?.message || "Could not update pin.",
+      });
+    } finally {
+      setPinningId(null);
+    }
+  }
 
   function toggleHistoryRole(role) {
     setCollapsedHistoryRoles((prev) => ({
@@ -444,7 +527,9 @@ export default function AppSidebar({
                         activeSummaryId != null && Number(h.id) === activeSummaryId
                           ? " act"
                           : ""
-                      }${historyMenu?.id === h.id ? " menu-open" : ""}`}
+                      }${h.pinned ? " pinned" : ""}${
+                        historyMenu?.id === h.id ? " menu-open" : ""
+                      }`}
                       role="button"
                       tabIndex={0}
                       onClick={() => openHistorySummary(h)}
@@ -459,6 +544,20 @@ export default function AppSidebar({
                         <div className="as-hname" title={h.title}>
                           {h.title}
                         </div>
+                        <button
+                          type="button"
+                          className={`as-hpin${h.pinned ? " is-pinned" : ""}`}
+                          title={h.pinned ? "Unpin from top" : "Pin to top"}
+                          aria-label={h.pinned ? "Unpin summary" : "Pin summary"}
+                          aria-pressed={Boolean(h.pinned)}
+                          onClick={(e) => void togglePinSummary(h, e)}
+                        >
+                          {pinningId === h.id ? (
+                            <span className="as-spin" />
+                          ) : (
+                            <PinIcon size={13} filled={Boolean(h.pinned)} />
+                          )}
+                        </button>
                         <button
                           type="button"
                           className="as-hdots"
@@ -600,9 +699,10 @@ export default function AppSidebar({
           <button
             type="button"
             className="as-menu-btn"
+            disabled={shareLoadingId === historyMenuSummary.id}
             onClick={() => {
               setHistoryMenu(null);
-              handleShareSummary(historyMenuSummary);
+              void handleShareSummary(historyMenuSummary);
             }}
           >
             <span className="as-menu-ico">
@@ -708,6 +808,15 @@ export default function AppSidebar({
           </div>,
           portalTarget,
         )}
+
+      <ShareChatDialog
+        open={Boolean(shareDialog)}
+        onClose={() => setShareDialog(null)}
+        title={shareDialog?.title}
+        shareUrl={shareDialog?.shareUrl}
+        shareToken={shareDialog?.shareToken}
+        copiedOnOpen
+      />
     </>
   );
 }

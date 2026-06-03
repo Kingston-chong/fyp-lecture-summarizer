@@ -36,7 +36,11 @@ export async function GET(req) {
     const [summaries, total] = await Promise.all([
       prisma.summary.findMany({
         where: { userId: user.id },
-        orderBy: { createdAt: "desc" },
+        orderBy: [
+          { pinned: "desc" },
+          { pinnedAt: "desc" },
+          { createdAt: "desc" },
+        ],
         skip,
         take: limit,
         select: {
@@ -45,6 +49,8 @@ export async function GET(req) {
           model: true,
           summarizeFor: true,
           output: true,
+          pinned: true,
+          pinnedAt: true,
           createdAt: true,
           documents: {
             select: {
@@ -72,6 +78,8 @@ export async function GET(req) {
       model: s.model,
       summarizeFor: s.summarizeFor,
       excerpt: s.output ? String(s.output).slice(0, EXCERPT_CHARS) : "",
+      pinned: Boolean(s.pinned),
+      pinnedAt: s.pinnedAt,
       createdAt: s.createdAt,
       files: s.documents.map((d) => ({
         id: d.document.id,

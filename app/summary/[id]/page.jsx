@@ -55,6 +55,7 @@ import ChatSourcesList from "./components/ChatSourcesList";
 import ChatSelectionPopover from "./components/ChatSelectionPopover";
 import ChatResponseLengthControl from "./components/ChatResponseLengthControl";
 import ShareChatButton from "./components/ShareChatButton";
+import ChatThreadNavigator from "./components/ChatThreadNavigator";
 import QuizAttemptDetailModal from "./components/QuizAttemptDetailModal";
 import SourcesSidebar from "./components/SourcesSidebar";
 import MobileMoreSheet from "./components/MobileMoreSheet";
@@ -83,6 +84,10 @@ import {
   mergeChatDocumentIds,
 } from "./lib/chatApi";
 import { exportSummaryPdf } from "./lib/exportSummaryPdf";
+import {
+  dispatchSummaryRenamed,
+  SUMMARY_RENAMED_EVENT,
+} from "@/lib/summaryRenameSync";
 import {
   Chevron,
   Spinner,
@@ -312,6 +317,9 @@ export default function SummaryView() {
   const [chatTitleSaving, setChatTitleSaving] = useState(false);
 
   const bottomRef = useRef(null);
+  const unifiedScrollRef = useRef(null);
+  const chatThreadRef = useRef(null);
+  const chatMessageRefs = useRef(new Map());
   const inputRef = useRef(null);
   const chatTitleInputRef = useRef(null);
   const sourceInputRef = useRef(null);
@@ -558,6 +566,17 @@ export default function SummaryView() {
       cancelled = true;
     };
   }, [status, summaryId]);
+
+  useEffect(() => {
+    const onRenamed = (e) => {
+      const { id, title } = e.detail || {};
+      if (id == null || String(id) !== String(summaryId)) return;
+      setSummary((s) => (s ? { ...s, title } : s));
+      setChatTitleDraft((draft) => (chatTitleEditing ? draft : title));
+    };
+    window.addEventListener(SUMMARY_RENAMED_EVENT, onRenamed);
+    return () => window.removeEventListener(SUMMARY_RENAMED_EVENT, onRenamed);
+  }, [summaryId, chatTitleEditing]);
 
   // Auto-start live summarization stream when coming from dashboard redirect (?autostart=1)
   useEffect(() => {
@@ -1562,6 +1581,7 @@ export default function SummaryView() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Failed to save title");
       setSummary((s) => (s ? { ...s, title: next } : s));
+      dispatchSummaryRenamed(summaryId, next);
       setChatTitleEditing(false);
     } catch {
       setChatTitleDraft(prev);
@@ -1924,6 +1944,18 @@ export default function SummaryView() {
                   }
                   onSavePdf={handlePDF}
                   onGenerateSlides={() => setSlidesModal(true)}
+                  shareAction={
+                    <ShareChatButton
+                      variant="toolbar"
+                      summaryId={summaryId}
+                      summaryTitle={summary?.title}
+                      disabled={
+                        messages.filter(
+                          (m) => !m.streaming && !m.error && m.content,
+                        ).length === 0
+                      }
+                    />
+                  }
                 />
               </div>
 
@@ -1988,7 +2020,7 @@ export default function SummaryView() {
                   </div>
                 </div>
 
-                <div className="unified-scroll">
+                <div className="unified-scroll" ref={unifiedScrollRef}>
                   {summaryLoading ? (
                     <div
                       className="sum-text sum-loading"
@@ -2037,18 +2069,8 @@ export default function SummaryView() {
 
                   {(messages.length > 0 || chatLoading) && (
                     <div className="conv-divider">
-                      <div className="conv-label-row">
-                        <div className="conv-label">
-                          Continue the conversation
-                        </div>
-                        <ShareChatButton
-                          summaryId={summaryId}
-                          disabled={
-                            messages.filter(
-                              (m) => !m.streaming && !m.error && m.content,
-                            ).length === 0
-                          }
-                        />
+                      <div className="conv-label">
+                        Continue the conversation
                       </div>
                       <div
                         className={`hl-select-ctx chat-hl-ctx${hlModeActive ? " hl-mode-active" : ""}`}
@@ -2058,7 +2080,7 @@ export default function SummaryView() {
                             : undefined
                         }
                       >
-                        <div className="chat-thread">
+                        <div className="chat-thread" ref={chatThreadRef}>
                         {messages.map((m, i) => {
                           const showRegen =
                             m.role === "ai" &&
@@ -2066,7 +2088,19 @@ export default function SummaryView() {
                             i === messages.length - 1 &&
                             !chatLoading;
                           return (
-                            <div key={m.id} className={`m-row ${m.role}`}>
+                            <div
+                              key={m.id}
+                              className={`m-row ${m.role}`}
+                              ref={(el) => {
+                                if (m.role === "user") {
+                                  if (el) chatMessageRefs.current.set(m.id, el);
+                                  else chatMessageRefs.current.delete(m.id);
+                                }
+                              }}
+                              {...(m.role === "user"
+                                ? { "data-chat-nav-id": m.id }
+                                : {})}
+                            >
                               <div className={`m-ava ${m.role}`}>
                                 {m.role === "ai" ? <BotIco /> : <UserIco />}
                               </div>
@@ -2822,6 +2856,12 @@ export default function SummaryView() {
         isLecturerSummary={isLecturerSummary}
         pdfLoading={pdfLoading}
         hasSummary={Boolean(summary)}
+        summaryId={summaryId}
+        summaryTitle={summary?.title}
+        shareChatDisabled={
+          messages.filter((m) => !m.streaming && !m.error && m.content)
+            .length === 0
+        }
         onQuiz={() => setQuizModal(true)}
         onGenerateFlashcards={() => setFlashcardModal(true)}
         onCreateFlashcardsManually={() => setCreateFlashcardOpen(true)}
@@ -2904,6 +2944,12 @@ export default function SummaryView() {
       <ChatSelectionPopover
         draft={chatSelectionDraft}
         onReply={addDraftChatReference}
+      />
+
+      <ChatThreadNavigator
+        scrollRef={unifiedScrollRef}
+        messageRefs={chatMessageRefs}
+        messages={messages}
       />
 
       {citationPreview && summary?.summarizeFor === "lecturer" ? (

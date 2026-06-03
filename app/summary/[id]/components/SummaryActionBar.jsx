@@ -22,6 +22,7 @@ export default function SummaryActionBar({
   onCreateFlashcardsManually,
   onSavePdf,
   onGenerateSlides,
+  shareAction = null,
 }) {
   const showDesktopButtons = mode === "full" || mode === "desktop";
   const showMobileMenu = mode === "full" || mode === "mobile";
@@ -140,6 +141,7 @@ export default function SummaryActionBar({
             </Button>
           );
         })}
+        {shareAction}
       </div>
       )}
 

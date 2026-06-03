@@ -8,6 +8,7 @@ import {
   SlidesIco,
   Spinner,
 } from "@/app/components/icons";
+import ShareChatButton from "./ShareChatButton";
 
 export default function MobileActionsSheet({
   open,
@@ -15,6 +16,9 @@ export default function MobileActionsSheet({
   isLecturerSummary,
   pdfLoading,
   hasSummary,
+  summaryId,
+  summaryTitle = "",
+  shareChatDisabled,
   onQuiz,
   onGenerateFlashcards,
   onCreateFlashcardsManually,
@@ -99,6 +103,16 @@ export default function MobileActionsSheet({
           </button>
         </div>
         <div className="mob-actions-body">
+          {summaryId ? (
+            <div className="mob-actions-share">
+              <ShareChatButton
+                variant="toolbar"
+                summaryId={summaryId}
+                summaryTitle={summaryTitle}
+                disabled={shareChatDisabled}
+              />
+            </div>
+          ) : null}
           {actions.map((action) => {
             const Icon = action.icon;
             return (

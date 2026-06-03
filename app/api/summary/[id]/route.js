@@ -68,22 +68,43 @@ export async function PATCH(req, ctx) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const id = await getIdFromParams(ctx.params);
-    const body = await req.json();
-    const title = (body?.title || "").toString().trim();
-    if (!title) {
-      return NextResponse.json({ error: "Title is required" }, { status: 400 });
+    const body = await req.json().catch(() => ({}));
+    const data = /** @type {{ title?: string; pinned?: boolean }} */ ({});
+
+    if (typeof body?.title === "string") {
+      const title = body.title.trim();
+      if (!title) {
+        return NextResponse.json({ error: "Title is required" }, { status: 400 });
+      }
+      data.title = title;
+    }
+
+    if (typeof body?.pinned === "boolean") {
+      data.pinned = body.pinned;
+      data.pinnedAt = body.pinned ? new Date() : null;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json(
+        { error: "Nothing to update" },
+        { status: 400 },
+      );
     }
 
     const updated = await prisma.summary.updateMany({
       where: { id, userId: user.id },
-      data: { title },
+      data,
     });
 
     if (updated.count === 0) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      pinned: data.pinned,
+      pinnedAt: data.pinnedAt ?? null,
+    });
   } catch (err) {
     console.error(err);
     return NextResponse.json(

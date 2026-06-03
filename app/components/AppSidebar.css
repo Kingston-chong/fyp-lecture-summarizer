@@ -236,6 +236,48 @@
     color 0.12s ease;
 }
 
+.as-hpin {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.34);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.12s ease,
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.as-hpin.is-pinned {
+  opacity: 1;
+  pointer-events: auto;
+  color: #a5b4fc;
+}
+
+.as-hi:hover .as-hpin,
+.as-hi.menu-open .as-hpin,
+.as-hi.pinned .as-hpin {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.as-hpin:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.as-hpin.is-pinned:hover {
+  color: #c7d2fe;
+}
+
 .as-hi:hover .as-hdots,
 .as-hi.menu-open .as-hdots {
   opacity: 1;
@@ -690,6 +732,19 @@ html[data-theme="light"] .as-hdots {
 html[data-theme="light"] .as-hdots:hover {
   background: rgba(0, 0, 0, 0.06);
   color: rgba(0, 0, 0, 0.78);
+}
+html[data-theme="light"] .as-hpin {
+  color: rgba(0, 0, 0, 0.45);
+}
+html[data-theme="light"] .as-hpin.is-pinned {
+  color: #4f46e5;
+}
+html[data-theme="light"] .as-hpin:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.78);
+}
+html[data-theme="light"] .as-hpin.is-pinned:hover {
+  color: #4338ca;
 }
 html[data-theme="light"] .as-hfile-chev {
   color: rgba(0, 0, 0, 0.4);

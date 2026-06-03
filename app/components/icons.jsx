@@ -722,6 +722,23 @@ export const DotsIcon = ({ size = 14 }) => (
   </svg>
 );
 
+export const PinIcon = ({ size = 14, filled = false }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill={filled ? "currentColor" : "none"}
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M12 17v5" />
+    <path d="M9 3h6l1 7h4l-5 6v4H9v-4L4 10h4z" />
+  </svg>
+);
+
 export const ShareIcon = ({ size = 16 }) => (
   <svg
     width={size}

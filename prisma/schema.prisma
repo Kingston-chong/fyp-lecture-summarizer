@@ -77,6 +77,8 @@ model Summary {
   summarizeFor String  // lecturer / student
   prompt      String?  // additional prompt
   output      String   @db.LongText
+  pinned      Boolean  @default(false)
+  pinnedAt    DateTime?
   createdAt   DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id])
   documents   SummaryDocument[]
