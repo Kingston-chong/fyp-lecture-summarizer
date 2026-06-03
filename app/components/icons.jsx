@@ -32,6 +32,44 @@ export const ChevRight = () => (
     <polyline points="9 18 15 12 9 6" />
   </svg>
 );
+
+/** VS Code codicon-style collapse-all (stacked squares + minus). */
+export const CollapseAllIcon = ({ size = 16 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <rect x="2" y="2" width="7" height="7" rx="1" />
+    <rect x="6" y="6" width="7" height="7" rx="1" />
+    <line x1="8" y1="9.5" x2="12" y2="9.5" />
+  </svg>
+);
+
+/** Collapse / hide the left sidebar panel. */
+export const SidebarHideIcon = ({ size = 16 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <rect x="2.5" y="2.5" width="11" height="11" rx="1" />
+    <line x1="6.5" y1="2.5" x2="6.5" y2="13.5" />
+    <polyline points="9 8 7.5 6.5 9 5" />
+  </svg>
+);
 export const DocIco = ({ ext, size = 12 }) => {
   const c =
     {

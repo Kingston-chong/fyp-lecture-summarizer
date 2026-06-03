@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useRef, useState } from "react";
 import GenerateSlidesModal from "@/app/components/GenerateSlidesModal";
 import AlaiSlidesPreviewModal from "@/app/components/AlaiSlidesPreviewModal";
 import QuizSettingsModal from "@/app/components/QuizSettingsModal";
@@ -49,6 +49,22 @@ export default function SummaryModalStack({
   const isLecturer = summary?.summarizeFor === "lecturer";
   const numericSummaryId = parseNumericSummaryId(summaryId);
 
+  const [generatedSlidePreviewOpen, setGeneratedSlidePreviewOpen] =
+    useState(false);
+  const [generatedSlidePreview, setGeneratedSlidePreview] = useState(null);
+  const generatedSlideDlRef = useRef(null);
+
+  const handleGeneratedSlidePreviewClose = useCallback(() => {
+    setGeneratedSlidePreviewOpen(false);
+    setGeneratedSlidePreview(null);
+    generatedSlideDlRef.current = null;
+  }, []);
+
+  const handleGeneratedSlideDownload = useCallback(async () => {
+    const fn = generatedSlideDlRef.current;
+    if (typeof fn === "function") await Promise.resolve(fn());
+  }, []);
+
   const handleSlideDeckDownload = useCallback(async () => {
     const fn = slideDeckDlRef.current;
     if (typeof fn === "function") await Promise.resolve(fn());
@@ -68,6 +84,29 @@ export default function SummaryModalStack({
           summarizeFor={summary?.summarizeFor || "student"}
           summaryId={numericSummaryId}
           onSlideDecksChanged={fetchSlideDecks}
+          onOpenPreview={(payload) => {
+            generatedSlideDlRef.current = payload?.onDownload ?? null;
+            setGeneratedSlidePreview({
+              previewUrl: payload?.previewUrl || "",
+              remotePptUrl: payload?.remotePptUrl || "",
+              provider: payload?.provider || "alai",
+              title: payload?.title || "Create Presentation Slides...",
+            });
+            setGeneratedSlidePreviewOpen(true);
+            setSlidesModal(false);
+          }}
+        />
+      )}
+
+      {generatedSlidePreviewOpen && generatedSlidePreview && (
+        <AlaiSlidesPreviewModal
+          onClose={handleGeneratedSlidePreviewClose}
+          previewUrl={generatedSlidePreview.previewUrl}
+          remotePptUrl={generatedSlidePreview.remotePptUrl}
+          provider={generatedSlidePreview.provider}
+          title={generatedSlidePreview.title}
+          subtitle="Your presentation slides is ready.."
+          onDownload={handleGeneratedSlideDownload}
         />
       )}
 

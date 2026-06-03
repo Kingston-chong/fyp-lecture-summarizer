@@ -8,6 +8,7 @@ import { signIn } from "next-auth/react";
 import { ChevronDownIcon, EyeIcon, EyeOffIcon } from "../components/icons";
 import AuthMarketingNav from "../components/AuthMarketingNav";
 import AuthPageChrome from "../components/AuthPageChrome";
+import { LoadingText } from "@/app/components/LoadingText";
 
 const CheckCircle = ({ met }) => (
   <svg
@@ -345,7 +346,9 @@ export default function Slide2NotesRegister() {
                 onClick={handleSignUp}
                 disabled={loading}
               >
-                {loading ? "Signing up..." : "Sign Up"}
+                <LoadingText active={loading} idle="Sign Up">
+                  Signing up
+                </LoadingText>
               </button>
             </div>
           </div>

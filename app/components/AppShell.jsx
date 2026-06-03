@@ -143,28 +143,6 @@ export default function AppShell({
             right={
               <>
                 <ThemeToggle />
-                {sidebarResizable && (
-                  <button
-                    type="button"
-                    className="shell-sidebar-toggle-btn"
-                    title={
-                      desktopSidebarCollapsed ? "Show sidebar" : "Hide sidebar"
-                    }
-                    aria-label={
-                      desktopSidebarCollapsed ? "Show sidebar" : "Hide sidebar"
-                    }
-                    aria-pressed={desktopSidebarCollapsed}
-                    onClick={() => setDesktopSidebarCollapsed((v) => !v)}
-                  >
-                    <span
-                      className={`shell-sidebar-toggle-ico${
-                        desktopSidebarCollapsed ? " collapsed" : ""
-                      }`}
-                    >
-                      <ChevRight />
-                    </span>
-                  </button>
-                )}
                 {displayName && (
                   <span className="shell-greet">
                     Hi, {displayName.split(" ")[0]}
@@ -275,6 +253,10 @@ export default function AppShell({
                 width={sidebarResizable ? sidebarWidth : 260}
                 hidePrevUploads={hidePrevUploads}
                 isCollapsed={sidebarResizable && desktopSidebarCollapsed}
+                showSidebarToggle={sidebarResizable}
+                onToggleSidebar={() =>
+                  setDesktopSidebarCollapsed((v) => !v)
+                }
               />
             </div>
           )}
@@ -283,6 +265,17 @@ export default function AppShell({
               className="shell-sidebar-splitter"
               onMouseDown={onSidebarResizeStart}
             />
+          )}
+          {sidebarResizable && desktopSidebarCollapsed && (
+            <button
+              type="button"
+              className="shell-sidebar-expand-tab"
+              title="Show sidebar"
+              aria-label="Show sidebar"
+              onClick={() => setDesktopSidebarCollapsed(false)}
+            >
+              <ChevRight />
+            </button>
           )}
           <div className="shell-main">{children}</div>
         </div>

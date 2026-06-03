@@ -228,10 +228,10 @@ export function useSummaryData({ status, summaryId }) {
   const summaryBodyDangerousHtml = useMemo(() => {
     const hasOutput =
       typeof summary?.output === "string" && summary.output.trim().length > 0;
-    const fallback = summarizing
-      ? "Generating summary…"
-      : summarizeError
-        ? `Error: ${summarizeError}`
+    const fallback = summarizeError
+      ? `Error: ${summarizeError}`
+      : summarizing
+        ? ""
         : "No summary output found.";
     const raw =
       summaryHtml || markdownToHtml(hasOutput ? summary.output : fallback);

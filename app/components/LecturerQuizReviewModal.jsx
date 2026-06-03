@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { CloseIcon, QuizIco } from "./icons";
 import "./LecturerQuizReviewModal.css";
+import { LoadingText } from "@/app/components/LoadingText";
 import QuizAttemptDetailModal from "@/app/summary/[id]/components/QuizAttemptDetailModal";
 import { formatSlideDeckSavedAt } from "@/app/summary/[id]/helpers";
 import {
@@ -452,7 +453,7 @@ export default function LecturerQuizReviewModal({
                       onClick={() => void handlePublish()}
                     >
                       {publishLoading
-                        ? "Updating…"
+                        ? <LoadingText active>Updating</LoadingText>
                         : published
                           ? "Unpublish"
                           : "Publish for students"}
@@ -482,7 +483,7 @@ export default function LecturerQuizReviewModal({
                           onClick={() => void handleCollectionToggle()}
                         >
                           {collectionLoading
-                            ? "Updating…"
+                            ? <LoadingText active>Updating</LoadingText>
                             : acceptingResponses
                               ? "Stop collecting"
                               : "Start collecting"}
@@ -536,7 +537,9 @@ export default function LecturerQuizReviewModal({
                   disabled={responsesLoading}
                   onClick={() => void fetchResponses()}
                 >
-                  {responsesLoading ? "Loading…" : "Refresh"}
+                  <LoadingText active={responsesLoading} idle="Refresh">
+                    Loading
+                  </LoadingText>
                 </button>
               </div>
 

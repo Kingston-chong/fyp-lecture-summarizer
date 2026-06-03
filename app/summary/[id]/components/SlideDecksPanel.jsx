@@ -1,6 +1,7 @@
 "use client";
 
 import { Spinner } from "@/app/components/icons";
+import { LoadingText } from "@/app/components/LoadingText";
 import {
   formatSlideDeckProviderLabel,
   formatSlideDeckSavedAt,
@@ -75,7 +76,12 @@ export default function SlideDecksPanel({
                   disabled={slideDeckDeletingId === d.id}
                   onClick={() => onDelete(d)}
                 >
-                  {slideDeckDeletingId === d.id ? "Deleting..." : "Delete"}
+                  <LoadingText
+                    active={slideDeckDeletingId === d.id}
+                    idle="Delete"
+                  >
+                    Deleting
+                  </LoadingText>
                 </button>
               </div>
             </div>

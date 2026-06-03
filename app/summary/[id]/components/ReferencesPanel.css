@@ -268,8 +268,10 @@ html[data-theme="light"] .rp-abstract-display::-webkit-scrollbar-thumb {
 /* ── Reference item ── */
 .rp-item {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
-  gap: 6px;
+  align-content: flex-start;
+  gap: 4px 6px;
   padding: 8px 8px 8px 10px;
   border-radius: 9px;
   border: 1px solid transparent;
@@ -292,14 +294,14 @@ html[data-theme="light"] .rp-abstract-display::-webkit-scrollbar-thumb {
   pointer-events: none;
 }
 
-/* Marker */
+/* Marker — full-width row above title / citation / badge */
 .rp-item-marker {
-  flex-shrink: 0;
+  flex: 1 1 100%;
+  width: 100%;
   font-size: 10.5px;
   font-weight: 700;
   color: #a5b4fc;
-  min-width: 22px;
-  padding-top: 1px;
+  padding-top: 0;
   font-variant-numeric: tabular-nums;
   display: flex;
   flex-wrap: wrap;
@@ -330,9 +332,9 @@ html[data-theme="light"] .rp-abstract-display::-webkit-scrollbar-thumb {
   color: #93c5fd;
 }
 
-/* Body (clickable area) */
+/* Body (clickable area) — below marker row */
 .rp-item-body {
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
   display: flex;
   flex-direction: column;

@@ -26,6 +26,7 @@ import {
   generatePptxWithTwoSlides,
   improvedSlidesToTwoSlidesUserInput,
 } from "@/lib/twoSlidesGenerate";
+import { themeFromTemplateSpec } from "@/lib/themeSelection";
 
 // ── FIX: Raise the serverless function timeout so Tavily + LLM can finish.
 // Without this Next.js kills the function at 60s before any response is sent.
@@ -181,8 +182,24 @@ ${slideBlock}
   );
 }
 
-function normalizeContentTheme(t, additiveImprove) {
+function normalizeContentTheme(t, { additiveImprove = false, overrideTheme } = {}) {
   const isHex = (v) => /^#[0-9a-f]{6}$/i.test(String(v || "").trim());
+
+  if (overrideTheme) {
+    const bg = isHex(overrideTheme.background)
+      ? overrideTheme.background
+      : DEFAULT_THEME.background;
+    const accent = isHex(overrideTheme.accent)
+      ? overrideTheme.accent
+      : DEFAULT_THEME.accent;
+    const text = isHex(overrideTheme.text)
+      ? overrideTheme.text
+      : DEFAULT_THEME.text;
+    const panel = isHex(overrideTheme.panel)
+      ? overrideTheme.panel
+      : `#${panelFromBackground(bg, accent)}`;
+    return { background: bg, accent, text, panel };
+  }
 
   if (additiveImprove) {
     const bg = "#f8fafc",
@@ -416,7 +433,13 @@ Rules:
     }
 
     // 4. Normalise output
-    const theme = normalizeContentTheme(parsed?.theme, additiveImprove);
+    const userThemeId = String(body?.themeId || "").trim();
+    const userChoseTemplate = Boolean(userThemeId);
+    const specTheme = themeFromTemplateSpec(incomingTemplateSpec);
+    const theme = normalizeContentTheme(parsed?.theme, {
+      additiveImprove: additiveImprove && !userChoseTemplate,
+      overrideTheme: userChoseTemplate && specTheme ? specTheme : null,
+    });
 
     let title = String(parsed?.title || "Improved presentation").slice(0, 200);
     let subtitle = String(parsed?.subtitle || "").slice(0, 300);
@@ -517,9 +540,13 @@ Rules:
       }
     }
 
-    // Alai: try to extract original PPTX theme to preserve its look (PDF has no PPTX theme)
+    // Alai: preserve original PPTX colors only when user did not pick a design template
     let effectiveTheme = theme;
-    if (additiveImprove && /\.pptx$/i.test(effectiveSourceName)) {
+    if (
+      additiveImprove &&
+      !userChoseTemplate &&
+      /\.pptx$/i.test(effectiveSourceName)
+    ) {
       try {
         let sourceBuffer = null;
         if (hasUploadedFile) {

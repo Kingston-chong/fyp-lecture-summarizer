@@ -2930,6 +2930,13 @@ mark.s2n-hl-pending {
   color: rgba(255, 255, 255, 0.45);
   font-style: italic;
 }
+
+.sum-gen-status {
+  padding: 8px 0 12px;
+  color: rgba(255, 255, 255, 0.55);
+  font-style: italic;
+  font-size: 0.95rem;
+}
 .dots {
   display: flex;
   gap: 4px;
@@ -4031,6 +4038,9 @@ html[data-theme="light"] .conv-label {
 html[data-theme="light"] .sum-loading {
   color: rgba(0, 0, 0, 0.45);
 }
+html[data-theme="light"] .sum-gen-status {
+  color: rgba(0, 0, 0, 0.5);
+}
 html[data-theme="light"] .dot {
   background: rgba(99, 102, 241, 0.55);
 }
@@ -4619,8 +4629,10 @@ html[data-theme="light"] .sum-text pre.cite-flash {
 }
 .ref-biblio-item {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 4px 8px;
   align-items: flex-start;
+  align-content: flex-start;
   font-size: 13px;
   line-height: 1.45;
   padding: 8px 10px;
@@ -4634,7 +4646,8 @@ html[data-theme="light"] .sum-text pre.cite-flash {
   border-color: rgba(99, 102, 241, 0.28);
 }
 .ref-biblio-marker {
-  flex-shrink: 0;
+  flex: 1 1 100%;
+  width: 100%;
   font-weight: 700;
   color: #a5b4fc;
   display: flex;
@@ -4668,6 +4681,7 @@ html[data-theme="light"] .sum-text pre.cite-flash {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  flex: 1 1 0;
   min-width: 0;
 }
 .ref-biblio-link {
@@ -4684,14 +4698,23 @@ html[data-theme="light"] .sum-text pre.cite-flash {
   word-break: break-word;
 }
 .ref-biblio-meta {
-  font-size: 11px;
-  opacity: 0.75;
+  font-size: 10px;
+  line-height: 1.5;
+  font-style: italic;
+  opacity: 0.55;
+  word-break: break-word;
 }
 .ref-biblio-kind {
-  font-size: 10px;
-  opacity: 0.55;
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
 }
 .ref-biblio-doi a {
   color: #a5b4fc;

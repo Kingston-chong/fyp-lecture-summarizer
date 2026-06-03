@@ -1,6 +1,7 @@
 "use client";
 
 import { CloseIcon, SaveIco, Spinner } from "@/app/components/icons";
+import { LoadingText } from "@/app/components/LoadingText";
 
 /** Save / cancel pills for unsaved highlights — tag styling, right-aligned in header. */
 export default function SummaryHighlightTags({
@@ -29,7 +30,13 @@ export default function SummaryHighlightTags({
         ) : (
           <SaveIco size={13} />
         )}
-        <span>{hlSaving ? "Saving…" : `Save · ${n}`}</span>
+        <span>
+          {hlSaving ? (
+            <LoadingText active>Saving</LoadingText>
+          ) : (
+            `Save · ${n}`
+          )}
+        </span>
       </button>
       <button
         type="button"

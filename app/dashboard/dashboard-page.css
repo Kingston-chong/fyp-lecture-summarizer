@@ -1176,6 +1176,121 @@
   text-transform: uppercase;
   margin-bottom: 6px;
 }
+
+/* Publication year filter (lecturer summarize) */
+.pub-year-filter {
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+.pub-year-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.pub-year-hint {
+  font-size: 10px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.28);
+  margin-bottom: 8px;
+}
+.pub-year-active {
+  color: #a5b4fc;
+}
+.pub-year-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+.pub-year-pill {
+  font-family: "Sora", sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+.pub-year-pill:hover {
+  border-color: rgba(99, 102, 241, 0.35);
+  color: rgba(255, 255, 255, 0.85);
+}
+.pub-year-pill.on {
+  background: rgba(99, 102, 241, 0.14);
+  border-color: rgba(99, 102, 241, 0.45);
+  color: #c7d2fe;
+}
+.pub-year-custom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-top: 2px;
+}
+.pub-year-range-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+.pub-year-inp {
+  width: 72px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  font-family: "Sora", sans-serif;
+  font-size: 12px;
+  color: #e2e8f0;
+  text-align: center;
+  outline: none;
+}
+.pub-year-inp:focus {
+  border-color: rgba(99, 102, 241, 0.5);
+}
+.pub-year-dash {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 14px;
+  line-height: 1;
+}
+.pub-year-search-btn {
+  min-width: 120px;
+  height: 32px;
+  padding: 0 20px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.1);
+  font-family: "Sora", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+.pub-year-search-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+.pub-year-err {
+  font-size: 10px;
+  color: #fca5a5;
+  text-align: center;
+}
 .radio-option {
   display: flex;
   align-items: flex-start;
@@ -2747,6 +2862,40 @@ html[data-theme="light"] .radio-title {
 }
 html[data-theme="light"] .radio-sub {
   color: rgba(0, 0, 0, 0.38);
+}
+
+html[data-theme="light"] .pub-year-label {
+  color: rgba(0, 0, 0, 0.45);
+}
+html[data-theme="light"] .pub-year-hint {
+  color: rgba(0, 0, 0, 0.4);
+}
+html[data-theme="light"] .pub-year-active {
+  color: #4338ca;
+}
+html[data-theme="light"] .pub-year-pill {
+  border-color: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.03);
+  color: rgba(0, 0, 0, 0.55);
+}
+html[data-theme="light"] .pub-year-pill.on {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.35);
+  color: #4338ca;
+}
+html[data-theme="light"] .pub-year-inp {
+  border-color: rgba(0, 0, 0, 0.14);
+  background: #fff;
+  color: #111827;
+}
+html[data-theme="light"] .pub-year-search-btn {
+  border-color: rgba(0, 0, 0, 0.12);
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.7);
+}
+html[data-theme="light"] .pub-year-search-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #111827;
 }
 
 html[data-theme="light"] .model-label {

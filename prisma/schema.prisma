@@ -76,6 +76,8 @@ model Summary {
   model       String   // chatgpt / deepseek / gemini
   summarizeFor String  // lecturer / student
   prompt      String?  // additional prompt
+  publishedYearFrom Int? // lecturer reference search (inclusive)
+  publishedYearTo   Int? // lecturer reference search (inclusive)
   output      String   @db.LongText
   pinned      Boolean  @default(false)
   pinnedAt    DateTime?

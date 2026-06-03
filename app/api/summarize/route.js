@@ -20,6 +20,8 @@ import {
   normalizeSummarizeRole,
 } from "@/lib/roleProfiles";
 import { applyLlmRateLimit } from "@/lib/llmRateLimit";
+import { resolvePublishedYearRange } from "@/lib/publishedYearFilter";
+import { SUMMARIZE_PHASE } from "@/lib/summarizeProgress";
 
 const MAX_MODEL_INPUT_CHARS = Number.parseInt(
   process.env.SUMMARY_MAX_INPUT_CHARS || "12000",
@@ -407,6 +409,117 @@ async function* callAIStream(model, modelVariant, systemPrompt, documentText) {
   throw new Error("Unknown model: " + model);
 }
 
+/**
+ * @param {{
+ *   documents: { id: number, name: string, url: string, type: string }[];
+ *   isLecturer: boolean;
+ *   effectiveModel: string;
+ *   effectiveVariant: string | null;
+ *   effectiveYearRange: import("@/lib/publishedYearFilter").PublishedYearRange;
+ *   onStatus?: (phase: string) => void;
+ * }} params
+ */
+async function prepareSummarizeContext({
+  documents,
+  isLecturer,
+  effectiveModel,
+  effectiveVariant,
+  effectiveYearRange,
+  onStatus,
+}) {
+  onStatus?.(SUMMARIZE_PHASE.EXTRACTING);
+
+  const limit = createLimiter(EXTRACT_CONCURRENCY);
+  const extracted = await Promise.all(
+    documents.map((doc) =>
+      limit(async () => {
+        const text = await extractDocumentText(doc.url, doc.type);
+        return { doc, text: text || "" };
+      }),
+    ),
+  );
+
+  let combinedText = "";
+  for (const { doc, text } of extracted) {
+    if (combinedText.length >= MAX_MODEL_INPUT_CHARS) break;
+    combinedText += `\n\n=== ${doc.name} ===\n`;
+    combinedText += text.slice(
+      0,
+      Math.max(0, MAX_MODEL_INPUT_CHARS - combinedText.length),
+    );
+  }
+
+  let referenceCatalog = null;
+  let referenceCatalogMeta = {
+    uploadCount: documents.length,
+    maxMarker: documents.length,
+  };
+
+  if (isLecturer) {
+    onStatus?.(SUMMARIZE_PHASE.SEARCHING_REFERENCES);
+    try {
+      const papers = await fetchRelatedPapers(
+        combinedText,
+        documents,
+        effectiveYearRange,
+        {
+          model: effectiveModel,
+          modelVariant: effectiveVariant,
+        },
+      );
+      const built = buildReferenceCatalog(documents, papers);
+      referenceCatalog = built.catalog;
+      referenceCatalogMeta = {
+        uploadCount: built.uploadCount,
+        maxMarker: built.maxMarker,
+      };
+    } catch (e) {
+      console.warn("Academic search skipped:", e?.message);
+      const built = buildReferenceCatalog(documents, []);
+      referenceCatalog = built.catalog;
+      referenceCatalogMeta = {
+        uploadCount: built.uploadCount,
+        maxMarker: built.maxMarker,
+      };
+    }
+  }
+
+  return { combinedText, referenceCatalog, referenceCatalogMeta };
+}
+
+function buildSummarizeSystemPrompt({
+  normalizedRole,
+  roleProfile,
+  effectivePrompt,
+  isLecturer,
+  referenceCatalog,
+  referenceCatalogMeta,
+}) {
+  const lecturerCitationBlock = isLecturer
+    ? `\n\n${getLecturerSummaryCitationRules(referenceCatalogMeta.uploadCount)}`
+    : "";
+  const sourceListBlock =
+    isLecturer && referenceCatalog?.length
+      ? `\n\nNumbered sources (use ONLY these numbers for [n] citations):\n${referenceCatalog
+          .map((r) => {
+            if (r.kind === "upload")
+              return `[${r.marker}] (uploaded) ${r.title}`;
+            const parts = [`[${r.marker}] (paper) ${r.title}`];
+            if (r.authors) parts.push(`— ${r.authors}`);
+            if (r.year) parts.push(`(${r.year})`);
+            if (r.url) parts.push(`URL: ${r.url}`);
+            return parts.join(" ");
+          })
+          .join("\n")}`
+      : "";
+
+  return `You are a document summarization assistant.
+Audience mode: ${normalizedRole}.
+${roleProfile.summaryInstructions.map((line) => `- ${line}`).join("\n")}${lecturerCitationBlock}${sourceListBlock}
+${effectivePrompt ? `\nAdditional instructions: ${effectivePrompt}` : ""}
+Format your response in clean markdown with clear sections.`;
+}
+
 // ── Route handler ─────────────────────────────────────────
 
 export async function POST(req) {
@@ -428,7 +541,16 @@ export async function POST(req) {
       prompt,
       stream: streamOutput = false,
       initOnly = false,
+      publishedYearFrom: bodyPublishedYearFrom,
+      publishedYearTo: bodyPublishedYearTo,
+      publishedYearMode,
     } = await req.json();
+
+    const requestYearRange = resolvePublishedYearRange({
+      mode: publishedYearMode,
+      publishedYearFrom: bodyPublishedYearFrom,
+      publishedYearTo: bodyPublishedYearTo,
+    });
 
     /** @type {{ id: number, name: string, url: string, type: string }[]} */
     let documents = [];
@@ -509,6 +631,14 @@ export async function POST(req) {
       const normalizedRole = normalizeSummarizeRole(summarizeFor);
       const title = documents[0].name.replace(/\.[^/.]+$/, "");
       const modelForDb = modelVariant ? `${model}:${modelVariant}` : model;
+      const yearData =
+        normalizedRole === "lecturer" && requestYearRange.active
+          ? {
+              publishedYearFrom: requestYearRange.from,
+              publishedYearTo: requestYearRange.to,
+            }
+          : { publishedYearFrom: null, publishedYearTo: null };
+
       const created = await prisma.summary.create({
         data: {
           userId: user.id,
@@ -516,6 +646,7 @@ export async function POST(req) {
           model: modelForDb,
           summarizeFor: normalizedRole,
           prompt: prompt || null,
+          ...yearData,
           output: "",
           documents: {
             create: documents.map((doc) => ({ documentId: doc.id })),
@@ -550,107 +681,54 @@ export async function POST(req) {
 
     const isLecturer = normalizedRole === "lecturer";
 
-    // Extract text with limited concurrency, and stop early once we have enough characters
-    const limit = createLimiter(EXTRACT_CONCURRENCY);
-    const extracted = await Promise.all(
-      documents.map((doc) =>
-        limit(async () => {
-          const text = await extractDocumentText(doc.url, doc.type);
-          return { doc, text: text || "" };
-        }),
-      ),
-    );
+    const storedYearRange = resolvePublishedYearRange({
+      publishedYearFrom: existingSummary?.publishedYearFrom,
+      publishedYearTo: existingSummary?.publishedYearTo,
+      mode:
+        existingSummary?.publishedYearFrom != null ||
+        existingSummary?.publishedYearTo != null
+          ? "custom"
+          : "all",
+    });
+    const effectiveYearRange =
+      requestYearRange.active || !existingSummary
+        ? requestYearRange
+        : storedYearRange;
 
-    let combinedText = "";
-    for (const { doc, text } of extracted) {
-      if (combinedText.length >= MAX_MODEL_INPUT_CHARS) break;
-      combinedText += `\n\n=== ${doc.name} ===\n`;
-      combinedText += text.slice(
-        0,
-        Math.max(0, MAX_MODEL_INPUT_CHARS - combinedText.length),
-      );
-    }
-
-    let referenceCatalog = null;
-    let referenceCatalogMeta = {
-      uploadCount: documents.length,
-      maxMarker: documents.length,
-    };
-
-    if (isLecturer) {
-      try {
-        const papers = await fetchRelatedPapers(combinedText, documents);
-        const built = buildReferenceCatalog(documents, papers);
-        referenceCatalog = built.catalog;
-        referenceCatalogMeta = {
-          uploadCount: built.uploadCount,
-          maxMarker: built.maxMarker,
-        };
-      } catch (e) {
-        console.warn("Academic search skipped:", e?.message);
-        const built = buildReferenceCatalog(documents, []);
-        referenceCatalog = built.catalog;
-        referenceCatalogMeta = {
-          uploadCount: built.uploadCount,
-          maxMarker: built.maxMarker,
-        };
-      }
-    }
-
-    const lecturerCitationBlock = isLecturer
-      ? `\n\n${getLecturerSummaryCitationRules(referenceCatalogMeta.uploadCount)}`
-      : "";
-    const sourceListBlock =
-      isLecturer && referenceCatalog?.length
-        ? `\n\nNumbered sources (use ONLY these numbers for [n] citations):\n${referenceCatalog
-            .map((r) => {
-              if (r.kind === "upload")
-                return `[${r.marker}] (uploaded) ${r.title}`;
-              const parts = [`[${r.marker}] (paper) ${r.title}`];
-              if (r.authors) parts.push(`— ${r.authors}`);
-              if (r.year) parts.push(`(${r.year})`);
-              if (r.url) parts.push(`URL: ${r.url}`);
-              return parts.join(" ");
-            })
-            .join("\n")}`
-        : "";
-
-    const systemPrompt = `You are a document summarization assistant.
-Audience mode: ${normalizedRole}.
-${roleProfile.summaryInstructions.map((line) => `- ${line}`).join("\n")}${lecturerCitationBlock}${sourceListBlock}
-${effectivePrompt ? `\nAdditional instructions: ${effectivePrompt}` : ""}
-Format your response in clean markdown with clear sections.`;
-
-    const finalizeLecturerOutput = async (raw, summaryIdForRefs) => {
-      let out = String(raw || "").trim();
-      if (referenceCatalogMeta.maxMarker > 0) {
-        out = clampInvalidCitations(out, referenceCatalogMeta.maxMarker);
-      }
-      const { markdown, citedCatalog, anchorMap } = finalizeLecturerReferences(
-        out,
-        referenceCatalog,
-      );
-      if (summaryIdForRefs) {
-        if (citedCatalog.length > 0) {
-          await persistSummaryReferences(
-            prisma,
-            summaryIdForRefs,
-            citedCatalog,
-            anchorMap,
-          );
-        } else {
-          await prisma.summaryReference.deleteMany({
-            where: { summaryId: summaryIdForRefs },
-          });
+    const makeFinalizers = (referenceCatalog, referenceCatalogMeta) => {
+      const finalizeLecturerOutput = async (raw, summaryIdForRefs) => {
+        let out = String(raw || "").trim();
+        if (referenceCatalogMeta.maxMarker > 0) {
+          out = clampInvalidCitations(out, referenceCatalogMeta.maxMarker);
         }
-      }
-      return markdown;
-    };
+        const { markdown, citedCatalog, anchorMap } = finalizeLecturerReferences(
+          out,
+          referenceCatalog,
+        );
+        if (summaryIdForRefs) {
+          if (citedCatalog.length > 0) {
+            await persistSummaryReferences(
+              prisma,
+              summaryIdForRefs,
+              citedCatalog,
+              anchorMap,
+            );
+          } else {
+            await prisma.summaryReference.deleteMany({
+              where: { summaryId: summaryIdForRefs },
+            });
+          }
+        }
+        return markdown;
+      };
 
-    const finalizeOutput = (raw) => {
-      if (!isLecturer) return String(raw || "").trim();
-      let out = clampInvalidCitations(raw, referenceCatalogMeta.maxMarker);
-      return finalizeLecturerReferences(out, referenceCatalog).markdown;
+      const finalizeOutput = (raw) => {
+        if (!isLecturer) return String(raw || "").trim();
+        let out = clampInvalidCitations(raw, referenceCatalogMeta.maxMarker);
+        return finalizeLecturerReferences(out, referenceCatalog).markdown;
+      };
+
+      return { finalizeLecturerOutput, finalizeOutput };
     };
 
     if (streamOutput) {
@@ -666,6 +744,35 @@ Format your response in clean markdown with clear sections.`;
       const body = new ReadableStream({
         async start(controller) {
           try {
+            const { combinedText, referenceCatalog, referenceCatalogMeta } =
+              await prepareSummarizeContext({
+                documents,
+                isLecturer,
+                effectiveModel,
+                effectiveVariant,
+                effectiveYearRange,
+                onStatus: (phase) =>
+                  sendEvent(controller, "status", { phase }),
+              });
+
+            sendEvent(controller, "status", {
+              phase: SUMMARIZE_PHASE.WRITING_SUMMARY,
+            });
+
+            const systemPrompt = buildSummarizeSystemPrompt({
+              normalizedRole,
+              roleProfile,
+              effectivePrompt,
+              isLecturer,
+              referenceCatalog,
+              referenceCatalogMeta,
+            });
+
+            const { finalizeLecturerOutput, finalizeOutput } = makeFinalizers(
+              referenceCatalog,
+              referenceCatalogMeta,
+            );
+
             sendEvent(controller, "meta", { ok: true });
             let output = "";
             let lastPersistAt = 0;
@@ -680,7 +787,6 @@ Format your response in clean markdown with clear sections.`;
               output += chunk;
               sendEvent(controller, "chunk", { text: chunk });
 
-              // Persist periodically so refresh on /summary/[id] can show partial output.
               if (existingSummary) {
                 const now = Date.now();
                 if (
@@ -755,6 +861,29 @@ Format your response in clean markdown with clear sections.`;
         },
       });
     }
+
+    const { combinedText, referenceCatalog, referenceCatalogMeta } =
+      await prepareSummarizeContext({
+        documents,
+        isLecturer,
+        effectiveModel,
+        effectiveVariant,
+        effectiveYearRange,
+      });
+
+    const systemPrompt = buildSummarizeSystemPrompt({
+      normalizedRole,
+      roleProfile,
+      effectivePrompt,
+      isLecturer,
+      referenceCatalog,
+      referenceCatalogMeta,
+    });
+
+    const { finalizeLecturerOutput, finalizeOutput } = makeFinalizers(
+      referenceCatalog,
+      referenceCatalogMeta,
+    );
 
     const rawOutput = await callAI(
       effectiveModel,

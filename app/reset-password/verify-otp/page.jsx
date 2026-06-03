@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ShieldIcon } from "../../components/icons";
 import AuthMarketingNav from "../../components/AuthMarketingNav";
 import AuthPageChrome from "../../components/AuthPageChrome";
+import { LoadingText } from "@/app/components/LoadingText";
 
 export default function VerifyOTP() {
   const router = useRouter();
@@ -187,7 +188,9 @@ export default function VerifyOTP() {
                     onClick={handleResend}
                     disabled={resending}
                   >
-                    {resending ? "Sending..." : "Resend OTP"}
+                    <LoadingText active={resending} idle="Resend OTP">
+                      Sending
+                    </LoadingText>
                   </button>
                 </>
               )}
@@ -200,7 +203,9 @@ export default function VerifyOTP() {
                   onClick={handleResend}
                   disabled={resending || countdown > 100}
                 >
-                  {resending ? "Sending..." : "Resend OTP"}
+                  <LoadingText active={resending} idle="Resend OTP">
+                    Sending
+                  </LoadingText>
                 </button>
               </div>
             )}
@@ -213,7 +218,9 @@ export default function VerifyOTP() {
               disabled={loading || otp.join("").length < 6 || countdown <= 0}
             >
               {loading && <span className="spinner" />}
-              {loading ? "Verifying..." : "Verify OTP"}
+              <LoadingText active={loading} idle="Verify OTP">
+                Verifying
+              </LoadingText>
             </button>
 
             <button

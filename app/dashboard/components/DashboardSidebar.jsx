@@ -11,6 +11,7 @@ import {
 import HistorySummaryMenuPortal from "@/app/components/HistorySummaryMenuPortal";
 import { useActiveSummaryId } from "@/app/hooks/useActiveSummaryId";
 import { formatSummarizeForLabel } from "../helpers";
+import { LoadingText } from "@/app/components/LoadingText";
 
 export default function DashboardSidebar({
   sidebarWidth,
@@ -113,7 +114,7 @@ export default function DashboardSidebar({
       {sidebarSection.history &&
         (historyLoading ? (
           <div className="sidebar-loading">
-            <div className="mini-spinner" /> Loading...
+            <div className="mini-spinner" /> <LoadingText active>Loading</LoadingText>
           </div>
         ) : history.length === 0 ? (
           <div className="sidebar-empty">No summaries yet</div>
@@ -212,7 +213,7 @@ export default function DashboardSidebar({
       {sidebarSection.prev &&
         (prevLoading ? (
           <div className="sidebar-loading">
-            <div className="mini-spinner" /> Loading...
+            <div className="mini-spinner" /> <LoadingText active>Loading</LoadingText>
           </div>
         ) : prevUploads.length === 0 ? (
           <div className="sidebar-empty">No uploads yet</div>
@@ -243,7 +244,9 @@ export default function DashboardSidebar({
                   title="Delete selected files"
                 >
                   {bulkRemoving
-                    ? "Deleting..."
+                    ? (
+                        <LoadingText active>Deleting</LoadingText>
+                      )
                     : `Delete (${selectedPrevDocIds.length})`}
                 </button>
               </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { ChevRight, CheckIcon, CloseIcon, InfoIcon } from "./icons";
 import "./QuizViewModal.css";
+import { LoadingText } from "@/app/components/LoadingText";
 
 function optionLetterClass(isCorrect, isWrong, isSelected) {
   if (isCorrect) return "qvm-option-letter qvm-option-letter--correct";
@@ -564,7 +565,10 @@ export default function QuizViewModal({
                   onClick={handleSubmit}
                   disabled={!userAnswers[currentIdx] || submitLoading}
                 >
-                  {submitLoading ? "Loading…" : "Submit Answer"} <CheckIcon />
+                  <LoadingText active={submitLoading} idle="Submit Answer">
+                    Loading
+                  </LoadingText>{" "}
+                  <CheckIcon />
                 </button>
               )}
             </>

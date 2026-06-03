@@ -2,6 +2,7 @@
 
 import "./AlaiSlidesPreviewModal.css";
 import { useEffect, useState } from "react";
+import { LoadingText } from "@/app/components/LoadingText";
 
 const CloseIco = () => (
   <svg
@@ -150,7 +151,9 @@ export default function AlaiSlidesPreviewModal({
                   title="Download as PDF"
                 >
                   {pdfDownloading ? <BtnSpinner /> : <DownloadIco />}
-                  {pdfDownloading ? "Preparing…" : "PDF"}
+                  <LoadingText active={pdfDownloading} idle="PDF">
+                    Preparing
+                  </LoadingText>
                 </button>
               ) : null}
               <button
@@ -161,7 +164,9 @@ export default function AlaiSlidesPreviewModal({
                 title="Download PowerPoint (.pptx)"
               >
                 {downloading ? <BtnSpinner /> : <DownloadIco />}
-                {downloading ? "Downloading…" : "PPTX"}
+                <LoadingText active={downloading} idle="PPTX">
+                  Downloading
+                </LoadingText>
               </button>
               <button
                 type="button"
@@ -180,9 +185,12 @@ export default function AlaiSlidesPreviewModal({
                 <div className="alai-loading" aria-label="Loading preview">
                   <div className="alai-spinner" />
                   <span className="alai-loading-label">
-                    {previewLoading || showPreparing
-                      ? "Preparing preview…"
-                      : "Loading preview…"}
+                    <LoadingText
+                      active={previewLoading || showPreparing}
+                      idle="Loading preview"
+                    >
+                      {previewLoading ? "Loading preview" : "Preparing preview"}
+                    </LoadingText>
                   </span>
                 </div>
               ) : null}

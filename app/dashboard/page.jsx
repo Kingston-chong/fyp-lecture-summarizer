@@ -33,7 +33,22 @@ import { useLeftSidebarResize } from "@/app/hooks/useLeftSidebarResize";
 import DashboardSidebar from "./components/DashboardSidebar";
 import DocumentPreviewModal from "./components/DocumentPreviewModal";
 import TemplatePickerModal from "./components/TemplatePickerModal";
+import { LoadingText } from "@/app/components/LoadingText";
+import {
+  SUMMARIZE_PHASE,
+  summarizePhaseLabel,
+} from "@/lib/summarizeProgress";
 import { uploadDocumentsViaClient } from "@/lib/clientDocumentUpload";
+import {
+  mergeSelectedThemeIntoList,
+  pickThemeIdAfterListLoad,
+  readStoredThemeChoice,
+  writeStoredThemeChoice,
+} from "@/lib/themeSelection";
+import PublishedYearFilter, {
+  publishedYearStateToPayload,
+} from "./components/PublishedYearFilter";
+import { resolvePublishedYearRange } from "@/lib/publishedYearFilter";
 
 // ── Main Component ─────────────────────────────────────────
 export default function Dashboard() {
@@ -46,6 +61,13 @@ export default function Dashboard() {
   const [selectedFiles, setSelectedFiles] = useState([]); // {name, type, size, id?, file?, fromPrev?}
   const [prompt, setPrompt] = useState("");
   const [summarizeFor, setSummarizeFor] = useState("lecturer");
+  const [publishedYearMode, setPublishedYearMode] = useState("all");
+  const [customYearFrom, setCustomYearFrom] = useState("");
+  const [customYearTo, setCustomYearTo] = useState("");
+  const [appliedCustomYearRange, setAppliedCustomYearRange] = useState({
+    from: null,
+    to: null,
+  });
   const summarizeDefaultApplied = useRef(false);
   const [model, setModel] = useState("chatgpt"); // provider: chatgpt | deepseek | gemini
   const [modelVariant, setModelVariant] = useState("gpt-4o"); // exact model id for API
@@ -55,6 +77,8 @@ export default function Dashboard() {
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false); // summarizing
   const [uploading, setUploading] = useState(false); // uploading files
+  /** Dashboard summarize button step label while busy. */
+  const [summarizeStep, setSummarizeStep] = useState(null);
   const [summaryOutput, setSummaryOutput] = useState(null); // latest result
   const [copied, setCopied] = useState(false);
 
@@ -404,6 +428,7 @@ export default function Dashboard() {
 
     setError("");
     setLoading(true);
+    setSummarizeStep(SUMMARIZE_PHASE.UPLOAD);
     setSummaryOutput(null);
 
     try {
@@ -413,6 +438,7 @@ export default function Dashboard() {
       } catch (err) {
         setError("File upload failed: " + err.message);
         setLoading(false);
+        setSummarizeStep(null);
         return;
       }
 
@@ -458,10 +484,43 @@ export default function Dashboard() {
       if (documentIds.length === 0) {
         setError("No documents could be processed.");
         setLoading(false);
+        setSummarizeStep(null);
         return;
       }
 
+      setSummarizeStep(SUMMARIZE_PHASE.PREPARE);
+
       // Create a pending summary row, redirect immediately, then stream generation on the summary page.
+      const yearPayload =
+        summarizeFor === "lecturer"
+          ? publishedYearStateToPayload(
+              publishedYearMode,
+              customYearFrom,
+              customYearTo,
+              appliedCustomYearRange,
+            )
+          : {
+              publishedYearMode: "all",
+              publishedYearFrom: null,
+              publishedYearTo: null,
+            };
+
+      if (summarizeFor === "lecturer" && publishedYearMode === "custom") {
+        const customRange = resolvePublishedYearRange({
+          mode: "custom",
+          from: yearPayload.publishedYearFrom,
+          to: yearPayload.publishedYearTo,
+        });
+        if (!customRange.active) {
+          setError(
+            "Choose a custom year range and click Search, or enter at least one year.",
+          );
+          setLoading(false);
+          setSummarizeStep(null);
+          return;
+        }
+      }
+
       const res = await fetch("/api/summarize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -472,6 +531,7 @@ export default function Dashboard() {
           summarizeFor,
           prompt,
           initOnly: true,
+          ...yearPayload,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -480,12 +540,14 @@ export default function Dashboard() {
 
       const sid = data?.summaryId;
       if (sid == null) throw new Error("Missing summaryId from server");
+      setSummarizeStep(SUMMARIZE_PHASE.OPEN);
       router.push(`/summary/${sid}?autostart=1`);
       mutateHistory();
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+      setSummarizeStep(null);
     }
   }
 
@@ -644,6 +706,20 @@ export default function Dashboard() {
 
   const DEFAULT_2SLIDES_THEME_QUERY = "business";
 
+  function restoreImproveThemeForProvider(provider) {
+    const stored = readStoredThemeChoice("improve", provider);
+    if (stored?.id) {
+      setSelectedThemeId(stored.id);
+      setSelectedTemplateSpec({
+        _themeName: stored.name || "Theme",
+        _summary: stored.description || "",
+      });
+      return;
+    }
+    setSelectedThemeId(null);
+    setSelectedTemplateSpec(null);
+  }
+
   const loadImproveThemeList = useCallback(
     async (searchQuery) => {
       setThemeSearchLoading(true);
@@ -683,7 +759,28 @@ export default function Dashboard() {
           );
         }
         themes = themes.filter((t) => t.id);
-        setThemeResults(themes);
+        const stored = readStoredThemeChoice("improve", provider);
+        const want = selectedThemeId || stored?.id || null;
+        const nextId = pickThemeIdAfterListLoad(want, themes);
+        if (nextId !== selectedThemeId) setSelectedThemeId(nextId);
+        if (
+          !selectedTemplateSpec &&
+          nextId &&
+          stored?.id === nextId &&
+          stored.name
+        ) {
+          setSelectedTemplateSpec({
+            _themeName: stored.name,
+            _summary: stored.description || "",
+          });
+        }
+        const mergeMeta = selectedTemplateSpec || {
+          name: stored?.name,
+          description: stored?.description,
+        };
+        setThemeResults(
+          mergeSelectedThemeIntoList(themes, nextId || selectedThemeId, mergeMeta),
+        );
         setThemeResultsQuery(q);
         if (themes.length === 0) {
           setThemeSearchErr(
@@ -700,7 +797,7 @@ export default function Dashboard() {
         setThemeSearchLoading(false);
       }
     },
-    [improveProvider],
+    [improveProvider, selectedThemeId, selectedTemplateSpec],
   );
 
   useEffect(() => {
@@ -740,6 +837,7 @@ export default function Dashboard() {
   async function handleThemeSelect(t) {
     if (!t?.id) return;
     setSelectedThemeId(t.id);
+    writeStoredThemeChoice("improve", improveProvider, t);
     const displaySpec = {
       _themeName: String(t.name || "Theme").trim(),
       _summary: String(t.description || "").trim(),
@@ -1437,6 +1535,19 @@ export default function Dashboard() {
                     ))}
                   </div>
 
+                  {summarizeFor === "lecturer" ? (
+                    <PublishedYearFilter
+                      mode={publishedYearMode}
+                      onModeChange={setPublishedYearMode}
+                      customFrom={customYearFrom}
+                      customTo={customYearTo}
+                      onCustomFromChange={setCustomYearFrom}
+                      onCustomToChange={setCustomYearTo}
+                      appliedCustom={appliedCustomYearRange}
+                      onApplyCustom={(range) => setAppliedCustomYearRange(range)}
+                    />
+                  ) : null}
+
                   <div>
                     <div className="model-label">Provider</div>
                     <div className="model-wrap">
@@ -1534,7 +1645,14 @@ export default function Dashboard() {
                     {loading || uploading ? (
                       <>
                         <div className="spinner" />
-                        {uploading ? "Uploading..." : "Summarizing..."}
+                        <LoadingText active>
+                          {summarizePhaseLabel(
+                            summarizeStep ||
+                              (uploading
+                                ? SUMMARIZE_PHASE.UPLOAD
+                                : SUMMARIZE_PHASE.PREPARE),
+                          )}
+                        </LoadingText>
                       </>
                     ) : (
                       <>
@@ -1633,8 +1751,7 @@ export default function Dashboard() {
                             className={`improve-mode-tab ${improveProvider === "alai" ? "active" : ""}`}
                             onClick={() => {
                               setImproveProvider("alai");
-                              setSelectedThemeId(null);
-                              setSelectedTemplateSpec(null);
+                              restoreImproveThemeForProvider("alai");
                             }}
                           >
                             <span className="improve-mode-tab-name">Alai</span>
@@ -1647,8 +1764,7 @@ export default function Dashboard() {
                             className={`improve-mode-tab ${improveProvider === "2slides" ? "active" : ""}`}
                             onClick={() => {
                               setImproveProvider("2slides");
-                              setSelectedThemeId(null);
-                              setSelectedTemplateSpec(null);
+                              restoreImproveThemeForProvider("2slides");
                             }}
                           >
                             <span className="improve-mode-tab-name">

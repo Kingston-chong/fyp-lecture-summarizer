@@ -1,6 +1,7 @@
 "use client";
 
 import { CloseIcon } from "@/app/components/icons";
+import { LoadingText } from "@/app/components/LoadingText";
 
 /**
  * In-dashboard document preview (PDF / Office viewer iframe).
@@ -72,9 +73,11 @@ export default function DocumentPreviewModal({
             <div className="doc-preview-frame-overlay">
               <div className="sidebar-loading" style={{ padding: 0 }}>
                 <div className="mini-spinner" />{" "}
-                {docPreviewTokenLoading
-                  ? "Preparing preview…"
-                  : "Loading preview…"}
+                <LoadingText active>
+                  {docPreviewTokenLoading
+                    ? "Preparing preview"
+                    : "Loading preview"}
+                </LoadingText>
               </div>
             </div>
           )}

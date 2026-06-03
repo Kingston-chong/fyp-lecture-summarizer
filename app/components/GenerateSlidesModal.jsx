@@ -2,7 +2,6 @@
 
 import "./GenerateSlidesModal.css";
 import { useState, useRef, useEffect } from "react";
-import AlaiSlidesPreviewModal from "./AlaiSlidesPreviewModal";
 import { CloseIco, SlidesIco } from "./generateSlides/ui.jsx";
 import CreateSlidesForm from "./generateSlides/CreateSlidesForm.jsx";
 import { useTheme } from "./ThemeProvider";
@@ -12,6 +11,11 @@ import {
   triggerDirectFileDownload,
   triggerSlidePptxApiDownload,
 } from "@/lib/slidePptxClientDownload";
+import {
+  pickThemeIdAfterListLoad,
+  readStoredThemeChoice,
+  writeStoredThemeChoice,
+} from "@/lib/themeSelection";
 
 // ─── Main Modal ───────────────────────────────────────────
 export default function GenerateSlidesModal({
@@ -22,6 +26,11 @@ export default function GenerateSlidesModal({
   summaryId = null,
   /** Called after a deck is successfully saved to the server (e.g. refresh sidebar) */
   onSlideDecksChanged = null,
+  /**
+   * When slides are ready with a preview URL — parent closes this modal and
+   * shows AlaiSlidesPreviewModal on the summary page.
+   */
+  onOpenPreview = null,
 }) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -102,10 +111,6 @@ export default function GenerateSlidesModal({
   const [generating, setGenerating] = useState(false);
   const [generateErr, setGenerateErr] = useState("");
   const [generateProgress, setGenerateProgress] = useState("");
-  const [alaiPreviewOpen, setAlaiPreviewOpen] = useState(false);
-  const [alaiPreviewUrl, setAlaiPreviewUrl] = useState("");
-  /** Alai signed PPTX URL — used for Office Web Viewer when no link preview exists */
-  const [alaiRemotePptUrl, setAlaiRemotePptUrl] = useState("");
   const [lastGenerationId, setLastGenerationId] = useState("");
   const [archiveNote, setArchiveNote] = useState("");
   const quickInstructionPresets = [
@@ -179,8 +184,7 @@ export default function GenerateSlidesModal({
           provider: deckProvider,
           providerDeckId: genId,
           title: String(deckTitle || title || "").trim() || undefined,
-          remotePptxUrl:
-            String(remotePptxUrl || alaiRemotePptUrl || "").trim() || undefined,
+          remotePptxUrl: String(remotePptxUrl || "").trim() || undefined,
           remotePdfUrl: String(remotePdfUrl || "").trim() || undefined,
         }),
       });
@@ -232,12 +236,9 @@ export default function GenerateSlidesModal({
         }
         if (themes.length > 0) {
           setSelectedThemeId((prev) => {
-            if (
-              prev &&
-              themes.some((t) => String(t?.id || t?.theme_id) === prev)
-            )
-              return prev;
-            return String(themes[0]?.id || themes[0]?.theme_id || "") || prev;
+            const stored = readStoredThemeChoice("generate", "alai");
+            const want = prev || stored?.id || null;
+            return pickThemeIdAfterListLoad(want, themes);
           });
         }
       } catch {
@@ -279,9 +280,11 @@ export default function GenerateSlidesModal({
         );
       }
       if (themes.length > 0) {
-        setSelectedThemeId(
-          String(themes[0]?.id || themes[0]?.theme_id || "") || null,
-        );
+        setSelectedThemeId((prev) => {
+          const stored = readStoredThemeChoice("generate", "2slides");
+          const want = prev || stored?.id || null;
+          return pickThemeIdAfterListLoad(want, themes);
+        });
       }
     } catch (e) {
       setTwoSlidesThemes([]);
@@ -324,15 +327,35 @@ export default function GenerateSlidesModal({
 
   function handleProviderChange(next) {
     setProvider(next);
+    const stored = readStoredThemeChoice("generate", next);
     if (next === "2slides") {
-      setSelectedThemeId(null);
-    } else if (alaiThemes.length > 0) {
-      const first = String(
-        alaiThemes[0]?.id || alaiThemes[0]?.theme_id || "",
-      ).trim();
-      if (first) setSelectedThemeId(first);
+      const themes = twoSlidesThemes;
+      if (themes.length > 0) {
+        setSelectedThemeId(
+          pickThemeIdAfterListLoad(stored?.id || selectedThemeId, themes),
+        );
+      } else {
+        setSelectedThemeId(stored?.id || null);
+      }
+      return;
+    }
+    if (alaiThemes.length > 0) {
+      setSelectedThemeId(
+        pickThemeIdAfterListLoad(stored?.id || selectedThemeId, alaiThemes),
+      );
+    } else {
+      setSelectedThemeId(stored?.id || null);
     }
   }
+
+  useEffect(() => {
+    if (!selectedThemeId) return;
+    const list = provider === "2slides" ? twoSlidesThemes : alaiThemes;
+    const hit = list.find(
+      (t) => String(t?.id || t?.theme_id || "").trim() === selectedThemeId,
+    );
+    if (hit) writeStoredThemeChoice("generate", provider, hit);
+  }, [selectedThemeId, provider, alaiThemes, twoSlidesThemes]);
 
   const canGenerate =
     !generating &&
@@ -343,7 +366,6 @@ export default function GenerateSlidesModal({
     setGenerateProgress("");
     setGenerating(true);
     setLastGenerationId("");
-    setAlaiRemotePptUrl("");
     setArchiveNote("");
 
     try {
@@ -428,13 +450,22 @@ export default function GenerateSlidesModal({
         );
 
         if (pollData.status === "completed" && hasArtifact) {
-          setAlaiPreviewUrl(pollData.preview_url || "");
-          setAlaiRemotePptUrl(pollData.remote_download_url || "");
           setFreshSlideDownload(pollData, activeProvider);
 
           if (pollData.preview_url) {
             setGenerateProgress("Ready — opening preview...");
-            setAlaiPreviewOpen(true);
+            const previewPayload = {
+              previewUrl: pollData.preview_url || "",
+              remotePptUrl: pollData.remote_download_url || "",
+              provider: activeProvider,
+              title:
+                title.trim() || "Create Presentation Slides...",
+              onDownload: slideDownloadRef.current,
+            };
+            if (typeof onOpenPreview === "function") {
+              onOpenPreview(previewPayload);
+              onClose?.();
+            }
           } else if (pollData.download_url) {
             setGenerateProgress("Slides are ready. Starting download…");
             const t = title || "presentation";
@@ -591,25 +622,6 @@ export default function GenerateSlidesModal({
           </div>
         </div>
       </div>
-
-      {alaiPreviewOpen && (
-        <AlaiSlidesPreviewModal
-          onClose={() => setAlaiPreviewOpen(false)}
-          previewUrl={alaiPreviewUrl}
-          remotePptUrl={alaiRemotePptUrl}
-          provider={provider}
-          title="Create Presentation Slides..."
-          subtitle="Your presentation slides is ready.."
-          onDownload={(() => {
-            const fn = slideDownloadRef.current;
-            return typeof fn === "function"
-              ? async () => {
-                  await fn();
-                }
-              : undefined;
-          })()}
-        />
-      )}
     </>
   );
 }

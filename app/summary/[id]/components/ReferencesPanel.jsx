@@ -3,6 +3,8 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { TrashIcon, Spinner } from "@/app/components/icons";
+import { LoadingText } from "@/app/components/LoadingText";
+import { summarizePhaseLabel } from "@/lib/summarizeProgress";
 import CustomSelect from "@/app/components/CustomSelect";
 import "@/app/components/CustomSelect.css";
 import { citationLetterForIndex } from "@/lib/referenceUtils";
@@ -963,6 +965,7 @@ function ReferenceItem({
 export default function ReferencesPanel({
   references,
   loading,
+  loadingPhase = null,
   activeMarker,
   onSelectReference,
   onMarkerHover,
@@ -1042,7 +1045,11 @@ export default function ReferencesPanel({
         {loading ? (
           <div className="rp-state">
             <div className="rp-spinner" />
-            <span>Loading references…</span>
+            <span>
+              <LoadingText active>
+                {summarizePhaseLabel(loadingPhase, { forReferences: true })}
+              </LoadingText>
+            </span>
           </div>
         ) : count === 0 ? (
           <div className="rp-state rp-empty">

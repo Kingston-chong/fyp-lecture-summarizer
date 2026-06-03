@@ -10,6 +10,7 @@ import {
   CheckCircle,
 } from "../../components/icons";
 import AuthMarketingNav from "../../components/AuthMarketingNav";
+import { LoadingText } from "@/app/components/LoadingText";
 import AuthPageChrome from "../../components/AuthPageChrome";
 
 export default function NewPassword() {
@@ -189,7 +190,9 @@ export default function NewPassword() {
               disabled={loading || !allValid || !passwordMatch}
             >
               {loading && <span className="spinner" />}
-              {loading ? "Resetting..." : "Reset Password"}
+              <LoadingText active={loading} idle="Reset Password">
+                Resetting
+              </LoadingText>
             </button>
           </div>
         </main>

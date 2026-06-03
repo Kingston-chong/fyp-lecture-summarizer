@@ -5,6 +5,7 @@ import { CloseIcon, Spinner } from "@/app/components/icons";
 import CustomSelect from "@/app/components/CustomSelect";
 import "@/app/components/CustomSelect.css";
 import "@/app/components/QuizSettingsModal.css";
+import { LoadingText } from "@/app/components/LoadingText";
 
 const FOCUS_AREAS = [
   { id: "Key concepts", label: "Key concepts" },
@@ -143,7 +144,7 @@ export default function FlashcardGenerateModal({
           >
             {loading ? (
               <>
-                <Spinner size={13} /> Generating…
+                <Spinner size={13} /> <LoadingText active>Generating</LoadingText>
               </>
             ) : (
               "Generate flashcards"

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { SaveIco, Spinner } from "@/app/components/icons";
+import { CollapseAllIcon, SaveIco, Spinner } from "@/app/components/icons";
 import SourcesListPanel from "./SourcesListPanel";
 import SlideDecksPanel from "./SlideDecksPanel";
 import SavedQuizzesPanel from "./SavedQuizzesPanel";
@@ -135,47 +135,7 @@ export default function SourcesSidebar({
             aria-label="Collapse all sections"
             onClick={collapseAll}
           >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="none"
-              aria-hidden
-            >
-              <rect
-                x="2"
-                y="2.5"
-                width="12"
-                height="3"
-                rx="0.75"
-                stroke="currentColor"
-                strokeWidth="1.2"
-              />
-              <rect
-                x="2"
-                y="7"
-                width="12"
-                height="3"
-                rx="0.75"
-                stroke="currentColor"
-                strokeWidth="1.2"
-              />
-              <rect
-                x="2"
-                y="11.5"
-                width="12"
-                height="3"
-                rx="0.75"
-                stroke="currentColor"
-                strokeWidth="1.2"
-              />
-              <path
-                d="M8 5.5v5"
-                stroke="currentColor"
-                strokeWidth="1.2"
-                strokeLinecap="round"
-              />
-            </svg>
+            <CollapseAllIcon size={14} />
           </button>
         </div>
 

@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { EyeIcon, EyeOffIcon, GoogleIcon } from "@/app/components/icons";
 import AuthMarketingNav from "@/app/components/AuthMarketingNav";
+import { LoadingText } from "@/app/components/LoadingText";
 import AuthPageChrome from "@/app/components/AuthPageChrome";
 
 export default function Slide2NotesLogin() {
@@ -79,7 +80,9 @@ export default function Slide2NotesLogin() {
             {showRedirecting ? (
               <div className="auth-login-loading">
                 <div className="auth-login-spinner" />
-                <p className="auth-login-loading-text">Redirecting to dashboard...</p>
+                <p className="auth-login-loading-text">
+                  <LoadingText active>Redirecting to dashboard</LoadingText>
+                </p>
               </div>
             ) : (
               <>
@@ -139,7 +142,9 @@ export default function Slide2NotesLogin() {
                   onClick={handleSignIn}
                   disabled={loading}
                 >
-                  {loading ? "Signing in..." : "Sign In"}
+                  <LoadingText active={loading} idle="Sign In">
+                    Signing in
+                  </LoadingText>
                 </button>
 
                 {error && <p className="auth-login-error">{error}</p>}

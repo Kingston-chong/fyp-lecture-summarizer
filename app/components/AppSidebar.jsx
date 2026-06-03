@@ -15,11 +15,13 @@ import {
   ShareIcon,
   TrashIcon,
   UploadIcon,
+  SidebarHideIcon,
 } from "./icons";
 import { formatSummarizeForLabel, timeAgo } from "@/app/dashboard/helpers";
 import { historyMatchesSearch } from "@/app/components/HistorySummaryExpand";
 import HistorySummaryMenuPortal from "@/app/components/HistorySummaryMenuPortal";
 import ShareChatDialog from "@/app/components/ShareChatDialog";
+import { LoadingText } from "@/app/components/LoadingText";
 import {
   dispatchSummaryRenamed,
   SUMMARY_RENAMED_EVENT,
@@ -147,6 +149,8 @@ export default function AppSidebar({
   width = 260,
   hidePrevUploads = false,
   isCollapsed = false,
+  showSidebarToggle = false,
+  onToggleSidebar,
 }) {
   const router = useRouter();
   const activeSummaryId = useActiveSummaryId();
@@ -474,6 +478,21 @@ export default function AppSidebar({
         aria-label="Sidebar"
         style={{ "--as-side-width": isCollapsed ? "0px" : `${width}px` }}
       >
+        {showSidebarToggle && !isCollapsed && (
+          <div className="as-toolbar">
+            <div className="as-toolbar-actions">
+              <button
+                type="button"
+                className="as-toolbar-btn"
+                title="Hide sidebar"
+                aria-label="Hide sidebar"
+                onClick={onToggleSidebar}
+              >
+                <SidebarHideIcon size={14} />
+              </button>
+            </div>
+          </div>
+        )}
         <div className="as-head" onClick={() => setHistoryOpen((v) => !v)}>
           <span className="as-title">
             <HistoryIcon /> History
@@ -499,7 +518,7 @@ export default function AppSidebar({
         {historyOpen &&
           (historyLoading ? (
             <div className="as-loading">
-              <div className="as-spin" /> Loading...
+              <div className="as-spin" /> <LoadingText active>Loading</LoadingText>
             </div>
           ) : history.length === 0 ? (
             <div className="as-empty">No summaries yet</div>
@@ -636,7 +655,7 @@ export default function AppSidebar({
             {prevOpen &&
               (prevLoading ? (
                 <div className="as-loading">
-                  <div className="as-spin" /> Loading...
+                  <div className="as-spin" /> <LoadingText active>Loading</LoadingText>
                 </div>
               ) : prevUploads.length === 0 ? (
                 <div className="as-empty">No uploads yet</div>

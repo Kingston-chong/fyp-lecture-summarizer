@@ -213,6 +213,41 @@ body {
   pointer-events: none;
 }
 
+/* Re-open left sidebar after collapse (desktop summary layout) */
+.shell-sidebar-expand-tab {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  z-index: 25;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--app-btn-border);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  background: var(--app-btn-bg);
+  color: var(--app-btn-text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+.shell-sidebar-expand-tab:hover {
+  border-color: var(--app-btn-hover-border);
+  color: var(--app-btn-hover-text);
+  background: var(--app-sidebar-bg);
+}
+@media (max-width: 1023px) {
+  .shell-sidebar-expand-tab {
+    display: none;
+  }
+}
+
 /* Dashboard: drawer only, never a fixed column on wide screens */
 .shell-sidebar-wrap.sidebar-always-drawer {
   position: fixed;

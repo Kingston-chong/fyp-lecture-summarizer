@@ -1,6 +1,7 @@
 "use client";
 
 import { CloseIcon } from "@/app/components/icons";
+import { LoadingText } from "@/app/components/LoadingText";
 
 export default function TemplatePickerModal({
   open,
@@ -66,9 +67,11 @@ export default function TemplatePickerModal({
         <div className="template-picker-grid">
           {themeResults.length === 0 ? (
             <div className="template-picker-empty">
-              {themeSearchLoading
-                ? "Loading templates…"
-                : "No templates to show. Try Refresh or adjust the filter."}
+              {themeSearchLoading ? (
+                <LoadingText active>Loading templates</LoadingText>
+              ) : (
+                "No templates to show. Try Refresh or adjust the filter."
+              )}
             </div>
           ) : (
             themeResults.map((t) => (

@@ -1,6 +1,7 @@
 "use client";
 
 import { Spinner } from "@/app/components/icons";
+import { LoadingText } from "@/app/components/LoadingText";
 import { formatSlideDeckSavedAt } from "../helpers";
 
 export default function FlashcardsPanel({
@@ -68,7 +69,12 @@ export default function FlashcardsPanel({
                   disabled={flashcardSetOpeningId === s.id}
                   onClick={() => onOpenSet(s.id)}
                 >
-                  {flashcardSetOpeningId === s.id ? "…" : "Open"}
+                  <LoadingText
+                    active={flashcardSetOpeningId === s.id}
+                    idle="Open"
+                  >
+                    Open
+                  </LoadingText>
                 </button>
                 {typeof onEditSet === "function" && (
                   <button
@@ -86,7 +92,12 @@ export default function FlashcardsPanel({
                   disabled={flashcardSetDeletingId === s.id}
                   onClick={() => onDeleteSet(s)}
                 >
-                  {flashcardSetDeletingId === s.id ? "Deleting…" : "Delete"}
+                  <LoadingText
+                    active={flashcardSetDeletingId === s.id}
+                    idle="Delete"
+                  >
+                    Deleting
+                  </LoadingText>
                 </button>
               </div>
             </div>

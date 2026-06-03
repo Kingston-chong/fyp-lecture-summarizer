@@ -14,6 +14,41 @@
   overflow: hidden;
   pointer-events: none;
 }
+
+/* Top toolbar (hide sidebar, etc.) — VS Code explorer style */
+.as-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  padding: 6px 8px 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.as-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.as-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.as-toolbar-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.88);
+}
 .as-side::-webkit-scrollbar {
   width: 3px;
 }
@@ -645,6 +680,16 @@
   }
 }
 
+html[data-theme="light"] .as-toolbar {
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+html[data-theme="light"] .as-toolbar-btn {
+  color: rgba(0, 0, 0, 0.45);
+}
+html[data-theme="light"] .as-toolbar-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.82);
+}
 html[data-theme="light"] .as-side::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.12);
 }

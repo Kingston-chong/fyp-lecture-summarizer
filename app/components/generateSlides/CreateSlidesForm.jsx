@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { LoadingText } from "@/app/components/LoadingText";
 import { FieldLabel, SectionHead, Divider, SelectMenu, UploadCloudIco } from "./ui.jsx";
 import {
   ALAI_OUTPUT_LANGUAGES,
@@ -204,9 +205,9 @@ function ImageUploadSection({
           <UploadCloudIco size={20} />
         </span>
         <span className="csf-upload-label">
-          {isUploading
-            ? "Uploading…"
-            : isDragging
+          {isUploading ? (
+            <LoadingText active>Uploading</LoadingText>
+          ) : isDragging
               ? "Drop to upload"
               : "Drag & drop or click to browse"}
         </span>
@@ -504,7 +505,9 @@ export default function CreateSlidesForm({
               onClick={() => onTwoSlidesThemeSearch?.()}
               disabled={twoSlidesThemesLoading}
             >
-              {twoSlidesThemesLoading ? "…" : "Search"}
+              <LoadingText active={twoSlidesThemesLoading} idle="Search">
+                Search
+              </LoadingText>
             </button>
           </div>
         ) : null}
@@ -747,7 +750,7 @@ export default function CreateSlidesForm({
             </div>
             <div className="gs-progress-label">
               <span className="gs-progress-dot" />
-              {generateProgress}
+              <LoadingText active>{generateProgress}</LoadingText>
             </div>
           </div>
         ) : null}

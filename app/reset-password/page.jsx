@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { MailIcon } from "../components/icons";
 import AuthMarketingNav from "../components/AuthMarketingNav";
 import AuthPageChrome from "../components/AuthPageChrome";
+import { LoadingText } from "@/app/components/LoadingText";
 
 export default function ResetPassword() {
   const router = useRouter();
@@ -91,7 +92,9 @@ export default function ResetPassword() {
               disabled={loading}
             >
               {loading && <span className="spinner" />}
-              {loading ? "Sending OTP..." : "Send OTP"}
+              <LoadingText active={loading} idle="Send OTP">
+                Sending OTP
+              </LoadingText>
             </button>
 
             <button className="back-link" onClick={() => router.push("/")}>
