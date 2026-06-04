@@ -343,10 +343,11 @@ export const POST = apiHandler(async function POST(req) {
     isQuickLength && !wantsReferences
       ? `
 QUICK REPLY MODE (highest priority — overrides other length or depth rules):
-- Maximum 2 short sentences in the whole reply (3 only if the user asked multiple separate questions in one message).
+- For one simple question (e.g. "what is white box?"), answer in exactly ONE short sentence (e.g. "White box testing is …"). No second sentence unless strictly necessary.
+- Maximum 2 sentences total for harder single questions; 3 only if the user asked multiple separate questions in one message.
 - Single paragraph only — never use blank lines between paragraphs.
-- No bullet lists, numbered lists, headings, or step-by-step breakdowns.
-- Answer the question directly; do not restate the question or add "in summary" closers.
+- No bullet lists, numbered lists, headings, examples, or step-by-step breakdowns.
+- Do not restate the question; do not add "in summary" or "hope this helps" closers.
 `
       : isQuickLength && wantsReferences
         ? `
@@ -357,7 +358,7 @@ QUICK REPLY MODE with reference search:
         : "";
 
   const elaborationRules = isQuickLength
-    ? `For quick reply mode: answer only what was asked using the summary; do not elaborate, compare at length, or add extra context unless the user explicitly says "explain more" or "in detail".`
+    ? `For quick reply mode: give the shortest correct answer from the summary (one sentence when possible); do not elaborate, list examples, or add context unless the user explicitly says "explain more" or "in detail".`
     : `When the user asks for elaboration, definitions, background organizations, or other details that are missing or only briefly mentioned in the summary:
 - If a "Web search excerpts" section is present below, treat it as **external** evidence: prioritize facts that are **not already fully stated** in the summary. Do not merely paraphrase the summary using web snippets that only repeat the same points; add genuinely new information from the excerpts when available.
 - Prefer citing web sources (markdown links) for claims that go beyond the summary text.
