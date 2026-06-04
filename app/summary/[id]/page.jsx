@@ -54,6 +54,7 @@ import ChatBubbleContent from "./components/ChatBubbleContent";
 import ChatSourcesList from "./components/ChatSourcesList";
 import ChatSelectionPopover from "./components/ChatSelectionPopover";
 import ChatResponseLengthControl from "./components/ChatResponseLengthControl";
+import ChatAttachMenu from "./components/ChatAttachMenu";
 import ShareChatButton from "./components/ShareChatButton";
 import RevisionSheetPreviewModal from "./components/RevisionSheetPreviewModal";
 import {
@@ -119,7 +120,6 @@ import {
   BotIco,
   UserIco,
   DocIco,
-  ClipIco,
   ReplyQuoteIco,
 } from "@/app/components/icons";
 
@@ -174,7 +174,10 @@ export default function SummaryView() {
   const [chatNotice, setChatNotice] = useState("");
   /** Lecturer chat: search Tavily + academic papers for journal/web references (default off). */
   const [searchReferences, setSearchReferences] = useState(false);
-  // Web fallback is automatic server-side (ChatGPT-like). No UI toggle needed.
+  /** Explicit Tavily web search for the next chat send (attachment menu toggle). */
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [recentDocuments, setRecentDocuments] = useState([]);
+  const [recentDocsLoading, setRecentDocsLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [revisionSheetLoading, setRevisionSheetLoading] = useState(false);
   const [revisionSheetPreview, setRevisionSheetPreview] = useState(null);
@@ -185,6 +188,8 @@ export default function SummaryView() {
   /** Document IDs attached in this chat session (includes re-attached summary sources). */
   const [chatAttachedDocIds, setChatAttachedDocIds] = useState([]);
   const [pendingSourceFiles, setPendingSourceFiles] = useState([]); // { clientId, file, name, type }
+  /** Stored dashboard documents staged for the next send (no re-upload). */
+  const [pendingStoredDocs, setPendingStoredDocs] = useState([]); // { clientId, id, name, type }
 
   /** Pasted screenshots for the next chat send — { clientId, dataUrl } */
   const [pendingPasteImages, setPendingPasteImages] = useState([]);
@@ -1467,10 +1472,10 @@ export default function SummaryView() {
             .map((r, i) => `${i + 1}. "${r.text}"`)
             .join("\n")}`
         : "";
-    const stagedDocSnapshot = pendingSourceFiles.map((f) => ({
-      name: f.name,
-      type: f.type,
-    }));
+    const stagedDocSnapshot = [
+      ...pendingStoredDocs.map((d) => ({ name: d.name, type: d.type })),
+      ...pendingSourceFiles.map((f) => ({ name: f.name, type: f.type })),
+    ];
     const attachmentNotice = buildAttachedFilesNotice(stagedDocSnapshot);
     let apiContent = referencesBlock
       ? `${referencesBlock}${msg ? `\n\nUser request: ${msg}` : ""}`
@@ -1484,7 +1489,7 @@ export default function SummaryView() {
       (!msg &&
         refSnapshot.length === 0 &&
         pendingPasteImages.length === 0 &&
-        pendingSourceFiles.length === 0) ||
+        pendingAttachmentCount === 0) ||
       chatLoading ||
       sourceUploadLoading
     )
@@ -1527,6 +1532,37 @@ export default function SummaryView() {
       // Upload staged attachments right before sending (ChatGPT-like "upload on send").
       let nextExtraSources = extraSources;
       let nextChatAttachedDocIds = chatAttachedDocIds;
+
+      if (pendingStoredDocs.length > 0) {
+        const storedIds = pendingStoredDocs
+          .map((d) => d.id)
+          .filter((id) => Number.isFinite(Number(id)))
+          .map((id) => Number(id));
+        nextChatAttachedDocIds = mergeChatDocumentIds(
+          nextChatAttachedDocIds,
+          storedIds,
+        );
+        setChatAttachedDocIds(nextChatAttachedDocIds);
+
+        const baseIds = new Set(
+          (summary?.files || []).map((d) => d?.id).filter(Boolean),
+        );
+        const existing = new Set(
+          nextExtraSources.map((d) => d?.id).filter(Boolean),
+        );
+        const mergedStored = pendingStoredDocs.filter((d) => {
+          if (!d?.id) return false;
+          if (baseIds.has(d.id)) return false;
+          if (existing.has(d.id)) return false;
+          return true;
+        });
+        if (mergedStored.length > 0) {
+          nextExtraSources = [...nextExtraSources, ...mergedStored];
+          setExtraSources(nextExtraSources);
+        }
+        setPendingStoredDocs([]);
+      }
+
       if (pendingSourceFiles.length > 0) {
         setSourceUploadLoading(true);
         try {
@@ -1575,6 +1611,7 @@ export default function SummaryView() {
           responseLength: chatResponseLength,
           messages: historyPayload,
           documentIds: attachedDocumentIds,
+          ...(webSearchEnabled ? { webSearch: true } : {}),
           ...(isLecturerSummary ? { searchReferences } : {}),
         }),
       });
@@ -1656,6 +1693,7 @@ export default function SummaryView() {
           messages: historyPayload,
           documentIds: chatAttachedDocIds,
           regenerate: true,
+          ...(webSearchEnabled ? { webSearch: true } : {}),
           ...(isLecturerSummary ? { searchReferences } : {}),
         }),
       });
@@ -2107,6 +2145,49 @@ export default function SummaryView() {
     };
   }, [status, summaryId, summary?.output]);
 
+  useEffect(() => {
+    if (status !== "authenticated" || isGuestMode) {
+      setRecentDocuments([]);
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      setRecentDocsLoading(true);
+      try {
+        const res = await fetch("/api/documents");
+        const data = await res.json().catch(() => ({}));
+        if (!cancelled && res.ok) {
+          setRecentDocuments(
+            Array.isArray(data?.documents) ? data.documents : [],
+          );
+        }
+      } catch {
+        if (!cancelled) setRecentDocuments([]);
+      } finally {
+        if (!cancelled) setRecentDocsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, isGuestMode]);
+
+  const recentForAttachMenu = useMemo(() => {
+    const pendingIds = new Set(pendingStoredDocs.map((d) => d.id));
+    const pendingNames = new Set(pendingSourceFiles.map((f) => f.name));
+    return recentDocuments
+      .filter(
+        (doc) =>
+          doc?.id != null &&
+          !pendingIds.has(doc.id) &&
+          !pendingNames.has(doc.name),
+      )
+      .slice(0, 12);
+  }, [recentDocuments, pendingStoredDocs, pendingSourceFiles]);
+
+  const pendingAttachmentCount =
+    pendingSourceFiles.length + pendingStoredDocs.length;
+
   function fileExtUpper(name) {
     const parts = String(name || "").split(".");
     const ext = parts.length > 1 ? parts[parts.length - 1] : "";
@@ -2133,6 +2214,26 @@ export default function SummaryView() {
     setPendingSourceFiles((prev) =>
       prev.filter((p) => p.clientId !== clientId),
     );
+  }
+
+  function removePendingStoredByClientId(clientId) {
+    setPendingStoredDocs((prev) => prev.filter((p) => p.clientId !== clientId));
+  }
+
+  function attachRecentDocument(doc) {
+    if (!doc?.id) return;
+    setPendingStoredDocs((prev) => {
+      if (prev.some((p) => p.id === doc.id)) return prev;
+      return [
+        ...prev,
+        {
+          clientId: `stored-${doc.id}`,
+          id: doc.id,
+          name: doc.name,
+          type: doc.type || fileExtUpper(doc.name),
+        },
+      ];
+    });
   }
 
   return (
@@ -2658,7 +2759,7 @@ export default function SummaryView() {
                     }}
                   />
                   <div
-                    className={`chatbox ${pendingSourceFiles.length > 0 || pendingPasteImages.length > 0 ? "with-files" : ""} ${pendingPasteImages.length > 0 ? "chatbox--with-paste" : ""} ${pendingChatReferences.length > 0 ? "chatbox--with-reply" : ""}`}
+                    className={`chatbox ${pendingAttachmentCount > 0 || pendingPasteImages.length > 0 ? "with-files" : ""} ${pendingPasteImages.length > 0 ? "chatbox--with-paste" : ""} ${pendingChatReferences.length > 0 ? "chatbox--with-reply" : ""}`}
                   >
                     {pendingChatReferences.length > 0 && (
                       <div
@@ -2735,36 +2836,60 @@ export default function SummaryView() {
                     <div className="chatbox-input-row">
                       {pendingPasteImages.length === 0 && (
                         <>
-                          <button
-                            type="button"
-                            className="attach-btn"
-                            title="Add attachment (documents or images)"
-                            aria-label="Add attachment"
-                            disabled={sourceUploadLoading || chatLoading}
-                            onClick={() => sourceInputRef.current?.click()}
-                          >
-                            {sourceUploadLoading ? (
-                              <Spinner size={12} />
-                            ) : (
-                              <ClipIco size={16} />
-                            )}
-                            {pendingSourceFiles.length > 0 && (
-                              <span className="attach-badge">
-                                {Math.min(99, pendingSourceFiles.length)}
-                              </span>
-                            )}
-                          </button>
+                          <ChatAttachMenu
+                            disabled={chatLoading}
+                            loading={sourceUploadLoading}
+                            badgeCount={pendingAttachmentCount}
+                            webSearchEnabled={webSearchEnabled}
+                            onWebSearchToggle={() =>
+                              setWebSearchEnabled((v) => !v)
+                            }
+                            onPickFiles={() => sourceInputRef.current?.click()}
+                            recentFiles={recentForAttachMenu}
+                            recentLoading={recentDocsLoading}
+                            onSelectRecent={attachRecentDocument}
+                            guestMode={isGuestMode}
+                          />
                           <span className="attach-divider" aria-hidden />
                         </>
                       )}
                       <div
                         className={`chatbox-main ${pendingPasteImages.length > 0 ? "chatbox-main--stacked" : ""}`}
                       >
-                        {pendingSourceFiles.length > 0 && (
+                        {pendingAttachmentCount > 0 && (
                           <div
                             className="chat-uploads"
                             aria-label="Attached documents"
                           >
+                          {pendingStoredDocs.map((f) => (
+                            <div
+                              key={f.clientId}
+                              className="chat-upload-chip"
+                              title={f.name}
+                            >
+                              <div className="chat-upload-badge" aria-hidden>
+                                <DocIco ext={f.type} size={18} />
+                              </div>
+                              <div className="chat-upload-content">
+                                <span className="chat-upload-name">
+                                  {f.name}
+                                </span>
+                                <span className="chat-upload-type">
+                                  {f.type} · saved
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                className="chat-upload-rm"
+                                onClick={() =>
+                                  removePendingStoredByClientId(f.clientId)
+                                }
+                                aria-label={`Remove ${f.name}`}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
                           {pendingSourceFiles.map((f) => (
                             <div
                               key={f.clientId}
@@ -2877,25 +3002,23 @@ export default function SummaryView() {
                         </div>
                         {pendingPasteImages.length > 0 && (
                           <div className="chatbox-toolbar">
-                            <button
-                              type="button"
-                              className="attach-btn attach-btn--toolbar"
-                              title="Add attachment (documents or images)"
-                              aria-label="Add attachment"
-                              disabled={sourceUploadLoading || chatLoading}
-                              onClick={() => sourceInputRef.current?.click()}
-                            >
-                              {sourceUploadLoading ? (
-                                <Spinner size={12} />
-                              ) : (
-                                <ClipIco size={16} />
-                              )}
-                              {pendingSourceFiles.length > 0 && (
-                                <span className="attach-badge">
-                                  {Math.min(99, pendingSourceFiles.length)}
-                                </span>
-                              )}
-                            </button>
+                            <ChatAttachMenu
+                              variant="toolbar"
+                              disabled={chatLoading}
+                              loading={sourceUploadLoading}
+                              badgeCount={pendingAttachmentCount}
+                              webSearchEnabled={webSearchEnabled}
+                              onWebSearchToggle={() =>
+                                setWebSearchEnabled((v) => !v)
+                              }
+                              onPickFiles={() =>
+                                sourceInputRef.current?.click()
+                              }
+                              recentFiles={recentForAttachMenu}
+                              recentLoading={recentDocsLoading}
+                              onSelectRecent={attachRecentDocument}
+                              guestMode={isGuestMode}
+                            />
                             <div className="chatbox-toolbar-end">
                               <div className="mdl-wrap">
                                 <button
@@ -2943,7 +3066,7 @@ export default function SummaryView() {
                                 (!inputVal.trim() &&
                                   pendingChatReferences.length === 0 &&
                                   pendingPasteImages.length === 0 &&
-                                  pendingSourceFiles.length === 0) ||
+                                  pendingAttachmentCount === 0) ||
                                 !summary?.output
                               }
                             >
@@ -2967,7 +3090,7 @@ export default function SummaryView() {
                             (!inputVal.trim() &&
                               pendingChatReferences.length === 0 &&
                               pendingPasteImages.length === 0 &&
-                              pendingSourceFiles.length === 0) ||
+                              pendingAttachmentCount === 0) ||
                             !summary?.output
                           }
                         >
