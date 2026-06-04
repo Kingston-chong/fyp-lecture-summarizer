@@ -1,0 +1,93 @@
+.register-prompt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+}
+
+.register-prompt-dialog {
+  position: relative;
+  width: min(420px, 100%);
+  padding: 1.75rem 1.5rem 1.5rem;
+  border-radius: 14px;
+  background: var(--surface-elevated, #1a1d24);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
+}
+
+.register-prompt-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted, #9ca3af);
+  cursor: pointer;
+}
+
+.register-prompt-close:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary, #f3f4f6);
+}
+
+.register-prompt-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary, #f9fafb);
+}
+
+.register-prompt-body {
+  margin: 0 0 1.25rem;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--text-secondary, #d1d5db);
+}
+
+.register-prompt-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.register-prompt-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1rem;
+  border-radius: 10px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+}
+
+.register-prompt-btn-primary {
+  background: var(--accent, #6366f1);
+  color: #fff;
+}
+
+.register-prompt-btn-primary:hover {
+  filter: brightness(1.08);
+}
+
+.register-prompt-btn-secondary {
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.15));
+  color: var(--text-primary, #f3f4f6);
+}
+
+.register-prompt-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.05);
+}

@@ -113,9 +113,9 @@ export default function HomePageClient() {
               </button>
               <button
                 className="btn-primary"
-                onClick={() => (window.location.href = "/register")}
+                onClick={() => (window.location.href = "/try")}
               >
-                Get started
+                Try free
               </button>
             </div>
           </div>
@@ -144,7 +144,7 @@ export default function HomePageClient() {
           <div className="hero-actions">
             <button
               className="btn-hero"
-              onClick={() => (window.location.href = "/register")}
+              onClick={() => (window.location.href = "/try")}
             >
               <svg
                 width="16"
@@ -159,7 +159,15 @@ export default function HomePageClient() {
                 <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
                 <polyline points="13 2 13 9 20 9" />
               </svg>
-              Start for free
+              Try without signing in
+            </button>
+            <button
+              type="button"
+              className="btn-ghost"
+              style={{ marginLeft: "0.75rem" }}
+              onClick={() => (window.location.href = "/register")}
+            >
+              Create account
             </button>
           </div>
 

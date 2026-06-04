@@ -1448,6 +1448,21 @@
   font-size: 11px;
 }
 
+.model-opt--guest-locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.model-opt--guest-locked:hover {
+  background: transparent;
+}
+
+.model-opt-guest-hint {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.35);
+  white-space: nowrap;
+}
+
 .error-box {
   padding: 10px 12px;
   border-radius: 8px;

@@ -49,6 +49,8 @@ import PublishedYearFilter, {
   publishedYearStateToPayload,
 } from "./components/PublishedYearFilter";
 import { resolvePublishedYearRange } from "@/lib/publishedYearFilter";
+import { setGuestPendingSummarize } from "@/lib/guestPendingSummarize";
+import { GUEST_SUMMARY_ROUTE_ID } from "@/lib/guestMode";
 
 // ── Main Component ─────────────────────────────────────────
 export default function Dashboard() {
@@ -219,10 +221,7 @@ export default function Dashboard() {
   const fileInputRef = useRef();
   const fileDragDepthRef = useRef(0);
 
-  // ── Auth guard ─────────────────────────────────────────
-  useEffect(() => {
-    if (status === "unauthenticated") router.push("/");
-  }, [status]);
+  const isGuest = status === "unauthenticated";
 
   // Keep modelVariant in sync with provider (e.g. after switching provider)
   useEffect(() => {
@@ -551,9 +550,62 @@ export default function Dashboard() {
     }
   }
 
+  async function doGuestSummarize() {
+    const rawFiles = selectedFiles
+      .map((f) => f.file)
+      .filter(Boolean);
+    if (!rawFiles.length) {
+      setError("Add at least one file from your device to summarize.");
+      return;
+    }
+
+    const yearPayload =
+      summarizeFor === "lecturer"
+        ? publishedYearStateToPayload(
+            publishedYearMode,
+            customYearFrom,
+            customYearTo,
+            appliedCustomYearRange,
+          )
+        : {
+            publishedYearMode: "all",
+            publishedYearFrom: null,
+            publishedYearTo: null,
+          };
+
+    if (summarizeFor === "lecturer" && publishedYearMode === "custom") {
+      const customRange = resolvePublishedYearRange({
+        mode: "custom",
+        from: yearPayload.publishedYearFrom,
+        to: yearPayload.publishedYearTo,
+      });
+      if (!customRange.active) {
+        setError(
+          "Choose a custom year range and click Search, or enter at least one year.",
+        );
+        return;
+      }
+    }
+
+    setError("");
+    setGuestPendingSummarize(rawFiles, {
+      model,
+      modelVariant,
+      summarizeFor,
+      prompt,
+      ...yearPayload,
+    });
+    router.push(`/summary/${GUEST_SUMMARY_ROUTE_ID}?autostart=1`);
+  }
+
   // ── Summarize: show "use existing?" dialog if some selected files already on server ─────────────────────────────────────────
   async function handleSummarize() {
     if (!selectedFiles.length) return;
+
+    if (isGuest) {
+      await doGuestSummarize();
+      return;
+    }
 
     const newFiles = selectedFiles.filter((f) => !f.fromPrev && f.file);
     const alreadyOnServer = newFiles.filter((f) =>
@@ -1082,6 +1134,7 @@ export default function Dashboard() {
           </button>
 
           <DashboardSidebar
+            isGuest={isGuest}
             sidebarWidth={sidebarWidth}
             sidebarSection={sidebarSection}
             setSidebarSection={setSidebarSection}
@@ -1482,20 +1535,31 @@ export default function Dashboard() {
                         {
                           value: "improve",
                           label: "Improve Lecture Slides Design/Content",
+                          guestLocked: true,
                         },
                       ].map((opt) => (
                         <div
                           key={opt.value}
-                          className={`model-opt ${(dashMode ?? "summarize") === opt.value ? "on" : ""}`}
+                          className={`model-opt ${(dashMode ?? "summarize") === opt.value ? "on" : ""}${isGuest && opt.guestLocked ? " model-opt--guest-locked" : ""}`}
                           onMouseDown={() => {
+                            if (isGuest && opt.guestLocked) return;
                             setDashMode(opt.value);
                             setModeOpen(false);
                           }}
+                          title={
+                            isGuest && opt.guestLocked
+                              ? "Sign in to use this feature"
+                              : undefined
+                          }
                         >
                           <div className="model-opt-name">{opt.label}</div>
-                          {(dashMode ?? "summarize") === opt.value && (
+                          {isGuest && opt.guestLocked ? (
+                            <span className="model-opt-guest-hint">
+                              Sign in to use
+                            </span>
+                          ) : (dashMode ?? "summarize") === opt.value ? (
                             <span className="model-check">✓</span>
-                          )}
+                          ) : null}
                         </div>
                       ))}
                     </div>

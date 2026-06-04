@@ -105,6 +105,10 @@ import {
   SUMMARIZE_PHASE,
   summarizePhaseLabel,
 } from "@/lib/summarizeProgress";
+import { isGuestSummaryRouteId } from "@/lib/guestMode";
+import { useGuestSummaryBootstrap } from "./hooks/useGuestSummaryBootstrap";
+import { useRequireAuth } from "@/app/hooks/useRequireAuth";
+import RegisterPromptModal from "@/app/components/RegisterPromptModal";
 import {
   Chevron,
   ChevRight,
@@ -129,6 +133,25 @@ export default function SummaryView() {
   const numericSummaryId = useMemo(
     () => parseNumericSummaryId(summaryId),
     [summaryId],
+  );
+  const isGuestMode = useMemo(
+    () => isGuestSummaryRouteId(summaryId),
+    [summaryId],
+  );
+
+  const {
+    authModalOpen,
+    authModalFeature,
+    closeAuthModal,
+    requireAuth,
+  } = useRequireAuth();
+
+  const guestLockedActions = useMemo(
+    () =>
+      isGuestMode
+        ? ["quiz", "flashcards", "flashcards-manual", "slides"]
+        : [],
+    [isGuestMode],
   );
 
   const [summary, setSummary] = useState(null);
@@ -410,8 +433,22 @@ export default function SummaryView() {
   const lastSelectionTriggerRef = useRef(0);
 
   useEffect(() => {
-    if (status === "unauthenticated") router.push("/");
-  }, [status, router]);
+    if (isGuestMode) return;
+    if (status === "unauthenticated") router.push("/dashboard");
+  }, [status, router, isGuestMode]);
+
+  useGuestSummaryBootstrap({
+    summaryId,
+    status,
+    searchParams,
+    router,
+    setSummary,
+    setSummaryLoading,
+    setSummaryError,
+    setSummarizing,
+    setSummarizePhase,
+    setSummarizeError,
+  });
 
   /** Turn off highlighter when switching summaries (same route, new id) */
   useEffect(() => {
@@ -552,6 +589,10 @@ export default function SummaryView() {
   }
 
   const handleToggleHlMode = useCallback(() => {
+    if (isGuestMode) {
+      requireAuth("highlights");
+      return;
+    }
     setHlColorMenuOpen(false);
     setHlModeActive((prev) => {
       const next = !prev;
@@ -563,7 +604,7 @@ export default function SummaryView() {
       }
       return next;
     });
-  }, []);
+  }, [isGuestMode, requireAuth]);
 
   useEffect(() => {
     if (!chatSelectionDraft) return;
@@ -625,6 +666,7 @@ export default function SummaryView() {
 
   // Load summary
   useEffect(() => {
+    if (isGuestMode) return;
     if (status !== "authenticated") return;
     if (!summaryId) return;
 
@@ -647,7 +689,7 @@ export default function SummaryView() {
     return () => {
       cancelled = true;
     };
-  }, [status, summaryId]);
+  }, [status, summaryId, isGuestMode]);
 
   useEffect(() => {
     const onRenamed = (e) => {
@@ -662,6 +704,7 @@ export default function SummaryView() {
 
   // Auto-start live summarization stream when coming from dashboard redirect (?autostart=1)
   useEffect(() => {
+    if (isGuestMode) return;
     if (status !== "authenticated") return;
     if (!summaryId) return;
     if (summaryLoading) return;
@@ -785,10 +828,11 @@ export default function SummaryView() {
     return () => {
       cancelled = true;
     };
-  }, [status, summaryId, summaryLoading, searchParams, router]);
+  }, [status, summaryId, summaryLoading, searchParams, router, isGuestMode]);
 
   // Load persisted chat turns (so refresh/resume keeps the conversation)
   useEffect(() => {
+    if (isGuestMode) return;
     if (status !== "authenticated") return;
     if (!summaryId) return;
 
@@ -1043,7 +1087,7 @@ export default function SummaryView() {
   }, [summary, summaryReferences, visibleLecturerReferences]);
 
   const fetchSummaryReferences = useCallback(async () => {
-    if (!summaryId || summary?.summarizeFor !== "lecturer") return;
+    if (isGuestMode || !summaryId || summary?.summarizeFor !== "lecturer") return;
     setReferencesLoading(true);
     try {
       const res = await fetch(`/api/summary/${summaryId}/references`);
@@ -1056,9 +1100,10 @@ export default function SummaryView() {
     } finally {
       setReferencesLoading(false);
     }
-  }, [summaryId, summary?.summarizeFor]);
+  }, [summaryId, summary?.summarizeFor, isGuestMode]);
 
   useEffect(() => {
+    if (isGuestMode) return;
     if (status !== "authenticated") return;
     if (summary?.summarizeFor !== "lecturer") {
       setSummaryReferences([]);
@@ -1410,6 +1455,10 @@ export default function SummaryView() {
   }
 
   async function sendMessage(text) {
+    if (isGuestMode) {
+      requireAuth("chat");
+      return;
+    }
     const msg = (text ?? inputVal).trim();
     const refSnapshot = pendingChatReferences;
     const referencesBlock =
@@ -1730,9 +1779,10 @@ export default function SummaryView() {
     if (!summaryId || !hasSummaryOutput || revisionSheetLoading) return;
 
     const sourceHash = revisionSheetSourceHash(summary?.output);
+    const cacheKey = isGuestMode ? "guest" : summaryId;
 
     if (!force) {
-      const cached = readRevisionSheetCache(summaryId, sourceHash);
+      const cached = readRevisionSheetCache(cacheKey, sourceHash);
       if (cached) {
         openRevisionSheetPreview({
           title: cached.title,
@@ -1752,8 +1802,23 @@ export default function SummaryView() {
 
     try {
       const res = await fetch(
-        `/api/summary/${encodeURIComponent(String(summaryId))}/revision-sheet`,
-        { method: "POST" },
+        isGuestMode
+          ? "/api/revision-sheet/guest"
+          : `/api/summary/${encodeURIComponent(String(summaryId))}/revision-sheet`,
+        {
+          method: "POST",
+          headers: isGuestMode
+            ? { "Content-Type": "application/json" }
+            : undefined,
+          body: isGuestMode
+            ? JSON.stringify({
+                output: summary?.output,
+                title: summary?.title,
+                model: summary?.model,
+                summarizeFor: summary?.summarizeFor,
+              })
+            : undefined,
+        },
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -1761,7 +1826,7 @@ export default function SummaryView() {
       }
       const title = data.title || summary?.title || "Revision sheet";
       const markdown = data.markdown || "";
-      writeRevisionSheetCache(summaryId, { markdown, title, sourceHash });
+      writeRevisionSheetCache(cacheKey, { markdown, title, sourceHash });
       openRevisionSheetPreview({
         title,
         markdown,
@@ -2117,25 +2182,34 @@ export default function SummaryView() {
                   isLecturerSummary={isLecturerSummary}
                   pdfLoading={pdfLoading}
                   hasSummary={hasSummaryOutput}
-                  onQuiz={() => setQuizModal(true)}
-                  onGenerateFlashcards={() => setFlashcardModal(true)}
+                  lockedFeatureIds={guestLockedActions}
+                  onQuiz={() =>
+                    requireAuth("quiz", () => setQuizModal(true))
+                  }
+                  onGenerateFlashcards={() =>
+                    requireAuth("flashcards", () => setFlashcardModal(true))
+                  }
                   onCreateFlashcardsManually={() =>
-                    setCreateFlashcardOpen(true)
+                    requireAuth("flashcards", () => setCreateFlashcardOpen(true))
                   }
                   onGenerateRevisionSheet={() =>
                     void handleGenerateRevisionSheet({ force: false })
                   }
                   revisionSheetLoading={revisionSheetLoading}
                   onSavePdf={handlePDF}
-                  onGenerateSlides={() => setSlidesModal(true)}
+                  onGenerateSlides={() =>
+                    requireAuth("slides", () => setSlidesModal(true))
+                  }
                   shareAction={
-                    <ShareChatButton
-                      variant="toolbar"
-                      summaryId={summaryId}
-                      summaryTitle={summary?.title}
-                      disabled={!canShareSummary}
-                      disabledTitle={shareDisabledTitle}
-                    />
+                    !isGuestMode ? (
+                      <ShareChatButton
+                        variant="toolbar"
+                        summaryId={summaryId}
+                        summaryTitle={summary?.title}
+                        disabled={!canShareSummary}
+                        disabledTitle={shareDisabledTitle}
+                      />
+                    ) : null
                   }
                 />
               </div>
@@ -3083,15 +3157,22 @@ export default function SummaryView() {
         summaryTitle={summary?.title}
         shareChatDisabled={!canShareSummary}
         shareChatDisabledTitle={shareDisabledTitle}
-        onQuiz={() => setQuizModal(true)}
-        onGenerateFlashcards={() => setFlashcardModal(true)}
-        onCreateFlashcardsManually={() => setCreateFlashcardOpen(true)}
+        lockedFeatureIds={guestLockedActions}
+        onQuiz={() => requireAuth("quiz", () => setQuizModal(true))}
+        onGenerateFlashcards={() =>
+          requireAuth("flashcards", () => setFlashcardModal(true))
+        }
+        onCreateFlashcardsManually={() =>
+          requireAuth("flashcards", () => setCreateFlashcardOpen(true))
+        }
         onGenerateRevisionSheet={() =>
           void handleGenerateRevisionSheet({ force: false })
         }
         revisionSheetLoading={revisionSheetLoading}
         onSavePdf={handlePDF}
-        onGenerateSlides={() => setSlidesModal(true)}
+        onGenerateSlides={() =>
+          requireAuth("slides", () => setSlidesModal(true))
+        }
       />
 
       <RevisionSheetPreviewModal
@@ -3203,6 +3284,12 @@ export default function SummaryView() {
           onViewInSidebar={handleSelectReference}
         />
       ) : null}
+
+      <RegisterPromptModal
+        open={authModalOpen}
+        onClose={closeAuthModal}
+        feature={authModalFeature}
+      />
     </>
   );
 }

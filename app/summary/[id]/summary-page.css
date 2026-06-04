@@ -1266,6 +1266,15 @@
   opacity: 0.45;
 }
 
+.act-bar-btn--locked {
+  opacity: 0.5;
+  cursor: pointer;
+}
+
+.mob-actions-item--locked {
+  opacity: 0.5;
+}
+
 /* ── action bar ── */
 .act-bar {
   display: flex;

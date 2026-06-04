@@ -12,6 +12,14 @@ import {
   Spinner,
 } from "@/app/components/icons";
 
+/** @type {Record<string, string>} */
+const LOCK_HINTS = {
+  quiz: "Sign in to generate quizzes",
+  flashcards: "Sign in to generate flashcards",
+  "flashcards-manual": "Sign in to create flashcards",
+  slides: "Sign in to generate slides",
+};
+
 export default function SummaryActionBar({
   mode = "full",
   isLecturerSummary,
@@ -25,7 +33,12 @@ export default function SummaryActionBar({
   revisionSheetLoading = false,
   onGenerateSlides,
   shareAction = null,
+  lockedFeatureIds = [],
 }) {
+  const locked = useMemo(
+    () => new Set(lockedFeatureIds),
+    [lockedFeatureIds],
+  );
   const showDesktopButtons = mode === "full" || mode === "desktop";
   const showMobileMenu = mode === "full" || mode === "mobile";
   const isCompactMenu = mode === "mobile";
@@ -40,7 +53,8 @@ export default function SummaryActionBar({
         icon: QuizIco,
         variant: "quiz",
         onClick: onQuiz,
-        disabled: false,
+        disabled: locked.has("quiz"),
+        locked: locked.has("quiz"),
       },
     ];
     if (!isLecturerSummary) {
@@ -51,7 +65,8 @@ export default function SummaryActionBar({
           icon: FlashcardsIco,
           variant: "flashcard",
           onClick: onGenerateFlashcards,
-          disabled: false,
+          disabled: locked.has("flashcards"),
+          locked: locked.has("flashcards"),
         },
         {
           id: "flashcards-manual",
@@ -59,7 +74,8 @@ export default function SummaryActionBar({
           icon: ManualCardsIco,
           variant: "flashcardManual",
           onClick: onCreateFlashcardsManually,
-          disabled: false,
+          disabled: locked.has("flashcards-manual"),
+          locked: locked.has("flashcards-manual"),
         },
         {
           id: "revision-sheet",
@@ -88,10 +104,18 @@ export default function SummaryActionBar({
         icon: SlidesIco,
         variant: "slides",
         onClick: onGenerateSlides,
-        disabled: false,
+        disabled: locked.has("slides"),
+        locked: locked.has("slides"),
       },
     );
-    return items;
+    return items.map((item) => {
+      const isLocked = item.id ? locked.has(item.id) : false;
+      return {
+        ...item,
+        locked: item.locked || isLocked,
+        lockHint: isLocked ? LOCK_HINTS[item.id] : undefined,
+      };
+    });
   }, [
     isLecturerSummary,
     onQuiz,
@@ -103,13 +127,14 @@ export default function SummaryActionBar({
     onGenerateSlides,
     pdfLoading,
     hasSummary,
+    locked,
   ]);
 
   const closeMenu = useCallback(() => setMenuOpen(false), []);
 
   const runAction = useCallback(
     (action) => {
-      if (action.disabled) return;
+      if (action.disabled && !action.locked) return;
       closeMenu();
       action.onClick();
     },
@@ -144,10 +169,11 @@ export default function SummaryActionBar({
           return (
             <Button
               key={action.id}
-              className="act-bar-btn"
+              className={`act-bar-btn${action.locked ? " act-bar-btn--locked" : ""}`}
               variant={action.variant}
               onClick={action.onClick}
               disabled={action.disabled}
+              title={action.locked ? action.lockHint : undefined}
             >
               {action.loading ? <Spinner size={13} /> : <Icon />}
               {action.label}

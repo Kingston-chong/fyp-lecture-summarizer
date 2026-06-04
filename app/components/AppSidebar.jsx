@@ -21,6 +21,7 @@ import HistorySummaryMenuActions from "@/app/components/HistorySummaryMenuAction
 import { useSummaryHistoryActions } from "@/app/hooks/useSummaryHistoryActions";
 import { LoadingText } from "@/app/components/LoadingText";
 import { SUMMARY_RENAMED_EVENT } from "@/lib/summaryRenameSync";
+import GuestSidebarPrompt from "@/app/components/GuestSidebarPrompt";
 
 function sortHistoryItems(items) {
   return [...items].sort((a, b) => {
@@ -139,6 +140,7 @@ function SectionBullet({ level }) {
 export default function AppSidebar({
   width = 260,
   hidePrevUploads = false,
+  isGuest = false,
   isCollapsed = false,
   showSidebarToggle = false,
   onToggleSidebar,
@@ -196,9 +198,16 @@ export default function AppSidebar({
   }, []);
 
   useEffect(() => {
+    if (isGuest) {
+      setHistory([]);
+      setHistoryLoading(false);
+      setPrevUploads([]);
+      setPrevLoading(false);
+      return;
+    }
     fetchHistory();
-    fetchPrevUploads();
-  }, [fetchHistory, fetchPrevUploads]);
+    if (!hidePrevUploads) fetchPrevUploads();
+  }, [fetchHistory, fetchPrevUploads, hidePrevUploads, isGuest]);
 
   const sectionTree = useMemo(() => buildHeadingTree(sections), [sections]);
 
@@ -400,7 +409,9 @@ export default function AppSidebar({
         )}
 
         {historyOpen &&
-          (historyLoading ? (
+          (isGuest ? (
+            <GuestSidebarPrompt />
+          ) : historyLoading ? (
             <div className="as-loading">
               <div className="as-spin" /> <LoadingText active>Loading</LoadingText>
             </div>

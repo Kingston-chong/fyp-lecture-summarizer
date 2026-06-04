@@ -3,6 +3,7 @@
 import "./AppShell.css";
 
 import { useSession, signOut } from "next-auth/react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import AppSidebar from "./AppSidebar";
@@ -40,7 +41,9 @@ export default function AppShell({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
+  const isGuest = sessionStatus === "unauthenticated";
+  const authCallbackUrl = encodeURIComponent(pathname || "/dashboard");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
@@ -143,7 +146,7 @@ export default function AppShell({
             right={
               <>
                 <ThemeToggle />
-                {displayName && (
+                {displayName && !isGuest && (
                   <span className="shell-greet">
                     Hi, {displayName.split(" ")[0]}
                   </span>
@@ -159,76 +162,92 @@ export default function AppShell({
                   </button>
                 )}
 
-                {/* ── User avatar + dropdown ───────────────────── */}
-                <div className="shell-user-menu" ref={userMenuRef}>
-                  <button
-                    className="shell-user-trigger"
-                    aria-label="Open user menu"
-                    aria-expanded={userMenuOpen}
-                    aria-haspopup="true"
-                    onClick={() => setUserMenuOpen((v) => !v)}
-                  >
-                    <div className="shell-user-trigger-inner">
-                      <UserAvatar name={displayName} />
-                      <div className="shell-user-info">
-                        <span className="shell-user-name">{displayName}</span>
-                        {role && (
-                          <span className="shell-user-role">{role}</span>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-
-                  {userMenuOpen && (
-                    <div className="shell-dropdown" role="menu">
-                      <div className="shell-dropdown-header">
-                        <UserAvatar name={displayName} size={36} />
-                        <div>
-                          <p className="shell-dropdown-name">{displayName}</p>
-                          {session?.user?.email && (
-                            <p className="shell-dropdown-email">
-                              {session.user.email}
-                            </p>
+                {isGuest ? (
+                  <div className="shell-guest-auth">
+                    <Link
+                      href={`/login?callbackUrl=${authCallbackUrl}`}
+                      className="shell-guest-auth-btn shell-guest-auth-btn--ghost"
+                    >
+                      Sign in
+                    </Link>
+                    <Link
+                      href={`/register?callbackUrl=${authCallbackUrl}`}
+                      className="shell-guest-auth-btn shell-guest-auth-btn--primary"
+                    >
+                      Sign up
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="shell-user-menu" ref={userMenuRef}>
+                    <button
+                      className="shell-user-trigger"
+                      aria-label="Open user menu"
+                      aria-expanded={userMenuOpen}
+                      aria-haspopup="true"
+                      onClick={() => setUserMenuOpen((v) => !v)}
+                    >
+                      <div className="shell-user-trigger-inner">
+                        <UserAvatar name={displayName} />
+                        <div className="shell-user-info">
+                          <span className="shell-user-name">{displayName}</span>
+                          {role && (
+                            <span className="shell-user-role">{role}</span>
                           )}
                         </div>
                       </div>
-                      <div className="shell-dropdown-divider" />
-                      <button
-                        className="shell-dropdown-item"
-                        role="menuitem"
-                        onClick={() => {
-                          setUserMenuOpen(false);
-                          router.push("/account/settings");
-                        }}
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          aria-hidden="true"
+                    </button>
+
+                    {userMenuOpen && (
+                      <div className="shell-dropdown" role="menu">
+                        <div className="shell-dropdown-header">
+                          <UserAvatar name={displayName} size={36} />
+                          <div>
+                            <p className="shell-dropdown-name">{displayName}</p>
+                            {session?.user?.email && (
+                              <p className="shell-dropdown-email">
+                                {session.user.email}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="shell-dropdown-divider" />
+                        <button
+                          className="shell-dropdown-item"
+                          role="menuitem"
+                          onClick={() => {
+                            setUserMenuOpen(false);
+                            router.push("/account/settings");
+                          }}
                         >
-                          <circle cx="12" cy="8" r="4" />
-                          <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-                        </svg>
-                        Account settings
-                      </button>
-                      <div className="shell-dropdown-divider" />
-                      <button
-                        className="shell-dropdown-item shell-dropdown-item--danger"
-                        role="menuitem"
-                        onClick={() => signOut({ callbackUrl: "/" })}
-                      >
-                        <LogoutIcon />
-                        Sign out
-                      </button>
-                    </div>
-                  )}
-                </div>
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
+                          >
+                            <circle cx="12" cy="8" r="4" />
+                            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                          </svg>
+                          Account settings
+                        </button>
+                        <div className="shell-dropdown-divider" />
+                        <button
+                          className="shell-dropdown-item shell-dropdown-item--danger"
+                          role="menuitem"
+                          onClick={() => signOut({ callbackUrl: "/dashboard" })}
+                        >
+                          <LogoutIcon />
+                          Sign out
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             }
             onLogoClick={() => router.push("/dashboard")}
@@ -251,7 +270,8 @@ export default function AppShell({
             >
               <AppSidebar
                 width={sidebarResizable ? sidebarWidth : 260}
-                hidePrevUploads={hidePrevUploads}
+                hidePrevUploads={hidePrevUploads || isGuest}
+                isGuest={isGuest}
                 isCollapsed={sidebarResizable && desktopSidebarCollapsed}
                 showSidebarToggle={sidebarResizable}
                 onToggleSidebar={() =>

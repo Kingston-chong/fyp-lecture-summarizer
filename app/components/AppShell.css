@@ -649,3 +649,43 @@ html[data-theme="light"] .shell-dropdown-item--danger:hover {
   flex-shrink: 0;
   opacity: 0.7;
 }
+
+.shell-guest-auth {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shell-guest-auth-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-family: "Sora", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.shell-guest-auth-btn--ghost {
+  border: 1px solid var(--app-btn-border);
+  color: var(--app-btn-text);
+  background: var(--app-btn-bg);
+}
+
+.shell-guest-auth-btn--ghost:hover {
+  border-color: var(--app-btn-hover-border);
+}
+
+.shell-guest-auth-btn--primary {
+  border: none;
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+}
+
+.shell-guest-auth-btn--primary:hover {
+  filter: brightness(1.06);
+}

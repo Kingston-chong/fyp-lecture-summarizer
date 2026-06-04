@@ -1,0 +1,34 @@
+.guest-sidebar-prompt {
+  margin: 8px 12px 12px;
+  padding: 14px 14px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.guest-sidebar-prompt-text {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.guest-sidebar-prompt-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: #818cf8;
+  text-decoration: none;
+}
+
+.guest-sidebar-prompt-link:hover {
+  text-decoration: underline;
+}
+
+html[data-theme="light"] .guest-sidebar-prompt {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+html[data-theme="light"] .guest-sidebar-prompt-text {
+  color: rgba(0, 0, 0, 0.55);
+}

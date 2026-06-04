@@ -14,8 +14,10 @@ import { useSummaryHistoryActions } from "@/app/hooks/useSummaryHistoryActions";
 import { useActiveSummaryId } from "@/app/hooks/useActiveSummaryId";
 import { formatSummarizeForLabel } from "../helpers";
 import { LoadingText } from "@/app/components/LoadingText";
+import GuestSidebarPrompt from "@/app/components/GuestSidebarPrompt";
 
 export default function DashboardSidebar({
+  isGuest = false,
   sidebarWidth,
   sidebarSection,
   setSidebarSection,
@@ -123,7 +125,9 @@ export default function DashboardSidebar({
       )}
 
       {sidebarSection.history &&
-        (historyLoading ? (
+        (isGuest ? (
+          <GuestSidebarPrompt />
+        ) : historyLoading ? (
           <div className="sidebar-loading">
             <div className="mini-spinner" /> <LoadingText active>Loading</LoadingText>
           </div>
@@ -178,8 +182,10 @@ export default function DashboardSidebar({
           ))
         ))}
 
-      <div className="sidebar-divider" />
+      {!isGuest ? <div className="sidebar-divider" /> : null}
 
+      {!isGuest ? (
+      <>
       <div
         className="sidebar-header sidebar-header--prev"
         onClick={() => setSidebarSection((s) => ({ ...s, prev: !s.prev }))}
@@ -342,6 +348,8 @@ export default function DashboardSidebar({
             })}
           </>
         ))}
+      </>
+      ) : null}
       {historyMenu && historyMenuSummary && (
         <HistorySummaryMenuPortal
           summary={historyMenuSummary}

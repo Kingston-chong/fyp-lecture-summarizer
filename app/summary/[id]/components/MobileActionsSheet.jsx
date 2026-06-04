@@ -27,8 +27,11 @@ export default function MobileActionsSheet({
   onGenerateRevisionSheet,
   revisionSheetLoading = false,
   onGenerateSlides,
+  lockedFeatureIds = [],
 }) {
   if (!open) return null;
+
+  const locked = new Set(lockedFeatureIds);
 
   const actions = [
     {
@@ -88,7 +91,7 @@ export default function MobileActionsSheet({
   ];
 
   function run(action) {
-    if (action.disabled) return;
+    if (action.disabled && !locked.has(action.id)) return;
     onClose();
     action.onClick();
   }
@@ -132,8 +135,8 @@ export default function MobileActionsSheet({
               <button
                 key={action.id}
                 type="button"
-                className={`mob-actions-item mob-actions-item--${action.variant}`}
-                disabled={action.disabled}
+                className={`mob-actions-item mob-actions-item--${action.variant}${locked.has(action.id) ? " mob-actions-item--locked" : ""}`}
+                disabled={action.disabled && !locked.has(action.id)}
                 onClick={() => run(action)}
               >
                 <span className="mob-actions-item-ico" aria-hidden>
