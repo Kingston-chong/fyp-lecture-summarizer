@@ -107,7 +107,7 @@ export default function QuizViewModal({
             score,
             totalQuestions: total,
             answers,
-            ...(useShare && respondentLabel
+            ...(useShare
               ? {
                   respondentLabel: String(respondentLabel).trim().slice(0, 120),
                 }

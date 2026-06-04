@@ -215,7 +215,7 @@ model QuizSet {
 
 model QuizAttempt {
   id              Int      @id @default(autoincrement())
-  userId          Int
+  userId          Int?
   quizSetId       Int
   respondentLabel String?  @db.VarChar(120)
   score           Int
@@ -223,7 +223,7 @@ model QuizAttempt {
   answers         Json?
   createdAt       DateTime @default(now())
 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
   quizSet QuizSet @relation(fields: [quizSetId], references: [id], onDelete: Cascade)
 
   @@index([quizSetId])

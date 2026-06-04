@@ -23,9 +23,6 @@ export async function POST(req, context) {
     }
 
     const user = await getRequestUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     const activeQuiz = await ensureQuizNotExpired(prisma, quizSet);
     if (!isQuizAcceptingResponses(activeQuiz)) {
@@ -36,10 +33,26 @@ export async function POST(req, context) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const respondentLabel =
+    let respondentLabel =
       String(body.respondentLabel || "")
         .trim()
         .slice(0, 120) || null;
+
+    if (user) {
+      if (!respondentLabel) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { username: true, email: true },
+        });
+        respondentLabel =
+          dbUser?.username?.trim() || dbUser?.email?.trim() || null;
+      }
+    } else if (!respondentLabel) {
+      return NextResponse.json(
+        { error: "Please enter your name before submitting." },
+        { status: 400 },
+      );
+    }
     const answers =
       body.answers && typeof body.answers === "object" ? body.answers : {};
     const totalQuestions = quizSet.questions.length;
@@ -63,7 +76,7 @@ export async function POST(req, context) {
 
     const attempt = await prisma.quizAttempt.create({
       data: {
-        userId: user.id,
+        ...(user ? { userId: user.id } : {}),
         quizSetId: quizSet.id,
         respondentLabel,
         score,

@@ -295,11 +295,11 @@ export default function QuizSettingsModal({
             ))}
 
             <SectionHead>{copy.presentationSection}</SectionHead>
-            <div className="flex gap-6">
+            <div className="qsm-presentation-row">
               {!isLecturer && (
-                <div>
+                <div className="qsm-presentation-col">
                   <FieldLabel>{copy.quizModeLabel}</FieldLabel>
-                  <div className="flex-col gap-2">
+                  <div className="qsm-radio-col">
                     {["Practice (with hints)", "Assessment (no hints)"].map(
                       (opt) => (
                         <label
@@ -323,9 +323,9 @@ export default function QuizSettingsModal({
                   </div>
                 </div>
               )}
-              <div>
+              <div className="qsm-presentation-col">
                 <FieldLabel>{copy.timeLabel}</FieldLabel>
-                <div className="flex-col gap-2">
+                <div className="qsm-radio-col">
                   <label
                     className={`radio-opt ${timeLimit === 0 ? "on" : ""}`}
                     onClick={() => setTimeLimit(0)}

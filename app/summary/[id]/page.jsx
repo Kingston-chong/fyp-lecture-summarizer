@@ -107,6 +107,7 @@ import {
 } from "@/lib/summarizeProgress";
 import {
   Chevron,
+  ChevRight,
   Spinner,
   SendIco,
   CopyIco,
@@ -280,7 +281,8 @@ export default function SummaryView() {
     return filterReferencesToCitedInBody(lecturerReferences, output);
   }, [summary?.summarizeFor, summary?.output, lecturerReferences]);
 
-  const { sourcesWidth, onSplitterMouseDown } = useSourcesPanelResize();
+  const { sourcesWidth, sourcesCollapsed, toggleSourcesCollapsed, onSplitterMouseDown } =
+    useSourcesPanelResize();
 
   const slideDecksApi = useSlideDecks({ summaryId, status });
   const {
@@ -2910,9 +2912,11 @@ export default function SummaryView() {
               {readMode ? <SummaryReadModeExit onExit={exitReadMode} /> : null}
             </main>
 
+            {!sourcesCollapsed ? (
             <SourcesSidebar
               sourcesWidth={sourcesWidth}
               onSplitterMouseDown={onSplitterMouseDown}
+              onCollapse={toggleSourcesCollapsed}
               summary={summary}
               extraSources={extraSources}
               onSourcePreview={openSourceDocPreview}
@@ -2977,6 +2981,17 @@ export default function SummaryView() {
                 onScrollTo: scrollToHighlight,
               }}
             />
+            ) : (
+              <button
+                type="button"
+                className="sum-sources-expand-tab"
+                title="Show sources panel"
+                aria-label="Show sources panel"
+                onClick={toggleSourcesCollapsed}
+              >
+                <ChevRight />
+              </button>
+            )}
           </div>
         </div>
       </div>

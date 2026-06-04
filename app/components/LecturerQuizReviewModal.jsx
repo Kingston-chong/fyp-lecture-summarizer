@@ -7,12 +7,10 @@ import { LoadingText } from "@/app/components/LoadingText";
 import QuizAttemptDetailModal from "@/app/summary/[id]/components/QuizAttemptDetailModal";
 import { formatSlideDeckSavedAt } from "@/app/summary/[id]/helpers";
 import {
-  formatQuizMarkdown,
-  formatQuizPlainText,
-  formatQuizGoogleForms,
-  downloadTextFile,
-  slugifyTitle,
+  downloadQuizAnswerKeyPdf,
 } from "@/lib/exportQuiz";
+import { useQuizAcceptingLiveState } from "@/app/hooks/useQuizAcceptingLiveState";
+import QuizShareQrDialog from "@/app/components/QuizShareQrDialog";
 
 function normalizeOptions(options) {
   if (Array.isArray(options)) return options.map(String);
@@ -115,12 +113,36 @@ export default function LecturerQuizReviewModal({
   const [publishLoading, setPublishLoading] = useState(false);
   const [collectionLoading, setCollectionLoading] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
+  const [qrOpen, setQrOpen] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const [responsesLoading, setResponsesLoading] = useState(false);
   const [responsesErr, setResponsesErr] = useState("");
   const [attempts, setAttempts] = useState([]);
   const [attemptQuestions, setAttemptQuestions] = useState([]);
   const [attemptDetail, setAttemptDetail] = useState(null);
+
+  const effectiveClosesAt = useMemo(() => {
+    if (closesAtLocal) {
+      const d = new Date(closesAtLocal);
+      if (!Number.isNaN(d.getTime())) return d.toISOString();
+    }
+    if (!quizSet?.closesAt) return null;
+    const d = new Date(quizSet.closesAt);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  }, [closesAtLocal, quizSet?.closesAt]);
+
+  const acceptingLive = useQuizAcceptingLiveState(
+    acceptingResponses,
+    effectiveClosesAt,
+  );
+
+  useEffect(() => {
+    if (acceptingResponses && !acceptingLive) {
+      setAcceptingResponses(false);
+      onPublishChange?.();
+    }
+  }, [acceptingResponses, acceptingLive, onPublishChange]);
 
   useEffect(() => {
     setPublished(Boolean(quizSet?.published));
@@ -166,7 +188,18 @@ export default function LecturerQuizReviewModal({
     setShareUrl(`${window.location.origin}/quiz/share/${shareToken}`);
   }, [shareToken]);
 
-  const slug = slugifyTitle(quizSet?.title);
+
+  const handleDownloadPdf = useCallback(async () => {
+    setPdfLoading(true);
+    try {
+      await downloadQuizAnswerKeyPdf(quizSet);
+    } catch (e) {
+      console.warn("Quiz PDF export failed:", e);
+      window.alert("Could not create PDF. Please try again.");
+    } finally {
+      setPdfLoading(false);
+    }
+  }, [quizSet]);
 
   const handleCopy = useCallback(async (text, label) => {
     try {
@@ -345,153 +378,66 @@ export default function LecturerQuizReviewModal({
 
         <div className="sl-body">
           {tab === "share" ? (
-            <div className="lqr-share-grid">
-              <div className="lqr-share-col">
-                <div className="lqr-share-card">
-                  <div className="lqr-share-title">Export files</div>
-                  <p className="lqr-share-desc">
-                    Download a student handout (no answers) or a full answer key
-                    with explanations.
-                  </p>
-                  <div className="lqr-share-actions">
-                    <button
-                      type="button"
-                      className="lqr-btn secondary"
-                      onClick={() =>
-                        downloadTextFile(
-                          `${slug}-student.md`,
-                          formatQuizMarkdown(quizSet, { variant: "student" }),
-                          "text/markdown;charset=utf-8",
-                        )
-                      }
-                    >
-                      Student .md
-                    </button>
-                    <button
-                      type="button"
-                      className="lqr-btn secondary"
-                      onClick={() =>
-                        downloadTextFile(
-                          `${slug}-student.txt`,
-                          formatQuizPlainText(quizSet, { variant: "student" }),
-                        )
-                      }
-                    >
-                      Student .txt
-                    </button>
-                    <button
-                      type="button"
-                      className="lqr-btn"
-                      onClick={() =>
-                        downloadTextFile(
-                          `${slug}-answer-key.md`,
-                          formatQuizMarkdown(quizSet, { variant: "answerKey" }),
-                          "text/markdown;charset=utf-8",
-                        )
-                      }
-                    >
-                      Answer key .md
-                    </button>
-                    <button
-                      type="button"
-                      className="lqr-btn"
-                      onClick={() =>
-                        downloadTextFile(
-                          `${slug}-answer-key.txt`,
-                          formatQuizPlainText(quizSet, {
-                            variant: "answerKey",
-                          }),
-                        )
-                      }
-                    >
-                      Answer key .txt
-                    </button>
-                  </div>
-                </div>
-
-                <div className="lqr-share-card">
-                  <div className="lqr-share-title">Google Forms</div>
-                  <p className="lqr-share-desc">
-                    Copy formatted text and paste questions into{" "}
-                    <a
-                      href="https://forms.google.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="lqr-link"
-                    >
-                      Google Forms
-                    </a>{" "}
-                    manually. Correct answers are marked [CORRECT].
-                  </p>
+            <div className="lqr-share-single">
+              <div className="lqr-share-card lqr-share-card--website">
+                <div className="lqr-share-title">Students take in website</div>
+                <p className="lqr-share-desc">
+                  Publish a share link first, then start collecting when you are
+                  ready for students to submit. Stop collecting to close the
+                  window while keeping the link available.
+                </p>
+                <div className="lqr-share-actions lqr-share-actions--center">
                   <button
                     type="button"
                     className="lqr-btn"
-                    onClick={() =>
-                      void handleCopy(formatQuizGoogleForms(quizSet), "google")
-                    }
+                    disabled={publishLoading || collectionLoading}
+                    onClick={() => void handlePublish()}
                   >
-                    {copied === "google" ? "Copied!" : "Copy for Google Forms"}
-                  </button>
-                </div>
-              </div>
-
-              <div className="lqr-share-col lqr-share-col--website">
-                <div className="lqr-share-card lqr-share-card--website">
-                  <div className="lqr-share-title">
-                    Students take in website
-                  </div>
-                  <p className="lqr-share-desc">
-                    Publish a share link first, then start collecting when you
-                    are ready for students to submit. Stop collecting to close
-                    the window while keeping the link available.
-                  </p>
-                  <div className="lqr-share-actions lqr-share-actions--center">
-                    <button
-                      type="button"
-                      className="lqr-btn"
-                      disabled={publishLoading || collectionLoading}
-                      onClick={() => void handlePublish()}
-                    >
-                      {publishLoading
-                        ? <LoadingText active>Updating</LoadingText>
-                        : published
-                          ? "Unpublish"
-                          : "Publish for students"}
-                    </button>
-                    {published && (
-                      <>
-                        <label className="lqr-closes-at">
-                          <span>Close automatically</span>
-                          <input
-                            type="datetime-local"
-                            value={closesAtLocal}
-                            onChange={(e) => setClosesAtLocal(e.target.value)}
-                            disabled={collectionLoading || publishLoading}
-                          />
-                        </label>
-                        <span
-                          className={`lqr-status-badge${acceptingResponses ? " lqr-status-badge--collecting" : ""}`}
-                        >
-                          {acceptingResponses ? "Collecting" : "Not collecting"}
-                        </span>
-                        <button
-                          type="button"
-                          className={
-                            acceptingResponses ? "lqr-btn secondary" : "lqr-btn"
-                          }
-                          disabled={collectionLoading || publishLoading}
-                          onClick={() => void handleCollectionToggle()}
-                        >
-                          {collectionLoading
-                            ? <LoadingText active>Updating</LoadingText>
-                            : acceptingResponses
-                              ? "Stop collecting"
-                              : "Start collecting"}
-                        </button>
-                      </>
+                    {publishLoading ? (
+                      <LoadingText active>Updating</LoadingText>
+                    ) : published ? (
+                      "Unpublish"
+                    ) : (
+                      "Publish for students"
                     )}
-                  </div>
-                  {published && shareUrl && (
+                  </button>
+                  {published && (
+                    <>
+                      <label className="lqr-closes-at">
+                        <span>Close automatically</span>
+                        <input
+                          type="datetime-local"
+                          value={closesAtLocal}
+                          onChange={(e) => setClosesAtLocal(e.target.value)}
+                          disabled={collectionLoading || publishLoading}
+                        />
+                      </label>
+                      <span
+                        className={`lqr-status-badge${acceptingLive ? " lqr-status-badge--collecting" : ""}`}
+                      >
+                        {acceptingLive ? "Collecting" : "Not collecting"}
+                      </span>
+                      <button
+                        type="button"
+                        className={
+                          acceptingLive ? "lqr-btn secondary" : "lqr-btn"
+                        }
+                        disabled={collectionLoading || publishLoading}
+                        onClick={() => void handleCollectionToggle()}
+                      >
+                        {collectionLoading ? (
+                          <LoadingText active>Updating</LoadingText>
+                        ) : acceptingLive ? (
+                          "Stop collecting"
+                        ) : (
+                          "Start collecting"
+                        )}
+                      </button>
+                    </>
+                  )}
+                </div>
+                {published && shareUrl && (
+                  <>
                     <div className="lqr-share-url-wrap">
                       <input
                         readOnly
@@ -506,8 +452,17 @@ export default function LecturerQuizReviewModal({
                         {copied === "link" ? "Link copied!" : "Copy share link"}
                       </button>
                     </div>
-                  )}
-                </div>
+                    <div className="lqr-share-qr-row">
+                      <button
+                        type="button"
+                        className="lqr-btn"
+                        onClick={() => setQrOpen(true)}
+                      >
+                        Share quiz by QR code
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           ) : tab === "responses" ? (
@@ -620,9 +575,28 @@ export default function LecturerQuizReviewModal({
               )}
             </div>
           ) : (
-            questions.map((q, i) => (
-              <QuestionCard key={q.id ?? i} q={q} idx={i} mode={listMode} />
-            ))
+            <>
+              <div className="lqr-answer-key-toolbar">
+                <p className="lqr-share-desc lqr-answer-key-desc">
+                  Save the full answer key with explanations for your records.
+                </p>
+                <button
+                  type="button"
+                  className="lqr-btn"
+                  disabled={pdfLoading}
+                  onClick={() => void handleDownloadPdf()}
+                >
+                  {pdfLoading ? (
+                    <LoadingText active>Creating PDF</LoadingText>
+                  ) : (
+                    "Download as PDF"
+                  )}
+                </button>
+              </div>
+              {questions.map((q, i) => (
+                <QuestionCard key={q.id ?? i} q={q} idx={i} mode={listMode} />
+              ))}
+            </>
           )}
         </div>
 
@@ -641,6 +615,12 @@ export default function LecturerQuizReviewModal({
       <QuizAttemptDetailModal
         detail={attemptDetail}
         onClose={() => setAttemptDetail(null)}
+      />
+      <QuizShareQrDialog
+        open={qrOpen}
+        onClose={() => setQrOpen(false)}
+        title={quizSet?.title}
+        shareUrl={shareUrl}
       />
     </>
   );

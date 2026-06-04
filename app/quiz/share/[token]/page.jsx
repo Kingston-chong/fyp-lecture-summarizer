@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import QuizViewModal from "@/app/components/QuizViewModal";
 import { Spinner } from "@/app/components/icons";
+import { useQuizAcceptingLiveState } from "@/app/hooks/useQuizAcceptingLiveState";
 
 function settingsFromQuizSet(quizSet) {
   const s =
@@ -24,7 +25,7 @@ function settingsFromQuizSet(quizSet) {
 export default function SharedQuizPage() {
   const params = useParams();
   const router = useRouter();
-  const { status } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const token = String(params?.token ?? "").trim();
 
   const [loading, setLoading] = useState(true);
@@ -33,10 +34,26 @@ export default function SharedQuizPage() {
   const [quizOpen, setQuizOpen] = useState(false);
   const [respondentName, setRespondentName] = useState("");
 
+  const isSignedIn = sessionStatus === "authenticated";
+  const accountLabel = useMemo(() => {
+    const u = session?.user;
+    const name = String(u?.username ?? u?.name ?? "").trim();
+    return name.slice(0, 120);
+  }, [session?.user]);
+
+  const acceptingResponses = useQuizAcceptingLiveState(
+    Boolean(quizSet?.acceptingResponses),
+    quizSet?.closesAt,
+  );
+
   const settings = useMemo(
     () => (quizSet ? settingsFromQuizSet(quizSet) : null),
     [quizSet],
   );
+
+  const respondentLabel = isSignedIn
+    ? accountLabel
+    : respondentName.trim().slice(0, 120);
 
   useEffect(() => {
     if (!token) {
@@ -60,6 +77,7 @@ export default function SharedQuizPage() {
         setQuizSet({
           ...data.quizSet,
           acceptingResponses: Boolean(data.acceptingResponses),
+          closesAt: data.closesAt ?? null,
           collectionStatus: data.collectionStatus ?? "closed",
         });
       } catch {
@@ -130,56 +148,7 @@ export default function SharedQuizPage() {
     );
   }
 
-  if (status === "unauthenticated") {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 24,
-          textAlign: "center",
-          fontFamily: "inherit",
-        }}
-      >
-        <h1 style={{ fontSize: 20, marginBottom: 8 }}>{quizSet.title}</h1>
-        <p
-          style={{
-            opacity: 0.65,
-            maxWidth: 360,
-            lineHeight: 1.5,
-            marginBottom: 20,
-          }}
-        >
-          Sign in to take this quiz and save your score.
-        </p>
-        <button
-          type="button"
-          style={{
-            padding: "10px 18px",
-            borderRadius: 8,
-            border: "1px solid rgba(99,102,241,.35)",
-            background: "rgba(99,102,241,.15)",
-            color: "#c7d2fe",
-            cursor: "pointer",
-            fontFamily: "inherit",
-            fontWeight: 600,
-          }}
-          onClick={() =>
-            router.push(
-              `/login?callbackUrl=${encodeURIComponent(`/quiz/share/${token}`)}`,
-            )
-          }
-        >
-          Sign in
-        </button>
-      </div>
-    );
-  }
-
-  if (status === "loading") {
+  if (sessionStatus === "loading") {
     return (
       <div
         style={{
@@ -194,7 +163,10 @@ export default function SharedQuizPage() {
     );
   }
 
-  const canStart = Boolean(quizSet.acceptingResponses);
+  const canStart = acceptingResponses;
+  const nameRequired = !isSignedIn;
+  const nameOk = !nameRequired || respondentName.trim().length > 0;
+  const canStartQuiz = canStart && nameOk;
 
   return (
     <>
@@ -229,7 +201,20 @@ export default function SharedQuizPage() {
               collecting.
             </p>
           )}
-          {canStart && (
+          {canStart && isSignedIn && accountLabel && (
+            <p
+              style={{
+                opacity: 0.65,
+                maxWidth: 360,
+                lineHeight: 1.5,
+                marginBottom: 14,
+                fontSize: 13,
+              }}
+            >
+              Submitting as <strong>{accountLabel}</strong>
+            </p>
+          )}
+          {canStart && nameRequired && (
             <label
               style={{
                 display: "block",
@@ -241,7 +226,7 @@ export default function SharedQuizPage() {
               }}
             >
               <span style={{ display: "block", marginBottom: 6, opacity: 0.7 }}>
-                Your name (optional, shown to your lecturer)
+                Your name (shown to your lecturer)
               </span>
               <input
                 type="text"
@@ -249,6 +234,7 @@ export default function SharedQuizPage() {
                 onChange={(e) => setRespondentName(e.target.value)}
                 placeholder="e.g. Alex Chen"
                 maxLength={120}
+                required
                 style={{
                   width: "100%",
                   padding: "10px 12px",
@@ -262,13 +248,47 @@ export default function SharedQuizPage() {
               />
             </label>
           )}
+          {canStart && !isSignedIn && (
+            <p
+              style={{
+                opacity: 0.55,
+                maxWidth: 360,
+                fontSize: 12,
+                marginBottom: 12,
+                lineHeight: 1.45,
+              }}
+            >
+              No account needed.{" "}
+              <button
+                type="button"
+                onClick={() =>
+                  router.push(
+                    `/login?callbackUrl=${encodeURIComponent(`/quiz/share/${token}`)}`,
+                  )
+                }
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  color: "#c7d2fe",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  fontSize: 12,
+                  textDecoration: "underline",
+                }}
+              >
+                Sign in
+              </button>{" "}
+              to link this attempt to your account.
+            </p>
+          )}
           <button
             type="button"
             className="btn-create"
-            disabled={!canStart}
+            disabled={!canStartQuiz}
             onClick={() => setQuizOpen(true)}
             style={
-              !canStart ? { opacity: 0.45, cursor: "not-allowed" } : undefined
+              !canStartQuiz ? { opacity: 0.45, cursor: "not-allowed" } : undefined
             }
           >
             Start quiz
@@ -277,11 +297,14 @@ export default function SharedQuizPage() {
       )}
       {quizOpen && (
         <QuizViewModal
-          quizSet={quizSet}
+          quizSet={{ ...quizSet, acceptingResponses }}
           settings={settings}
           shareToken={token}
-          respondentLabel={respondentName}
-          onClose={() => router.push("/dashboard")}
+          respondentLabel={respondentLabel}
+          onClose={() => {
+            setQuizOpen(false);
+            if (isSignedIn) router.push("/dashboard");
+          }}
         />
       )}
     </>

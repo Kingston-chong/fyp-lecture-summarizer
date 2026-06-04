@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CollapseAllIcon, SaveIco, Spinner } from "@/app/components/icons";
+import { CollapseAllIcon, SaveIco, SidebarHideIcon, Spinner } from "@/app/components/icons";
 import SourcesListPanel from "./SourcesListPanel";
 import SlideDecksPanel from "./SlideDecksPanel";
 import SavedQuizzesPanel from "./SavedQuizzesPanel";
@@ -23,6 +23,7 @@ function mergeSectionOpen(ids, stored, value) {
 export default function SourcesSidebar({
   sourcesWidth,
   onSplitterMouseDown,
+  onCollapse,
   summary,
   extraSources,
   onSourcePreview,
@@ -128,15 +129,28 @@ export default function SourcesSidebar({
       >
         <div className="src-header">
           <span className="src-title">Sources</span>
-          <button
-            type="button"
-            className="src-sections-collapse-btn"
-            title="Collapse all sections"
-            aria-label="Collapse all sections"
-            onClick={collapseAll}
-          >
-            <CollapseAllIcon size={14} />
-          </button>
+          <div className="src-header-actions">
+            <button
+              type="button"
+              className="src-sections-collapse-btn"
+              title="Collapse all sections"
+              aria-label="Collapse all sections"
+              onClick={collapseAll}
+            >
+              <CollapseAllIcon size={14} />
+            </button>
+            {onCollapse ? (
+              <button
+                type="button"
+                className="src-panel-hide-btn"
+                title="Hide sources panel"
+                aria-label="Hide sources panel"
+                onClick={onCollapse}
+              >
+                <SidebarHideIcon size={14} />
+              </button>
+            ) : null}
+          </div>
         </div>
 
         <div className="sources-scroll">

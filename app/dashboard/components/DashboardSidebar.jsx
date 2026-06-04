@@ -8,8 +8,9 @@ import {
   HistoryIcon,
   UploadIcon,
 } from "@/app/components/icons";
-import HistoryTitleHoverPreview from "@/app/components/HistoryTitleHoverPreview";
 import HistorySummaryMenuPortal from "@/app/components/HistorySummaryMenuPortal";
+import HistorySummaryMenuActions from "@/app/components/HistorySummaryMenuActions";
+import { useSummaryHistoryActions } from "@/app/hooks/useSummaryHistoryActions";
 import { useActiveSummaryId } from "@/app/hooks/useActiveSummaryId";
 import { formatSummarizeForLabel } from "../helpers";
 import { LoadingText } from "@/app/components/LoadingText";
@@ -23,6 +24,7 @@ export default function DashboardSidebar({
   historySearch = "",
   onHistorySearchChange,
   onHistoryNavigate,
+  onHistoryRefresh,
   timeAgo,
   prevLoading,
   prevUploads,
@@ -43,6 +45,14 @@ export default function DashboardSidebar({
 }) {
   const activeSummaryId = useActiveSummaryId();
   const [historyMenu, setHistoryMenu] = useState(null);
+
+  const {
+    shareLoadingId,
+    openRenameModal,
+    handleShareSummary,
+    handleDeleteSummary,
+    renderModals,
+  } = useSummaryHistoryActions({ onRefresh: onHistoryRefresh });
 
   const historyMenuSummary = useMemo(
     () => (historyMenu ? history.find((x) => x.id === historyMenu.id) : null),
@@ -122,10 +132,7 @@ export default function DashboardSidebar({
         ) : (
           history.map((h) => (
             <div key={h.id}>
-              <HistoryTitleHoverPreview
-                summary={h}
-                summarizeForLabel={formatSummarizeForLabel(h.summarizeFor)}
-                timeAgoLabel={timeAgo(h.createdAt)}
+              <div
                 className={`history-item${
                   activeSummaryId != null && Number(h.id) === activeSummaryId
                     ? " active"
@@ -146,7 +153,7 @@ export default function DashboardSidebar({
                   <button
                     type="button"
                     className="history-dots"
-                    title="Summary details"
+                    title="Summary actions"
                     onClick={(e) => {
                       e.stopPropagation();
                       const r = e.currentTarget.getBoundingClientRect();
@@ -166,7 +173,7 @@ export default function DashboardSidebar({
                     <DotsIcon />
                   </button>
                 </div>
-              </HistoryTitleHoverPreview>
+              </div>
             </div>
           ))
         ))}
@@ -348,8 +355,26 @@ export default function DashboardSidebar({
             historyMenuSummary.summarizeFor,
           )}
           timeAgoLabel={timeAgo(historyMenuSummary.createdAt)}
-        />
+        >
+          <HistorySummaryMenuActions
+            summary={historyMenuSummary}
+            shareLoadingId={shareLoadingId}
+            onRename={(s) => {
+              setHistoryMenu(null);
+              openRenameModal(s);
+            }}
+            onShare={(s) => {
+              setHistoryMenu(null);
+              void handleShareSummary(s);
+            }}
+            onDelete={(s) => {
+              setHistoryMenu(null);
+              handleDeleteSummary(s);
+            }}
+          />
+        </HistorySummaryMenuPortal>
       )}
+      {renderModals()}
     </aside>
   );
 }

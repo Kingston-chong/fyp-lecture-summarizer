@@ -2,18 +2,14 @@
 
 import "./AppSidebar.css";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useActiveSummaryId } from "@/app/hooks/useActiveSummaryId";
 import {
   ChevronDownIcon,
   DotsIcon,
-  EditIcon,
   FileIcon,
   HistoryIcon,
   PinIcon,
-  ShareIcon,
-  TrashIcon,
   UploadIcon,
   SidebarHideIcon,
 } from "./icons";
@@ -21,16 +17,10 @@ import { formatSummarizeForLabel, timeAgo } from "@/app/dashboard/helpers";
 import { historyMatchesSearch } from "@/app/components/HistorySummaryExpand";
 import HistoryTitleHoverPreview from "@/app/components/HistoryTitleHoverPreview";
 import HistorySummaryMenuPortal from "@/app/components/HistorySummaryMenuPortal";
-import ShareChatDialog from "@/app/components/ShareChatDialog";
+import HistorySummaryMenuActions from "@/app/components/HistorySummaryMenuActions";
+import { useSummaryHistoryActions } from "@/app/hooks/useSummaryHistoryActions";
 import { LoadingText } from "@/app/components/LoadingText";
-import {
-  dispatchSummaryRenamed,
-  SUMMARY_RENAMED_EVENT,
-} from "@/lib/summaryRenameSync";
-import {
-  copyTextToClipboard,
-  publishPublicChatShare,
-} from "@/lib/publishPublicChatShare";
+import { SUMMARY_RENAMED_EVENT } from "@/lib/summaryRenameSync";
 
 function sortHistoryItems(items) {
   return [...items].sort((a, b) => {
@@ -163,18 +153,12 @@ export default function AppSidebar({
   const [historyLoading, setHistoryLoading] = useState(true);
   const [prevLoading, setPrevLoading] = useState(true);
   const [removingDocId, setRemovingDocId] = useState(null);
-  const [renamingId, setRenamingId] = useState(null);
   const [sections, setSections] = useState([]);
   const [sectionsOpen, setSectionsOpen] = useState(true);
   /** heading id -> true when subsections are folded */
   const [foldedSectionGroups, setFoldedSectionGroups] = useState({});
   /** History row ⋮ menu: portaled to body so it is not clipped by sidebar overflow or trapped by drawer transform. */
   const [historyMenu, setHistoryMenu] = useState(null); // { id, bottom, right, width }
-  const [renameModal, setRenameModal] = useState(null); // { summary, value }
-  const [deleteModal, setDeleteModal] = useState(null); // { summary }
-  const [toast, setToast] = useState(null); // { message } for errors
-  const [shareDialog, setShareDialog] = useState(null);
-  const [shareLoadingId, setShareLoadingId] = useState(null);
   const [pinningId, setPinningId] = useState(null);
 
   const fetchHistory = useCallback(async () => {
@@ -189,6 +173,14 @@ export default function AppSidebar({
       setHistoryLoading(false);
     }
   }, []);
+
+  const {
+    shareLoadingId,
+    openRenameModal,
+    handleShareSummary,
+    handleDeleteSummary,
+    renderModals,
+  } = useSummaryHistoryActions({ onRefresh: fetchHistory });
 
   const fetchPrevUploads = useCallback(async () => {
     setPrevLoading(true);
@@ -267,93 +259,6 @@ export default function AppSidebar({
       setRemovingDocId(null);
     }
   }
-
-  function openRenameModal(summary) {
-    setHistoryMenu(null);
-    setRenameModal({ summary, value: summary.title || "" });
-  }
-
-  async function submitRename() {
-    if (!renameModal) return;
-    const { summary } = renameModal;
-    const next = renameModal.value?.trim() || "";
-    const current = (summary.title || "").trim();
-    if (!next || next === current) {
-      setRenameModal(null);
-      return;
-    }
-    setRenameModal(null);
-    setRenamingId(summary.id);
-    try {
-      const res = await fetch(`/api/summary/${summary.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: next }),
-      });
-      if (res.ok) {
-        setHistory((prev) =>
-          prev.map((h) => (h.id === summary.id ? { ...h, title: next } : h)),
-        );
-        dispatchSummaryRenamed(summary.id, next);
-        await fetchHistory();
-      }
-    } finally {
-      setRenamingId(null);
-    }
-  }
-
-  async function handleDeleteSummary(summary) {
-    if (!summary?.id) return;
-    setHistoryMenu(null);
-    setDeleteModal({ summary });
-  }
-
-  async function confirmDelete() {
-    const s = deleteModal?.summary;
-    setDeleteModal(null);
-    if (!s?.id) return;
-    setRenamingId(s.id);
-    try {
-      const res = await fetch(`/api/summary/${s.id}`, { method: "DELETE" });
-      if (res.ok) {
-        await fetchHistory();
-        router.push("/dashboard");
-      }
-    } finally {
-      setRenamingId(null);
-    }
-  }
-
-  async function handleShareSummary(summary) {
-    if (typeof window === "undefined" || !summary?.id) return;
-    setShareLoadingId(summary.id);
-    try {
-      const { url, shareToken, unchanged } = await publishPublicChatShare(
-        summary.id,
-      );
-      if (!unchanged) {
-        await copyTextToClipboard(url);
-      }
-      setShareDialog({
-        title: summary.title?.trim() || "Share conversation",
-        shareUrl: url,
-        shareToken,
-        copiedOnOpen: !unchanged,
-      });
-    } catch (e) {
-      setToast({
-        message: e?.message || "Could not create share link.",
-      });
-    } finally {
-      setShareLoadingId(null);
-    }
-  }
-
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 2800);
-    return () => clearTimeout(t);
-  }, [toast]);
 
   useEffect(() => {
     if (!historyMenu) return;
@@ -438,8 +343,6 @@ export default function AppSidebar({
     () => (historyMenu ? history.find((x) => x.id === historyMenu.id) : null),
     [history, historyMenu],
   );
-
-  const portalTarget = typeof document !== "undefined" ? document.body : null;
 
   /** Move the history ⋮ menu horizontally: increase to shift right (pixels). */
   const historyMenuShiftRightPx = 0;
@@ -565,11 +468,7 @@ export default function AppSidebar({
                         );
                       }}
                     >
-                      {renamingId === h.id ? (
-                        <span className="as-spin" />
-                      ) : (
-                        <DotsIcon />
-                      )}
+                      <DotsIcon />
                     </button>
                   </div>
                 </HistoryTitleHoverPreview>
@@ -668,140 +567,26 @@ export default function AppSidebar({
           timeAgoLabel={timeAgo(historyMenuSummary.createdAt)}
           shiftRightPx={historyMenuShiftRightPx}
         >
-          <button
-            type="button"
-            className="as-menu-btn"
-            onClick={() => {
+          <HistorySummaryMenuActions
+            summary={historyMenuSummary}
+            shareLoadingId={shareLoadingId}
+            onRename={(s) => {
               setHistoryMenu(null);
-              openRenameModal(historyMenuSummary);
+              openRenameModal(s);
             }}
-          >
-            <span className="as-menu-ico">
-              <EditIcon size={16} />
-            </span>
-            Rename
-          </button>
-          <button
-            type="button"
-            className="as-menu-btn"
-            disabled={shareLoadingId === historyMenuSummary.id}
-            onClick={() => {
+            onShare={(s) => {
               setHistoryMenu(null);
-              void handleShareSummary(historyMenuSummary);
+              void handleShareSummary(s);
             }}
-          >
-            <span className="as-menu-ico">
-              <ShareIcon size={16} />
-            </span>
-            Share
-          </button>
-          <button
-            type="button"
-            className="as-menu-btn danger"
-            onClick={() => {
+            onDelete={(s) => {
               setHistoryMenu(null);
-              handleDeleteSummary(historyMenuSummary);
+              handleDeleteSummary(s);
             }}
-          >
-            <span className="as-menu-ico">
-              <TrashIcon size={16} />
-            </span>
-            Delete
-          </button>
+          />
         </HistorySummaryMenuPortal>
       )}
 
-      {portalTarget &&
-        renameModal &&
-        createPortal(
-          <div
-            className="as-modal-backdrop"
-            onClick={() => setRenameModal(null)}
-          >
-            <div className="as-modal-box" onClick={(e) => e.stopPropagation()}>
-              <div className="as-modal-title">Rename summary</div>
-              <input
-                type="text"
-                className="as-modal-input"
-                value={renameModal.value}
-                onChange={(e) =>
-                  setRenameModal((p) => ({ ...p, value: e.target.value }))
-                }
-                onKeyDown={(e) => e.key === "Enter" && submitRename()}
-                placeholder="Summary title"
-                autoFocus
-              />
-              <div className="as-modal-btns">
-                <button
-                  type="button"
-                  className="as-modal-btn sec"
-                  onClick={() => setRenameModal(null)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="as-modal-btn primary"
-                  onClick={submitRename}
-                >
-                  Save
-                </button>
-              </div>
-            </div>
-          </div>,
-          portalTarget,
-        )}
-
-      {portalTarget &&
-        deleteModal &&
-        createPortal(
-          <div
-            className="as-modal-backdrop"
-            onClick={() => setDeleteModal(null)}
-          >
-            <div className="as-modal-box" onClick={(e) => e.stopPropagation()}>
-              <div className="as-modal-title">Delete summary</div>
-              <div className="as-modal-desc">
-                Delete this summary permanently? This cannot be undone.
-              </div>
-              <div className="as-modal-btns">
-                <button
-                  type="button"
-                  className="as-modal-btn sec"
-                  onClick={() => setDeleteModal(null)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="as-modal-btn danger"
-                  onClick={confirmDelete}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>,
-          portalTarget,
-        )}
-
-      {portalTarget &&
-        toast &&
-        createPortal(
-          <div className="as-toast" role="status">
-            {toast.message}
-          </div>,
-          portalTarget,
-        )}
-
-      <ShareChatDialog
-        open={Boolean(shareDialog)}
-        onClose={() => setShareDialog(null)}
-        title={shareDialog?.title}
-        shareUrl={shareDialog?.shareUrl}
-        shareToken={shareDialog?.shareToken}
-        copiedOnOpen={shareDialog?.copiedOnOpen ?? false}
-      />
+      {renderModals()}
     </>
   );
 }

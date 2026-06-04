@@ -446,13 +446,34 @@ html[data-theme="light"] .radio-opt.on {
 }
 
 @media (max-width: 640px) {
+  .sl-overlay {
+    padding: 10px;
+    align-items: center;
+  }
+
   .sl-modal {
-    max-height: 95vh;
+    max-height: min(94dvh, 94vh);
   }
 
   .sl-body--grid {
     grid-template-columns: 1fr;
     gap: 20px;
+  }
+
+  .sl-body {
+    padding: 14px 16px;
+  }
+
+  .sl-foot {
+    flex-wrap: wrap;
+    padding: 12px 16px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .sl-foot .btn-prev,
+  .sl-foot .btn-create {
+    flex: 1 1 100%;
+    justify-content: center;
   }
 
   .btn-submit {

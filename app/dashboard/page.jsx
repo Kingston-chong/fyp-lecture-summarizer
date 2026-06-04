@@ -1095,6 +1095,7 @@ export default function Dashboard() {
                 : "";
               router.push(`/summary/${id}${q}`);
             }}
+            onHistoryRefresh={() => void mutateHistory()}
             timeAgo={timeAgo}
             prevLoading={prevLoading}
             prevUploads={prevUploads}
