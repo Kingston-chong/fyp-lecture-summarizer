@@ -1,41 +1,34 @@
 "use client";
 
 import { useState } from "react";
-import { CloseIcon, QuizIco } from "./icons";
-import CustomSelect from "./CustomSelect";
-import "./CustomSelect.css";
+import { QuizIco } from "./icons";
+import { useTheme } from "./ThemeProvider";
+import {
+  CloseIco,
+  SelectMenu,
+  SectionHead,
+  FieldLabel,
+} from "./generateSlides/ui.jsx";
+import "./GenerateSlidesModal.css";
 import "./QuizSettingsModal.css";
-
-function SectionHead({ children, className = "" }) {
-  return (
-    <div className={`qsm-section-head ${className}`.trim()}>{children}</div>
-  );
-}
-
-function FieldLabel({ children, className = "" }) {
-  return (
-    <div className={`qsm-field-label ${className}`.trim()}>{children}</div>
-  );
-}
 
 /** Small “?” with native tooltip (`title`) for short option explanations */
 function HintMark({ title }) {
   return (
-    <span title={title} aria-label={title} className="qsm-hint">
+    <span title={title} aria-label={title} className="quiz-hint">
       ?
     </span>
   );
 }
 
-// ─── Main Modal ───────────────────────────────────────────
 const COPY = {
   student: {
-    title: "Quiz Generation Settings..",
+    title: "Quiz generation settings",
     intro:
-      'All these options are optional. If you want to generate quiz straight away, click "Generate Quiz" to start generate random questions.',
-    answerSection: "Answer & Explanation Settings",
+      'All options are optional. Click "Generate Quiz" anytime to create questions from your summary with sensible defaults.',
+    answerSection: "Answer & explanation",
     answerLabel: "Show correct answer:",
-    presentationSection: "Quiz Presentation Mode",
+    presentationSection: "Presentation",
     quizModeLabel: "Quiz mode",
     timeLabel: "Time limit",
     createBtn: "Generate Quiz",
@@ -53,42 +46,73 @@ const COPY = {
   },
 };
 
+const AI_MODEL_OPTIONS = [
+  { value: "ChatGPT", label: "ChatGPT" },
+  { value: "DeepSeek", label: "DeepSeek" },
+  { value: "Gemini", label: "Gemini" },
+];
+
+const GENERATION_MODE_OPTIONS = [
+  { value: "Strict", label: "Strict" },
+  { value: "Creative", label: "Creative" },
+];
+
+const QUESTION_TYPES = [
+  { id: "MCQ", label: "Multiple Choice Questions (MCQ)" },
+  { id: "True/False", label: "True/False" },
+  { id: "FillInBlanks", label: "Fill in the blanks" },
+  { id: "ShortAnswer", label: "Short answer" },
+  { id: "Match", label: "Match the answers" },
+];
+
+const FOCUS_AREAS = [
+  { id: "Key definitions", label: "Key definitions" },
+  { id: "Important concepts", label: "Important concepts" },
+  { id: "Processes", label: "Processes" },
+  { id: "Comparisons", label: "Comparisons" },
+];
+
+const DEFAULTS = {
+  aiModel: "Gemini",
+  generationMode: "Strict",
+  questionTypes: ["MCQ"],
+  questionCountAuto: false,
+  numQuestions: 10,
+  difficulty: "Medium",
+  focusAreas: ["Important concepts"],
+  answerShowMode: "Immediately",
+  quizMode: "Practice",
+  timeLimit: 0,
+};
+
 export default function QuizSettingsModal({
   summaryId,
   onClose,
   onGenerated,
   mode = "student",
 }) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const isLecturer = mode === "lecturer";
   const copy = COPY[isLecturer ? "lecturer" : "student"];
-  const [aiModel, setAiModel] = useState("Gemini");
-  const [generationMode, setGenerationMode] = useState("Strict");
-  const [questionTypes, setQuestionTypes] = useState(["MCQ"]);
-  const [questionCountAuto, setQuestionCountAuto] = useState(false);
-  const [numQuestions, setNumQuestions] = useState(10);
-  const [difficulty, setDifficulty] = useState("Medium");
-  const [focusAreas, setFocusAreas] = useState(["Important concepts"]);
-  const [answerShowMode, setAnswerShowMode] = useState("Immediately");
-  const [quizMode, setQuizMode] = useState("Practice");
-  const [timeLimit, setTimeLimit] = useState(0); // 0 = no limit
+
+  const [aiModel, setAiModel] = useState(DEFAULTS.aiModel);
+  const [generationMode, setGenerationMode] = useState(DEFAULTS.generationMode);
+  const [questionTypes, setQuestionTypes] = useState(DEFAULTS.questionTypes);
+  const [questionCountAuto, setQuestionCountAuto] = useState(
+    DEFAULTS.questionCountAuto,
+  );
+  const [numQuestions, setNumQuestions] = useState(DEFAULTS.numQuestions);
+  const [difficulty, setDifficulty] = useState(DEFAULTS.difficulty);
+  const [focusAreas, setFocusAreas] = useState(DEFAULTS.focusAreas);
+  const [answerShowMode, setAnswerShowMode] = useState(
+    DEFAULTS.answerShowMode,
+  );
+  const [quizMode, setQuizMode] = useState(DEFAULTS.quizMode);
+  const [timeLimit, setTimeLimit] = useState(DEFAULTS.timeLimit);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const QUESTION_TYPES = [
-    { id: "MCQ", label: "Multiple Choice Questions (MCQ)" },
-    { id: "True/False", label: "True/False" },
-    { id: "FillInBlanks", label: "Fill in the blanks" },
-    { id: "ShortAnswer", label: "Short answer" },
-    { id: "Match", label: "Match the answers" },
-  ];
-
-  const FOCUS_AREAS = [
-    { id: "Key definitions", label: "Key definitions" },
-    { id: "Important concepts", label: "Important concepts" },
-    { id: "Processes", label: "Processes" },
-    { id: "Comparisons", label: "Comparisons" },
-  ];
 
   const toggleType = (id) => {
     setQuestionTypes((prev) =>
@@ -100,6 +124,20 @@ export default function QuizSettingsModal({
     setFocusAreas((prev) =>
       prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id],
     );
+  };
+
+  const resetSettings = () => {
+    setAiModel(DEFAULTS.aiModel);
+    setGenerationMode(DEFAULTS.generationMode);
+    setQuestionTypes(DEFAULTS.questionTypes);
+    setQuestionCountAuto(DEFAULTS.questionCountAuto);
+    setNumQuestions(DEFAULTS.numQuestions);
+    setDifficulty(DEFAULTS.difficulty);
+    setFocusAreas(DEFAULTS.focusAreas);
+    setAnswerShowMode(DEFAULTS.answerShowMode);
+    setQuizMode(DEFAULTS.quizMode);
+    setTimeLimit(DEFAULTS.timeLimit);
+    setError("");
   };
 
   const handleCreate = async () => {
@@ -135,49 +173,41 @@ export default function QuizSettingsModal({
 
   return (
     <div
-      className="sl-overlay"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      className={`sl-overlay slides-gen-overlay quiz-gen-overlay${isDark ? "" : " slides-modal-light"}`}
+      onClick={(e) => e.stopPropagation()}
     >
-      <div className="sl-modal qsm-modal">
+      <div className="sl-modal">
         <div className="sl-head">
           <div className="sl-title">
             <QuizIco /> {copy.title}
           </div>
-          <button className="sl-close" onClick={onClose}>
-            <CloseIcon size={14} />
+          <button type="button" className="sl-close" onClick={onClose}>
+            <CloseIco />
           </button>
         </div>
 
-        <div className="qsm-intro">{copy.intro}</div>
+        <div className="sl-body slides-sl-body">
+          <p className="quiz-intro-row">{copy.intro}</p>
 
-        <div className="sl-body qsm-body">
           <div className="col-left">
-            <SectionHead>AI Model Selection</SectionHead>
-            <CustomSelect
+            <SectionHead>AI model</SectionHead>
+            <SelectMenu
               value={aiModel}
               onChange={setAiModel}
-              options={["ChatGPT", "DeepSeek", "Gemini"]}
-              width={140}
+              options={AI_MODEL_OPTIONS}
             />
 
-            <div className="qsm-gen-row">
-              <SectionHead className="qsm-section-head--inline">
-                Generation Mode
-              </SectionHead>
-              <HintMark
-                title={
-                  "Strict — only facts from your summary. Creative — may add closely related ideas or examples not spelled out in the summary."
-                }
-              />
+            <div className="quiz-gen-row">
+              <SectionHead style={{ marginBottom: 0 }}>Generation mode</SectionHead>
+              <HintMark title="Strict — only facts from your summary. Creative — may add closely related ideas or examples not spelled out in the summary." />
             </div>
-            <CustomSelect
+            <SelectMenu
               value={generationMode}
               onChange={setGenerationMode}
-              options={["Strict", "Creative"]}
-              width={140}
+              options={GENERATION_MODE_OPTIONS}
             />
 
-            <SectionHead>Question Types</SectionHead>
+            <SectionHead>Question types</SectionHead>
             {QUESTION_TYPES.map((t) => (
               <label
                 key={t.id}
@@ -197,7 +227,7 @@ export default function QuizSettingsModal({
 
             <SectionHead>{copy.answerSection}</SectionHead>
             <FieldLabel>{copy.answerLabel}</FieldLabel>
-            <div className="radio-group">
+            <div className="radio-group radio-group--mb">
               {["Immediately", "After submission"].map((opt) => (
                 <label
                   key={opt}
@@ -214,9 +244,9 @@ export default function QuizSettingsModal({
           </div>
 
           <div className="col-right">
-            <SectionHead>Quiz Length & Difficulty</SectionHead>
-            <FieldLabel>Number of questions:</FieldLabel>
-            <div className="radio-group mb-3">
+            <SectionHead>Quiz length & difficulty</SectionHead>
+            <FieldLabel>Number of questions</FieldLabel>
+            <div className="radio-group radio-group--mb">
               <label
                 className={`radio-opt ${!questionCountAuto ? "on" : ""}`}
                 onClick={() => {
@@ -229,9 +259,9 @@ export default function QuizSettingsModal({
                 <div
                   className={`radio-dot ${!questionCountAuto ? "on" : ""}`}
                 />
-                Numbers:
+                Numbers
                 <input
-                  className="num-input"
+                  className="num-inp"
                   type="number"
                   min={1}
                   max={100}
@@ -247,6 +277,7 @@ export default function QuizSettingsModal({
                   onClick={(e) => e.stopPropagation()}
                   style={{
                     marginLeft: 8,
+                    width: 56,
                     opacity: questionCountAuto ? 0.55 : 1,
                   }}
                 />
@@ -260,7 +291,7 @@ export default function QuizSettingsModal({
               </label>
             </div>
 
-            <FieldLabel>Difficulty Level:</FieldLabel>
+            <FieldLabel>Difficulty level</FieldLabel>
             <div className="radio-group radio-group--mb-lg">
               {["Easy", "Medium", "Hard"].map((opt) => (
                 <label
@@ -276,7 +307,7 @@ export default function QuizSettingsModal({
               ))}
             </div>
 
-            <SectionHead>Learning Objective Focus</SectionHead>
+            <SectionHead>Learning objective focus</SectionHead>
             {FOCUS_AREAS.map((f) => (
               <label
                 key={f.id}
@@ -295,11 +326,11 @@ export default function QuizSettingsModal({
             ))}
 
             <SectionHead>{copy.presentationSection}</SectionHead>
-            <div className="qsm-presentation-row">
+            <div className="quiz-presentation-row">
               {!isLecturer && (
-                <div className="qsm-presentation-col">
+                <div className="quiz-presentation-col">
                   <FieldLabel>{copy.quizModeLabel}</FieldLabel>
-                  <div className="qsm-radio-col">
+                  <div className="quiz-radio-col">
                     {["Practice (with hints)", "Assessment (no hints)"].map(
                       (opt) => (
                         <label
@@ -323,9 +354,9 @@ export default function QuizSettingsModal({
                   </div>
                 </div>
               )}
-              <div className="qsm-presentation-col">
+              <div className="quiz-presentation-col">
                 <FieldLabel>{copy.timeLabel}</FieldLabel>
-                <div className="qsm-radio-col">
+                <div className="quiz-radio-col">
                   <label
                     className={`radio-opt ${timeLimit === 0 ? "on" : ""}`}
                     onClick={() => setTimeLimit(0)}
@@ -340,48 +371,46 @@ export default function QuizSettingsModal({
                     onClick={() => setTimeLimit(5)}
                   >
                     <div className={`radio-dot ${timeLimit > 0 ? "on" : ""}`} />
-                    Custom time:
+                    Custom time
                     <input
-                      className="num-input"
+                      className="num-inp"
                       type="number"
+                      min={0}
                       value={timeLimit || 0}
                       onChange={(e) =>
-                        setTimeLimit(parseInt(e.target.value) || 0)
+                        setTimeLimit(parseInt(e.target.value, 10) || 0)
                       }
                       onClick={(e) => e.stopPropagation()}
-                      style={{ marginLeft: 8, width: 40 }}
+                      style={{ marginLeft: 8, width: 48 }}
                     />
-                    <span className="ml-1">minutes</span>
+                    <span className="quiz-minutes-label">minutes</span>
                   </label>
                 </div>
               </div>
             </div>
           </div>
+
+          {error ? (
+            <div className="improve-err quiz-gen-error">{error}</div>
+          ) : null}
         </div>
 
-        {error && <div className="qsm-error">{error}</div>}
-
-        <div className="sl-foot">
+        <div className="sl-foot quiz-sl-foot">
           <button
+            type="button"
             className="btn-prev"
-            onClick={() => {
-              setAiModel("Gemini");
-              setGenerationMode("Strict");
-              setQuestionTypes(["MCQ"]);
-              setQuestionCountAuto(false);
-              setNumQuestions(10);
-              setDifficulty("Medium");
-              setFocusAreas(["Important concepts"]);
-            }}
+            onClick={resetSettings}
+            disabled={loading}
           >
-            Reset Settings
+            Reset settings
           </button>
           <button
+            type="button"
             className="btn-create"
             onClick={handleCreate}
             disabled={loading}
           >
-            {loading ? <div className="mini-spin" /> : null}
+            {loading ? <div className="mini-spin" /> : <QuizIco />}
             {copy.createBtn}
           </button>
         </div>

@@ -15,6 +15,7 @@ import { useActiveSummaryId } from "@/app/hooks/useActiveSummaryId";
 import { formatSummarizeForLabel } from "../helpers";
 import { LoadingText } from "@/app/components/LoadingText";
 import GuestSidebarPrompt from "@/app/components/GuestSidebarPrompt";
+import "@/app/components/GuestSidebarPrompt.css";
 
 export default function DashboardSidebar({
   isGuest = false,

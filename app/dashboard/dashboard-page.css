@@ -3041,3 +3041,22 @@ html[data-theme="light"] .file-list::-webkit-scrollbar-thumb,
 html[data-theme="light"] .output-area::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.14);
 }
+
+/* Guest sign-in card — dashboard embedded sidebar */
+.sidebar .guest-sidebar-prompt-outer {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px 16px 16px;
+}
+
+.sidebar .guest-sidebar-prompt {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 18px 20px;
+}
+
+.sidebar .guest-sidebar-prompt-text {
+  margin: 0 0 14px;
+  padding: 0;
+}

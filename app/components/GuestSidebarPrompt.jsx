@@ -12,17 +12,19 @@ export default function GuestSidebarPrompt({ className = "" }) {
   const callbackUrl = encodeURIComponent(pathname || "/dashboard");
 
   return (
-    <div className={`guest-sidebar-prompt ${className}`.trim()}>
-      <p className="guest-sidebar-prompt-text">
-        Sign in to start saving your summaries. Once you&apos;re signed in, you
-        can access your recent summaries here.
-      </p>
-      <Link
-        href={`/login?callbackUrl=${callbackUrl}`}
-        className="guest-sidebar-prompt-link"
-      >
-        Sign in
-      </Link>
+    <div className={`guest-sidebar-prompt-outer ${className}`.trim()}>
+      <div className="guest-sidebar-prompt">
+        <p className="guest-sidebar-prompt-text">
+          Sign in to start saving your summaries. Once you&apos;re signed in,
+          you can access your recent summaries here.
+        </p>
+        <Link
+          href={`/login?callbackUrl=${callbackUrl}`}
+          className="guest-sidebar-prompt-link"
+        >
+          Sign in
+        </Link>
+      </div>
     </div>
   );
 }

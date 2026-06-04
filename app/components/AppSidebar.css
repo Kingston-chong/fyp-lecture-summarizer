@@ -884,3 +884,22 @@ html[data-theme="light"] .as-toast {
   color: #111827;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
+
+/* Guest sign-in card — scoped so padding always applies in drawer sidebar */
+.as-side .guest-sidebar-prompt-outer {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px 16px 16px;
+}
+
+.as-side .guest-sidebar-prompt {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 18px 20px;
+}
+
+.as-side .guest-sidebar-prompt-text {
+  margin: 0 0 14px;
+  padding: 0;
+}

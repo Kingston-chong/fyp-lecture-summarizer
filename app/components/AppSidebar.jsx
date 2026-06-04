@@ -1,6 +1,7 @@
 "use client";
 
 import "./AppSidebar.css";
+import "./GuestSidebarPrompt.css";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useActiveSummaryId } from "@/app/hooks/useActiveSummaryId";

@@ -1,26 +1,40 @@
+/* Outer inset from sidebar edges (wrapper) */
+.guest-sidebar-prompt-outer {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px 16px 16px;
+}
+
 .guest-sidebar-prompt {
-  margin: 8px 12px 12px;
-  padding: 14px 14px 12px;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 18px 20px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .guest-sidebar-prompt-text {
-  margin: 0 0 10px;
+  margin: 0 0 14px;
+  padding: 0;
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.55;
   color: rgba(255, 255, 255, 0.55);
 }
 
 .guest-sidebar-prompt-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
   font-size: 12px;
   font-weight: 600;
-  color: #818cf8;
+  color: #a5b4fc;
   text-decoration: none;
 }
 
 .guest-sidebar-prompt-link:hover {
+  color: #c7d2fe;
   text-decoration: underline;
 }
 
@@ -31,4 +45,12 @@ html[data-theme="light"] .guest-sidebar-prompt {
 
 html[data-theme="light"] .guest-sidebar-prompt-text {
   color: rgba(0, 0, 0, 0.55);
+}
+
+html[data-theme="light"] .guest-sidebar-prompt-link {
+  color: #4f46e5;
+}
+
+html[data-theme="light"] .guest-sidebar-prompt-link:hover {
+  color: #4338ca;
 }
