@@ -79,6 +79,18 @@
   background: rgba(248, 113, 113, 0.07);
 }
 
+.revision {
+  border-color: rgba(52, 211, 153, 0.28);
+  color: rgba(110, 231, 183, 0.95);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.revision:hover {
+  border-color: rgba(52, 211, 153, 0.42);
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.12);
+}
+
 .slides {
   background: linear-gradient(135deg, #5258ee, #8b5cf6);
   border: none;
@@ -146,6 +158,18 @@ html[data-theme="light"] .flashcardManual {
   border-color: rgba(13, 148, 136, 0.32);
   color: #115e59;
   background: transparent;
+}
+
+html[data-theme="light"] .revision {
+  border-color: rgba(5, 150, 105, 0.3);
+  color: #047857;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+html[data-theme="light"] .revision:hover {
+  border-color: rgba(5, 150, 105, 0.45);
+  color: #065f46;
+  background: rgba(16, 185, 129, 0.12);
 }
 
 html[data-theme="light"] .flashcardManual:hover {

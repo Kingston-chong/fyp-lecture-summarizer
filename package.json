@@ -9,7 +9,7 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test lib/quizCollection.test.js lib/llmRateLimit.test.js lib/referenceUtils.test.js lib/ocrMerge.test.js lib/markdown.test.js lib/chatReferences.test.js lib/publishedYearFilter.test.js lib/academicSearch.openalex.test.js lib/academicSearchQueries.test.js"
+    "test": "node --test lib/quizCollection.test.js lib/llmRateLimit.test.js lib/referenceUtils.test.js lib/ocrMerge.test.js lib/markdown.test.js lib/chatReferences.test.js lib/publishedYearFilter.test.js lib/academicSearch.openalex.test.js lib/academicSearchQueries.test.js lib/appTheme.test.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -18,6 +18,7 @@
     "@prisma/client": "^6.19.2",
     "@vercel/blob": "^2.3.1",
     "bcryptjs": "^3.0.3",
+    "html2canvas": "^1.4.1",
     "jspdf": "^4.2.0",
     "jszip": "^3.10.1",
     "libreoffice-convert": "^1.8.1",

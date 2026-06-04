@@ -36,6 +36,8 @@ export default function ShareChatButton({
 
   disabled,
 
+  disabledTitle = "Wait until the summary is ready to share",
+
   variant = "inline",
 
 }) {
@@ -98,11 +100,14 @@ export default function ShareChatButton({
 
     try {
 
-      const { url, shareToken } = await publishPublicChatShare(summaryId);
+      const { url, shareToken, unchanged } =
+        await publishPublicChatShare(summaryId);
 
       setPublished(true);
 
-      await copyTextToClipboard(url);
+      if (!unchanged) {
+        await copyTextToClipboard(url);
+      }
 
       setShareDialog({
 
@@ -111,6 +116,8 @@ export default function ShareChatButton({
         shareUrl: url,
 
         shareToken,
+
+        copiedOnOpen: !unchanged,
 
       });
 
@@ -150,9 +157,9 @@ export default function ShareChatButton({
 
   const title = disabled
 
-    ? "Send at least one chat message to share summary + chat publicly"
+    ? disabledTitle
 
-    : "Copy a public view-only link (no sign-in required)";
+    : "Copy a public view-only link (summary and any chat messages)";
 
 
 
@@ -170,7 +177,7 @@ export default function ShareChatButton({
 
       shareToken={shareDialog?.shareToken}
 
-      copiedOnOpen
+      copiedOnOpen={shareDialog?.copiedOnOpen ?? false}
 
     />
 

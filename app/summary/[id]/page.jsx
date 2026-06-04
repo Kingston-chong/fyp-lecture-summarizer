@@ -55,6 +55,16 @@ import ChatSourcesList from "./components/ChatSourcesList";
 import ChatSelectionPopover from "./components/ChatSelectionPopover";
 import ChatResponseLengthControl from "./components/ChatResponseLengthControl";
 import ShareChatButton from "./components/ShareChatButton";
+import RevisionSheetPreviewModal from "./components/RevisionSheetPreviewModal";
+import {
+  buildRevisionSheetHtml,
+  createRevisionSheetPreviewUrl,
+} from "./lib/revisionSheetPdf";
+import {
+  readRevisionSheetCache,
+  revisionSheetSourceHash,
+  writeRevisionSheetCache,
+} from "@/lib/revisionSheetCache";
 import ChatThreadNavigator from "./components/ChatThreadNavigator";
 import QuizAttemptDetailModal from "./components/QuizAttemptDetailModal";
 import SourcesSidebar from "./components/SourcesSidebar";
@@ -89,6 +99,7 @@ import {
   SUMMARY_RENAMED_EVENT,
 } from "@/lib/summaryRenameSync";
 import { LoadingText } from "@/app/components/LoadingText";
+import { canPublishSummaryShare } from "@/lib/chatShareSnapshot";
 import {
   SUMMARIZE_PHASE,
   summarizePhaseLabel,
@@ -140,6 +151,9 @@ export default function SummaryView() {
   const [searchReferences, setSearchReferences] = useState(false);
   // Web fallback is automatic server-side (ChatGPT-like). No UI toggle needed.
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [revisionSheetLoading, setRevisionSheetLoading] = useState(false);
+  const [revisionSheetPreview, setRevisionSheetPreview] = useState(null);
+  const [revisionSheetError, setRevisionSheetError] = useState("");
   const [aiChatSuggestions, setAiChatSuggestions] = useState([]);
   const [sourceUploadLoading, setSourceUploadLoading] = useState(false);
   const [extraSources, setExtraSources] = useState([]);
@@ -250,6 +264,27 @@ export default function SummaryView() {
   } = slideDecksApi;
 
   const isLecturerSummary = summary?.summarizeFor === "lecturer";
+
+  const hasSummaryOutput = useMemo(
+    () =>
+      typeof summary?.output === "string" && summary.output.trim().length > 0,
+    [summary?.output],
+  );
+
+  const canShareSummary = useMemo(() => {
+    if (summaryLoading) return false;
+    const chatMessages = messages
+      .filter((m) => !m.streaming && !m.error && String(m.content || "").trim())
+      .map((m) => ({
+        role: m.role === "ai" ? "assistant" : "user",
+        content: String(m.content || ""),
+      }));
+    return canPublishSummaryShare(summary, chatMessages);
+  }, [summaryLoading, summary, messages]);
+
+  const shareDisabledTitle = summaryLoading
+    ? "Loading summary…"
+    : "Wait until the summary is ready to share";
 
   const quizSetsApi = useQuizSets({
     summaryId,
@@ -1625,6 +1660,89 @@ export default function SummaryView() {
     setTimeout(() => setPdfLoading(false), 900);
   }
 
+  function closeRevisionSheetPreview() {
+    setRevisionSheetPreview((prev) => {
+      if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
+      return null;
+    });
+  }
+
+  function openRevisionSheetPreview({ title, markdown, fromCache, cachedAt }) {
+    const html = buildRevisionSheetHtml({
+      title: title || summary?.title || "Revision sheet",
+      markdown: markdown || "",
+    });
+    const previewUrl = createRevisionSheetPreviewUrl(html);
+    setRevisionSheetPreview((prev) => {
+      if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
+      return {
+        title: title || summary?.title || "Revision sheet",
+        previewUrl,
+        html,
+        fromCache: Boolean(fromCache),
+        cachedAt: cachedAt || null,
+      };
+    });
+  }
+
+  async function handleGenerateRevisionSheet({ force = false } = {}) {
+    if (!summaryId || !hasSummaryOutput || revisionSheetLoading) return;
+
+    const sourceHash = revisionSheetSourceHash(summary?.output);
+
+    if (!force) {
+      const cached = readRevisionSheetCache(summaryId, sourceHash);
+      if (cached) {
+        openRevisionSheetPreview({
+          title: cached.title,
+          markdown: cached.markdown,
+          fromCache: true,
+          cachedAt: cached.cachedAt,
+        });
+        return;
+      }
+    }
+
+    setRevisionSheetLoading(true);
+    setRevisionSheetError("");
+    if (!force) {
+      closeRevisionSheetPreview();
+    }
+
+    try {
+      const res = await fetch(
+        `/api/summary/${encodeURIComponent(String(summaryId))}/revision-sheet`,
+        { method: "POST" },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to generate revision sheet");
+      }
+      const title = data.title || summary?.title || "Revision sheet";
+      const markdown = data.markdown || "";
+      writeRevisionSheetCache(summaryId, { markdown, title, sourceHash });
+      openRevisionSheetPreview({
+        title,
+        markdown,
+        fromCache: false,
+        cachedAt: new Date().toISOString(),
+      });
+    } catch (e) {
+      setRevisionSheetError(e?.message || "Revision sheet failed");
+      setTimeout(() => setRevisionSheetError(""), 5000);
+    } finally {
+      setRevisionSheetLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (revisionSheetPreview?.previewUrl) {
+        URL.revokeObjectURL(revisionSheetPreview.previewUrl);
+      }
+    };
+  }, [revisionSheetPreview?.previewUrl]);
+
   async function openSourceDocPreview(doc, e) {
     e?.stopPropagation?.();
     e?.preventDefault?.();
@@ -1943,16 +2061,29 @@ export default function SummaryView() {
                     onOpenActions={() => setMobileActionsOpen(true)}
                   />
                 </div>
+                {revisionSheetError ? (
+                  <div
+                    className="revision-sheet-err"
+                    role="alert"
+                    style={{ marginBottom: 8 }}
+                  >
+                    {revisionSheetError}
+                  </div>
+                ) : null}
                 <SummaryActionBar
                   mode="desktop"
                   isLecturerSummary={isLecturerSummary}
                   pdfLoading={pdfLoading}
-                  hasSummary={Boolean(summary)}
+                  hasSummary={hasSummaryOutput}
                   onQuiz={() => setQuizModal(true)}
                   onGenerateFlashcards={() => setFlashcardModal(true)}
                   onCreateFlashcardsManually={() =>
                     setCreateFlashcardOpen(true)
                   }
+                  onGenerateRevisionSheet={() =>
+                    void handleGenerateRevisionSheet({ force: false })
+                  }
+                  revisionSheetLoading={revisionSheetLoading}
                   onSavePdf={handlePDF}
                   onGenerateSlides={() => setSlidesModal(true)}
                   shareAction={
@@ -1960,11 +2091,8 @@ export default function SummaryView() {
                       variant="toolbar"
                       summaryId={summaryId}
                       summaryTitle={summary?.title}
-                      disabled={
-                        messages.filter(
-                          (m) => !m.streaming && !m.error && m.content,
-                        ).length === 0
-                      }
+                      disabled={!canShareSummary}
+                      disabledTitle={shareDisabledTitle}
                     />
                   }
                 />
@@ -2894,18 +3022,32 @@ export default function SummaryView() {
         onClose={() => setMobileActionsOpen(false)}
         isLecturerSummary={isLecturerSummary}
         pdfLoading={pdfLoading}
-        hasSummary={Boolean(summary)}
+        hasSummary={hasSummaryOutput}
         summaryId={summaryId}
         summaryTitle={summary?.title}
-        shareChatDisabled={
-          messages.filter((m) => !m.streaming && !m.error && m.content)
-            .length === 0
-        }
+        shareChatDisabled={!canShareSummary}
+        shareChatDisabledTitle={shareDisabledTitle}
         onQuiz={() => setQuizModal(true)}
         onGenerateFlashcards={() => setFlashcardModal(true)}
         onCreateFlashcardsManually={() => setCreateFlashcardOpen(true)}
+        onGenerateRevisionSheet={() =>
+          void handleGenerateRevisionSheet({ force: false })
+        }
+        revisionSheetLoading={revisionSheetLoading}
         onSavePdf={handlePDF}
         onGenerateSlides={() => setSlidesModal(true)}
+      />
+
+      <RevisionSheetPreviewModal
+        open={Boolean(revisionSheetPreview)}
+        onClose={closeRevisionSheetPreview}
+        title={revisionSheetPreview?.title}
+        previewUrl={revisionSheetPreview?.previewUrl}
+        html={revisionSheetPreview?.html}
+        fromCache={revisionSheetPreview?.fromCache}
+        cachedAt={revisionSheetPreview?.cachedAt}
+        regenerating={revisionSheetLoading}
+        onRegenerate={() => void handleGenerateRevisionSheet({ force: true })}
       />
 
       <MobileMoreSheet

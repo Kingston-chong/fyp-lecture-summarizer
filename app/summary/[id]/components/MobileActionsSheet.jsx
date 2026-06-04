@@ -19,10 +19,13 @@ export default function MobileActionsSheet({
   summaryId,
   summaryTitle = "",
   shareChatDisabled,
+  shareChatDisabledTitle,
   onQuiz,
   onGenerateFlashcards,
   onCreateFlashcardsManually,
   onSavePdf,
+  onGenerateRevisionSheet,
+  revisionSheetLoading = false,
   onGenerateSlides,
 }) {
   if (!open) return null;
@@ -53,6 +56,15 @@ export default function MobileActionsSheet({
             variant: "flashcardManual",
             onClick: onCreateFlashcardsManually,
             disabled: false,
+          },
+          {
+            id: "revision-sheet",
+            label: revisionSheetLoading ? "Generating…" : "Revision sheet",
+            icon: PdfIco,
+            variant: "revision",
+            onClick: onGenerateRevisionSheet,
+            disabled: revisionSheetLoading || !hasSummary,
+            loading: revisionSheetLoading,
           },
         ]
       : []),
@@ -110,6 +122,7 @@ export default function MobileActionsSheet({
                 summaryId={summaryId}
                 summaryTitle={summaryTitle}
                 disabled={shareChatDisabled}
+                disabledTitle={shareChatDisabledTitle}
               />
             </div>
           ) : null}

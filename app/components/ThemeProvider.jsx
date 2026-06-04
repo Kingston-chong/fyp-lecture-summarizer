@@ -4,9 +4,15 @@ import {
   createContext,
   useCallback,
   useContext,
+  useLayoutEffect,
   useMemo,
   useState,
 } from "react";
+import {
+  normalizeAppTheme,
+  persistAppTheme,
+  readAppThemeFromStorage,
+} from "@/lib/appTheme";
 
 const ThemeContext = createContext(null);
 
@@ -18,25 +24,28 @@ export function useTheme() {
   return ctx;
 }
 
-const STORAGE_KEY = "slide2notes-theme";
-
 function readThemeFromDom() {
   if (typeof document === "undefined") return "dark";
   const t = document.documentElement.dataset.theme;
-  return t === "light" || t === "dark" ? t : "dark";
+  return normalizeAppTheme(t);
+}
+
+function resolveClientTheme() {
+  return normalizeAppTheme(readAppThemeFromStorage() ?? readThemeFromDom());
 }
 
 export default function ThemeProvider({ children }) {
-  const [theme, setThemeState] = useState(readThemeFromDom);
+  const [theme, setThemeState] = useState(resolveClientTheme);
+
+  useLayoutEffect(() => {
+    const resolved = resolveClientTheme();
+    persistAppTheme(resolved);
+    setThemeState((prev) => (prev === resolved ? prev : resolved));
+  }, []);
 
   const setTheme = useCallback((next) => {
-    setThemeState(next);
-    document.documentElement.dataset.theme = next;
-    try {
-      localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      /* ignore */
-    }
+    const resolved = persistAppTheme(next);
+    setThemeState(resolved);
   }, []);
 
   const toggle = useCallback(() => {

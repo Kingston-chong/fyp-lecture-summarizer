@@ -4,7 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { getRequestUser } from "@/lib/apiAuth";
 import {
   buildChatShareSnapshot,
+  canPublishSummaryShare,
   dbMessageToShareMessage,
+  shareSnapshotContentEqual,
 } from "@/lib/chatShareSnapshot";
 
 async function getSummaryId(params) {
@@ -114,14 +116,32 @@ export async function POST(req, context) {
     }
 
     const messages = await loadThreadMessages(user.id, summaryId);
-    if (messages.length === 0) {
+    if (!canPublishSummaryShare(summary, messages)) {
       return NextResponse.json(
-        { error: "Start a conversation before sharing the chat." },
+        {
+          error:
+            "Nothing to share yet. Wait for the summary to finish generating.",
+        },
         { status: 400 },
       );
     }
 
     const snapshot = buildChatShareSnapshot(summary, messages);
+
+    if (
+      existing?.published &&
+      existing.shareToken &&
+      existing.snapshot &&
+      shareSnapshotContentEqual(existing.snapshot, snapshot)
+    ) {
+      return NextResponse.json({
+        published: true,
+        shareToken: existing.shareToken,
+        updatedAt: existing.updatedAt,
+        unchanged: true,
+      });
+    }
+
     let shareToken = existing?.shareToken;
     if (!shareToken) {
       shareToken = randomBytes(24).toString("hex");
@@ -148,6 +168,7 @@ export async function POST(req, context) {
       published: row.published,
       shareToken: row.shareToken,
       updatedAt: row.updatedAt,
+      unchanged: false,
     });
   } catch (err) {
     const msg = err?.message || "Failed to update share";

@@ -21,6 +21,8 @@ export default function SummaryActionBar({
   onGenerateFlashcards,
   onCreateFlashcardsManually,
   onSavePdf,
+  onGenerateRevisionSheet = () => {},
+  revisionSheetLoading = false,
   onGenerateSlides,
   shareAction = null,
 }) {
@@ -59,6 +61,15 @@ export default function SummaryActionBar({
           onClick: onCreateFlashcardsManually,
           disabled: false,
         },
+        {
+          id: "revision-sheet",
+          label: revisionSheetLoading ? "Generating…" : "Revision sheet",
+          icon: PdfIco,
+          variant: "revision",
+          onClick: onGenerateRevisionSheet,
+          disabled: revisionSheetLoading || !hasSummary,
+          loading: revisionSheetLoading,
+        },
       );
     }
     items.push(
@@ -86,6 +97,8 @@ export default function SummaryActionBar({
     onQuiz,
     onGenerateFlashcards,
     onCreateFlashcardsManually,
+    onGenerateRevisionSheet,
+    revisionSheetLoading,
     onSavePdf,
     onGenerateSlides,
     pdfLoading,

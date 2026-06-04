@@ -1,0 +1,136 @@
+.revision-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  background: rgba(8, 8, 16, 0.72);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.revision-sheet-modal {
+  width: min(920px, 100%);
+  max-height: min(92vh, 900px);
+  display: flex;
+  flex-direction: column;
+  background: #1a1a24;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+.revision-sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.revision-sheet-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #f4f4f8;
+  margin: 0;
+}
+
+.revision-sheet-sub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 4px 0 0;
+}
+
+.revision-sheet-close {
+  flex-shrink: 0;
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.revision-sheet-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.revision-sheet-frame-wrap {
+  flex: 1;
+  min-height: 0;
+  background: #0e0e14;
+  padding: 0;
+  position: relative;
+}
+
+.revision-sheet-regenerating {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(14, 14, 20, 0.82);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+}
+
+.revision-sheet-frame {
+  width: 100%;
+  height: min(62vh, 560px);
+  border: none;
+  background: #fff;
+}
+
+.revision-sheet-frame--busy {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.revision-sheet-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.revision-sheet-dl-err {
+  flex: 1 1 100%;
+  font-size: 12px;
+  color: #fca5a5;
+}
+
+html[data-theme="light"] .revision-sheet-modal {
+  background: #fff;
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+html[data-theme="light"] .revision-sheet-title {
+  color: #18182a;
+}
+
+html[data-theme="light"] .revision-sheet-sub {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+html[data-theme="light"] .revision-sheet-head,
+html[data-theme="light"] .revision-sheet-foot {
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+html[data-theme="light"] .revision-sheet-frame-wrap {
+  background: #f0f0f5;
+}

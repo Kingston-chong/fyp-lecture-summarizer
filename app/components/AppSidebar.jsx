@@ -161,7 +161,6 @@ export default function AppSidebar({
   const [prevUploads, setPrevUploads] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [prevLoading, setPrevLoading] = useState(true);
-  const [collapsedHistoryRoles, setCollapsedHistoryRoles] = useState({});
   const [removingDocId, setRemovingDocId] = useState(null);
   const [renamingId, setRenamingId] = useState(null);
   const [sections, setSections] = useState([]);
@@ -328,12 +327,17 @@ export default function AppSidebar({
     if (typeof window === "undefined" || !summary?.id) return;
     setShareLoadingId(summary.id);
     try {
-      const { url, shareToken } = await publishPublicChatShare(summary.id);
-      await copyTextToClipboard(url);
+      const { url, shareToken, unchanged } = await publishPublicChatShare(
+        summary.id,
+      );
+      if (!unchanged) {
+        await copyTextToClipboard(url);
+      }
       setShareDialog({
         title: summary.title?.trim() || "Share conversation",
         shareUrl: url,
         shareToken,
+        copiedOnOpen: !unchanged,
       });
     } catch (e) {
       setToast({
@@ -389,27 +393,10 @@ export default function AppSidebar({
     return history.filter((h) => historyMatchesSearch(h, q));
   }, [history, historySearch]);
 
-  const groupedHistory = useMemo(() => {
-    const roleOrder = ["lecturer", "student"];
-    const groups = new Map();
-    for (const item of filteredHistory) {
-      const rawRole = String(item?.summarizeFor || "").toLowerCase();
-      const role = rawRole || "other";
-      if (!groups.has(role)) groups.set(role, []);
-      groups.get(role).push(item);
-    }
-    const ordered = [
-      ...roleOrder.filter((role) => groups.has(role)),
-      ...Array.from(groups.keys())
-        .filter((role) => !roleOrder.includes(role))
-        .sort(),
-    ];
-    return ordered.map((role) => ({
-      role,
-      label: formatSummarizeForLabel(role),
-      items: sortHistoryItems(groups.get(role) || []),
-    }));
-  }, [filteredHistory]);
+  const sortedHistory = useMemo(
+    () => sortHistoryItems(filteredHistory),
+    [filteredHistory],
+  );
 
   async function togglePinSummary(summary, e) {
     e?.stopPropagation?.();
@@ -444,13 +431,6 @@ export default function AppSidebar({
     } finally {
       setPinningId(null);
     }
-  }
-
-  function toggleHistoryRole(role) {
-    setCollapsedHistoryRoles((prev) => ({
-      ...prev,
-      [role]: !prev[role],
-    }));
   }
 
   const historyMenuSummary = useMemo(
@@ -525,88 +505,72 @@ export default function AppSidebar({
           ) : filteredHistory.length === 0 ? (
             <div className="as-empty">No matches</div>
           ) : (
-            groupedHistory.map((group) => (
-              <div key={group.role} className="as-history-group">
-                <button
-                  type="button"
-                  className={`as-history-group-title as-history-group-toggle${
-                    collapsedHistoryRoles[group.role] ? " folded" : ""
+            sortedHistory.map((h) => (
+              <div key={h.id}>
+                <div
+                  className={`as-hi${
+                    activeSummaryId != null && Number(h.id) === activeSummaryId
+                      ? " act"
+                      : ""
+                  }${h.pinned ? " pinned" : ""}${
+                    historyMenu?.id === h.id ? " menu-open" : ""
                   }`}
-                  onClick={() => toggleHistoryRole(group.role)}
-                  aria-expanded={!collapsedHistoryRoles[group.role]}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openHistorySummary(h)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      openHistorySummary(h);
+                    }
+                  }}
                 >
-                  <ChevronDownIcon size={11} />
-                  <span>{group.label}</span>
-                </button>
-                {!collapsedHistoryRoles[group.role] &&
-                  group.items.map((h) => (
-                  <div key={h.id}>
-                    <div
-                      className={`as-hi${
-                        activeSummaryId != null && Number(h.id) === activeSummaryId
-                          ? " act"
-                          : ""
-                      }${h.pinned ? " pinned" : ""}${
-                        historyMenu?.id === h.id ? " menu-open" : ""
-                      }`}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => openHistorySummary(h)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          openHistorySummary(h);
-                        }
+                  <div className="as-hrow">
+                    <div className="as-hname" title={h.title}>
+                      {h.title}
+                    </div>
+                    <button
+                      type="button"
+                      className={`as-hpin${h.pinned ? " is-pinned" : ""}`}
+                      title={h.pinned ? "Unpin from top" : "Pin to top"}
+                      aria-label={h.pinned ? "Unpin summary" : "Pin summary"}
+                      aria-pressed={Boolean(h.pinned)}
+                      onClick={(e) => void togglePinSummary(h, e)}
+                    >
+                      {pinningId === h.id ? (
+                        <span className="as-spin" />
+                      ) : (
+                        <PinIcon size={13} filled={Boolean(h.pinned)} />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      className="as-hdots"
+                      title="Options"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const r = e.currentTarget.getBoundingClientRect();
+                        setHistoryMenu((prev) =>
+                          prev?.id === h.id
+                            ? null
+                            : {
+                                id: h.id,
+                                top: r.top,
+                                left: r.left,
+                                right: r.right,
+                                bottom: r.bottom,
+                              },
+                        );
                       }}
                     >
-                      <div className="as-hrow">
-                        <div className="as-hname" title={h.title}>
-                          {h.title}
-                        </div>
-                        <button
-                          type="button"
-                          className={`as-hpin${h.pinned ? " is-pinned" : ""}`}
-                          title={h.pinned ? "Unpin from top" : "Pin to top"}
-                          aria-label={h.pinned ? "Unpin summary" : "Pin summary"}
-                          aria-pressed={Boolean(h.pinned)}
-                          onClick={(e) => void togglePinSummary(h, e)}
-                        >
-                          {pinningId === h.id ? (
-                            <span className="as-spin" />
-                          ) : (
-                            <PinIcon size={13} filled={Boolean(h.pinned)} />
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          className="as-hdots"
-                          title="Options"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const r = e.currentTarget.getBoundingClientRect();
-                            setHistoryMenu((prev) =>
-                              prev?.id === h.id
-                                ? null
-                                : {
-                                    id: h.id,
-                                    top: r.top,
-                                    left: r.left,
-                                    right: r.right,
-                                    bottom: r.bottom,
-                                  },
-                            );
-                          }}
-                        >
-                          {renamingId === h.id ? (
-                            <span className="as-spin" />
-                          ) : (
-                            <DotsIcon />
-                          )}
-                        </button>
-                      </div>
-                    </div>
+                      {renamingId === h.id ? (
+                        <span className="as-spin" />
+                      ) : (
+                        <DotsIcon />
+                      )}
+                    </button>
                   </div>
-                ))}
+                </div>
               </div>
             ))
           ))}
@@ -834,7 +798,7 @@ export default function AppSidebar({
         title={shareDialog?.title}
         shareUrl={shareDialog?.shareUrl}
         shareToken={shareDialog?.shareToken}
-        copiedOnOpen
+        copiedOnOpen={shareDialog?.copiedOnOpen ?? false}
       />
     </>
   );
