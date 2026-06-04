@@ -6,8 +6,12 @@
   overflow: hidden;
 }
 
-html[data-theme="light"] .auth-chrome-root--themed,
 .auth-chrome-root--themed {
+  background: var(--app-bg);
+}
+
+html[data-theme="light"] .auth-chrome-root--themed,
+html[data-theme="light"] .auth-chrome-root {
   background: var(--app-bg);
 }
 

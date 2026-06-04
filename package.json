@@ -12,7 +12,11 @@
     "test": "node --test lib/quizCollection.test.js lib/llmRateLimit.test.js lib/referenceUtils.test.js lib/ocrMerge.test.js lib/markdown.test.js lib/chatReferences.test.js lib/publishedYearFilter.test.js lib/academicSearch.openalex.test.js lib/academicSearchQueries.test.js lib/appTheme.test.js"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "@google/generative-ai": "^0.24.1",
+    "@mui/icons-material": "^9.0.1",
+    "@mui/material": "^9.0.1",
     "@napi-rs/canvas": "^0.1.100",
     "@prisma/adapter-mariadb": "^7.4.1",
     "@prisma/client": "^6.19.2",
@@ -32,6 +36,7 @@
     "pdfjs-dist": "^5.7.284",
     "pptx2json": "^0.0.10",
     "prisma": "^6.19.2",
+    "qrcode": "^1.5.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-markdown": "^10.1.0",

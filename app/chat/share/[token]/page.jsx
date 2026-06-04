@@ -9,6 +9,7 @@ import AuthMarketingNav from "@/app/components/AuthMarketingNav";
 import AuthPageChrome from "@/app/components/AuthPageChrome";
 import { Spinner } from "@/app/components/icons";
 import SharedConversationView from "../SharedConversationView";
+import SharedQuickNotesButton from "../components/SharedQuickNotesButton";
 
 function formatSummaryModelLabel(model) {
   const m = String(model || "").toLowerCase();
@@ -60,7 +61,7 @@ export default function SharedChatPage() {
   }, [token]);
 
   return (
-    <AuthPageChrome header={<AuthMarketingNav />} blobCount={3}>
+    <AuthPageChrome header={<AuthMarketingNav />} blobCount={3} shell="themed">
       <main className="chat-share-page">
         {loading ? (
           <div className="chat-share-state">
@@ -115,6 +116,8 @@ export default function SharedChatPage() {
             <div className="chat-share-card">
               <SharedConversationView snapshot={snapshot} />
             </div>
+
+            <SharedQuickNotesButton token={token} snapshot={snapshot} />
 
             <div className="chat-share-footer">
               <Link href="/register" className="chat-share-btn">

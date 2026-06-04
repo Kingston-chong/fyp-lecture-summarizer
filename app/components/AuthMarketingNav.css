@@ -59,3 +59,27 @@
   background: rgba(99, 102, 241, 0.1);
   color: #a5b4fc;
 }
+
+html[data-theme="light"] .auth-mkt-nav {
+  background: var(--app-nav-bg);
+  border-bottom-color: var(--app-border);
+}
+
+html[data-theme="light"] .auth-mkt-nav-title {
+  background: var(--app-brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+html[data-theme="light"] .auth-mkt-nav-user {
+  border-color: var(--app-border);
+  background: var(--app-btn-bg);
+  color: var(--app-btn-text);
+}
+
+html[data-theme="light"] .auth-mkt-nav-user:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.08);
+  color: #4f46e5;
+}

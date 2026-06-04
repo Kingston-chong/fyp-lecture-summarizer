@@ -19,6 +19,7 @@ import {
 } from "./icons";
 import { formatSummarizeForLabel, timeAgo } from "@/app/dashboard/helpers";
 import { historyMatchesSearch } from "@/app/components/HistorySummaryExpand";
+import HistoryTitleHoverPreview from "@/app/components/HistoryTitleHoverPreview";
 import HistorySummaryMenuPortal from "@/app/components/HistorySummaryMenuPortal";
 import ShareChatDialog from "@/app/components/ShareChatDialog";
 import { LoadingText } from "@/app/components/LoadingText";
@@ -507,7 +508,10 @@ export default function AppSidebar({
           ) : (
             sortedHistory.map((h) => (
               <div key={h.id}>
-                <div
+                <HistoryTitleHoverPreview
+                  summary={h}
+                  summarizeForLabel={formatSummarizeForLabel(h.summarizeFor)}
+                  timeAgoLabel={timeAgo(h.createdAt)}
                   className={`as-hi${
                     activeSummaryId != null && Number(h.id) === activeSummaryId
                       ? " act"
@@ -526,9 +530,7 @@ export default function AppSidebar({
                   }}
                 >
                   <div className="as-hrow">
-                    <div className="as-hname" title={h.title}>
-                      {h.title}
-                    </div>
+                    <div className="as-hname">{h.title}</div>
                     <button
                       type="button"
                       className={`as-hpin${h.pinned ? " is-pinned" : ""}`}
@@ -570,7 +572,7 @@ export default function AppSidebar({
                       )}
                     </button>
                   </div>
-                </div>
+                </HistoryTitleHoverPreview>
               </div>
             ))
           ))}

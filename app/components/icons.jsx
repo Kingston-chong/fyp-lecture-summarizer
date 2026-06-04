@@ -1,708 +1,267 @@
-// Centralized SVG icon components for the app
-// Keep these small and re-usable; extend as needed.
+"use client";
+
+/**
+ * Centralized icons — MUI (@mui/icons-material) with stable export names.
+ * Outlined variants keep a lighter look; a few bespoke SVGs kept where MUI has no match.
+ */
+import CircularProgress from "@mui/material/CircularProgress";
+import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
+import AppsOutlinedIcon from "@mui/icons-material/AppsOutlined";
+import ArrowBackOutlinedIcon from "@mui/icons-material/ArrowBackOutlined";
+import AttachFileOutlinedIcon from "@mui/icons-material/AttachFileOutlined";
+import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
+import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
+import CheckCircleOutlineOutlinedIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
+import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
+import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
+import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
+import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
+import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import FullscreenExitOutlinedIcon from "@mui/icons-material/FullscreenExitOutlined";
+import FullscreenOutlinedIcon from "@mui/icons-material/FullscreenOutlined";
+import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
+import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
+import KeyboardArrowDownOutlinedIcon from "@mui/icons-material/KeyboardArrowDownOutlined";
+import LibraryBooksOutlinedIcon from "@mui/icons-material/LibraryBooksOutlined";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
+import MailOutlineOutlinedIcon from "@mui/icons-material/MailOutlineOutlined";
+import MenuOutlinedIcon from "@mui/icons-material/MenuOutlined";
+import MoreHorizOutlinedIcon from "@mui/icons-material/MoreHorizOutlined";
+import PersonOutlinedIcon from "@mui/icons-material/PersonOutlined";
+import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
+import PostAddOutlinedIcon from "@mui/icons-material/PostAddOutlined";
+import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
+import PushPinIcon from "@mui/icons-material/PushPin";
+import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
+import ReplyOutlinedIcon from "@mui/icons-material/ReplyOutlined";
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
+import ShareOutlinedIcon from "@mui/icons-material/ShareOutlined";
+import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
+import SlideshowOutlinedIcon from "@mui/icons-material/SlideshowOutlined";
+import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
+import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
+import UploadOutlinedIcon from "@mui/icons-material/UploadOutlined";
+import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import BorderColorOutlinedIcon from "@mui/icons-material/BorderColorOutlined";
+import UnfoldLessOutlinedIcon from "@mui/icons-material/UnfoldLessOutlined";
+import ViewSidebarOutlinedIcon from "@mui/icons-material/ViewSidebarOutlined";
+
+const FILE_TYPE_COLORS = {
+  PDF: "#f87171",
+  PPTX: "#fb923c",
+  PPT: "#fb923c",
+  DOCX: "#60a5fa",
+  DOC: "#60a5fa",
+  TXT: "#a3e635",
+  MD: "#a3e635",
+  XLSX: "#34d399",
+  XLS: "#34d399",
+  CSV: "#34d399",
+  default: "#c084fc",
+};
+
+function fileColor(extOrType) {
+  return FILE_TYPE_COLORS[extOrType?.toUpperCase()] || FILE_TYPE_COLORS.default;
+}
+
+function sx(size, extra = {}) {
+  const n = Number(size);
+  return {
+    fontSize: Number.isFinite(n) ? n : size,
+    display: "block",
+    flexShrink: 0,
+    ...extra,
+  };
+}
+
 export const Chevron = ({ open }) => (
-  <svg
-    width="10"
-    height="10"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    style={{
+  <KeyboardArrowDownOutlinedIcon
+    sx={sx(10, {
       transform: open ? "rotate(180deg)" : "none",
       transition: "transform .2s",
-    }}
-  >
-    <polyline points="6 9 12 15 18 9" />
-  </svg>
-);
-export const ChevRight = () => (
-  <svg
-    width="11"
-    height="11"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <polyline points="9 18 15 12 9 6" />
-  </svg>
-);
-
-/** VS Code codicon-style collapse-all (stacked squares + minus). */
-export const CollapseAllIcon = ({ size = 16 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <rect x="2" y="2" width="7" height="7" rx="1" />
-    <rect x="6" y="6" width="7" height="7" rx="1" />
-    <line x1="8" y1="9.5" x2="12" y2="9.5" />
-  </svg>
-);
-
-/** Collapse / hide the left sidebar panel. */
-export const SidebarHideIcon = ({ size = 16 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <rect x="2.5" y="2.5" width="11" height="11" rx="1" />
-    <line x1="6.5" y1="2.5" x2="6.5" y2="13.5" />
-    <polyline points="9 8 7.5 6.5 9 5" />
-  </svg>
-);
-export const DocIco = ({ ext, size = 12 }) => {
-  const c =
-    {
-      PDF: "#f87171",
-      PPTX: "#fb923c",
-      PPT: "#fb923c",
-      DOCX: "#60a5fa",
-      DOC: "#60a5fa",
-      TXT: "#a3e635",
-      XLSX: "#34d399",
-    }[ext?.toUpperCase()] || "#c084fc";
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={c}
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-    </svg>
-  );
-};
-export const QuizIco = () => (
-  <svg
-    width="14"
-    height="14"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M9 11l3 3L22 4" />
-    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-  </svg>
-);
-export const FlashcardsIco = () => (
-  <svg
-    width="14"
-    height="14"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
+    })}
     aria-hidden
-  >
-    <rect x="3" y="5" width="14" height="16" rx="2" />
-    <path d="M7 5V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-1" />
-    <path d="M8 11h6M8 15h4" />
-  </svg>
-);
-export const ManualCardsIco = () => (
-  <svg
-    width="14"
-    height="14"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
-    <rect x="4" y="4" width="16" height="16" rx="2" />
-    <path d="M12 8v8M8 12h8" />
-  </svg>
-);
-export const PdfIco = () => (
-  <svg
-    width="14"
-    height="14"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="16" y1="13" x2="8" y2="13" />
-    <line x1="16" y1="17" x2="8" y2="17" />
-  </svg>
-);
-export const SlidesIco = () => (
-  <svg
-    width="14"
-    height="14"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="2" y="3" width="20" height="14" rx="2" />
-    <path d="M8 21h8M12 17v4" />
-    <polygon points="10 8 16 11 10 14 10 8" />
-  </svg>
-);
-export const SendIco = () => (
-  <svg
-    width="15"
-    height="15"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <line x1="22" y1="2" x2="11" y2="13" />
-    <polygon points="22 2 15 22 11 13 2 9 22 2" />
-  </svg>
-);
-export const BotIco = () => (
-  <svg
-    width="13"
-    height="13"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="3" y="11" width="18" height="10" rx="2" />
-    <circle cx="12" cy="5" r="2" />
-    <path d="M12 7v4M8.5 15h.01M15.5 15h.01" />
-  </svg>
-);
-export const UserIco = () => (
-  <svg
-    width="13"
-    height="13"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <circle cx="12" cy="8" r="4" />
-    <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-  </svg>
-);
-export const CopyIco = ({ size = 12 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="9" y="9" width="13" height="13" rx="2" />
-    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-  </svg>
-);
-
-/** Reply / quote preview in chat composer (ChatGPT-style) */
-export const ReplyQuoteIco = ({ size = 14 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <polyline points="9 17 4 12 9 7" />
-    <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
-  </svg>
-);
-
-/** Regenerate / retry assistant reply (summary chat) */
-export const RegenIco = ({ size = 12 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M21 2v6h-6" />
-    <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
-    <path d="M3 22v-6h6" />
-    <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
-  </svg>
-);
-
-/** Highlighter / marker pen (summary PDF-style highlights) */
-export const HighlightIco = ({ size = 12 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M15 4l5 5-7 7-5-5 7-7z" />
-    <path d="M9.5 14.5L4 20v-3l3.5-3.5" />
-    <path d="M13.5 10.5L8 16" opacity="0.55" />
-  </svg>
-);
-
-/** Save highlights / persist action */
-export const SaveIco = ({ size = 14 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-    <polyline points="17 21 17 13 7 13 7 21" />
-    <polyline points="7 3 7 8 15 8" />
-  </svg>
-);
-export const Spinner = ({ size = 14, color = "white" }) => (
-  <div
-    style={{
-      width: size,
-      height: size,
-      border: `2px solid rgba(255,255,255,0.2)`,
-      borderTopColor: color,
-      borderRadius: "50%",
-      animation: "spin .7s linear infinite",
-      flexShrink: 0,
-    }}
   />
 );
-export const CheckCircle = ({ met }) => (
-  <svg
-    width="13"
-    height="13"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <circle cx="12" cy="12" r="10" />
-    {met && <polyline points="9 12 11 14 15 10" />}
-  </svg>
-);
-export const LogoIcon = () => (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="2" y="3" width="20" height="14" rx="2" />
-    <path d="M8 21h8M12 17v4" />
-  </svg>
+
+export const ChevRight = () => (
+  <ChevronRightOutlinedIcon sx={sx(11)} aria-hidden />
 );
 
-/** Hamburger menu (mobile nav) */
+export const CollapseAllIcon = ({ size = 16 }) => (
+  <UnfoldLessOutlinedIcon sx={sx(size)} aria-hidden />
+);
+
+export const SidebarHideIcon = ({ size = 16 }) => (
+  <ViewSidebarOutlinedIcon sx={sx(size)} aria-hidden />
+);
+
+export const DocIco = ({ ext, size = 12 }) => (
+  <InsertDriveFileOutlinedIcon
+    sx={sx(size, { color: fileColor(ext) })}
+    aria-hidden
+  />
+);
+
+export const QuizIco = () => <TaskAltOutlinedIcon sx={sx(14)} aria-hidden />;
+
+export const FlashcardsIco = () => (
+  <LibraryBooksOutlinedIcon sx={sx(14)} aria-hidden />
+);
+
+export const ManualCardsIco = () => (
+  <PostAddOutlinedIcon sx={sx(14)} aria-hidden />
+);
+
+export const PdfIco = () => (
+  <PictureAsPdfOutlinedIcon sx={sx(14)} aria-hidden />
+);
+
+export const SlidesIco = () => (
+  <SlideshowOutlinedIcon sx={sx(14)} aria-hidden />
+);
+
+export const SendIco = () => <SendOutlinedIcon sx={sx(15)} aria-hidden />;
+
+export const BotIco = () => <SmartToyOutlinedIcon sx={sx(13)} aria-hidden />;
+
+export const UserIco = () => <PersonOutlinedIcon sx={sx(13)} aria-hidden />;
+
+export const CopyIco = ({ size = 12 }) => (
+  <ContentCopyOutlinedIcon sx={sx(size)} aria-hidden />
+);
+
+export const ReplyQuoteIco = ({ size = 14 }) => (
+  <ReplyOutlinedIcon sx={sx(size)} aria-hidden />
+);
+
+export const RegenIco = ({ size = 12 }) => (
+  <RefreshOutlinedIcon sx={sx(size)} aria-hidden />
+);
+
+export const HighlightIco = ({ size = 12 }) => (
+  <BorderColorOutlinedIcon sx={sx(size)} aria-hidden />
+);
+
+export const SaveIco = ({ size = 14 }) => (
+  <SaveOutlinedIcon sx={sx(size)} aria-hidden />
+);
+
+export const Spinner = ({ size = 14, color = "white" }) => (
+  <CircularProgress
+    size={size}
+    thickness={5}
+    sx={{ color, flexShrink: 0 }}
+    aria-hidden
+  />
+);
+
+export const CheckCircle = ({ met }) =>
+  met ? (
+    <CheckCircleOutlinedIcon sx={sx(13)} aria-hidden />
+  ) : (
+    <CheckCircleOutlineOutlinedIcon sx={sx(13)} aria-hidden />
+  );
+
+export const LogoIcon = () => <SlideshowOutlinedIcon sx={sx(18)} aria-hidden />;
+
 export const MenuIcon = ({ size = 20 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <line x1="4" y1="6" x2="20" y2="6" />
-    <line x1="4" y1="12" x2="20" y2="12" />
-    <line x1="4" y1="18" x2="20" y2="18" />
-  </svg>
+  <MenuOutlinedIcon sx={sx(size)} aria-hidden />
 );
 
 export const SlidesIcon = () => (
-  <svg
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="2" y="3" width="20" height="14" rx="2" />
-    <path d="M8 21h8M12 17v4" />
-  </svg>
+  <SlideshowOutlinedIcon sx={sx(20)} aria-hidden />
 );
 
 export const UserCircleIcon = () => (
-  <svg
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <circle cx="12" cy="12" r="10" />
-    <circle cx="12" cy="10" r="3" />
-    <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662" />
-  </svg>
+  <AccountCircleOutlinedIcon sx={sx(20)} aria-hidden />
 );
 
 export const ChevronDownIcon = ({ size = 11 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <polyline points="6 9 12 15 18 9" />
-  </svg>
+  <KeyboardArrowDownOutlinedIcon sx={sx(size)} aria-hidden />
 );
 
 export const UploadIcon = ({ size = 16 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-    <polyline points="17 8 12 3 7 8" />
-    <line x1="12" y1="3" x2="12" y2="15" />
-  </svg>
+  <UploadOutlinedIcon sx={sx(size)} aria-hidden />
 );
 
-// Paperclip / attach icon for file uploads
 export const ClipIco = ({ size = 16 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.4"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M21.44 11.05l-8.49 8.49a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-8.49 8.49a2 2 0 1 1-2.83-2.83l7.78-7.78" />
-  </svg>
+  <AttachFileOutlinedIcon sx={sx(size)} aria-hidden />
 );
 
-/** Photo / image attach (chat, etc.) */
 export const ImageIco = ({ size = 16 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-    <circle cx="8.5" cy="8.5" r="1.5" />
-    <path d="M21 15l-5-5L5 21" />
-  </svg>
+  <ImageOutlinedIcon sx={sx(size)} aria-hidden />
 );
 
-export const FileIcon = ({ type, size = 26 }) => {
-  const colors = {
-    PDF: "#f87171",
-    PPTX: "#fb923c",
-    PPT: "#fb923c",
-    DOCX: "#60a5fa",
-    DOC: "#60a5fa",
-    TXT: "#a3e635",
-    MD: "#a3e635",
-    XLSX: "#34d399",
-    XLS: "#34d399",
-    CSV: "#34d399",
-    default: "#c084fc",
-  };
-  const c = colors[type?.toUpperCase()] || colors.default;
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={c}
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-    </svg>
-  );
-};
+export const FileIcon = ({ type, size = 26 }) => (
+  <InsertDriveFileOutlinedIcon
+    sx={sx(size, { color: fileColor(type) })}
+    aria-hidden
+  />
+);
 
 export const CloseIcon = ({ size = 12 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <line x1="18" y1="6" x2="6" y2="18" />
-    <line x1="6" y1="6" x2="18" y2="18" />
-  </svg>
+  <CloseOutlinedIcon sx={sx(size)} aria-hidden />
 );
 
 export const CheckIcon = ({ size = 16 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="3"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <polyline points="20 6 9 17 4 12" />
-  </svg>
+  <CheckOutlinedIcon sx={sx(size)} aria-hidden />
 );
 
 export const InfoIcon = ({ size = 16 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <circle cx="12" cy="12" r="10" />
-    <line x1="12" y1="16" x2="12" y2="12" />
-    <line x1="12" y1="8" x2="12.01" y2="8" />
-  </svg>
+  <InfoOutlinedIcon sx={sx(size)} aria-hidden />
 );
 
 export const SparkleIcon = ({ size = 15 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z" />
-    <path d="M19 3l.75 2.25L22 6l-2.25.75L19 9l-.75-2.25L16 6l2.25-.75z" />
-  </svg>
+  <AutoAwesomeOutlinedIcon sx={sx(size)} aria-hidden />
 );
 
 export const HistoryIcon = ({ size = 13 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <polyline points="1 4 1 10 7 10" />
-    <path d="M3.51 15a9 9 0 1 0 .49-4.96" />
-  </svg>
+  <HistoryOutlinedIcon sx={sx(size)} aria-hidden />
 );
 
 export const LogoutIcon = ({ size = 15 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-    <polyline points="16 17 21 12 16 7" />
-    <line x1="21" y1="12" x2="9" y2="12" />
-  </svg>
+  <LogoutOutlinedIcon sx={sx(size)} aria-hidden />
 );
 
 export const CopyIcon = ({ size = 13 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="9" y="9" width="13" height="13" rx="2" />
-    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-  </svg>
+  <ContentCopyOutlinedIcon sx={sx(size)} aria-hidden />
 );
 
 export const EyeOffIcon = ({ size = 15 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-    <line x1="1" y1="1" x2="23" y2="23" />
-  </svg>
+  <VisibilityOffOutlinedIcon sx={sx(size)} aria-hidden />
 );
 
 export const EyeIcon = ({ size = 15 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-    <circle cx="12" cy="12" r="3" />
-  </svg>
+  <VisibilityOutlinedIcon sx={sx(size)} aria-hidden />
 );
 
 export const ShieldIcon = ({ size = 24 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-  </svg>
+  <ShieldOutlinedIcon sx={sx(size)} aria-hidden />
 );
 
 export const LockIcon = ({ size = 24 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="3" y="11" width="18" height="11" rx="2" />
-    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-  </svg>
+  <LockOutlinedIcon sx={sx(size)} aria-hidden />
 );
 
 export const MailIcon = ({ size = 24 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="3" y="5" width="18" height="14" rx="2" />
-    <polyline points="3 7 12 13 21 7" />
-  </svg>
+  <MailOutlineOutlinedIcon sx={sx(size)} aria-hidden />
 );
 
+/** Google sign-in brand colors (not available as a single MUI outlined icon). */
 export const GoogleIcon = ({ size = 18 }) => (
   <svg
     width={size}
     height={size}
     viewBox="0 0 18 18"
     xmlns="http://www.w3.org/2000/svg"
+    aria-hidden
   >
     <path
       d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"
@@ -723,123 +282,41 @@ export const GoogleIcon = ({ size = 18 }) => (
   </svg>
 );
 
-/** Generate / tools menu (quiz, slides, PDF, flashcards). */
 export const ActionsMenuIco = ({ size = 14 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
-    <rect x="3" y="3" width="7" height="7" rx="1.5" />
-    <rect x="14" y="3" width="7" height="7" rx="1.5" />
-    <rect x="3" y="14" width="7" height="7" rx="1.5" />
-    <rect x="14" y="14" width="7" height="7" rx="1.5" />
-  </svg>
+  <AppsOutlinedIcon sx={sx(size)} aria-hidden />
 );
 
 export const DotsIcon = ({ size = 14 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <circle cx="5" cy="12" r="1" />
-    <circle cx="12" cy="12" r="1" />
-    <circle cx="19" cy="12" r="1" />
-  </svg>
+  <MoreHorizOutlinedIcon sx={sx(size)} aria-hidden />
 );
 
-export const PinIcon = ({ size = 14, filled = false }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill={filled ? "currentColor" : "none"}
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <path d="M12 17v5" />
-    <path d="M9 3h6l1 7h4l-5 6v4H9v-4L4 10h4z" />
-  </svg>
-);
+export const PinIcon = ({ size = 14, filled = false }) =>
+  filled ? (
+    <PushPinIcon sx={sx(size)} aria-hidden />
+  ) : (
+    <PushPinOutlinedIcon sx={sx(size)} aria-hidden />
+  );
 
 export const ShareIcon = ({ size = 16 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" />
-    <polyline points="16 6 12 2 8 6" />
-    <line x1="12" y1="2" x2="12" y2="15" />
-  </svg>
+  <ShareOutlinedIcon sx={sx(size)} aria-hidden />
 );
 
 export const EditIcon = ({ size = 16 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M12 20h9" />
-    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-  </svg>
+  <EditOutlinedIcon sx={sx(size)} aria-hidden />
 );
 
 export const TrashIcon = ({ size = 16 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <polyline points="3 6 5 6 21 6" />
-    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-    <path d="M10 11v6" />
-    <path d="M14 11v6" />
-    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-  </svg>
+  <DeleteOutlineOutlinedIcon sx={sx(size)} aria-hidden />
 );
+
 export const ArrowLeftIcon = ({ size = 16 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <line x1="19" y1="12" x2="5" y2="12" />
-    <polyline points="12 19 5 12 12 5" />
-  </svg>
+  <ArrowBackOutlinedIcon sx={sx(size)} aria-hidden />
+);
+
+export const ReadFocusIcon = ({ size = 14 }) => (
+  <FullscreenOutlinedIcon sx={sx(size)} aria-hidden />
+);
+
+export const ReadFocusExitIcon = ({ size = 14 }) => (
+  <FullscreenExitOutlinedIcon sx={sx(size)} aria-hidden />
 );

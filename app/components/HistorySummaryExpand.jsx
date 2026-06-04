@@ -74,11 +74,15 @@ export function historyMatchesSearch(h, q) {
   return false;
 }
 
-const POPOVER_WIDTH = 288;
-const HOVER_OPEN_MS = 280;
-const HOVER_CLOSE_MS = 120;
+export const HISTORY_POPOVER_WIDTH = 288;
+export const HISTORY_HOVER_OPEN_MS = 280;
+export const HISTORY_HOVER_CLOSE_MS = 120;
 
-function computePopoverPosition(anchorRect) {
+const POPOVER_WIDTH = HISTORY_POPOVER_WIDTH;
+const HOVER_OPEN_MS = HISTORY_HOVER_OPEN_MS;
+const HOVER_CLOSE_MS = HISTORY_HOVER_CLOSE_MS;
+
+export function computeHistoryPopoverPosition(anchorRect) {
   const pad = 12;
   const maxH = Math.min(420, window.innerHeight - pad * 2);
   let left = anchorRect.right + 10;
@@ -132,7 +136,7 @@ export default function HistorySummaryExpand({
   const updatePosition = useCallback(() => {
     const el = triggerRef.current;
     if (!el) return;
-    setPopoverStyle(computePopoverPosition(el.getBoundingClientRect()));
+    setPopoverStyle(computeHistoryPopoverPosition(el.getBoundingClientRect()));
   }, []);
 
   useEffect(() => {

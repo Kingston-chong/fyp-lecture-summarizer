@@ -71,6 +71,7 @@ import SourcesSidebar from "./components/SourcesSidebar";
 import MobileMoreSheet from "./components/MobileMoreSheet";
 import MobileActionsSheet from "./components/MobileActionsSheet";
 import SummaryMobileToolbar from "./components/SummaryMobileToolbar";
+import SummaryReadModeExit from "./components/SummaryReadModeExit";
 import { useSourcesPanelResize } from "./hooks/useSourcesPanelResize";
 import { isViewTokenUnavailableStatus } from "@/lib/viewTokenPreview";
 import { useSlideDecks } from "./hooks/useSlideDecks";
@@ -191,6 +192,44 @@ export default function SummaryView() {
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [mobileMoreInitialSection, setMobileMoreInitialSection] = useState(null);
   const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
+  const [readMode, setReadMode] = useState(false);
+
+  const enterReadMode = useCallback(() => {
+    setHlColorMenuOpen(false);
+    setMobileMoreOpen(false);
+    setMobileActionsOpen(false);
+    setReadMode(true);
+  }, []);
+
+  const exitReadMode = useCallback(() => {
+    setReadMode(false);
+  }, []);
+
+  useEffect(() => {
+    if (!readMode) {
+      document.documentElement.classList.remove("sum-read-mode");
+      return undefined;
+    }
+    document.documentElement.classList.add("sum-read-mode");
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const onMq = () => {
+      if (!mq.matches) setReadMode(false);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") setReadMode(false);
+    };
+    mq.addEventListener("change", onMq);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.documentElement.classList.remove("sum-read-mode");
+      mq.removeEventListener("change", onMq);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [readMode]);
+
+  useEffect(() => {
+    setReadMode(false);
+  }, [summaryId]);
 
   const openMobileMore = useCallback((section = null) => {
     setMobileMoreInitialSection(section);
@@ -2059,6 +2098,7 @@ export default function SummaryView() {
                     }}
                     onOpenMore={() => openMobileMore(null)}
                     onOpenActions={() => setMobileActionsOpen(true)}
+                    onEnterReadMode={enterReadMode}
                   />
                 </div>
                 {revisionSheetError ? (
@@ -2099,7 +2139,7 @@ export default function SummaryView() {
               </div>
 
               {/* Card: summary + chat */}
-              <div className="sum-card">
+              <div className={`sum-card${readMode ? " sum-card--read-mode" : ""}`}>
                 <div className="sum-head">
                   <div className="sum-left">
                     <SummaryTitleBlock
@@ -2867,6 +2907,7 @@ export default function SummaryView() {
                 </div>
               </div>
               {/* /sum-card */}
+              {readMode ? <SummaryReadModeExit onExit={exitReadMode} /> : null}
             </main>
 
             <SourcesSidebar

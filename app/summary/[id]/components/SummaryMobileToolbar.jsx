@@ -6,6 +6,7 @@ import {
   ChevronDownIcon,
   DotsIcon,
   HighlightIco,
+  ReadFocusIcon,
 } from "@/app/components/icons";
 import { HIGHLIGHT_PRESETS } from "../helpers";
 
@@ -24,6 +25,7 @@ export default function SummaryMobileToolbar({
   onHlColorPick,
   onOpenMore,
   onOpenActions,
+  onEnterReadMode,
 }) {
   return (
     <div className="sum-chrome-mobile-block">
@@ -96,6 +98,18 @@ export default function SummaryMobileToolbar({
         <ActionsMenuIco size={14} />
         <span className="sum-chrome-chip-txt">Actions</span>
         <ChevronDownIcon size={11} />
+      </button>
+
+      <button
+        type="button"
+        className="sum-chrome-chip sum-chrome-chip--read"
+        title="Reading view — hide toolbars for easier reading"
+        aria-label="Enter reading view"
+        onClick={onEnterReadMode}
+        disabled={summaryLoading || !hasSummaryOutput}
+      >
+        <ReadFocusIcon size={14} />
+        <span className="sum-chrome-chip-txt">Read</span>
       </button>
     </div>
     {!summaryLoading && hasSummaryOutput ? (

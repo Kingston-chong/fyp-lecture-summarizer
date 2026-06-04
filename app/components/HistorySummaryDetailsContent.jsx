@@ -18,10 +18,11 @@ export default function HistorySummaryDetailsContent({
   const quizzes = summary.quizzes || [];
   const hasAssets =
     files.length > 0 || slideDecks.length > 0 || quizzes.length > 0;
+  const isPreview = variant === "preview";
 
   return (
     <div
-      className={`hist-details-card${variant === "menu" ? " hist-details-card--menu" : ""}`}
+      className={`hist-details-card${variant === "menu" ? " hist-details-card--menu" : ""}${isPreview ? " hist-details-card--preview" : ""}`}
     >
       <div className="hist-details-head">
         <div className="hist-details-title" title={summary.title}>
@@ -53,9 +54,9 @@ export default function HistorySummaryDetailsContent({
         )}
       </div>
 
-      {hasAssets ? <div className="hist-details-divider" /> : null}
+      {hasAssets && !isPreview ? <div className="hist-details-divider" /> : null}
 
-      {files.length > 0 && (
+      {!isPreview && files.length > 0 && (
         <section className="hist-details-section">
           <div className="hist-details-sec-label">Files</div>
           <ul className="hist-details-list">
@@ -78,7 +79,7 @@ export default function HistorySummaryDetailsContent({
         </section>
       )}
 
-      {slideDecks.length > 0 && (
+      {!isPreview && slideDecks.length > 0 && (
         <section className="hist-details-section">
           <div className="hist-details-sec-label">Slide decks</div>
           <ul className="hist-details-list">
@@ -115,7 +116,7 @@ export default function HistorySummaryDetailsContent({
         </section>
       )}
 
-      {quizzes.length > 0 && (
+      {!isPreview && quizzes.length > 0 && (
         <section className="hist-details-section">
           <div className="hist-details-sec-label">Quizzes</div>
           <ul className="hist-details-list">
@@ -138,13 +139,15 @@ export default function HistorySummaryDetailsContent({
         </section>
       )}
 
-      <button
-        type="button"
-        className="hist-details-cta"
-        onClick={() => onNavigate(summary.id)}
-      >
-        Open summary
-      </button>
+      {!isPreview ? (
+        <button
+          type="button"
+          className="hist-details-cta"
+          onClick={() => onNavigate(summary.id)}
+        >
+          Open summary
+        </button>
+      ) : null}
     </div>
   );
 }

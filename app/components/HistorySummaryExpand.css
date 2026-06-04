@@ -461,6 +461,25 @@ html[data-theme="light"] .hist-expand-count-chip--quiz {
   padding: 10px 10px 8px;
 }
 
+.hist-details-card--preview {
+  padding-bottom: 14px;
+}
+
+.hist-details-card--preview .hist-details-head {
+  margin-bottom: 10px;
+}
+
+.hist-details-card--preview .hist-details-title {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: unset;
+}
+
+.hist-details-popover--title {
+  pointer-events: auto;
+}
+
 .hist-details-head {
   margin-bottom: 10px;
 }

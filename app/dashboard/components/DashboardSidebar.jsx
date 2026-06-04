@@ -8,6 +8,7 @@ import {
   HistoryIcon,
   UploadIcon,
 } from "@/app/components/icons";
+import HistoryTitleHoverPreview from "@/app/components/HistoryTitleHoverPreview";
 import HistorySummaryMenuPortal from "@/app/components/HistorySummaryMenuPortal";
 import { useActiveSummaryId } from "@/app/hooks/useActiveSummaryId";
 import { formatSummarizeForLabel } from "../helpers";
@@ -121,7 +122,10 @@ export default function DashboardSidebar({
         ) : (
           history.map((h) => (
             <div key={h.id}>
-              <div
+              <HistoryTitleHoverPreview
+                summary={h}
+                summarizeForLabel={formatSummarizeForLabel(h.summarizeFor)}
+                timeAgoLabel={timeAgo(h.createdAt)}
                 className={`history-item${
                   activeSummaryId != null && Number(h.id) === activeSummaryId
                     ? " active"
@@ -138,9 +142,7 @@ export default function DashboardSidebar({
                 }}
               >
                 <div className="history-row">
-                  <div className="history-name" title={h.title}>
-                    {h.title}
-                  </div>
+                  <div className="history-name">{h.title}</div>
                   <button
                     type="button"
                     className="history-dots"
@@ -164,7 +166,7 @@ export default function DashboardSidebar({
                     <DotsIcon />
                   </button>
                 </div>
-              </div>
+              </HistoryTitleHoverPreview>
             </div>
           ))
         ))}

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { CloseIcon, ShareIcon } from "@/app/components/icons";
 import { copyTextToClipboard } from "@/lib/publishPublicChatShare";
+import { qrDataUrlForText } from "@/lib/shareQrCode";
 import "./ShareChatDialog.css";
 
 function previewPlain(text, max = 260) {
@@ -82,6 +83,17 @@ function SocialIcon({ kind }) {
   return null;
 }
 
+function QrIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <path d="M14 14h2v2h-2zM18 14h3v3h-3zM14 18h2v3h-2zM18 18h1v1h-1zM20 18h1v1h-1zM18 20h1v1h-1zM20 20h3v3h-3z" />
+    </svg>
+  );
+}
+
 /**
  * ChatGPT-style dialog after a public chat link is created / copied.
  */
@@ -97,6 +109,9 @@ export default function ShareChatDialog({
   const [copied, setCopied] = useState(false);
   const [snapshot, setSnapshot] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState("");
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
 
   useEffect(() => setMounted(true), []);
 
@@ -134,6 +149,36 @@ export default function ShareChatDialog({
       cancelled = true;
     };
   }, [open, shareToken]);
+
+  useEffect(() => {
+    if (!open) {
+      setQrOpen(false);
+      setQrDataUrl("");
+      return;
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !shareUrl || !qrOpen) {
+      if (!qrOpen) setQrDataUrl("");
+      return;
+    }
+    let cancelled = false;
+    setQrLoading(true);
+    void qrDataUrlForText(shareUrl, { size: 220 })
+      .then((url) => {
+        if (!cancelled) setQrDataUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setQrDataUrl("");
+      })
+      .finally(() => {
+        if (!cancelled) setQrLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, shareUrl, qrOpen]);
 
   useEffect(() => {
     if (!open) return;
@@ -199,6 +244,13 @@ export default function ShareChatDialog({
         openSocial(`https://www.reddit.com/submit?url=${encoded}`),
       icon: <SocialIcon kind="reddit" />,
     },
+    {
+      key: "qr",
+      label: qrOpen ? "Hide QR" : "QR code",
+      onClick: () => setQrOpen((v) => !v),
+      icon: <QrIcon />,
+      active: qrOpen,
+    },
   ];
 
   return createPortal(
@@ -232,12 +284,41 @@ export default function ShareChatDialog({
           <SharePreview snapshot={snapshot} loading={previewLoading} />
         </div>
 
+        {qrOpen ? (
+          <div className="share-chat-dialog-qr" aria-live="polite">
+            <p className="share-chat-dialog-qr-label">
+              Scan to open on your phone
+            </p>
+            <div className="share-chat-dialog-qr-frame">
+              {qrLoading ? (
+                <span className="share-chat-dialog-qr-loading">
+                  Creating QR…
+                </span>
+              ) : qrDataUrl ? (
+                <img
+                  src={qrDataUrl}
+                  alt="QR code for shared conversation link"
+                  width={220}
+                  height={220}
+                />
+              ) : (
+                <span className="share-chat-dialog-qr-loading">
+                  Could not create QR
+                </span>
+              )}
+            </div>
+            <p className="share-chat-dialog-qr-url" title={shareUrl}>
+              {shareUrl}
+            </p>
+          </div>
+        ) : null}
+
         <div className="share-chat-dialog-actions">
           {social.map((item) => (
             <button
               key={item.key}
               type="button"
-              className={`share-chat-dialog-action${item.copied ? " copied" : ""}`}
+              className={`share-chat-dialog-action${item.copied ? " copied" : ""}${item.active ? " active" : ""}`}
               onClick={item.onClick}
             >
               <span className="share-chat-dialog-action-ico">{item.icon}</span>
