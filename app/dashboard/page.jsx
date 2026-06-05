@@ -36,6 +36,11 @@ import TemplatePickerModal from "./components/TemplatePickerModal";
 import AddSourcesModal from "./components/AddSourcesModal";
 import { importWebSourceAsDocument, searchWebSources } from "@/lib/importWebSource";
 import { domainFromSourceUrl } from "@/lib/webSourceUtils";
+import {
+  fetchDocumentTextContent,
+  readLocalFileAsText,
+  shouldUseTextDocumentPreview,
+} from "@/lib/documentPreviewClient";
 import { LoadingText } from "@/app/components/LoadingText";
 import { SUMMARIZE_PHASE, summarizePhaseLabel } from "@/lib/summarizeProgress";
 import { uploadDocumentsViaClient } from "@/lib/clientDocumentUpload";
@@ -105,6 +110,7 @@ export default function Dashboard() {
   const [docPreviewTokenLoading, setDocPreviewTokenLoading] = useState(false);
   const [docPreviewSetupErr, setDocPreviewSetupErr] = useState("");
   const [docPreviewIframeLoading, setDocPreviewIframeLoading] = useState(true);
+  const [docPreviewText, setDocPreviewText] = useState("");
 
   const [error, setError] = useState("");
   const [filePanelError, setFilePanelError] = useState("");
@@ -1197,17 +1203,42 @@ export default function Dashboard() {
     setDocPreviewDoc(doc);
     setDocPreviewSetupErr("");
     setDocPreviewSrc("");
+    setDocPreviewText("");
     setDocPreviewTabHref(
-      `${typeof window !== "undefined" ? window.location.origin : ""}/api/documents/${doc.id}/view`,
+      doc.id
+        ? `${typeof window !== "undefined" ? window.location.origin : ""}/api/documents/${doc.id}/view`
+        : "",
     );
     setDocPreviewIframeLoading(true);
-    setDocPreviewTokenLoading(true);
+    setDocPreviewTokenLoading(Boolean(doc.id));
     setDocPreviewOpen(true);
 
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const basePath = `/api/documents/${doc.id}/view`;
+    const basePath = doc.id ? `/api/documents/${doc.id}/view` : "";
 
     try {
+      if (doc.file && shouldUseTextDocumentPreview(doc)) {
+        const text = await readLocalFileAsText(doc.file);
+        setDocPreviewText(text);
+        setDocPreviewIframeLoading(false);
+        setDocPreviewTokenLoading(false);
+        return;
+      }
+
+      if (!doc.id) {
+        setDocPreviewSetupErr("Preview is available after the file is uploaded.");
+        setDocPreviewIframeLoading(false);
+        return;
+      }
+
+      if (shouldUseTextDocumentPreview(doc)) {
+        const text = await fetchDocumentTextContent(doc.id);
+        setDocPreviewText(text);
+        setDocPreviewTabHref(`${origin}${basePath}`);
+        setDocPreviewIframeLoading(false);
+        return;
+      }
+
       if (isOfficePreviewName(doc.name)) {
         const res = await fetch(`/api/documents/${doc.id}/view-token`);
         const data = await res.json().catch(() => ({}));
@@ -1237,10 +1268,25 @@ export default function Dashboard() {
     }
   }
 
+  function openSelectedFilePreview(f, e) {
+    openDocFilePreview(
+      {
+        id: f.id,
+        name: f.name,
+        type: f.type,
+        size: f.size,
+        sourceUrl: f.sourceUrl || null,
+        file: f.file,
+      },
+      e,
+    );
+  }
+
   function closeDocPreview() {
     setDocPreviewOpen(false);
     setDocPreviewDoc(null);
     setDocPreviewSrc("");
+    setDocPreviewText("");
     setDocPreviewTabHref("");
     setDocPreviewIframeLoading(true);
     setDocPreviewTokenLoading(false);
@@ -1405,6 +1451,16 @@ export default function Dashboard() {
                           </div>
                         </div>
                         <span className="file-badge">{f.type}</span>
+                        {(f.id || (f.file && shouldUseTextDocumentPreview(f))) ? (
+                          <button
+                            type="button"
+                            className="file-preview-btn"
+                            title="Preview extracted text"
+                            onClick={(e) => openSelectedFilePreview(f, e)}
+                          >
+                            View
+                          </button>
+                        ) : null}
                         <button
                           className="file-remove"
                           onClick={() => removeFile(f.name)}
@@ -2042,6 +2098,7 @@ export default function Dashboard() {
           docPreviewTokenLoading={docPreviewTokenLoading}
           docPreviewIframeLoading={docPreviewIframeLoading}
           docPreviewSetupErr={docPreviewSetupErr}
+          textContent={docPreviewText || null}
           onPreviewIframeLoad={() => {
             setTimeout(() => setDocPreviewIframeLoading(false), 650);
           }}

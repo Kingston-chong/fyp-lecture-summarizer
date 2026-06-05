@@ -34,6 +34,7 @@ import SummaryTitleBlock from "./components/SummaryTitleBlock";
 import SummaryHeadToolbar from "./components/SummaryHeadToolbar";
 import DocumentPreviewModal from "@/app/dashboard/components/DocumentPreviewModal";
 import { formatBytes, isOfficePreviewName } from "@/app/dashboard/helpers";
+import { fetchDocumentTextContent, shouldUseTextDocumentPreview } from "@/lib/documentPreviewClient";
 import { uploadDocumentsViaClient } from "@/lib/clientDocumentUpload";
 import SummaryModalStack from "./components/SummaryModalStack";
 import {
@@ -272,6 +273,7 @@ export default function SummaryView() {
   const [sourcePreviewIframeLoading, setSourcePreviewIframeLoading] =
     useState(true);
   const [sourcePreviewSetupErr, setSourcePreviewSetupErr] = useState("");
+  const [sourcePreviewText, setSourcePreviewText] = useState("");
   const [summaryReferences, setSummaryReferences] = useState([]);
   const [referencesLoading, setReferencesLoading] = useState(false);
   const [activeCitationMarker, setActiveCitationMarker] = useState(null);
@@ -1900,6 +1902,7 @@ export default function SummaryView() {
     setSourcePreviewDoc(doc);
     setSourcePreviewSetupErr("");
     setSourcePreviewSrc("");
+    setSourcePreviewText("");
     setSourcePreviewTabHref(
       `${typeof window !== "undefined" ? window.location.origin : ""}/api/documents/${doc.id}/view`,
     );
@@ -1911,6 +1914,14 @@ export default function SummaryView() {
     const basePath = `/api/documents/${doc.id}/view`;
 
     try {
+      if (shouldUseTextDocumentPreview(doc)) {
+        const text = await fetchDocumentTextContent(doc.id);
+        setSourcePreviewText(text);
+        setSourcePreviewTabHref(`${origin}${basePath}`);
+        setSourcePreviewIframeLoading(false);
+        return;
+      }
+
       if (isOfficePreviewName(doc.name)) {
         const res = await fetch(`/api/documents/${doc.id}/view-token`);
         const data = await res.json().catch(() => ({}));
@@ -1944,6 +1955,7 @@ export default function SummaryView() {
     setSourcePreviewOpen(false);
     setSourcePreviewDoc(null);
     setSourcePreviewSrc("");
+    setSourcePreviewText("");
     setSourcePreviewTabHref("");
     setSourcePreviewIframeLoading(true);
     setSourcePreviewTokenLoading(false);
@@ -3280,6 +3292,7 @@ export default function SummaryView() {
           docPreviewTokenLoading={sourcePreviewTokenLoading}
           docPreviewIframeLoading={sourcePreviewIframeLoading}
           docPreviewSetupErr={sourcePreviewSetupErr}
+          textContent={sourcePreviewText || null}
           onPreviewIframeLoad={() => {
             setTimeout(() => setSourcePreviewIframeLoading(false), 650);
           }}

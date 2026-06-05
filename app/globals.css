@@ -117,7 +117,9 @@ html[data-theme="light"] {
   --app-bg-page: #ffffff;
   --app-surface: #ffffff;
   --app-text: #1a1a28;
-  --app-text-muted: rgba(0, 0, 0, 0.52);
+  --app-text-muted: #374151;
+  --app-text-subtle: #4b5563;
+  --app-text-placeholder: #4b5563;
   --app-border: rgba(0, 0, 0, 0.1);
   --app-nav-bg: rgba(255, 255, 255, 0.92);
   --app-subnav-bg: rgba(248, 249, 252, 0.95);
@@ -136,7 +138,7 @@ html[data-theme="light"] {
   --app-brand-gradient: linear-gradient(90deg, #3730a3, #6366f1);
   --app-scrim: rgba(15, 15, 25, 0.35);
   --app-shell-chrome-mobile: #f2f3f8;
-  --app-greet: rgba(0, 0, 0, 0.5);
+  --app-greet: #374151;
   --app-btn-border: rgba(0, 0, 0, 0.1);
   --app-btn-bg: rgba(0, 0, 0, 0.04);
   --app-btn-text: rgba(0, 0, 0, 0.55);
@@ -163,7 +165,7 @@ html[data-theme="light"] {
   --sum-md-code-bg: rgba(0, 0, 0, 0.07);
   --sum-md-pre-bg: rgba(0, 0, 0, 0.05);
   --sum-md-pre-border: rgba(0, 0, 0, 0.1);
-  --sum-meta: rgba(0, 0, 0, 0.45);
+  --sum-meta: #374151;
   --sum-sources-bg: #f8f9fc;
   --sum-sources-border: rgba(0, 0, 0, 0.08);
   --sum-chat-ai-bg: rgba(0, 0, 0, 0.04);
@@ -193,7 +195,7 @@ html[data-theme="light"] {
   --modal-title: #1a1a2e;
   --modal-close-border: rgba(0, 0, 0, 0.1);
   --modal-close-bg: rgba(0, 0, 0, 0.05);
-  --modal-close-color: rgba(0, 0, 0, 0.5);
+  --modal-close-color: #4b5563;
   --modal-scrollbar-thumb: rgba(0, 0, 0, 0.15);
   --modal-muted: rgba(0, 0, 0, 0.4);
   --modal-text: #1a1a2e;

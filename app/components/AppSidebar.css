@@ -684,7 +684,7 @@ html[data-theme="light"] .as-toolbar {
   border-bottom-color: rgba(0, 0, 0, 0.08);
 }
 html[data-theme="light"] .as-toolbar-btn {
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--app-text-muted);
 }
 html[data-theme="light"] .as-toolbar-btn:hover {
   background: rgba(0, 0, 0, 0.06);
@@ -694,10 +694,10 @@ html[data-theme="light"] .as-side::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.12);
 }
 html[data-theme="light"] .as-title {
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--app-text-muted);
 }
 html[data-theme="light"] .as-chev {
-  color: rgba(0, 0, 0, 0.35);
+  color: var(--app-text-placeholder);
 }
 html[data-theme="light"] .as-divider {
   background: rgba(0, 0, 0, 0.08);
@@ -708,7 +708,7 @@ html[data-theme="light"] .as-search {
   color: #111827;
 }
 html[data-theme="light"] .as-search::placeholder {
-  color: rgba(0, 0, 0, 0.38);
+  color: var(--app-text-subtle);
 }
 html[data-theme="light"] .as-search:focus {
   border-color: rgba(99, 102, 241, 0.45);
@@ -729,13 +729,13 @@ html[data-theme="light"] .as-rm:hover:not(:disabled) {
   border-color: rgba(248, 113, 113, 0.35);
 }
 html[data-theme="light"] .as-empty {
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--app-text-muted);
 }
 html[data-theme="light"] .as-loading {
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--app-text-muted);
 }
 html[data-theme="light"] .as-history-group-title {
-  color: rgba(0, 0, 0, 0.52);
+  color: var(--app-text-muted);
 }
 html[data-theme="light"] .as-history-group-toggle svg {
   color: rgba(0, 0, 0, 0.5);
@@ -772,14 +772,14 @@ html[data-theme="light"] .as-hdate {
   color: rgba(0, 0, 0, 0.5);
 }
 html[data-theme="light"] .as-hdots {
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--app-text-muted);
 }
 html[data-theme="light"] .as-hdots:hover {
   background: rgba(0, 0, 0, 0.06);
   color: rgba(0, 0, 0, 0.78);
 }
 html[data-theme="light"] .as-hpin {
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--app-text-muted);
 }
 html[data-theme="light"] .as-hpin.is-pinned {
   color: #4f46e5;
@@ -792,7 +792,7 @@ html[data-theme="light"] .as-hpin.is-pinned:hover {
   color: #4338ca;
 }
 html[data-theme="light"] .as-hfile-chev {
-  color: rgba(0, 0, 0, 0.4);
+  color: var(--app-text-subtle);
 }
 html[data-theme="light"] .as-hfile-chev:hover {
   background: rgba(0, 0, 0, 0.06);
@@ -808,7 +808,7 @@ html[data-theme="light"] .as-pname {
   color: #1f2937;
 }
 html[data-theme="light"] .as-pmeta {
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--app-text-muted);
 }
 html[data-theme="light"] .as-sec-menu {
   background: rgba(0, 0, 0, 0.02);
@@ -818,7 +818,7 @@ html[data-theme="light"] .as-sec-children {
   border-left-color: rgba(0, 0, 0, 0.1);
 }
 html[data-theme="light"] .as-sec-twist {
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--app-text-muted);
 }
 html[data-theme="light"] .as-sec-twist:hover {
   background: rgba(0, 0, 0, 0.06);
@@ -831,10 +831,10 @@ html[data-theme="light"] .as-sec-item.lv2 {
   color: rgba(0, 0, 0, 0.62);
 }
 html[data-theme="light"] .as-sec-item.lv3 {
-  color: rgba(0, 0, 0, 0.52);
+  color: var(--app-text-muted);
 }
 html[data-theme="light"] .as-sec-label {
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--app-text-muted);
 }
 html[data-theme="light"] .as-menu {
   background: #ffffff;
@@ -867,7 +867,7 @@ html[data-theme="light"] .as-modal-input {
   border-color: rgba(0, 0, 0, 0.12);
 }
 html[data-theme="light"] .as-modal-input::placeholder {
-  color: rgba(0, 0, 0, 0.4);
+  color: var(--app-text-placeholder);
 }
 html[data-theme="light"] .as-modal-btn.sec {
   color: #4b5563;

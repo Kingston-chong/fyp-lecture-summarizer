@@ -495,7 +495,7 @@ html[data-theme="light"] .rp-style-opt-label {
   color: #3730a3;
 }
 html[data-theme="light"] .rp-style-opt-hint {
-  color: rgba(0, 0, 0, 0.38);
+  color: var(--app-text-subtle);
 }
 html[data-theme="light"] .rp-item:hover {
   background: rgba(79, 70, 229, 0.05);
@@ -512,11 +512,11 @@ html[data-theme="light"] .rp-item-marker {
   color: #4f46e5;
 }
 html[data-theme="light"] .rp-item-formatted {
-  color: rgba(0, 0, 0, 0.42);
+  color: var(--app-text-subtle);
 }
 html[data-theme="light"] .rp-item-copy-btn,
 html[data-theme="light"] .rp-item-ext-btn {
-  color: rgba(0, 0, 0, 0.35);
+  color: var(--app-text-placeholder);
 }
 html[data-theme="light"] .rp-item-copy-btn:hover,
 html[data-theme="light"] .rp-item-ext-btn:hover {
@@ -594,7 +594,7 @@ html[data-theme="light"] .rp-kind-upload {
   color: #fde68a;
 }
 html[data-theme="light"] .rp-item-edit-btn {
-  color: rgba(0, 0, 0, 0.35);
+  color: var(--app-text-placeholder);
 }
 html[data-theme="light"] .rp-item-edit-btn:hover {
   background: rgba(79, 70, 229, 0.08);
@@ -704,7 +704,7 @@ html[data-theme="light"] .rp-item-missing-hint {
 }
 html[data-theme="light"] .rp-sort-btn {
   border-color: rgba(0, 0, 0, 0.12);
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--app-text-muted);
 }
 html[data-theme="light"] .rp-sort-btn:hover {
   background: rgba(0, 0, 0, 0.05);
@@ -862,7 +862,7 @@ html[data-theme="light"] .rp-modal-missing-badge {
   color: rgba(255, 255, 255, 0.8);
 }
 html[data-theme="light"] .rp-modal-close {
-  color: rgba(0, 0, 0, 0.35);
+  color: var(--app-text-placeholder);
 }
 html[data-theme="light"] .rp-modal-close:hover {
   background: rgba(0, 0, 0, 0.06);
@@ -918,7 +918,7 @@ html[data-theme="light"] .rp-modal-close:hover {
   color: rgba(255, 255, 255, 0.45);
 }
 html[data-theme="light"] .rp-field-label {
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--app-text-muted);
 }
 
 .rp-field-required {
@@ -977,7 +977,7 @@ html[data-theme="light"] .rp-field-input {
   color: #1e293b;
 }
 html[data-theme="light"] .rp-field-input::placeholder {
-  color: rgba(0, 0, 0, 0.28);
+  color: var(--app-text-placeholder);
 }
 html[data-theme="light"] .rp-field-input:focus {
   border-color: rgba(79, 70, 229, 0.45);
@@ -996,7 +996,7 @@ html[data-theme="light"] .rp-field-input:focus {
   line-height: 1.35;
 }
 html[data-theme="light"] .rp-field-hint {
-  color: rgba(0, 0, 0, 0.35);
+  color: var(--app-text-placeholder);
 }
 
 /* Live citation preview */

@@ -1,10 +1,14 @@
 "use client";
 
+import { useMemo } from "react";
 import { CloseIcon } from "@/app/components/icons";
 import { LoadingText } from "@/app/components/LoadingText";
+import { isTextPreviewName } from "@/app/dashboard/helpers";
+import { markdownToHtml } from "@/lib/markdown";
+import "./document-preview-markdown.css";
 
 /**
- * In-dashboard document preview (PDF / Office viewer iframe).
+ * In-dashboard document preview (PDF / Office iframe, or markdown text viewer).
  */
 export default function DocumentPreviewModal({
   doc,
@@ -12,12 +16,32 @@ export default function DocumentPreviewModal({
   formatBytes,
   docPreviewTabHref,
   docPreviewSrc,
+  textContent = null,
   docPreviewTokenLoading,
   docPreviewIframeLoading,
   docPreviewSetupErr,
   onPreviewIframeLoad,
 }) {
   if (!doc) return null;
+
+  const isTextPreview =
+    textContent != null ||
+    (Boolean(doc.sourceUrl || isTextPreviewName(doc.name)) && !docPreviewSrc);
+  const busy =
+    docPreviewTokenLoading ||
+    (isTextPreview
+      ? docPreviewIframeLoading && textContent == null
+      : docPreviewSrc && docPreviewIframeLoading);
+
+  const sizeLabel =
+    typeof doc.size === "number" && doc.size > 0
+      ? formatBytes(doc.size)
+      : doc.size || doc.type;
+
+  const textHtml = useMemo(
+    () => (textContent != null ? markdownToHtml(textContent) : ""),
+    [textContent],
+  );
 
   return (
     <div className="modal-backdrop doc-preview-backdrop" onClick={onClose}>
@@ -29,7 +53,8 @@ export default function DocumentPreviewModal({
           <div>
             <div className="doc-preview-title">{doc.name}</div>
             <div className="doc-preview-meta">
-              {doc.size ? `${doc.type} · ${formatBytes(doc.size)}` : doc.type}
+              {doc.type}
+              {sizeLabel ? ` · ${sizeLabel}` : ""}
             </div>
           </div>
           <button
@@ -42,14 +67,26 @@ export default function DocumentPreviewModal({
           </button>
         </div>
         <div className="doc-preview-toolbar">
-          <a
-            className="doc-preview-open-tab"
-            href={docPreviewTabHref || `/api/documents/${doc.id}/view`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Open in new tab
-          </a>
+          {doc.sourceUrl ? (
+            <a
+              className="doc-preview-open-tab"
+              href={doc.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open original website
+            </a>
+          ) : null}
+          {doc.id && !isTextPreview ? (
+            <a
+              className="doc-preview-open-tab"
+              href={docPreviewTabHref || `/api/documents/${doc.id}/view`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open in new tab
+            </a>
+          ) : null}
         </div>
         {docPreviewSetupErr ? (
           <div className="improve-err" style={{ margin: 0 }}>
@@ -57,19 +94,17 @@ export default function DocumentPreviewModal({
           </div>
         ) : (
           <p className="doc-preview-hint">
-            PDFs and images use the built-in viewer below. PowerPoint, Word, and
-            Excel use Microsoft&apos;s viewer
+            {isTextPreview
+              ? "Extracted text with markdown formatting (bold, lists, links, etc.)."
+              : "PDFs and images use the built-in viewer below. PowerPoint, Word, and Excel use Microsoft's viewer"}
           </p>
         )}
         <div
           className={`doc-preview-frame-wrap${
-            docPreviewTokenLoading || (docPreviewSrc && docPreviewIframeLoading)
-              ? " doc-preview-frame-busy"
-              : ""
-          }`}
+            busy ? " doc-preview-frame-busy" : ""
+          }${isTextPreview ? " doc-preview-frame-wrap--text" : ""}`}
         >
-          {(docPreviewTokenLoading ||
-            (docPreviewSrc && docPreviewIframeLoading)) && (
+          {busy ? (
             <div className="doc-preview-frame-overlay">
               <div className="sidebar-loading" style={{ padding: 0 }}>
                 <div className="mini-spinner" />{" "}
@@ -80,8 +115,14 @@ export default function DocumentPreviewModal({
                 </LoadingText>
               </div>
             </div>
-          )}
-          {docPreviewSrc && !docPreviewSetupErr ? (
+          ) : null}
+          {isTextPreview && textContent != null && !docPreviewSetupErr ? (
+            <div
+              className="doc-preview-markdown"
+              dangerouslySetInnerHTML={{ __html: textHtml }}
+            />
+          ) : null}
+          {!isTextPreview && docPreviewSrc && !docPreviewSetupErr ? (
             <iframe
               className="doc-preview-frame"
               title={`Preview: ${doc.name}`}

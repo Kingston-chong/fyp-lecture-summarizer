@@ -228,7 +228,7 @@
 }
 
 .slides-modal-light .gs-density-desc {
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--app-text-muted);
 }
 
 .slides-modal-light .gs-density-btn.on .gs-density-desc {
@@ -547,7 +547,7 @@
 .slides-modal-light .csf-suggest-btn {
   border-color: rgba(0, 0, 0, 0.14);
   background: rgba(0, 0, 0, 0.05);
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--app-text-muted);
 }
 
 .slides-modal-light .csf-suggest-btn--open {
@@ -562,7 +562,7 @@
 }
 
 .slides-modal-light .csf-suggest-menu-head {
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--app-text-muted);
   border-bottom-color: rgba(0, 0, 0, 0.08);
 }
 
@@ -587,15 +587,15 @@
 }
 
 .slides-modal-light .csf-upload-icon {
-  color: rgba(0, 0, 0, 0.35);
+  color: var(--app-text-placeholder);
 }
 
 .slides-modal-light .csf-upload-label {
-  color: rgba(0, 0, 0, 0.55);
+  color: var(--app-text-muted);
 }
 
 .slides-modal-light .csf-upload-hint {
-  color: rgba(0, 0, 0, 0.4);
+  color: var(--app-text-subtle);
 }
 
 .slides-modal-light .csf-file-chip {
@@ -617,15 +617,15 @@
 }
 
 .slides-modal-light .csf-file-uploading {
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--app-text-muted);
 }
 
 .slides-modal-light .csf-file-remove {
-  color: rgba(0, 0, 0, 0.4);
+  color: var(--app-text-subtle);
 }
 
 .slides-modal-light .csf-optional-badge {
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--app-text-muted);
   background: rgba(0, 0, 0, 0.06);
 }
 
@@ -649,7 +649,7 @@
 }
 
 .slides-modal-light .gs-provider-card-desc {
-  color: rgba(0, 0, 0, 0.5);
+  color: var(--app-text-muted);
 }
 
 .slides-modal-light .gs-pill {
@@ -669,7 +669,7 @@
 }
 
 .slides-modal-light .gs-advanced-toggle {
-  color: rgba(0, 0, 0, 0.5);
+  color: var(--app-text-muted);
 }
 
 .slides-modal-light .gs-advanced-toggle:hover {
@@ -677,7 +677,7 @@
 }
 
 .slides-modal-light .gs-progress-label {
-  color: rgba(0, 0, 0, 0.55);
+  color: var(--app-text-muted);
 }
 .slides-modal-light .gs-progress-track {
   background: rgba(0, 0, 0, 0.08);

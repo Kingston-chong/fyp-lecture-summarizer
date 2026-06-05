@@ -568,7 +568,7 @@
   margin-top: 6px;
 }
 .slides-gen-overlay.slides-modal-light .create-prompt-hint {
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--app-text-muted);
 }
 .quick-requests-wrap {
   display: flex;
@@ -698,7 +698,7 @@
 }
 .slides-gen-overlay.slides-modal-light .txt-inp::placeholder,
 .slides-gen-overlay.slides-modal-light .create-prompt-area::placeholder {
-  color: rgba(0, 0, 0, 0.4);
+  color: var(--app-text-placeholder);
 }
 .slides-gen-overlay.slides-modal-light
   .slides-gen-overlay

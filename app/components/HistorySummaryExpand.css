@@ -668,7 +668,7 @@ html[data-theme="light"] .as-menu-divider {
 }
 
 html[data-theme="light"] .hist-details-sec-label {
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--app-text-muted);
 }
 
 html[data-theme="light"] .hist-details-row {
@@ -680,7 +680,7 @@ html[data-theme="light"] .hist-details-row:hover {
 }
 
 html[data-theme="light"] .hist-details-row-meta {
-  color: rgba(0, 0, 0, 0.48);
+  color: var(--app-text-muted);
 }
 
 html[data-theme="light"] .as-history-menu-portal.as-menu,
