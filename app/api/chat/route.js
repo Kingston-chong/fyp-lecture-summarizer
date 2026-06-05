@@ -22,6 +22,11 @@ import {
 } from "@/lib/chatReferences";
 import { getRoleProfile, normalizeSummarizeRole } from "@/lib/roleProfiles";
 import { resolveChatResponseLength } from "@/lib/chatResponseLength";
+import {
+  dataUrlByteLength,
+  MAX_CHAT_IMAGE_BYTES,
+  MAX_CHAT_PASTE_IMAGES_TOTAL_BYTES,
+} from "@/lib/uploadLimits";
 
 const MAX_CONTEXT_CHARS = Number.parseInt(
   process.env.CHAT_MAX_CONTEXT_CHARS || "24000",
@@ -29,11 +34,6 @@ const MAX_CONTEXT_CHARS = Number.parseInt(
 );
 const MAX_ATTACHMENT_CONTEXT_CHARS = Number.parseInt(
   process.env.CHAT_MAX_ATTACHMENT_CONTEXT_CHARS || "12000",
-  10,
-);
-
-const MAX_CHAT_IMAGE_BYTES = Number.parseInt(
-  process.env.CHAT_MAX_IMAGE_BYTES || "3500000",
   10,
 );
 
@@ -123,30 +123,26 @@ function userMessageContentForDatabase(content) {
   return text;
 }
 
-/** @param {string} dataUrl */
-function dataUrlByteLength(dataUrl) {
-  const idx = String(dataUrl).indexOf("base64,");
-  if (idx === -1) return 0;
-  const b64 = String(dataUrl).slice(idx + 7);
-  return Math.floor((b64.length * 3) / 4);
-}
-
 /** @param {unknown[]} msgs @returns {string|null} */
 function oversizedChatImageError(msgs) {
   for (const m of msgs) {
     if (m?.role !== "user") continue;
     const raw = m?.content;
     if (!Array.isArray(raw)) continue;
+    let imageTotal = 0;
     for (const p of raw) {
       if (p?.type === "image_url" && p?.image_url?.url) {
         const url = String(p.image_url.url);
-        if (
-          url.startsWith("data:image/") &&
-          dataUrlByteLength(url) > MAX_CHAT_IMAGE_BYTES
-        ) {
+        if (!url.startsWith("data:image/")) continue;
+        const bytes = dataUrlByteLength(url);
+        if (bytes > MAX_CHAT_IMAGE_BYTES) {
           return "One or more pasted images are too large. Try a smaller image or lower resolution.";
         }
+        imageTotal += bytes;
       }
+    }
+    if (imageTotal > MAX_CHAT_PASTE_IMAGES_TOTAL_BYTES) {
+      return "Too many pasted images in one message. Remove some images or use smaller files.";
     }
   }
   return null;

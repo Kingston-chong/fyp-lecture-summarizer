@@ -14,7 +14,8 @@ import {
 import {
   ALAI_BASE,
   alaiErrorPayload,
-  getAlaiApiKey,
+  alaiFetch,
+  getAlaiApiKeys,
   isAlaiThemeId,
   toAlaiSlideRange,
 } from "@/lib/alaiClient";
@@ -566,8 +567,7 @@ Rules:
       }
     }
 
-    const alaiKey = getAlaiApiKey();
-    if (!alaiKey) {
+    if (!getAlaiApiKeys().length) {
       return NextResponse.json(
         {
           error:
@@ -605,16 +605,14 @@ Rules:
       },
     };
 
-    const startRes = await fetch(`${ALAI_BASE}/generations`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${alaiKey}`,
+    const { res: startRes, data: startData } = await alaiFetch(
+      `${ALAI_BASE}/generations`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       },
-      body: JSON.stringify(payload),
-    });
-
-    const startData = await startRes.json().catch(() => ({}));
+    );
     if (!startRes.ok) {
       const { message, httpStatus } = alaiErrorPayload(startRes, startData);
       console.error("improve-ppt Alai POST /generations failed", {

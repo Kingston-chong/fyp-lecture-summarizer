@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/apiAuth";
-import { ALAI_BASE, getAlaiApiKey } from "@/lib/alaiClient";
+import { ALAI_BASE, alaiFetch, getAlaiApiKeys } from "@/lib/alaiClient";
 
 export async function GET(req) {
   try {
@@ -13,19 +13,16 @@ export async function GET(req) {
     const provider = url.searchParams.get("provider") || "alai";
 
     if (provider === "alai") {
-      const alaiKey = getAlaiApiKey();
-      if (!alaiKey) {
+      if (!getAlaiApiKeys().length) {
         return NextResponse.json({
           vibes: [],
           hint: "ALAI_API_KEY is not configured.",
         });
       }
 
-      const res = await fetch(`${ALAI_BASE}/vibes`, {
-        headers: { Authorization: `Bearer ${alaiKey}` },
-        cache: "no-store",
+      const { res, data } = await alaiFetch(`${ALAI_BASE}/vibes`, {
+        method: "GET",
       });
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         return NextResponse.json(
           {

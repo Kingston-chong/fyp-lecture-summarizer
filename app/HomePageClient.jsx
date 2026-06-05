@@ -3,7 +3,7 @@
 import "./home-page.css";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import AppLogo from "@/app/components/AppLogo";
 
 const HOMEPAGE_MODEL_PROVIDERS = [
   {
@@ -89,13 +89,7 @@ export default function HomePageClient() {
           <div className="nav-inner">
             <Link href="/" className="nav-logo">
               <div className="nav-logo-mark">
-                <Image
-                  src="/icon.png"
-                  alt="Slide2Notes icon"
-                  width={34}
-                  height={34}
-                  priority
-                />
+                <AppLogo size={34} priority />
               </div>
               <span className="nav-logo-name">Slide2Notes</span>
             </Link>
@@ -648,12 +642,7 @@ export default function HomePageClient() {
                 className="nav-logo-mark"
                 style={{ width: "28px", height: "28px", borderRadius: "7px" }}
               >
-                <Image
-                  src="/icon.png"
-                  alt="Slide2Notes icon"
-                  width={28}
-                  height={28}
-                />
+                <AppLogo size={28} />
               </div>
               <span className="nav-logo-name">Slide2Notes</span>
               <span className="footer-copy" style={{ marginLeft: "8px" }}>

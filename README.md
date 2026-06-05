@@ -102,6 +102,8 @@ DEEPSEEK_API_KEY=your_deepseek_key_optional
 
 # Slide generation
 ALAI_API_KEY=your_alai_api_key
+# Optional: backup keys if primary is out of credits or rate-limited
+# ALAI_API_KEY_FALLBACK=backup_key_1,backup_key_2
 
 # Auth
 NEXTAUTH_SECRET=your_nextauth_secret
@@ -203,6 +205,7 @@ fyp-lecture-summarizer/
 ### `ALAI_API_KEY is not configured`
 
 - Set `ALAI_API_KEY` in `.env.local` and restart `npm run dev`.
+- For demos, you can add backup keys via `ALAI_API_KEY_FALLBACK` (comma-separated) or `ALAI_API_KEY_2`, `_3`, etc. The app tries them automatically when the primary key fails.
 
 ### Database connection errors
 

@@ -17,16 +17,20 @@
   gap: 10px;
 }
 
-.auth-mkt-nav-badge {
+.auth-mkt-nav-mark {
   width: 34px;
   height: 34px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
   border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.45);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.auth-mkt-nav-logo-img {
+  border-radius: 9px;
+  flex-shrink: 0;
 }
 
 .auth-mkt-nav-title {

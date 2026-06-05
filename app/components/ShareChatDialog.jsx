@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import Image from "next/image";
 import { CloseIcon, ShareIcon } from "@/app/components/icons";
+import { APP_LOGO_SRC } from "@/app/components/AppLogo";
 import { copyTextToClipboard } from "@/lib/publishPublicChatShare";
 import { qrDataUrlForText } from "@/lib/shareQrCode";
 import "./ShareChatDialog.css";
@@ -52,7 +54,14 @@ function SharePreview({ snapshot, loading }) {
       </div>
       <div className="share-chat-dialog-preview-fade" aria-hidden="true" />
       <div className="share-chat-dialog-brand" aria-hidden="true">
-        Slide2Notes
+        <Image
+          src={APP_LOGO_SRC}
+          alt=""
+          width={18}
+          height={18}
+          className="share-chat-dialog-brand-img"
+        />
+        <span>Slide2Notes</span>
       </div>
     </>
   );

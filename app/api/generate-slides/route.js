@@ -7,7 +7,7 @@ import {
 } from "@/lib/twoSlidesGenerate";
 import { logger } from "@/lib/logger";
 import { applyLlmRateLimit } from "@/lib/llmRateLimit";
-import { ALAI_BASE, alaiErrorPayload, getAlaiApiKey } from "@/lib/alaiClient";
+import { ALAI_BASE, alaiErrorPayload, alaiFetch, getAlaiApiKeys } from "@/lib/alaiClient";
 
 const parsedMaxPrompt = Number.parseInt(
   process.env.SLIDES_MAX_USER_PROMPT_CHARS || "4000",
@@ -170,8 +170,7 @@ export async function POST(req) {
     const roleProfile = getRoleProfile(summarizeRole);
 
     if (provider === "alai") {
-      const alaiKey = getAlaiApiKey();
-      if (!alaiKey) {
+      if (!getAlaiApiKeys().length) {
         return NextResponse.json(
           {
             error:
@@ -235,16 +234,11 @@ export async function POST(req) {
         ...(alaiLanguage ? { text_options: { language: alaiLanguage } } : {}),
       };
 
-      const res = await fetch(`${ALAI_BASE}/generations`, {
+      const { res, data } = await alaiFetch(`${ALAI_BASE}/generations`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${alaiKey}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         const { message, httpStatus } = alaiErrorPayload(res, data);
         logger.error("generate-slides", "Alai POST /generations failed", {

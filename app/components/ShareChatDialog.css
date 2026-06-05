@@ -116,11 +116,19 @@
   position: absolute;
   right: 12px;
   bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-family: "Sora", sans-serif;
   font-size: 11px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.45);
   pointer-events: none;
+}
+
+.share-chat-dialog-brand-img {
+  border-radius: 4px;
+  flex-shrink: 0;
 }
 
 .share-chat-dialog-user-pill {

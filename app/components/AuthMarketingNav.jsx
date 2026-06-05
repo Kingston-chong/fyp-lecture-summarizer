@@ -1,10 +1,11 @@
 "use client";
 
 import "./AuthMarketingNav.css";
-import { SlidesIcon, UserCircleIcon } from "./icons";
+import { UserCircleIcon } from "./icons";
+import AppLogo from "./AppLogo";
 
 /**
- * Marketing-style top bar (gradient badge + SlidesIcon) used on register / reset-password flows.
+ * Marketing-style top bar used on login / register / reset-password flows.
  */
 export default function AuthMarketingNav({ right }) {
   const defaultRight = (
@@ -17,8 +18,8 @@ export default function AuthMarketingNav({ right }) {
     <>
       <nav className="auth-mkt-nav" aria-label="Top navigation">
         <div className="auth-mkt-nav-brand">
-          <div className="auth-mkt-nav-badge">
-            <SlidesIcon />
+          <div className="auth-mkt-nav-mark">
+            <AppLogo className="auth-mkt-nav-logo-img" size={34} priority />
           </div>
           <span className="auth-mkt-nav-title">Slide2Notes</span>
         </div>

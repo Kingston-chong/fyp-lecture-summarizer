@@ -1,14 +1,14 @@
 "use client";
 
 import "./AppHeader.css";
-import Image from "next/image";
+import AppLogo, { APP_LOGO_SRC } from "./AppLogo";
 
 export default function AppHeader({
   left = null,
   right = null,
   onLogoClick,
   brandText = "Slide2Notes",
-  logoSrc = "/icon.png",
+  logoSrc = APP_LOGO_SRC,
 }) {
   return (
     <>
@@ -29,12 +29,10 @@ export default function AppHeader({
               }
             }}
           >
-            <Image
+            <AppLogo
               className="s2n-logo-img"
               src={logoSrc}
-              alt="Slide2Notes logo"
-              width={34}
-              height={34}
+              size={34}
               priority
             />
             <span className="s2n-logo-text">{brandText}</span>

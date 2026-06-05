@@ -1,6 +1,7 @@
 import { getRequestUser } from "@/lib/apiAuth";
 import { extractPptxUrlFromAlaiGenerationJson } from "@/lib/alaiSlidePptx";
 import { pollTwoSlidesGeneration } from "@/lib/twoSlidesGenerate";
+import { alaiFetch, getAlaiApiKeys } from "@/lib/alaiClient";
 import { apiHandler } from "@/lib/apiHandler";
 
 /** @param {string} url */
@@ -106,7 +107,7 @@ export const GET = apiHandler(async function GET(req, context) {
     return pptxResponse(fileRes, titleParam);
   }
 
-  if (!process.env.ALAI_API_KEY) {
+  if (!getAlaiApiKeys().length) {
     return new Response(
       JSON.stringify({
         error: "ALAI_API_KEY is not configured on the server.",
@@ -118,16 +119,10 @@ export const GET = apiHandler(async function GET(req, context) {
     );
   }
 
-  const statusRes = await fetch(
-    `https://slides-api.getalai.com/api/v1/generations/${id}`,
-    {
-      method: "GET",
-      headers: { Authorization: `Bearer ${process.env.ALAI_API_KEY}` },
-      cache: "no-store",
-    },
+  const { res: statusRes, data: statusData } = await alaiFetch(
+    `/generations/${id}`,
+    { method: "GET" },
   );
-
-  const statusData = await statusRes.json().catch(() => ({}));
   if (!statusRes.ok) {
     return new Response(
       JSON.stringify({

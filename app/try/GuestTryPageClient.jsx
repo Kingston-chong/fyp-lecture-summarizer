@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import AppLogo from "@/app/components/AppLogo";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import RegisterPromptModal from "@/app/components/RegisterPromptModal";
 import { useRequireAuth } from "@/app/hooks/useRequireAuth";
@@ -180,7 +181,10 @@ export default function GuestTryPageClient() {
     <div className="try-page">
       <header className="try-nav">
         <Link href="/" className="try-nav-brand">
-          Slide2Notes
+          <span className="try-nav-logo-mark">
+            <AppLogo size={32} priority />
+          </span>
+          <span className="try-nav-brand-text">Slide2Notes</span>
         </Link>
         <div className="try-nav-links">
           <Link href="/login?callbackUrl=%2Ftry">Sign in</Link>

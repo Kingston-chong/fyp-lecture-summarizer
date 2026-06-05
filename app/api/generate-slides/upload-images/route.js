@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/apiAuth";
-import { ALAI_BASE, alaiErrorPayload, getAlaiApiKey } from "@/lib/alaiClient";
+import { ALAI_BASE, alaiErrorPayload, alaiFetch, getAlaiApiKeys } from "@/lib/alaiClient";
 import { logger } from "@/lib/logger";
 
 const MAX_FILES = 10;
@@ -31,8 +31,7 @@ export async function POST(req) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const alaiKey = getAlaiApiKey();
-    if (!alaiKey) {
+    if (!getAlaiApiKeys().length) {
       return NextResponse.json(
         {
           error:
@@ -97,22 +96,16 @@ export async function POST(req) {
       }
     }
 
-    // Build a fresh FormData to forward to Alai
-    const outForm = new FormData();
-    for (const file of files) {
-      outForm.append("files", file, file.name);
-    }
-
-    const res = await fetch(`${ALAI_BASE}/upload-images`, {
+    const { res, data } = await alaiFetch(`${ALAI_BASE}/upload-images`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${alaiKey}`,
-        // Do NOT set Content-Type — fetch sets it with the correct multipart boundary
+      buildBody: () => {
+        const outForm = new FormData();
+        for (const file of files) {
+          outForm.append("files", file, file.name);
+        }
+        return outForm;
       },
-      body: outForm,
     });
-
-    const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
       const { message, httpStatus } = alaiErrorPayload(res, data);

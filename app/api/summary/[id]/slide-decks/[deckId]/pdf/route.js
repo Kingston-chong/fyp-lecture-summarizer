@@ -7,7 +7,7 @@ import {
   extractPdfUrlFromAlaiGenerationJson,
   getAlaiPdfUrl,
 } from "@/lib/alaiSlidePptx";
-import { getAlaiApiKey, ALAI_BASE } from "@/lib/alaiClient";
+import { alaiFetch, getAlaiApiKeys, ALAI_BASE } from "@/lib/alaiClient";
 import {
   convertPptxBufferToPdf,
   readableStreamToBuffer,
@@ -104,25 +104,20 @@ export async function GET(_req, context) {
     let pdfBuffer = null;
 
     const genId = String(deck.alaiGenerationId || "").trim();
-    const alaiKey = getAlaiApiKey();
     if (
       genId &&
       String(deck.provider || "alai").toLowerCase() === "alai" &&
-      alaiKey
+      getAlaiApiKeys().length
     ) {
       const urlResult = await getAlaiPdfUrl(genId);
       if (urlResult.ok) {
         const dl = await downloadPdfBuffer(urlResult.pdfUrl);
         if (dl.ok) pdfBuffer = dl.buffer;
       } else {
-        const genRes = await fetch(
+        const { res: genRes, data: genData } = await alaiFetch(
           `${ALAI_BASE}/generations/${encodeURIComponent(genId)}`,
-          {
-            headers: { Authorization: `Bearer ${alaiKey}` },
-            cache: "no-store",
-          },
+          { method: "GET" },
         );
-        const genData = await genRes.json().catch(() => ({}));
         if (genRes.ok) {
           const pdfUrl = extractPdfUrlFromAlaiGenerationJson(genData);
           if (pdfUrl) {

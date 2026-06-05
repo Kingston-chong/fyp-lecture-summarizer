@@ -7,7 +7,7 @@ import {
   extractPdfUrlFromAlaiGenerationJson,
   getAlaiPptxUrl,
 } from "@/lib/alaiSlidePptx";
-import { getAlaiApiKey, ALAI_BASE } from "@/lib/alaiClient";
+import { alaiFetch, getAlaiApiKeys, ALAI_BASE } from "@/lib/alaiClient";
 import { convertPptxBufferToPdf } from "@/lib/pptxToPdf";
 import { getRequestUser } from "@/lib/apiAuth";
 import { publicSlideDeckFields, toBlobRef } from "@/lib/blobRef";
@@ -167,17 +167,11 @@ export async function POST(req, context) {
     if (/^https?:\/\//i.test(remotePdfUrl)) {
       pdfDl = await downloadPdfBuffer(remotePdfUrl);
     }
-    const alaiKey = getAlaiApiKey();
-    if (!pdfDl?.ok && provider === "alai" && alaiKey) {
-      const genRes = await fetch(
+    if (!pdfDl?.ok && provider === "alai" && getAlaiApiKeys().length) {
+      const { res: genRes, data: genData } = await alaiFetch(
         `${ALAI_BASE}/generations/${encodeURIComponent(alaiGenerationId)}`,
-        {
-          method: "GET",
-          headers: { Authorization: `Bearer ${alaiKey}` },
-          cache: "no-store",
-        },
+        { method: "GET" },
       );
-      const genData = await genRes.json().catch(() => ({}));
       if (genRes.ok) {
         const pdfFromAlai = extractPdfUrlFromAlaiGenerationJson(genData);
         if (pdfFromAlai) pdfDl = await downloadPdfBuffer(pdfFromAlai);

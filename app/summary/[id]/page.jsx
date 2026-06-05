@@ -90,6 +90,11 @@ import {
   MAX_CHAT_PASTE_IMAGES,
 } from "./lib/chatImages";
 import {
+  dataUrlByteLength,
+  validateChatDocumentFile,
+  validateChatImageDataUrl,
+} from "@/lib/uploadLimits";
+import {
   buildAttachedFilesNotice,
   chatMessageToApiPayload,
   mapChatModelToApi,
@@ -1371,6 +1376,15 @@ export default function SummaryView() {
     if (!file?.type?.startsWith("image/")) return;
     try {
       const dataUrl = await downscaleImageFileToJpegDataUrl(file);
+      const currentTotalBytes = pendingPasteImages.reduce(
+        (sum, item) => sum + dataUrlByteLength(item.dataUrl),
+        0,
+      );
+      const check = validateChatImageDataUrl(dataUrl, { currentTotalBytes });
+      if (!check.ok) {
+        setChatNotice(check.error);
+        return;
+      }
       const clientId =
         typeof crypto !== "undefined" && crypto.randomUUID
           ? crypto.randomUUID()
@@ -2197,17 +2211,31 @@ export default function SummaryView() {
   function handleSourceUpload(files) {
     // Stage files locally; actual upload happens when user presses Send.
     if (!files || !files.length) return;
-    const incoming = Array.from(files).map((f) => ({
-      clientId: `local-${crypto.randomUUID()}`,
-      file: f,
-      name: f.name,
-      type: fileExtUpper(f.name),
-    }));
+    const rejected = [];
+    const incoming = [];
+    for (const f of Array.from(files)) {
+      const check = validateChatDocumentFile(f);
+      if (!check.ok) {
+        rejected.push(check.error);
+        continue;
+      }
+      incoming.push({
+        clientId: `local-${crypto.randomUUID()}`,
+        file: f,
+        name: f.name,
+        type: fileExtUpper(f.name),
+      });
+    }
+    if (rejected.length) {
+      setChatNotice(rejected[0]);
+    }
+    if (!incoming.length) return;
     setPendingSourceFiles((prev) => {
       const names = new Set(prev.map((p) => p.name));
       const deduped = incoming.filter((p) => !names.has(p.name));
       return [...prev, ...deduped];
     });
+    if (!rejected.length) setChatNotice("");
   }
 
   function removePendingSourceByClientId(clientId) {
