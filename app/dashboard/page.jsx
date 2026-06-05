@@ -48,9 +48,11 @@ import {
 import PublishedYearFilter, {
   publishedYearStateToPayload,
 } from "./components/PublishedYearFilter";
+import PromptSuggestionsMenu from "./components/PromptSuggestionsMenu";
 import { resolvePublishedYearRange } from "@/lib/publishedYearFilter";
 import { setGuestPendingSummarize } from "@/lib/guestPendingSummarize";
 import { GUEST_SUMMARY_ROUTE_ID } from "@/lib/guestMode";
+import { SUMMARY_RENAMED_EVENT } from "@/lib/summaryRenameSync";
 
 // ── Main Component ─────────────────────────────────────────
 export default function Dashboard() {
@@ -107,43 +109,27 @@ export default function Dashboard() {
   } = useSWR(status === "authenticated" ? "/api/history" : null, swrFetcher);
   const history = historyData?.summaries || [];
   const [historySearch, setHistorySearch] = useState("");
-  const filteredHistory = useMemo(() => {
-    const q = historySearch.trim().toLowerCase();
-    if (!q) return history;
-    return history.filter((h) => {
-      if (
-        String(h.title || "")
-          .toLowerCase()
-          .includes(q)
-      )
-        return true;
-      if (
-        (h.files || []).some((f) =>
-          String(f.name || "")
-            .toLowerCase()
-            .includes(q),
-        )
-      )
-        return true;
-      if (
-        (h.slideDecks || []).some((d) =>
-          String(d.title || "")
-            .toLowerCase()
-            .includes(q),
-        )
-      )
-        return true;
-      if (
-        (h.quizzes || []).some((item) =>
-          String(item.title || "")
-            .toLowerCase()
-            .includes(q),
-        )
-      )
-        return true;
-      return false;
-    });
-  }, [history, historySearch]);
+
+  useEffect(() => {
+    const onRenamed = (e) => {
+      const { id, title } = e.detail || {};
+      if (id == null) return;
+      void mutateHistory(
+        (current) => {
+          if (!current?.summaries) return current;
+          return {
+            ...current,
+            summaries: current.summaries.map((h) =>
+              String(h.id) === String(id) ? { ...h, title: title ?? h.title } : h,
+            ),
+          };
+        },
+        { revalidate: false },
+      );
+    };
+    window.addEventListener(SUMMARY_RENAMED_EVENT, onRenamed);
+    return () => window.removeEventListener(SUMMARY_RENAMED_EVENT, onRenamed);
+  }, [mutateHistory]);
 
   const {
     prevUploads,
@@ -1139,7 +1125,7 @@ export default function Dashboard() {
             sidebarSection={sidebarSection}
             setSidebarSection={setSidebarSection}
             historyLoading={historyLoading}
-            history={filteredHistory}
+            history={history}
             historySearch={historySearch}
             onHistorySearchChange={setHistorySearch}
             onHistoryNavigate={(id, sources) => {
@@ -1149,6 +1135,15 @@ export default function Dashboard() {
               router.push(`/summary/${id}${q}`);
             }}
             onHistoryRefresh={() => void mutateHistory()}
+            onHistoryUpdated={(updater) => {
+              void mutateHistory(
+                (current) => {
+                  if (!current?.summaries) return current;
+                  return { ...current, summaries: updater(current.summaries) };
+                },
+                { revalidate: false },
+              );
+            }}
             timeAgo={timeAgo}
             prevLoading={prevLoading}
             prevUploads={prevUploads}
@@ -1316,7 +1311,7 @@ export default function Dashboard() {
             </div>
 
             {/* Panel 2 — Prompt / Output */}
-            <div className="panel">
+            <div className="panel panel--prompt">
               {dashMode === "improve" ? (
                 <>
                   <div>
@@ -1380,47 +1375,16 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <div>
-                    <div className="improve-section-head">
-                      Quick suggestions
-                    </div>
-                    <div
-                      className="improve-sug-grid"
-                      aria-label="Improve suggestions"
-                    >
-                      {DASH_PROMPT_SUGGESTIONS.improve.map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          className="prompt-sug improve-sug-btn"
-                          onClick={() =>
-                            setImproveInstructions((prev) => {
-                              const cur = (prev || "").trim();
-                              if (!cur) return s.slice(0, 500);
-                              const next = `${cur}\n- ${s}`;
-                              return next.slice(0, 500);
-                            })
-                          }
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <textarea
-                    className="prompt-area"
+                  <PromptSuggestionsMenu
+                    suggestions={DASH_PROMPT_SUGGESTIONS.improve}
                     placeholder={
                       "e.g. Switch to a green theme and add images. Expand speaker notes, keep bullets concise. Tighten bullets for clarity."
                     }
                     value={improveInstructions}
-                    onChange={(e) =>
-                      setImproveInstructions(e.target.value.slice(0, 500))
-                    }
+                    onChange={setImproveInstructions}
+                    onSelect={setImproveInstructions}
+                    countLabel={`${improveInstructions.length} / 500`}
                   />
-                  <div className="prompt-count">
-                    {improveInstructions.length} / 500
-                  </div>
                 </>
               ) : summaryOutput ? (
                 <>
@@ -1470,37 +1434,20 @@ export default function Dashboard() {
                       Optional — refine the summary
                     </div>
                   </div>
-                  <div className="prompt-sugs" aria-label="Prompt suggestions">
-                    {(summarizeFor === "lecturer"
-                      ? DASH_PROMPT_SUGGESTIONS.summarizeLecturer
-                      : DASH_PROMPT_SUGGESTIONS.summarizeStudent
-                    ).map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        className="prompt-sug"
-                        onClick={() =>
-                          setPrompt((prev) => {
-                            const cur = (prev || "").trim();
-                            if (!cur) return s.slice(0, 500);
-                            const next = `${cur}\n- ${s}`;
-                            return next.slice(0, 500);
-                          })
-                        }
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                  <textarea
-                    className="prompt-area"
+                  <PromptSuggestionsMenu
+                    suggestions={
+                      summarizeFor === "lecturer"
+                        ? DASH_PROMPT_SUGGESTIONS.summarizeLecturer
+                        : DASH_PROMPT_SUGGESTIONS.summarizeStudent
+                    }
                     placeholder={
                       "ex: focus on key concepts and definitions\nex: highlight any formulas or theorems\nex: point out the concept of Denormalization..."
                     }
                     value={prompt}
-                    onChange={(e) => setPrompt(e.target.value.slice(0, 500))}
+                    onChange={setPrompt}
+                    onSelect={setPrompt}
+                    countLabel={`${prompt.length} / 500`}
                   />
-                  <div className="prompt-count">{prompt.length} / 500</div>
                 </>
               )}
             </div>

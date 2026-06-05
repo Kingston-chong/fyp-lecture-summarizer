@@ -3,18 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ChevronDownIcon,
-  DotsIcon,
   FileIcon,
   HistoryIcon,
   UploadIcon,
 } from "@/app/components/icons";
 import HistorySummaryMenuPortal from "@/app/components/HistorySummaryMenuPortal";
 import HistorySummaryMenuActions from "@/app/components/HistorySummaryMenuActions";
+import SummaryHistoryRows from "@/app/components/SummaryHistoryRows";
 import { useSummaryHistoryActions } from "@/app/hooks/useSummaryHistoryActions";
 import { useActiveSummaryId } from "@/app/hooks/useActiveSummaryId";
 import { formatSummarizeForLabel } from "../helpers";
 import { LoadingText } from "@/app/components/LoadingText";
-import GuestSidebarPrompt from "@/app/components/GuestSidebarPrompt";
 import "@/app/components/GuestSidebarPrompt.css";
 
 export default function DashboardSidebar({
@@ -28,6 +27,7 @@ export default function DashboardSidebar({
   onHistorySearchChange,
   onHistoryNavigate,
   onHistoryRefresh,
+  onHistoryUpdated,
   timeAgo,
   prevLoading,
   prevUploads,
@@ -88,6 +88,7 @@ export default function DashboardSidebar({
       const t = e.target;
       if (t.closest?.(".hist-history-menu")) return;
       if (t.closest?.(".history-dots")) return;
+      if (t.closest?.(".history-pin")) return;
       setHistoryMenu(null);
     };
     document.addEventListener("mousedown", onDown);
@@ -125,63 +126,22 @@ export default function DashboardSidebar({
         </div>
       )}
 
-      {sidebarSection.history &&
-        (isGuest ? (
-          <GuestSidebarPrompt />
-        ) : historyLoading ? (
-          <div className="sidebar-loading">
-            <div className="mini-spinner" /> <LoadingText active>Loading</LoadingText>
-          </div>
-        ) : history.length === 0 ? (
-          <div className="sidebar-empty">No summaries yet</div>
-        ) : (
-          history.map((h) => (
-            <div key={h.id}>
-              <div
-                className={`history-item${
-                  activeSummaryId != null && Number(h.id) === activeSummaryId
-                    ? " active"
-                    : ""
-                }${historyMenu?.id === h.id ? " menu-open" : ""}`}
-                role="button"
-                tabIndex={0}
-                onClick={() => onHistoryNavigate(h.id)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    onHistoryNavigate(h.id);
-                  }
-                }}
-              >
-                <div className="history-row">
-                  <div className="history-name">{h.title}</div>
-                  <button
-                    type="button"
-                    className="history-dots"
-                    title="Summary actions"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const r = e.currentTarget.getBoundingClientRect();
-                      setHistoryMenu((prev) =>
-                        prev?.id === h.id
-                          ? null
-                          : {
-                              id: h.id,
-                              top: r.top,
-                              left: r.left,
-                              right: r.right,
-                              bottom: r.bottom,
-                            },
-                      );
-                    }}
-                  >
-                    <DotsIcon />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))
-        ))}
+      {sidebarSection.history && (
+        <SummaryHistoryRows
+          variant="dashboard"
+          history={history}
+          historySearch={historySearch}
+          historyLoading={historyLoading}
+          isGuest={isGuest}
+          timeAgo={timeAgo}
+          activeSummaryId={activeSummaryId}
+          historyMenuId={historyMenu?.id ?? null}
+          onNavigate={onHistoryNavigate}
+          onRefresh={onHistoryRefresh}
+          onHistoryUpdated={onHistoryUpdated}
+          onOpenMenu={setHistoryMenu}
+        />
+      )}
 
       {!isGuest ? <div className="sidebar-divider" /> : null}
 

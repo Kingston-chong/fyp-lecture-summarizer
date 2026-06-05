@@ -1,41 +1,23 @@
 "use client";
 
 import "./AppSidebar.css";
-import "./GuestSidebarPrompt.css";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useActiveSummaryId } from "@/app/hooks/useActiveSummaryId";
 import {
   ChevronDownIcon,
-  DotsIcon,
   FileIcon,
   HistoryIcon,
-  PinIcon,
   UploadIcon,
   SidebarHideIcon,
 } from "./icons";
 import { formatSummarizeForLabel, timeAgo } from "@/app/dashboard/helpers";
-import { historyMatchesSearch } from "@/app/components/HistorySummaryExpand";
-import HistoryTitleHoverPreview from "@/app/components/HistoryTitleHoverPreview";
+import SummaryHistoryRows from "@/app/components/SummaryHistoryRows";
 import HistorySummaryMenuPortal from "@/app/components/HistorySummaryMenuPortal";
 import HistorySummaryMenuActions from "@/app/components/HistorySummaryMenuActions";
 import { useSummaryHistoryActions } from "@/app/hooks/useSummaryHistoryActions";
 import { LoadingText } from "@/app/components/LoadingText";
 import { SUMMARY_RENAMED_EVENT } from "@/lib/summaryRenameSync";
-import GuestSidebarPrompt from "@/app/components/GuestSidebarPrompt";
-
-function sortHistoryItems(items) {
-  return [...items].sort((a, b) => {
-    const ap = a.pinned ? 1 : 0;
-    const bp = b.pinned ? 1 : 0;
-    if (ap !== bp) return bp - ap;
-    const at = new Date(a.pinnedAt || a.createdAt).getTime();
-    const bt = new Date(b.pinnedAt || b.createdAt).getTime();
-    if (at !== bt) return bt - at;
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
-}
-
 function formatBytes(bytes) {
   if (!bytes) return "";
   if (bytes < 1024) return bytes + " B";
@@ -162,8 +144,6 @@ export default function AppSidebar({
   const [foldedSectionGroups, setFoldedSectionGroups] = useState({});
   /** History row ⋮ menu: portaled to body so it is not clipped by sidebar overflow or trapped by drawer transform. */
   const [historyMenu, setHistoryMenu] = useState(null); // { id, bottom, right, width }
-  const [pinningId, setPinningId] = useState(null);
-
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
@@ -303,52 +283,6 @@ export default function AppSidebar({
     return () => document.removeEventListener("mousedown", onDown);
   }, [historyMenu]);
 
-  const filteredHistory = useMemo(() => {
-    const q = historySearch.trim().toLowerCase();
-    if (!q) return history;
-    return history.filter((h) => historyMatchesSearch(h, q));
-  }, [history, historySearch]);
-
-  const sortedHistory = useMemo(
-    () => sortHistoryItems(filteredHistory),
-    [filteredHistory],
-  );
-
-  async function togglePinSummary(summary, e) {
-    e?.stopPropagation?.();
-    if (!summary?.id || pinningId === summary.id) return;
-    const nextPinned = !summary.pinned;
-    setPinningId(summary.id);
-    try {
-      const res = await fetch(`/api/summary/${summary.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pinned: nextPinned }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Could not update pin");
-      setHistory((prev) =>
-        sortHistoryItems(
-          prev.map((h) =>
-            h.id === summary.id
-              ? {
-                  ...h,
-                  pinned: nextPinned,
-                  pinnedAt: nextPinned ? data.pinnedAt || new Date().toISOString() : null,
-                }
-              : h,
-          ),
-        ),
-      );
-    } catch (err) {
-      setToast({
-        message: err?.message || "Could not update pin.",
-      });
-    } finally {
-      setPinningId(null);
-    }
-  }
-
   const historyMenuSummary = useMemo(
     () => (historyMenu ? history.find((x) => x.id === historyMenu.id) : null),
     [history, historyMenu],
@@ -357,12 +291,9 @@ export default function AppSidebar({
   /** Move the history ⋮ menu horizontally: increase to shift right (pixels). */
   const historyMenuShiftRightPx = 0;
 
-  function openHistorySummary(h, sources) {
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("s2n-cancel-highlighter"));
-    }
+  function openHistorySummary(id, sources) {
     const q = sources ? `?sources=${encodeURIComponent(sources)}` : "";
-    router.push(`/summary/${h.id}${q}`);
+    router.push(`/summary/${id}${q}`);
   }
 
   return (
@@ -409,84 +340,22 @@ export default function AppSidebar({
           </div>
         )}
 
-        {historyOpen &&
-          (isGuest ? (
-            <GuestSidebarPrompt />
-          ) : historyLoading ? (
-            <div className="as-loading">
-              <div className="as-spin" /> <LoadingText active>Loading</LoadingText>
-            </div>
-          ) : history.length === 0 ? (
-            <div className="as-empty">No summaries yet</div>
-          ) : filteredHistory.length === 0 ? (
-            <div className="as-empty">No matches</div>
-          ) : (
-            sortedHistory.map((h) => (
-              <div key={h.id}>
-                <HistoryTitleHoverPreview
-                  summary={h}
-                  summarizeForLabel={formatSummarizeForLabel(h.summarizeFor)}
-                  timeAgoLabel={timeAgo(h.createdAt)}
-                  className={`as-hi${
-                    activeSummaryId != null && Number(h.id) === activeSummaryId
-                      ? " act"
-                      : ""
-                  }${h.pinned ? " pinned" : ""}${
-                    historyMenu?.id === h.id ? " menu-open" : ""
-                  }`}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openHistorySummary(h)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      openHistorySummary(h);
-                    }
-                  }}
-                >
-                  <div className="as-hrow">
-                    <div className="as-hname">{h.title}</div>
-                    <button
-                      type="button"
-                      className={`as-hpin${h.pinned ? " is-pinned" : ""}`}
-                      title={h.pinned ? "Unpin from top" : "Pin to top"}
-                      aria-label={h.pinned ? "Unpin summary" : "Pin summary"}
-                      aria-pressed={Boolean(h.pinned)}
-                      onClick={(e) => void togglePinSummary(h, e)}
-                    >
-                      {pinningId === h.id ? (
-                        <span className="as-spin" />
-                      ) : (
-                        <PinIcon size={13} filled={Boolean(h.pinned)} />
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      className="as-hdots"
-                      title="Options"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const r = e.currentTarget.getBoundingClientRect();
-                        setHistoryMenu((prev) =>
-                          prev?.id === h.id
-                            ? null
-                            : {
-                                id: h.id,
-                                top: r.top,
-                                left: r.left,
-                                right: r.right,
-                                bottom: r.bottom,
-                              },
-                        );
-                      }}
-                    >
-                      <DotsIcon />
-                    </button>
-                  </div>
-                </HistoryTitleHoverPreview>
-              </div>
-            ))
-          ))}
+        {historyOpen && (
+          <SummaryHistoryRows
+            variant="app"
+            history={history}
+            historySearch={historySearch}
+            historyLoading={historyLoading}
+            isGuest={isGuest}
+            timeAgo={timeAgo}
+            activeSummaryId={activeSummaryId}
+            historyMenuId={historyMenu?.id ?? null}
+            onNavigate={openHistorySummary}
+            onRefresh={fetchHistory}
+            onHistoryUpdated={(updater) => setHistory(updater)}
+            onOpenMenu={setHistoryMenu}
+          />
+        )}
 
         <div className="as-divider" />
 
@@ -572,7 +441,7 @@ export default function AppSidebar({
           summary={historyMenuSummary}
           anchor={historyMenu}
           onClose={() => setHistoryMenu(null)}
-          onNavigate={(id, sources) => openHistorySummary({ id }, sources)}
+          onNavigate={(id, sources) => openHistorySummary(id, sources)}
           summarizeForLabel={formatSummarizeForLabel(
             historyMenuSummary.summarizeFor,
           )}

@@ -312,6 +312,53 @@
   background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.85);
 }
+.history-pin {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.34);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.12s ease,
+    background 0.12s ease,
+    color 0.12s ease;
+}
+.history-pin.is-pinned {
+  opacity: 1;
+  pointer-events: auto;
+  color: #a5b4fc;
+}
+.history-item:hover .history-pin,
+.history-item.menu-open .history-pin,
+.history-item.pinned .history-pin {
+  opacity: 1;
+  pointer-events: auto;
+}
+.history-pin:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+}
+.history-pin.is-pinned:hover {
+  color: #c7d2fe;
+}
+.summary-history-toast {
+  margin: 6px 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.35);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+}
 .history-meta-row {
   display: flex;
   align-items: center;
@@ -685,12 +732,28 @@
   overflow-y: auto;
   overflow-x: hidden;
   align-content: start;
+  /* Row height = tallest panel; all columns match that height */
   align-items: stretch;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 300px);
 }
 .app .main > .panel {
   min-width: 0;
   height: 100%;
+}
+.panel--prompt {
+  min-height: 380px;
+}
+.panel--prompt .prompt-editor {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.panel--prompt .prompt-input-wrap {
+  flex: 1 1 auto;
+  min-height: 240px;
+}
+.panel--prompt .prompt-area {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .app .main::-webkit-scrollbar {
   width: 3px;
@@ -873,66 +936,135 @@
   text-align: center;
 }
 
-.prompt-area {
+.prompt-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.prompt-input-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
-  resize: none;
+  min-height: 200px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 10px;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.prompt-input-wrap:focus-within {
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
+}
+.prompt-suggestions-anchor {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 12;
+}
+.prompt-suggestions-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(12, 12, 22, 0.92);
+  font-family: "Sora", sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(225, 225, 255, 0.88);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.prompt-suggestions-btn:hover,
+.prompt-suggestions-btn.open {
+  border-color: rgba(99, 102, 241, 0.45);
+  background: rgba(99, 102, 241, 0.12);
+}
+.prompt-suggestions-btn svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.75;
+  transition: transform 0.15s;
+}
+.prompt-suggestions-btn.open svg {
+  transform: rotate(180deg);
+}
+.prompt-suggestions-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: min(320px, calc(100vw - 48px));
+  max-height: min(280px, 40vh);
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  overflow-y: auto;
+  background: rgba(18, 18, 28, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
+  animation: menuInUp 0.14s ease;
+}
+.prompt-suggestions-menu::-webkit-scrollbar {
+  width: 3px;
+}
+.prompt-suggestions-menu::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+}
+.prompt-suggestions-item {
+  display: block;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  font-family: "Sora", sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: rgba(225, 225, 255, 0.82);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.14s;
+}
+.prompt-suggestions-item:hover {
+  background: rgba(99, 102, 241, 0.12);
+}
+.prompt-area {
+  resize: none;
+  flex: 1 1 auto;
+  min-height: 200px;
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  background: transparent;
   padding: 12px;
+  padding-top: 44px;
+  padding-right: 12px;
   font-family: "Sora", sans-serif;
   font-size: 12px;
   font-weight: 400;
   color: #c0c0d8;
   outline: none;
-  transition:
-    border-color 0.2s,
-    box-shadow 0.2s;
   line-height: 1.65;
-  min-height: 180px;
-  max-height: min(420px, 45vh);
-  width: 100%;
-  box-sizing: border-box;
 }
 .prompt-area::placeholder {
   color: rgba(255, 255, 255, 0.15);
   font-style: italic;
 }
-.prompt-area:focus {
-  border-color: rgba(99, 102, 241, 0.4);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
-}
-.prompt-sugs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-  margin-bottom: 10px;
-}
-.prompt-sug {
-  font-size: 10.5px;
-  font-family: "Sora", sans-serif;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(99, 102, 241, 0.25);
-  background: rgba(99, 102, 241, 0.08);
-  color: rgba(225, 225, 255, 0.78);
-  cursor: pointer;
-  transition: all 0.15s;
-  text-align: left;
-}
-.prompt-sug:hover {
-  border-color: rgba(99, 102, 241, 0.45);
-  background: rgba(99, 102, 241, 0.14);
-  color: rgba(240, 240, 255, 0.9);
-}
-.prompt-sug:active {
-  transform: translateY(1px);
-}
 .prompt-count {
+  flex-shrink: 0;
   font-family: "Sora", sans-serif;
   font-size: 10.5px;
   font-weight: 400;
+  line-height: 1.3;
   color: rgba(255, 255, 255, 0.18);
 }
 
@@ -2654,6 +2786,19 @@ html[data-theme="light"] .history-dots:hover {
   background: rgba(0, 0, 0, 0.06);
   color: rgba(0, 0, 0, 0.78);
 }
+html[data-theme="light"] .history-pin {
+  color: rgba(0, 0, 0, 0.45);
+}
+html[data-theme="light"] .history-pin.is-pinned {
+  color: #4f46e5;
+}
+html[data-theme="light"] .history-pin:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.78);
+}
+html[data-theme="light"] .history-pin.is-pinned:hover {
+  color: #4338ca;
+}
 html[data-theme="light"] .history-meta {
   color: rgba(0, 0, 0, 0.58);
 }
@@ -2781,30 +2926,43 @@ html[data-theme="light"] .empty-state {
   color: rgba(0, 0, 0, 0.45);
 }
 
-html[data-theme="light"] .prompt-area {
+html[data-theme="light"] .prompt-input-wrap {
   background: rgba(0, 0, 0, 0.03);
   border: 1px solid rgba(0, 0, 0, 0.1);
+}
+html[data-theme="light"] .prompt-input-wrap:focus-within {
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+html[data-theme="light"] .prompt-area {
   color: #111827;
 }
 html[data-theme="light"] .prompt-area::placeholder {
   color: rgba(0, 0, 0, 0.35);
 }
-html[data-theme="light"] .prompt-sug {
-  border-color: rgba(99, 102, 241, 0.28);
-  background: rgba(99, 102, 241, 0.08);
-  color: rgba(17, 24, 39, 0.78);
+html[data-theme="light"] .prompt-suggestions-btn {
+  border-color: rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.95);
+  color: #111827;
 }
-html[data-theme="light"] .prompt-sug:hover {
-  border-color: rgba(99, 102, 241, 0.45);
-  background: rgba(99, 102, 241, 0.14);
-  color: rgba(17, 24, 39, 0.92);
+html[data-theme="light"] .prompt-suggestions-btn:hover,
+html[data-theme="light"] .prompt-suggestions-btn.open {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.08);
+}
+html[data-theme="light"] .prompt-suggestions-menu {
+  background: #fff;
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+}
+html[data-theme="light"] .prompt-suggestions-item {
+  color: #111827;
+}
+html[data-theme="light"] .prompt-suggestions-item:hover {
+  background: rgba(99, 102, 241, 0.1);
 }
 html[data-theme="light"] .prompt-count {
   color: rgba(0, 0, 0, 0.35);
-}
-html[data-theme="light"] .prompt-area:focus {
-  border-color: rgba(99, 102, 241, 0.4);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 html[data-theme="light"] .output-area {
