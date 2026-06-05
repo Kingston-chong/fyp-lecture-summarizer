@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/apiAuth";
 import { getClientIp } from "@/lib/rateLimit";
 import { applyLlmRateLimit } from "@/lib/llmRateLimit";
-import { fetchTavilySourcesForChat } from "@/lib/tavilySearch";
+import { fetchTavilySourcesForWebSources } from "@/lib/tavilySearch";
 
 export const runtime = "nodejs";
 
@@ -35,7 +35,7 @@ export async function POST(req) {
       if (rateLimited) return rateLimited;
     }
 
-    const { answer, sources } = await fetchTavilySourcesForChat(query);
+    const { answer, sources } = await fetchTavilySourcesForWebSources(query);
     return NextResponse.json({
       query,
       answer: answer || null,

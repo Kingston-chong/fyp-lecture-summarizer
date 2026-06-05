@@ -2032,6 +2032,9 @@ export default function SummaryView() {
   async function flushPendingHighlights() {
     if (!summaryId || hlSaving || pendingHighlights.length === 0) return;
     const queue = [...pendingHighlights];
+    setHlModeActive(false);
+    setHlColorMenuOpen(false);
+    window.getSelection()?.removeAllRanges();
     setHlSaving(true);
     const created = [];
     const stillPending = [];

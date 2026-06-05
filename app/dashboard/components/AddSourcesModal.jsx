@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
+import OpenInNewOutlinedIcon from "@mui/icons-material/OpenInNewOutlined";
 import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
 import LanguageOutlinedIcon from "@mui/icons-material/LanguageOutlined";
@@ -238,8 +239,23 @@ export default function AddSourcesModal({
                 {searchResults.map((r) => (
                   <div key={r.url} className="add-sources-search-item">
                     <div className="add-sources-search-item-main">
-                      <div className="add-sources-search-title" title={r.title}>
-                        {r.title}
+                      <div className="add-sources-search-title-row">
+                        <div className="add-sources-search-title" title={r.title}>
+                          {r.title}
+                        </div>
+                        {r.url ? (
+                          <a
+                            href={r.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="add-sources-search-open"
+                            aria-label={`Open ${r.title || "source"} in new tab`}
+                            title="Open in new tab"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <OpenInNewOutlinedIcon sx={{ fontSize: 14 }} />
+                          </a>
+                        ) : null}
                       </div>
                       {r.domain ? (
                         <div className="add-sources-search-domain">{r.domain}</div>
