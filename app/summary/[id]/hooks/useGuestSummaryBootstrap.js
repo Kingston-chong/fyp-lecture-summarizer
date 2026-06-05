@@ -35,7 +35,9 @@ export function useGuestSummaryBootstrap({
 
       if (!session?.output?.trim() && !autostart) {
         if (!cancelled) {
-          setSummaryError("No summary in this session. Start from the dashboard.");
+          setSummaryError(
+            "No summary in this session. Start from the dashboard.",
+          );
           setSummaryLoading(false);
         }
         return;
@@ -66,7 +68,14 @@ export function useGuestSummaryBootstrap({
     return () => {
       cancelled = true;
     };
-  }, [isGuestMode, status, searchParams, setSummary, setSummaryLoading, setSummaryError]);
+  }, [
+    isGuestMode,
+    status,
+    searchParams,
+    setSummary,
+    setSummaryLoading,
+    setSummaryError,
+  ]);
 
   useEffect(() => {
     if (!isGuestMode) return;
@@ -88,7 +97,8 @@ export function useGuestSummaryBootstrap({
           ? { ...prev, output: "" }
           : {
               id: "guest",
-              title: pending.files[0]?.name?.replace(/\.[^/.]+$/, "") || "Summary",
+              title:
+                pending.files[0]?.name?.replace(/\.[^/.]+$/, "") || "Summary",
               output: "",
               summarizeFor: pending.options.summarizeFor || "student",
               model: pending.options.modelVariant

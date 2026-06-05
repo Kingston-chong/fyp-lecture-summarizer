@@ -35,10 +35,7 @@ export default function SummaryActionBar({
   shareAction = null,
   lockedFeatureIds = [],
 }) {
-  const locked = useMemo(
-    () => new Set(lockedFeatureIds),
-    [lockedFeatureIds],
-  );
+  const locked = useMemo(() => new Set(lockedFeatureIds), [lockedFeatureIds]);
   const showDesktopButtons = mode === "full" || mode === "desktop";
   const showMobileMenu = mode === "full" || mode === "mobile";
   const isCompactMenu = mode === "mobile";
@@ -163,67 +160,73 @@ export default function SummaryActionBar({
       className={`act-bar${mode === "desktop" ? " act-bar--desktop-only" : ""}${mode === "mobile" ? " act-bar--mobile-inline" : ""}`}
     >
       {showDesktopButtons && (
-      <div className="act-bar-btns act-bar-btns--desktop">
-        {actions.map((action) => {
-          const Icon = action.icon;
-          return (
-            <Button
-              key={action.id}
-              className={`act-bar-btn${action.locked ? " act-bar-btn--locked" : ""}`}
-              variant={action.variant}
-              onClick={action.onClick}
-              disabled={action.disabled}
-              title={action.locked ? action.lockHint : undefined}
-            >
-              {action.loading ? <Spinner size={13} /> : <Icon />}
-              {action.label}
-            </Button>
-          );
-        })}
-        {shareAction}
-      </div>
+        <div className="act-bar-btns act-bar-btns--desktop">
+          {actions.map((action) => {
+            const Icon = action.icon;
+            return (
+              <Button
+                key={action.id}
+                className={`act-bar-btn${action.locked ? " act-bar-btn--locked" : ""}`}
+                variant={action.variant}
+                onClick={action.onClick}
+                disabled={action.disabled}
+                title={action.locked ? action.lockHint : undefined}
+              >
+                {action.loading ? <Spinner size={13} /> : <Icon />}
+                {action.label}
+              </Button>
+            );
+          })}
+          {shareAction}
+        </div>
       )}
 
       {showMobileMenu && (
-      <div
-        className="act-bar-menu-wrap"
-        ref={menuWrapRef}
-        data-open={menuOpen ? "" : undefined}
-      >
-        <Button
-          type="button"
-          className={`act-bar-menu-trigger${isCompactMenu ? " act-bar-menu-trigger--compact" : ""}`}
-          variant="default"
-          aria-expanded={menuOpen}
-          aria-haspopup="menu"
-          onClick={() => setMenuOpen((v) => !v)}
+        <div
+          className="act-bar-menu-wrap"
+          ref={menuWrapRef}
+          data-open={menuOpen ? "" : undefined}
         >
-          <span>Actions</span>
-          <ChevronDownIcon size={isCompactMenu ? 10 : 12} />
-        </Button>
-        {menuOpen && (
-          <div className="act-bar-menu" role="menu" aria-label="Summary actions">
-            {actions.map((action) => {
-              const Icon = action.icon;
-              return (
-                <button
-                  key={action.id}
-                  type="button"
-                  role="menuitem"
-                  className={`act-bar-menu-item act-bar-menu-item--${action.variant}`}
-                  disabled={action.disabled}
-                  onClick={() => runAction(action)}
-                >
-                  <span className="act-bar-menu-item-ico" aria-hidden>
-                    {action.loading ? <Spinner size={14} /> : <Icon />}
-                  </span>
-                  <span className="act-bar-menu-item-label">{action.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
+          <Button
+            type="button"
+            className={`act-bar-menu-trigger${isCompactMenu ? " act-bar-menu-trigger--compact" : ""}`}
+            variant="default"
+            aria-expanded={menuOpen}
+            aria-haspopup="menu"
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            <span>Actions</span>
+            <ChevronDownIcon size={isCompactMenu ? 10 : 12} />
+          </Button>
+          {menuOpen && (
+            <div
+              className="act-bar-menu"
+              role="menu"
+              aria-label="Summary actions"
+            >
+              {actions.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <button
+                    key={action.id}
+                    type="button"
+                    role="menuitem"
+                    className={`act-bar-menu-item act-bar-menu-item--${action.variant}`}
+                    disabled={action.disabled}
+                    onClick={() => runAction(action)}
+                  >
+                    <span className="act-bar-menu-item-ico" aria-hidden>
+                      {action.loading ? <Spinner size={14} /> : <Icon />}
+                    </span>
+                    <span className="act-bar-menu-item-label">
+                      {action.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

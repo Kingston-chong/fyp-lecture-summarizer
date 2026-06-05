@@ -27,11 +27,14 @@ const FEATURE_LABELS = {
  *   feature?: keyof typeof FEATURE_LABELS | string;
  * }} props
  */
-export default function RegisterPromptModal({ open, onClose, feature = "default" }) {
+export default function RegisterPromptModal({
+  open,
+  onClose,
+  feature = "default",
+}) {
   const pathname = usePathname();
   const callbackUrl = encodeURIComponent(pathname || "/try");
-  const action =
-    FEATURE_LABELS[feature] || FEATURE_LABELS.default;
+  const action = FEATURE_LABELS[feature] || FEATURE_LABELS.default;
 
   const onKeyDown = useCallback(
     (e) => {
@@ -79,8 +82,9 @@ export default function RegisterPromptModal({ open, onClose, feature = "default"
           Create a free account
         </h2>
         <p className="register-prompt-body">
-          Sign up to {action}. Your trial summary stays on this device only until
-          you register — we will not save uploads or summaries without an account.
+          Sign up to {action}. Your trial summary stays on this device only
+          until you register — we will not save uploads or summaries without an
+          account.
         </p>
         <div className="register-prompt-actions">
           <Link

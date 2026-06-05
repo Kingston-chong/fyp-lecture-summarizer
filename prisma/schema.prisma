@@ -64,6 +64,7 @@ model Document {
   url       String   // Vercel Blob URL
   type      String   // PDF, PPTX etc.
   size      Int      // bytes
+  sourceUrl String?  @db.VarChar(2048) // original webpage when imported from web
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
   summaries SummaryDocument[]

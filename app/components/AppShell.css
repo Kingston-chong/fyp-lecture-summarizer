@@ -667,7 +667,9 @@ html[data-theme="light"] .shell-dropdown-item--danger:hover {
   font-size: 12px;
   font-weight: 600;
   text-decoration: none;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
 
 .shell-guest-auth-btn--ghost {

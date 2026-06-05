@@ -43,9 +43,13 @@ export default function ChatThreadNavigator({
     /** @type {string | number | null} */ (null),
   );
   const [anchor, setAnchor] = useState(
-    /** @type {{ top: number; left: number; visible: boolean } | null} */ (null),
+    /** @type {{ top: number; left: number; visible: boolean } | null} */ (
+      null
+    ),
   );
-  const closeTimerRef = useRef(/** @type {ReturnType<typeof setTimeout> | null} */ (null));
+  const closeTimerRef = useRef(
+    /** @type {ReturnType<typeof setTimeout> | null} */ (null),
+  );
 
   useEffect(() => setMounted(true), []);
 
@@ -80,7 +84,9 @@ export default function ChatThreadNavigator({
 
     const r = scrollEl.getBoundingClientRect();
     const clusterH =
-      navItems.length * TICK_H + (navItems.length - 1) * TICK_GAP + TICK_PAD * 2;
+      navItems.length * TICK_H +
+      (navItems.length - 1) * TICK_GAP +
+      TICK_PAD * 2;
     const minTop = r.top + 48;
     const maxTop = r.bottom - clusterH - 24;
     const top =
@@ -127,10 +133,7 @@ export default function ChatThreadNavigator({
       (entries) => {
         const visible = entries
           .filter((e) => e.isIntersecting)
-          .sort(
-            (a, b) =>
-              a.boundingClientRect.top - b.boundingClientRect.top,
-          );
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
         if (visible.length > 0) {
           const raw = visible[0].target.getAttribute("data-chat-nav-id");
           if (raw != null) setActiveId(raw);
@@ -200,7 +203,11 @@ export default function ChatThreadNavigator({
           ))}
         </div>
 
-        <div className="chat-thread-nav-rail" role="toolbar" aria-label="Jump to prompts">
+        <div
+          className="chat-thread-nav-rail"
+          role="toolbar"
+          aria-label="Jump to prompts"
+        >
           {navItems.map((item) => (
             <button
               key={item.id}

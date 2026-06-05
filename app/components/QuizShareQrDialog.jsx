@@ -56,11 +56,13 @@ export default function QuizShareQrDialog({
     if (!qrDataUrl) return;
     const a = document.createElement("a");
     a.href = qrDataUrl;
-    a.download = `${String(title || "quiz")
-      .replace(/[^\w\s-]/g, "")
-      .trim()
-      .replace(/\s+/g, "-")
-      .slice(0, 40) || "quiz"}-qr.png`;
+    a.download = `${
+      String(title || "quiz")
+        .replace(/[^\w\s-]/g, "")
+        .trim()
+        .replace(/\s+/g, "-")
+        .slice(0, 40) || "quiz"
+    }-qr.png`;
     a.click();
   }, [qrDataUrl, title]);
 

@@ -10,7 +10,11 @@ import {
   getDefaultVariant,
   MODEL_PROVIDERS,
 } from "@/app/dashboard/helpers";
-import { GUEST_MAX_FILES } from "@/lib/guestUpload";
+import { GUEST_MAX_FILES, validateGuestFileSelection } from "@/lib/guestUpload";
+import {
+  formatUploadLimitLabel,
+  SERVERLESS_PAYLOAD_MAX_BYTES,
+} from "@/lib/uploadLimits";
 import { consumeSummarizeSse } from "@/lib/consumeSummarizeSse";
 import {
   clearGuestSummarySession,
@@ -24,12 +28,8 @@ import "./try-page.css";
 
 export default function GuestTryPageClient() {
   const fileInputRef = useRef(null);
-  const {
-    authModalOpen,
-    authModalFeature,
-    closeAuthModal,
-    requireAuth,
-  } = useRequireAuth();
+  const { authModalOpen, authModalFeature, closeAuthModal, requireAuth } =
+    useRequireAuth();
 
   const [view, setView] = useState("upload");
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -53,7 +53,9 @@ export default function GuestTryPageClient() {
       setTitle(saved.title || "Summary");
       setOutput(saved.output);
       setSessionMeta(saved);
-      setSummarizeFor(saved.summarizeFor === "lecturer" ? "lecturer" : "student");
+      setSummarizeFor(
+        saved.summarizeFor === "lecturer" ? "lecturer" : "student",
+      );
       setView("result");
     }
   }, []);
@@ -68,12 +70,19 @@ export default function GuestTryPageClient() {
       const next = [...prev];
       for (const file of incoming) {
         if (next.length >= GUEST_MAX_FILES) break;
-        if (next.some((f) => f.name === file.name && f.size === file.size)) continue;
+        if (next.some((f) => f.name === file.name && f.size === file.size))
+          continue;
         next.push(file);
       }
-      return next.slice(0, GUEST_MAX_FILES);
+      const trimmed = next.slice(0, GUEST_MAX_FILES);
+      const check = validateGuestFileSelection(trimmed);
+      if (!check.ok) {
+        setError(check.error);
+        return prev;
+      }
+      setError("");
+      return trimmed;
     });
-    setError("");
   }, []);
 
   const removeFile = useCallback((index) => {
@@ -101,7 +110,8 @@ export default function GuestTryPageClient() {
     formData.append("prompt", prompt);
     formData.append("publishedYearMode", "all");
 
-    let streamTitle = selectedFiles[0]?.name?.replace(/\.[^/.]+$/, "") || "Summary";
+    let streamTitle =
+      selectedFiles[0]?.name?.replace(/\.[^/.]+$/, "") || "Summary";
     let accumulated = "";
 
     try {
@@ -239,9 +249,16 @@ export default function GuestTryPageClient() {
                 <p>
                   <strong>Drop files here</strong> or click to browse
                 </p>
-                <p style={{ fontSize: "0.8rem", opacity: 0.7, marginTop: "0.5rem" }}>
-                  Up to {GUEST_MAX_FILES} files · max 4 MB total · PDF, PPTX, DOCX,
-                  TXT, and more
+                <p
+                  style={{
+                    fontSize: "0.8rem",
+                    opacity: 0.7,
+                    marginTop: "0.5rem",
+                  }}
+                >
+                  Up to {GUEST_MAX_FILES} files · max{" "}
+                  {formatUploadLimitLabel(SERVERLESS_PAYLOAD_MAX_BYTES)} total ·
+                  PDF, PPTX, DOCX, TXT, and more
                 </p>
               </div>
               {selectedFiles.length > 0 ? (
@@ -349,7 +366,11 @@ export default function GuestTryPageClient() {
                 ) : null}
               </div>
               <div className="try-output-toolbar">
-                <button type="button" onClick={handleCopy} disabled={!hasSummary}>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  disabled={!hasSummary}
+                >
                   {copied ? "Copied" : "Copy"}
                 </button>
                 <button type="button" onClick={handleNewSummary}>

@@ -44,6 +44,7 @@ export async function GET(_req, ctx) {
         id: d.document.id,
         name: d.document.name,
         type: d.document.type,
+        sourceUrl: d.document.sourceUrl || null,
       })),
     };
 
@@ -74,7 +75,10 @@ export async function PATCH(req, ctx) {
     if (typeof body?.title === "string") {
       const title = body.title.trim();
       if (!title) {
-        return NextResponse.json({ error: "Title is required" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Title is required" },
+          { status: 400 },
+        );
       }
       data.title = title;
     }
@@ -85,10 +89,7 @@ export async function PATCH(req, ctx) {
     }
 
     if (Object.keys(data).length === 0) {
-      return NextResponse.json(
-        { error: "Nothing to update" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
     }
 
     const updated = await prisma.summary.updateMany({

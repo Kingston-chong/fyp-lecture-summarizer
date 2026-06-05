@@ -288,7 +288,9 @@ export default function SharedQuizPage() {
             disabled={!canStartQuiz}
             onClick={() => setQuizOpen(true)}
             style={
-              !canStartQuiz ? { opacity: 0.45, cursor: "not-allowed" } : undefined
+              !canStartQuiz
+                ? { opacity: 0.45, cursor: "not-allowed" }
+                : undefined
             }
           >
             Start quiz

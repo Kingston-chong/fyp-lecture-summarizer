@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/apiAuth";
-import { ALAI_BASE, alaiErrorPayload, alaiFetch, getAlaiApiKeys } from "@/lib/alaiClient";
+import {
+  ALAI_BASE,
+  alaiErrorPayload,
+  alaiFetch,
+  getAlaiApiKeys,
+} from "@/lib/alaiClient";
 import { logger } from "@/lib/logger";
 
 const MAX_FILES = 10;

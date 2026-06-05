@@ -84,7 +84,11 @@ export default function SummaryHeadToolbar({
           <Chevron open={hlColorMenuOpen} />
         </button>
         {hlColorMenuOpen && (
-          <div className="sum-hl-menu" role="menu" aria-label="Highlight colors">
+          <div
+            className="sum-hl-menu"
+            role="menu"
+            aria-label="Highlight colors"
+          >
             <div className="sum-hl-menu-label">Color</div>
             <div className="sum-hl-swatch-row">
               {HIGHLIGHT_PRESETS.map((p) => (

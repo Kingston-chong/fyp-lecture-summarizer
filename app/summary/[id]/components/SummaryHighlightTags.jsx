@@ -16,7 +16,11 @@ export default function SummaryHighlightTags({
   const n = Math.min(99, count);
 
   return (
-    <div className="sum-hl-tag-actions" role="group" aria-label="Unsaved highlights">
+    <div
+      className="sum-hl-tag-actions"
+      role="group"
+      aria-label="Unsaved highlights"
+    >
       <button
         type="button"
         className="tag tag-hl-action tag-save"
@@ -31,11 +35,7 @@ export default function SummaryHighlightTags({
           <SaveIco size={13} />
         )}
         <span>
-          {hlSaving ? (
-            <LoadingText active>Saving</LoadingText>
-          ) : (
-            `Save · ${n}`
-          )}
+          {hlSaving ? <LoadingText active>Saving</LoadingText> : `Save · ${n}`}
         </span>
       </button>
       <button

@@ -44,9 +44,7 @@ export default function CustomSelect({
 
   const wrapStyle = {
     width,
-    ...(menuZIndex != null
-      ? { "--custom-select-menu-z": menuZIndex }
-      : {}),
+    ...(menuZIndex != null ? { "--custom-select-menu-z": menuZIndex } : {}),
   };
 
   return (

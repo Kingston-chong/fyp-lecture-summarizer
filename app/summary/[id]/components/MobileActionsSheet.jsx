@@ -104,7 +104,10 @@ export default function MobileActionsSheet({
       role="dialog"
       aria-label="Summary actions"
     >
-      <div className="mob-more-sheet mob-actions-sheet" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="mob-more-sheet mob-actions-sheet"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mob-more-handle" />
         <div className="mob-more-header">
           <span className="mob-more-title">Actions</span>

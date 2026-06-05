@@ -8,7 +8,10 @@ export default function ChatSourcesList({ sources }) {
       <div className="chat-sources-label">Sources</div>
       <ul className="chat-sources-list">
         {sources.map((s, i) => (
-          <li key={s.marker ?? s.url ?? `${s.title}-${i}`} className="chat-source-item">
+          <li
+            key={s.marker ?? s.url ?? `${s.title}-${i}`}
+            className="chat-source-item"
+          >
             <span className="chat-source-body">
               {s.url ? (
                 <a

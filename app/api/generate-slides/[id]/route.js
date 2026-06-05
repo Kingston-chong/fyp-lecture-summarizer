@@ -71,9 +71,7 @@ export async function GET(req, context) {
       return NextResponse.json(
         {
           error:
-            data?.error ||
-            data?.message ||
-            "Failed to check generation status",
+            data?.error || data?.message || "Failed to check generation status",
         },
         { status: res.status },
       );

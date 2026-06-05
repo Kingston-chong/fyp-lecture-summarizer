@@ -3,7 +3,10 @@
 import { memo, useMemo } from "react";
 import { chatMarkdownToHtml } from "@/lib/markdown";
 
-const ChatBubbleContent = memo(function ChatBubbleContent({ mdSrc, messageId }) {
+const ChatBubbleContent = memo(function ChatBubbleContent({
+  mdSrc,
+  messageId,
+}) {
   const html = useMemo(() => chatMarkdownToHtml(mdSrc), [mdSrc]);
   return (
     <div

@@ -76,7 +76,9 @@
   background: transparent;
   color: rgba(255, 255, 255, 0.72);
   cursor: pointer;
-  transition: background 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    color 0.12s;
 }
 
 .share-chat-dialog-close:hover {
@@ -320,7 +322,9 @@ html[data-theme="light"] .share-chat-dialog-action-ico {
   color: #0f172a;
 }
 
-html[data-theme="light"] .share-chat-dialog-action:hover .share-chat-dialog-action-ico {
+html[data-theme="light"]
+  .share-chat-dialog-action:hover
+  .share-chat-dialog-action-ico {
   background: #d1d5db;
 }
 
@@ -341,7 +345,9 @@ html[data-theme="light"] .share-chat-dialog-qr-url {
   color: rgba(15, 23, 42, 0.45);
 }
 
-html[data-theme="light"] .share-chat-dialog-action.active .share-chat-dialog-action-ico {
+html[data-theme="light"]
+  .share-chat-dialog-action.active
+  .share-chat-dialog-action-ico {
   background: rgba(99, 102, 241, 0.14);
   color: #4338ca;
 }

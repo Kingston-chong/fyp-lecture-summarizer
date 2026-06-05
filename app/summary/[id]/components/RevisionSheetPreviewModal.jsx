@@ -128,7 +128,8 @@ export default function RevisionSheetPreviewModal({
           >
             {regenerating ? (
               <>
-                <Spinner size={13} /> <LoadingText active>Regenerating</LoadingText>
+                <Spinner size={13} />{" "}
+                <LoadingText active>Regenerating</LoadingText>
               </>
             ) : (
               "Regenerate"
@@ -142,7 +143,8 @@ export default function RevisionSheetPreviewModal({
           >
             {downloading ? (
               <>
-                <Spinner size={13} /> <LoadingText active>Downloading</LoadingText>
+                <Spinner size={13} />{" "}
+                <LoadingText active>Downloading</LoadingText>
               </>
             ) : (
               "Download PDF"

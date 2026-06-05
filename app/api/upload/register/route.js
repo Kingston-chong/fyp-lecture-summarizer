@@ -19,6 +19,11 @@ export async function POST(req) {
     const pathname = String(body?.pathname || "").trim();
     const name = String(body?.name || "").trim();
     const size = Number(body?.size);
+    const sourceUrlRaw = body?.sourceUrl;
+    const sourceUrl =
+      sourceUrlRaw != null && String(sourceUrlRaw).trim()
+        ? String(sourceUrlRaw).trim().slice(0, 2048)
+        : null;
 
     if (!url || !name) {
       return NextResponse.json(
@@ -59,6 +64,7 @@ export async function POST(req) {
         url,
         type,
         size: Number.isFinite(size) && size > 0 ? size : 0,
+        ...(sourceUrl ? { sourceUrl } : {}),
       },
     });
 

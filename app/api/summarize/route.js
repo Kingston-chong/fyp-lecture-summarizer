@@ -504,6 +504,11 @@ function buildSummarizeSystemPrompt({
           .map((r) => {
             if (r.kind === "upload")
               return `[${r.marker}] (uploaded) ${r.title}`;
+            if (r.kind === "web") {
+              const parts = [`[${r.marker}] (web) ${r.title}`];
+              if (r.url) parts.push(`URL: ${r.url}`);
+              return parts.join(" ");
+            }
             const parts = [`[${r.marker}] (paper) ${r.title}`];
             if (r.authors) parts.push(`— ${r.authors}`);
             if (r.year) parts.push(`(${r.year})`);
@@ -579,7 +584,13 @@ export async function POST(req) {
       documents = (existingSummary.documents || [])
         .map((d) => d.document)
         .filter(Boolean)
-        .map((d) => ({ id: d.id, name: d.name, url: d.url, type: d.type }));
+        .map((d) => ({
+          id: d.id,
+          name: d.name,
+          url: d.url,
+          type: d.type,
+          sourceUrl: d.sourceUrl || null,
+        }));
       if (documents.length === 0) {
         return NextResponse.json(
           { error: "Summary has no linked documents" },
@@ -597,7 +608,13 @@ export async function POST(req) {
       // Fetch documents from DB
       documents = await prisma.document.findMany({
         where: { id: { in: documentIds }, userId: user.id },
-        select: { id: true, name: true, url: true, type: true },
+        select: {
+          id: true,
+          name: true,
+          url: true,
+          type: true,
+          sourceUrl: true,
+        },
       });
 
       if (documents.length === 0) {
@@ -701,10 +718,8 @@ export async function POST(req) {
         if (referenceCatalogMeta.maxMarker > 0) {
           out = clampInvalidCitations(out, referenceCatalogMeta.maxMarker);
         }
-        const { markdown, citedCatalog, anchorMap } = finalizeLecturerReferences(
-          out,
-          referenceCatalog,
-        );
+        const { markdown, citedCatalog, anchorMap } =
+          finalizeLecturerReferences(out, referenceCatalog);
         if (summaryIdForRefs) {
           if (citedCatalog.length > 0) {
             await persistSummaryReferences(
@@ -751,8 +766,7 @@ export async function POST(req) {
                 effectiveModel,
                 effectiveVariant,
                 effectiveYearRange,
-                onStatus: (phase) =>
-                  sendEvent(controller, "status", { phase }),
+                onStatus: (phase) => sendEvent(controller, "status", { phase }),
               });
 
             sendEvent(controller, "status", {

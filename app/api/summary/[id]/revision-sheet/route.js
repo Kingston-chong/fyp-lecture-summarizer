@@ -41,8 +41,7 @@ export async function POST(_req, context) {
     if (summary.summarizeFor !== "student") {
       return NextResponse.json(
         {
-          error:
-            "Revision sheets are available for student summaries only.",
+          error: "Revision sheets are available for student summaries only.",
         },
         { status: 400 },
       );

@@ -97,7 +97,9 @@ export default function ChatAttachMenu({
             <span className="chat-attach-item-ico" aria-hidden>
               <AttachFileOutlinedIcon sx={{ fontSize: 18 }} />
             </span>
-            <span className="chat-attach-item-label">Add photos &amp; files</span>
+            <span className="chat-attach-item-label">
+              Add photos &amp; files
+            </span>
           </button>
 
           {!guestMode ? (
@@ -126,7 +128,9 @@ export default function ChatAttachMenu({
                   {recentLoading ? (
                     <div className="chat-attach-subempty">Loading…</div>
                   ) : recentFiles.length === 0 ? (
-                    <div className="chat-attach-subempty">{recentEmptyHint}</div>
+                    <div className="chat-attach-subempty">
+                      {recentEmptyHint}
+                    </div>
                   ) : (
                     recentFiles.map((doc) => (
                       <button
@@ -138,7 +142,9 @@ export default function ChatAttachMenu({
                         onClick={() => handleSelectRecent(doc)}
                       >
                         <DocIco ext={doc.type} size={14} />
-                        <span className="chat-attach-recent-name">{doc.name}</span>
+                        <span className="chat-attach-recent-name">
+                          {doc.name}
+                        </span>
                       </button>
                     ))
                   )}
@@ -161,7 +167,9 @@ export default function ChatAttachMenu({
             </span>
             <span className="chat-attach-item-copy">
               <span className="chat-attach-item-label">Web search</span>
-              <span className="chat-attach-item-hint">Uses Tavily for live web results</span>
+              <span className="chat-attach-item-hint">
+                Uses Tavily for live web results
+              </span>
             </span>
             {webSearchEnabled ? (
               <span className="chat-attach-check" aria-hidden>

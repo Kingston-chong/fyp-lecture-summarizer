@@ -28,13 +28,27 @@ export default function SourcesListPanel({
               <div className="src-name" title={f.name}>
                 {f.name}
               </div>
-              <div className="src-meta">{f.type}</div>
+              <div className="src-meta">
+                {f.sourceUrl ? (
+                  <a
+                    className="src-web-link"
+                    href={f.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {f.sourceUrl.replace(/^https?:\/\/(www\.)?/, "").slice(0, 48)}
+                  </a>
+                ) : (
+                  f.type
+                )}
+              </div>
             </div>
             <button
               type="button"
               className="src-preview-btn"
               onClick={(ev) => onPreview(f, ev)}
-              title="Preview file"
+              title={f.sourceUrl ? "Preview extracted text" : "Preview file"}
               aria-label={`Preview ${f.name}`}
             >
               Preview

@@ -2,7 +2,13 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { LoadingText } from "@/app/components/LoadingText";
-import { FieldLabel, SectionHead, Divider, SelectMenu, UploadCloudIco } from "./ui.jsx";
+import {
+  FieldLabel,
+  SectionHead,
+  Divider,
+  SelectMenu,
+  UploadCloudIco,
+} from "./ui.jsx";
 import {
   ALAI_OUTPUT_LANGUAGES,
   ALAI_SLIDE_RANGE_HINT,
@@ -61,7 +67,9 @@ function ExtraInstructionsField({ value, onChange, presets, onApplyPreset }) {
 
       {open && (
         <div className="csf-suggest-menu">
-          <div className="csf-suggest-menu-head">Suggestions — click to add</div>
+          <div className="csf-suggest-menu-head">
+            Suggestions — click to add
+          </div>
           {presets.map((preset) => (
             <button
               key={preset}
@@ -207,13 +215,15 @@ function ImageUploadSection({
         <span className="csf-upload-label">
           {isUploading ? (
             <LoadingText active>Uploading</LoadingText>
-          ) : isDragging
-              ? "Drop to upload"
-              : "Drag & drop or click to browse"}
+          ) : isDragging ? (
+            "Drop to upload"
+          ) : (
+            "Drag & drop or click to browse"
+          )}
         </span>
         <span className="csf-upload-hint">
-          PNG, JPEG, WebP, GIF, AVIF, SVG · max 10 MB · up to{" "}
-          {MAX_IMAGE_FILES} files
+          PNG, JPEG, WebP, GIF, AVIF, SVG · max 10 MB · up to {MAX_IMAGE_FILES}{" "}
+          files
         </span>
       </div>
 
@@ -225,11 +235,7 @@ function ImageUploadSection({
               className={`csf-file-chip${f.status === "error" ? " csf-file-chip--error" : ""}`}
             >
               {f.localUrl && f.status !== "error" && (
-                <img
-                  src={f.localUrl}
-                  alt={f.name}
-                  className="csf-file-thumb"
-                />
+                <img src={f.localUrl} alt={f.name} className="csf-file-thumb" />
               )}
               <span
                 className={`csf-file-status csf-file-status--${f.status === "uploading" ? "uploading" : f.status === "done" ? "done" : "error"}`}
@@ -323,7 +329,9 @@ export default function CreateSlidesForm({
     useState(numImageVariants);
   const isAlai = provider === "alai";
   const activeThemes = isAlai ? alaiThemes : twoSlidesThemes;
-  const activeThemesLoading = isAlai ? alaiThemesLoading : twoSlidesThemesLoading;
+  const activeThemesLoading = isAlai
+    ? alaiThemesLoading
+    : twoSlidesThemesLoading;
   const activeThemesHint = isAlai ? alaiThemesHint : twoSlidesThemesHint;
   const themeSelectOptions = themesToSelectOptions(activeThemes);
   const effectiveImageVariants = onVariantsChange
@@ -480,7 +488,9 @@ export default function CreateSlidesForm({
           }
           width="100%"
           maxMenuHeight={240}
-          options={isAlai ? ALAI_OUTPUT_LANGUAGES : TWOSLIDES_RESPONSE_LANGUAGES}
+          options={
+            isAlai ? ALAI_OUTPUT_LANGUAGES : TWOSLIDES_RESPONSE_LANGUAGES
+          }
         />
 
         <Divider />
@@ -551,14 +561,16 @@ export default function CreateSlidesForm({
 
             <SectionHead>Tone</SectionHead>
             <div className="create-pill-row">
-              {["Academic", "Professional", "Simple", "Technical"].map((opt) => (
-                <Pill
-                  key={opt}
-                  label={opt}
-                  active={textStyle === opt}
-                  onClick={() => setTextStyle(opt)}
-                />
-              ))}
+              {["Academic", "Professional", "Simple", "Technical"].map(
+                (opt) => (
+                  <Pill
+                    key={opt}
+                    label={opt}
+                    active={textStyle === opt}
+                    onClick={() => setTextStyle(opt)}
+                  />
+                ),
+              )}
             </div>
 
             <SectionHead>Fidelity to summary</SectionHead>
@@ -695,8 +707,8 @@ export default function CreateSlidesForm({
               Your images <span className="csf-optional-badge">optional</span>
             </SectionHead>
             <div className="tag-hint" style={{ marginBottom: 8 }}>
-              Upload your own photos or diagrams — Alai places them on
-              relevant slides automatically
+              Upload your own photos or diagrams — Alai places them on relevant
+              slides automatically
             </div>
             <ImageUploadSection
               uploadedFiles={uploadedFiles}

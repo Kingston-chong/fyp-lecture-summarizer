@@ -358,8 +358,7 @@ export default function GenerateSlidesModal({
   }, [selectedThemeId, provider, alaiThemes, twoSlidesThemes]);
 
   const canGenerate =
-    !generating &&
-    (provider !== "2slides" || Boolean(selectedThemeId?.trim()));
+    !generating && (provider !== "2slides" || Boolean(selectedThemeId?.trim()));
 
   async function handleCreate() {
     setGenerateErr("");
@@ -396,10 +395,10 @@ export default function GenerateSlidesModal({
             provider === "alai"
               ? String(bulletLimit || "").trim() || undefined
               : undefined,
-          alaiLanguage: provider === "alai" ? alaiLanguage || undefined : undefined,
+          alaiLanguage:
+            provider === "alai" ? alaiLanguage || undefined : undefined,
           includeAiImages: provider === "alai" ? includeAiImages : undefined,
-          includeWebImages:
-            provider === "alai" ? includeWebImages : undefined,
+          includeWebImages: provider === "alai" ? includeWebImages : undefined,
           responseLanguage:
             provider === "2slides" ? responseLanguage : undefined,
           slideLength: provider === "alai" ? slideLength : undefined,
@@ -458,8 +457,7 @@ export default function GenerateSlidesModal({
               previewUrl: pollData.preview_url || "",
               remotePptUrl: pollData.remote_download_url || "",
               provider: activeProvider,
-              title:
-                title.trim() || "Create Presentation Slides...",
+              title: title.trim() || "Create Presentation Slides...",
               onDownload: slideDownloadRef.current,
             };
             if (typeof onOpenPreview === "function") {
@@ -512,8 +510,7 @@ export default function GenerateSlidesModal({
           exporting: "Exporting to PPTX…",
         };
         const statusMsg =
-          statusMessages[pollData.status] ??
-          `Working… (${pollData.status})`;
+          statusMessages[pollData.status] ?? `Working… (${pollData.status})`;
         if (isAlaiProvider) setAlaiApiStatus(statusMsg);
         else setGenerateProgress(statusMsg);
         await new Promise((r) => setTimeout(r, pollIntervalMs));

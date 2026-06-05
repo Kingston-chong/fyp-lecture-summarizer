@@ -13,7 +13,7 @@ export async function GET() {
     }
 
     const rows = await prisma.document.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, sourceUrl: null },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,

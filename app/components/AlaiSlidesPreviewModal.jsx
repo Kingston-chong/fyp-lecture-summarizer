@@ -20,9 +20,7 @@ const CloseIco = () => (
   </svg>
 );
 
-const BtnSpinner = () => (
-  <span className="alai-btn-spin" aria-hidden />
-);
+const BtnSpinner = () => <span className="alai-btn-spin" aria-hidden />;
 
 const DownloadIco = () => (
   <svg
@@ -87,8 +85,7 @@ export default function AlaiSlidesPreviewModal({
 
   const showIframeLoading =
     previewLoading || (Boolean(iframeSrc) && iframeLoading);
-  const showUnavailable =
-    !previewLoading && !iframeSrc && previewUnavailable;
+  const showUnavailable = !previewLoading && !iframeSrc && previewUnavailable;
   const showPreparing = !previewLoading && !iframeSrc && !previewUnavailable;
 
   // Prevent background scrolling while modal is open

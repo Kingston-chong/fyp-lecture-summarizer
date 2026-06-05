@@ -95,9 +95,7 @@ export function applyHighlightsToRoot(root, rows, defaultColorHex) {
   const sorted = [...rows].sort((a, b) => a.quote.length - b.quote.length);
   for (const h of sorted) {
     const c =
-      h.color && /^#[0-9a-f]{6}$/i.test(h.color)
-        ? h.color
-        : defaultColorHex;
+      h.color && /^#[0-9a-f]{6}$/i.test(h.color) ? h.color : defaultColorHex;
     const ok = wrapQuoteInRoot(root, h.quote, h.id, c, Boolean(h.pending));
     if (ok) appliedIds.push(String(h.id));
     else failedIds.push(String(h.id));

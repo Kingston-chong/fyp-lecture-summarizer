@@ -35,7 +35,9 @@
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.28);
   cursor: pointer;
-  transition: background 0.15s, transform 0.15s;
+  transition:
+    background 0.15s,
+    transform 0.15s;
   transform-origin: center right;
 }
 

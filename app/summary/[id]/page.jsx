@@ -80,11 +80,7 @@ import { useQuizSets } from "./hooks/useQuizSets";
 import { useFlashcardSets, NEW_SET_VALUE } from "./hooks/useFlashcardSets";
 import CreateFlashcardDialog from "./components/CreateFlashcardDialog";
 import FlashcardSetEditor from "./components/FlashcardSetEditor";
-import {
-  MODELS,
-  ATTACH_ACCEPT,
-  SUMMARY_BODY_INNER_STYLE,
-} from "./constants";
+import { MODELS, ATTACH_ACCEPT, SUMMARY_BODY_INNER_STYLE } from "./constants";
 import {
   downscaleImageFileToJpegDataUrl,
   MAX_CHAT_PASTE_IMAGES,
@@ -107,10 +103,7 @@ import {
 } from "@/lib/summaryRenameSync";
 import { LoadingText } from "@/app/components/LoadingText";
 import { canPublishSummaryShare } from "@/lib/chatShareSnapshot";
-import {
-  SUMMARIZE_PHASE,
-  summarizePhaseLabel,
-} from "@/lib/summarizeProgress";
+import { SUMMARIZE_PHASE, summarizePhaseLabel } from "@/lib/summarizeProgress";
 import { isGuestSummaryRouteId } from "@/lib/guestMode";
 import { useGuestSummaryBootstrap } from "./hooks/useGuestSummaryBootstrap";
 import { useRequireAuth } from "@/app/hooks/useRequireAuth";
@@ -144,18 +137,12 @@ export default function SummaryView() {
     [summaryId],
   );
 
-  const {
-    authModalOpen,
-    authModalFeature,
-    closeAuthModal,
-    requireAuth,
-  } = useRequireAuth();
+  const { authModalOpen, authModalFeature, closeAuthModal, requireAuth } =
+    useRequireAuth();
 
   const guestLockedActions = useMemo(
     () =>
-      isGuestMode
-        ? ["quiz", "flashcards", "flashcards-manual", "slides"]
-        : [],
+      isGuestMode ? ["quiz", "flashcards", "flashcards-manual", "slides"] : [],
     [isGuestMode],
   );
 
@@ -224,7 +211,8 @@ export default function SummaryView() {
   const [hlColorHex, setHlColorHex] = useState(DEFAULT_HL_HEX);
   const [hlSaving, setHlSaving] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
-  const [mobileMoreInitialSection, setMobileMoreInitialSection] = useState(null);
+  const [mobileMoreInitialSection, setMobileMoreInitialSection] =
+    useState(null);
   const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
   const [readMode, setReadMode] = useState(false);
 
@@ -314,8 +302,12 @@ export default function SummaryView() {
     return filterReferencesToCitedInBody(lecturerReferences, output);
   }, [summary?.summarizeFor, summary?.output, lecturerReferences]);
 
-  const { sourcesWidth, sourcesCollapsed, toggleSourcesCollapsed, onSplitterMouseDown } =
-    useSourcesPanelResize();
+  const {
+    sourcesWidth,
+    sourcesCollapsed,
+    toggleSourcesCollapsed,
+    onSplitterMouseDown,
+  } = useSourcesPanelResize();
 
   const slideDecksApi = useSlideDecks({ summaryId, status });
   const {
@@ -955,9 +947,7 @@ export default function SummaryView() {
     const failedPending = failedIds.filter((id) => pendingIds.has(id));
     if (failedPending.length > 0) {
       const drop = new Set(failedPending);
-      setPendingHighlights((prev) =>
-        prev.filter((p) => !drop.has(p.clientId)),
-      );
+      setPendingHighlights((prev) => prev.filter((p) => !drop.has(p.clientId)));
     }
   }, [summaryHtml, highlights, pendingHighlights, summary?.output]);
 
@@ -1097,7 +1087,8 @@ export default function SummaryView() {
   }, [summary, summaryReferences, visibleLecturerReferences]);
 
   const fetchSummaryReferences = useCallback(async () => {
-    if (isGuestMode || !summaryId || summary?.summarizeFor !== "lecturer") return;
+    if (isGuestMode || !summaryId || summary?.summarizeFor !== "lecturer")
+      return;
     setReferencesLoading(true);
     try {
       const res = await fetch(`/api/summary/${summaryId}/references`);
@@ -1924,9 +1915,7 @@ export default function SummaryView() {
         const res = await fetch(`/api/documents/${doc.id}/view-token`);
         const data = await res.json().catch(() => ({}));
         if (isViewTokenUnavailableStatus(res.status)) {
-          setSourcePreviewSetupErr(
-            data.error || "Preview link not available",
-          );
+          setSourcePreviewSetupErr(data.error || "Preview link not available");
           setSourcePreviewIframeLoading(false);
           return;
         }
@@ -2312,14 +2301,14 @@ export default function SummaryView() {
                   pdfLoading={pdfLoading}
                   hasSummary={hasSummaryOutput}
                   lockedFeatureIds={guestLockedActions}
-                  onQuiz={() =>
-                    requireAuth("quiz", () => setQuizModal(true))
-                  }
+                  onQuiz={() => requireAuth("quiz", () => setQuizModal(true))}
                   onGenerateFlashcards={() =>
                     requireAuth("flashcards", () => setFlashcardModal(true))
                   }
                   onCreateFlashcardsManually={() =>
-                    requireAuth("flashcards", () => setCreateFlashcardOpen(true))
+                    requireAuth("flashcards", () =>
+                      setCreateFlashcardOpen(true),
+                    )
                   }
                   onGenerateRevisionSheet={() =>
                     void handleGenerateRevisionSheet({ force: false })
@@ -2344,7 +2333,9 @@ export default function SummaryView() {
               </div>
 
               {/* Card: summary + chat */}
-              <div className={`sum-card${readMode ? " sum-card--read-mode" : ""}`}>
+              <div
+                className={`sum-card${readMode ? " sum-card--read-mode" : ""}`}
+              >
                 <div className="sum-head">
                   <div className="sum-left">
                     <SummaryTitleBlock
@@ -2372,8 +2363,7 @@ export default function SummaryView() {
                           {summary?.summarizeFor ?? "—"}
                         </span>
                       </div>
-                      <div className="sum-tags-aside">
-                      </div>
+                      <div className="sum-tags-aside"></div>
                     </div>
                   </div>
                   <div className="sum-right">
@@ -2386,9 +2376,7 @@ export default function SummaryView() {
                       hlModeActive={hlModeActive}
                       onToggleHlMode={handleToggleHlMode}
                       hlColorMenuOpen={hlColorMenuOpen}
-                      onToggleHlColorMenu={() =>
-                        setHlColorMenuOpen((v) => !v)
-                      }
+                      onToggleHlColorMenu={() => setHlColorMenuOpen((v) => !v)}
                       hlToolbarRef={hlToolbarRef}
                       hlColorHex={hlColorHex}
                       onHlColorPick={(hex) => {
@@ -2470,9 +2458,8 @@ export default function SummaryView() {
                         )
                       ) && (
                         <div className="sum-gen-meta">
-                          Generated by{" "}
-                          {formatSummaryModelLabel(summary?.model)} ·{" "}
-                          {fmtDate(summary?.createdAt)}
+                          Generated by {formatSummaryModelLabel(summary?.model)}{" "}
+                          · {fmtDate(summary?.createdAt)}
                         </div>
                       )}
                     </>
@@ -2492,208 +2479,219 @@ export default function SummaryView() {
                         }
                       >
                         <div className="chat-thread" ref={chatThreadRef}>
-                        {messages.map((m, i) => {
-                          const showRegen =
-                            m.role === "ai" &&
-                            !m.error &&
-                            i === messages.length - 1 &&
-                            !chatLoading;
-                          return (
-                            <div
-                              key={m.id}
-                              className={`m-row ${m.role}`}
-                              ref={(el) => {
-                                if (m.role === "user") {
-                                  if (el) chatMessageRefs.current.set(m.id, el);
-                                  else chatMessageRefs.current.delete(m.id);
-                                }
-                              }}
-                              {...(m.role === "user"
-                                ? { "data-chat-nav-id": m.id }
-                                : {})}
-                            >
-                              <div className={`m-ava ${m.role}`}>
-                                {m.role === "ai" ? <BotIco /> : <UserIco />}
-                              </div>
-                              <div className="m-bub-wrap">
-                                <div className="m-bub-col">
-                                  <div
-                                    className={`m-bub ${m.role} ${m.error ? "err" : ""} md`}
-                                    onMouseUp={(e) =>
-                                      handleChatBubbleMouseUp(e, m)
-                                    }
-                                  >
-                                    {m.role === "user" &&
-                                      Array.isArray(m.attachedFiles) &&
-                                      m.attachedFiles.length > 0 && (
-                                        <div className="chat-msg-files">
-                                          {m.attachedFiles.map((f, ii) => (
-                                            <div
-                                              key={`${f.name}-${ii}`}
-                                              className="chat-msg-file-chip"
-                                              title={f.name}
-                                            >
-                                              <DocIco ext={f.type} size={14} />
-                                              <span className="file-name">
-                                                {f.name}
-                                              </span>
-                                              <span className="file-type">
-                                                {String(
-                                                  f.type || "file",
-                                                ).toUpperCase()}
-                                              </span>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      )}
-                                    {m.role === "user" &&
-                                      m.imagePreviews &&
-                                      m.imagePreviews.length > 0 && (
-                                        <div className="chat-msg-images">
-                                          {m.imagePreviews.map((src, ii) => (
-                                            <img key={ii} src={src} alt="" />
-                                          ))}
-                                        </div>
-                                      )}
-                                    {m.role === "user" &&
-                                      (m.lostPastedImageCount || 0) > 0 && (
-                                        <div className="chat-img-lost-note">
-                                          {m.lostPastedImageCount} pasted image
-                                          {m.lostPastedImageCount === 1
-                                            ? ""
-                                            : "s"}{" "}
-                                          in this message (previews are not kept
-                                          after refresh)
-                                        </div>
-                                      )}
-                                    {(() => {
-                                      const raw = (m.content || "").trim();
-                                      const hidePlaceholder =
-                                        m.role === "user" &&
-                                        raw === "[Image message]" &&
-                                        ((m.imagePreviews?.length || 0) > 0 ||
-                                          (m.lostPastedImageCount || 0) > 0);
-                                      const mdSrc = hidePlaceholder
-                                        ? ""
-                                        : m.content || "";
-                                      if (
-                                        m.role === "user" &&
-                                        !mdSrc.trim() &&
-                                        ((m.imagePreviews?.length || 0) > 0 ||
-                                          (m.lostPastedImageCount || 0) > 0)
-                                      ) {
-                                        return null;
+                          {messages.map((m, i) => {
+                            const showRegen =
+                              m.role === "ai" &&
+                              !m.error &&
+                              i === messages.length - 1 &&
+                              !chatLoading;
+                            return (
+                              <div
+                                key={m.id}
+                                className={`m-row ${m.role}`}
+                                ref={(el) => {
+                                  if (m.role === "user") {
+                                    if (el)
+                                      chatMessageRefs.current.set(m.id, el);
+                                    else chatMessageRefs.current.delete(m.id);
+                                  }
+                                }}
+                                {...(m.role === "user"
+                                  ? { "data-chat-nav-id": m.id }
+                                  : {})}
+                              >
+                                <div className={`m-ava ${m.role}`}>
+                                  {m.role === "ai" ? <BotIco /> : <UserIco />}
+                                </div>
+                                <div className="m-bub-wrap">
+                                  <div className="m-bub-col">
+                                    <div
+                                      className={`m-bub ${m.role} ${m.error ? "err" : ""} md`}
+                                      onMouseUp={(e) =>
+                                        handleChatBubbleMouseUp(e, m)
                                       }
-                                      if (
-                                        m.role === "ai" &&
-                                        m.streaming &&
-                                        !mdSrc.trim()
-                                      ) {
-                                        return (
-                                          <div className="dots">
-                                            <div className="dot" />
-                                            <div className="dot" />
-                                            <div className="dot" />
+                                    >
+                                      {m.role === "user" &&
+                                        Array.isArray(m.attachedFiles) &&
+                                        m.attachedFiles.length > 0 && (
+                                          <div className="chat-msg-files">
+                                            {m.attachedFiles.map((f, ii) => (
+                                              <div
+                                                key={`${f.name}-${ii}`}
+                                                className="chat-msg-file-chip"
+                                                title={f.name}
+                                              >
+                                                <DocIco
+                                                  ext={f.type}
+                                                  size={14}
+                                                />
+                                                <span className="file-name">
+                                                  {f.name}
+                                                </span>
+                                                <span className="file-type">
+                                                  {String(
+                                                    f.type || "file",
+                                                  ).toUpperCase()}
+                                                </span>
+                                              </div>
+                                            ))}
                                           </div>
-                                        );
-                                      }
-                                      return (
-                                        <ChatBubbleContent
-                                          mdSrc={mdSrc}
-                                          messageId={m.id}
-                                        />
-                                      );
-                                    })()}
-                                    {m.role === "ai" &&
-                                      !m.streaming &&
-                                      Array.isArray(m.sources) &&
-                                      m.sources.length > 0 && (
-                                        <ChatSourcesList sources={m.sources} />
-                                      )}
-                                    {m.role === "user" &&
-                                      Array.isArray(m.references) &&
-                                      m.references.length > 0 && (
-                                        <div className="chat-msg-references">
-                                          {m.references.map((r) => (
-                                            <div
-                                              key={r.id || `${m.id}-${r.text}`}
-                                              className="chat-msg-reference-chip"
-                                              title={r.text}
-                                            >
-                                              <span className="ref-text">
-                                                {r.text}
-                                              </span>
+                                        )}
+                                      {m.role === "user" &&
+                                        m.imagePreviews &&
+                                        m.imagePreviews.length > 0 && (
+                                          <div className="chat-msg-images">
+                                            {m.imagePreviews.map((src, ii) => (
+                                              <img key={ii} src={src} alt="" />
+                                            ))}
+                                          </div>
+                                        )}
+                                      {m.role === "user" &&
+                                        (m.lostPastedImageCount || 0) > 0 && (
+                                          <div className="chat-img-lost-note">
+                                            {m.lostPastedImageCount} pasted
+                                            image
+                                            {m.lostPastedImageCount === 1
+                                              ? ""
+                                              : "s"}{" "}
+                                            in this message (previews are not
+                                            kept after refresh)
+                                          </div>
+                                        )}
+                                      {(() => {
+                                        const raw = (m.content || "").trim();
+                                        const hidePlaceholder =
+                                          m.role === "user" &&
+                                          raw === "[Image message]" &&
+                                          ((m.imagePreviews?.length || 0) > 0 ||
+                                            (m.lostPastedImageCount || 0) > 0);
+                                        const mdSrc = hidePlaceholder
+                                          ? ""
+                                          : m.content || "";
+                                        if (
+                                          m.role === "user" &&
+                                          !mdSrc.trim() &&
+                                          ((m.imagePreviews?.length || 0) > 0 ||
+                                            (m.lostPastedImageCount || 0) > 0)
+                                        ) {
+                                          return null;
+                                        }
+                                        if (
+                                          m.role === "ai" &&
+                                          m.streaming &&
+                                          !mdSrc.trim()
+                                        ) {
+                                          return (
+                                            <div className="dots">
+                                              <div className="dot" />
+                                              <div className="dot" />
+                                              <div className="dot" />
                                             </div>
-                                          ))}
+                                          );
+                                        }
+                                        return (
+                                          <ChatBubbleContent
+                                            mdSrc={mdSrc}
+                                            messageId={m.id}
+                                          />
+                                        );
+                                      })()}
+                                      {m.role === "ai" &&
+                                        !m.streaming &&
+                                        Array.isArray(m.sources) &&
+                                        m.sources.length > 0 && (
+                                          <ChatSourcesList
+                                            sources={m.sources}
+                                          />
+                                        )}
+                                      {m.role === "user" &&
+                                        Array.isArray(m.references) &&
+                                        m.references.length > 0 && (
+                                          <div className="chat-msg-references">
+                                            {m.references.map((r) => (
+                                              <div
+                                                key={
+                                                  r.id || `${m.id}-${r.text}`
+                                                }
+                                                className="chat-msg-reference-chip"
+                                                title={r.text}
+                                              >
+                                                <span className="ref-text">
+                                                  {r.text}
+                                                </span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                    </div>
+                                    {m.role === "ai" &&
+                                      m.modelLabel &&
+                                      !m.error &&
+                                      !m.streaming && (
+                                        <div className="m-meta">
+                                          Generated by {m.modelLabel}
                                         </div>
                                       )}
+                                    {/* Web fallback is automatic; keep UI clean like ChatGPT. */}
                                   </div>
                                   {m.role === "ai" &&
-                                    m.modelLabel &&
-                                    !m.error &&
-                                    !m.streaming && (
-                                      <div className="m-meta">
-                                        Generated by {m.modelLabel}
-                                      </div>
-                                    )}
-                                  {/* Web fallback is automatic; keep UI clean like ChatGPT. */}
-                                </div>
-                                {m.role === "ai" &&
-                                  (m.content || "").trim() && (
-                                    <div className="m-bub-side-actions">
-                                      {showRegen && (
+                                    (m.content || "").trim() && (
+                                      <div className="m-bub-side-actions">
+                                        {showRegen && (
+                                          <button
+                                            type="button"
+                                            className="m-copy"
+                                            title="Regenerate response"
+                                            onClick={() =>
+                                              regenerateLastResponse()
+                                            }
+                                            aria-label="Regenerate response"
+                                          >
+                                            <RegenIco size={12} />
+                                          </button>
+                                        )}
                                         <button
                                           type="button"
-                                          className="m-copy"
-                                          title="Regenerate response"
-                                          onClick={() =>
-                                            regenerateLastResponse()
+                                          className={`m-copy ${copiedId === m.id ? "copied" : ""}`}
+                                          title={
+                                            copiedId === m.id
+                                              ? "Copied!"
+                                              : "Copy Summary"
                                           }
-                                          aria-label="Regenerate response"
+                                          onClick={() => handleCopyMessage(m)}
+                                          aria-label="Copy message"
                                         >
-                                          <RegenIco size={12} />
+                                          {copiedId === m.id ? (
+                                            <span className="m-copy-txt">
+                                              Copied
+                                            </span>
+                                          ) : (
+                                            <CopyIco size={12} />
+                                          )}
                                         </button>
-                                      )}
-                                      <button
-                                        type="button"
-                                        className={`m-copy ${copiedId === m.id ? "copied" : ""}`}
-                                        title={
-                                          copiedId === m.id ? "Copied!" : "Copy Summary"
-                                        }
-                                        onClick={() => handleCopyMessage(m)}
-                                        aria-label="Copy message"
-                                      >
-                                        {copiedId === m.id ? (
-                                          <span className="m-copy-txt">
-                                            Copied
-                                          </span>
-                                        ) : (
-                                          <CopyIco size={12} />
-                                        )}
-                                      </button>
-                                    </div>
-                                  )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                        {chatLoading &&
-                          !messages.some(
-                            (m) => m.role === "ai" && m.streaming,
-                          ) && (
-                            <div className="m-row ai">
-                              <div className="m-ava ai">
-                                <BotIco />
-                              </div>
-                              <div className="m-bub ai">
-                                <div className="dots">
-                                  <div className="dot" />
-                                  <div className="dot" />
-                                  <div className="dot" />
+                                      </div>
+                                    )}
                                 </div>
                               </div>
-                            </div>
-                          )}
+                            );
+                          })}
+                          {chatLoading &&
+                            !messages.some(
+                              (m) => m.role === "ai" && m.streaming,
+                            ) && (
+                              <div className="m-row ai">
+                                <div className="m-ava ai">
+                                  <BotIco />
+                                </div>
+                                <div className="m-bub ai">
+                                  <div className="dots">
+                                    <div className="dot" />
+                                    <div className="dot" />
+                                    <div className="dot" />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                         </div>
                       </div>
                     </div>
@@ -2889,64 +2887,64 @@ export default function SummaryView() {
                             className="chat-uploads"
                             aria-label="Attached documents"
                           >
-                          {pendingStoredDocs.map((f) => (
-                            <div
-                              key={f.clientId}
-                              className="chat-upload-chip"
-                              title={f.name}
-                            >
-                              <div className="chat-upload-badge" aria-hidden>
-                                <DocIco ext={f.type} size={18} />
-                              </div>
-                              <div className="chat-upload-content">
-                                <span className="chat-upload-name">
-                                  {f.name}
-                                </span>
-                                <span className="chat-upload-type">
-                                  {f.type} · saved
-                                </span>
-                              </div>
-                              <button
-                                type="button"
-                                className="chat-upload-rm"
-                                onClick={() =>
-                                  removePendingStoredByClientId(f.clientId)
-                                }
-                                aria-label={`Remove ${f.name}`}
+                            {pendingStoredDocs.map((f) => (
+                              <div
+                                key={f.clientId}
+                                className="chat-upload-chip"
+                                title={f.name}
                               >
-                                ×
-                              </button>
-                            </div>
-                          ))}
-                          {pendingSourceFiles.map((f) => (
-                            <div
-                              key={f.clientId}
-                              className="chat-upload-chip"
-                              title={f.name}
-                            >
-                              <div className="chat-upload-badge" aria-hidden>
-                                <DocIco ext={f.type} size={18} />
+                                <div className="chat-upload-badge" aria-hidden>
+                                  <DocIco ext={f.type} size={18} />
+                                </div>
+                                <div className="chat-upload-content">
+                                  <span className="chat-upload-name">
+                                    {f.name}
+                                  </span>
+                                  <span className="chat-upload-type">
+                                    {f.type} · saved
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="chat-upload-rm"
+                                  onClick={() =>
+                                    removePendingStoredByClientId(f.clientId)
+                                  }
+                                  aria-label={`Remove ${f.name}`}
+                                >
+                                  ×
+                                </button>
                               </div>
-                              <div className="chat-upload-content">
-                                <span className="chat-upload-name">
-                                  {f.name}
-                                </span>
-                                <span className="chat-upload-type">
-                                  {f.type}
-                                </span>
-                              </div>
-                              <button
-                                type="button"
-                                className="chat-upload-rm"
-                                onClick={() =>
-                                  removePendingSourceByClientId(f.clientId)
-                                }
-                                aria-label={`Remove ${f.name}`}
+                            ))}
+                            {pendingSourceFiles.map((f) => (
+                              <div
+                                key={f.clientId}
+                                className="chat-upload-chip"
+                                title={f.name}
                               >
-                                ×
-                              </button>
-                            </div>
-                          ))}
+                                <div className="chat-upload-badge" aria-hidden>
+                                  <DocIco ext={f.type} size={18} />
+                                </div>
+                                <div className="chat-upload-content">
+                                  <span className="chat-upload-name">
+                                    {f.name}
+                                  </span>
+                                  <span className="chat-upload-type">
+                                    {f.type}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="chat-upload-rm"
+                                  onClick={() =>
+                                    removePendingSourceByClientId(f.clientId)
+                                  }
+                                  aria-label={`Remove ${f.name}`}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
                           </div>
                         )}
                         <div
@@ -3002,9 +3000,7 @@ export default function SummaryView() {
                                   onBlur={() =>
                                     setTimeout(() => setModelOpen(false), 150)
                                   }
-                                  disabled={
-                                    chatLoading || sourceUploadLoading
-                                  }
+                                  disabled={chatLoading || sourceUploadLoading}
                                 >
                                   {chatModel} <Chevron open={modelOpen} />
                                 </button>
@@ -3060,9 +3056,7 @@ export default function SummaryView() {
                                   onBlur={() =>
                                     setTimeout(() => setModelOpen(false), 150)
                                   }
-                                  disabled={
-                                    chatLoading || sourceUploadLoading
-                                  }
+                                  disabled={chatLoading || sourceUploadLoading}
                                 >
                                   {chatModel} <Chevron open={modelOpen} />
                                 </button>
@@ -3138,74 +3132,74 @@ export default function SummaryView() {
             </main>
 
             {!sourcesCollapsed ? (
-            <SourcesSidebar
-              sourcesWidth={sourcesWidth}
-              onSplitterMouseDown={onSplitterMouseDown}
-              onCollapse={toggleSourcesCollapsed}
-              summary={summary}
-              extraSources={extraSources}
-              onSourcePreview={openSourceDocPreview}
-              referencesProps={
-                summary?.summarizeFor === "lecturer"
-                  ? {
-                      references: visibleLecturerReferences,
-                      loading: referencesLoading || summarizing,
-                      loadingPhase: summarizing ? summarizePhase : null,
-                      activeMarker: activeCitationMarker,
-                      onSelectReference: handleSelectReference,
-                      onMarkerHover: setActiveCitationMarker,
-                      onDeleteReference: handleDeleteSummaryReference,
-                      onUpdateReference: handleUpdateSummaryReference,
-                      onJumpToAnchor: scrollToId,
-                      mutatingRefId: referenceMutatingId,
-                      deletingRefId: referenceDeletingId,
-                    }
-                  : null
-              }
-              slideDecksProps={{
-                slideDecks,
-                slideDecksLoading,
-                slideDeckDeletingId,
-                onRefresh: () => void fetchSlideDecks(),
-                onPreview: openSlideDeckPreview,
-                onDownload: downloadSlideDeck,
-                onDelete: deleteSlideDeck,
-              }}
-              quizSetsProps={{
-                quizSets,
-                quizSetsLoading,
-                quizSetOpeningId,
-                quizHistoryOpenId,
-                quizHistoryLoading,
-                quizHistoryList,
-                isLecturer: isLecturerSummary,
-                onRefresh: () => void fetchQuizSets(),
-                onToggleHistory: toggleQuizHistoryPanel,
-                onOpenSet: openSavedQuizSet,
-                onOpenAttempt: openQuizAttemptDetail,
-              }}
-              flashcardSetsProps={{
-                flashcardSets,
-                flashcardSetsLoading,
-                flashcardSetOpeningId,
-                flashcardSetDeletingId,
-                flashcardEditorLoading,
-                onRefresh: () => void fetchFlashcardSets(),
-                onOpenSet: openFlashcardSet,
-                onEditSet: openFlashcardSetEditor,
-                onDeleteSet: deleteFlashcardSet,
-              }}
-              highlightsProps={{
-                highlights,
-                pendingHighlights,
-                hlLoading,
-                hlSaving,
-                onSave: () => void flushPendingHighlights(),
-                onRemovePending: removePendingHighlight,
-                onDelete: deleteHighlight,
-                onScrollTo: scrollToHighlight,
-              }}
-            />
+              <SourcesSidebar
+                sourcesWidth={sourcesWidth}
+                onSplitterMouseDown={onSplitterMouseDown}
+                onCollapse={toggleSourcesCollapsed}
+                summary={summary}
+                extraSources={extraSources}
+                onSourcePreview={openSourceDocPreview}
+                referencesProps={
+                  summary?.summarizeFor === "lecturer"
+                    ? {
+                        references: visibleLecturerReferences,
+                        loading: referencesLoading || summarizing,
+                        loadingPhase: summarizing ? summarizePhase : null,
+                        activeMarker: activeCitationMarker,
+                        onSelectReference: handleSelectReference,
+                        onMarkerHover: setActiveCitationMarker,
+                        onDeleteReference: handleDeleteSummaryReference,
+                        onUpdateReference: handleUpdateSummaryReference,
+                        onJumpToAnchor: scrollToId,
+                        mutatingRefId: referenceMutatingId,
+                        deletingRefId: referenceDeletingId,
+                      }
+                    : null
+                }
+                slideDecksProps={{
+                  slideDecks,
+                  slideDecksLoading,
+                  slideDeckDeletingId,
+                  onRefresh: () => void fetchSlideDecks(),
+                  onPreview: openSlideDeckPreview,
+                  onDownload: downloadSlideDeck,
+                  onDelete: deleteSlideDeck,
+                }}
+                quizSetsProps={{
+                  quizSets,
+                  quizSetsLoading,
+                  quizSetOpeningId,
+                  quizHistoryOpenId,
+                  quizHistoryLoading,
+                  quizHistoryList,
+                  isLecturer: isLecturerSummary,
+                  onRefresh: () => void fetchQuizSets(),
+                  onToggleHistory: toggleQuizHistoryPanel,
+                  onOpenSet: openSavedQuizSet,
+                  onOpenAttempt: openQuizAttemptDetail,
+                }}
+                flashcardSetsProps={{
+                  flashcardSets,
+                  flashcardSetsLoading,
+                  flashcardSetOpeningId,
+                  flashcardSetDeletingId,
+                  flashcardEditorLoading,
+                  onRefresh: () => void fetchFlashcardSets(),
+                  onOpenSet: openFlashcardSet,
+                  onEditSet: openFlashcardSetEditor,
+                  onDeleteSet: deleteFlashcardSet,
+                }}
+                highlightsProps={{
+                  highlights,
+                  pendingHighlights,
+                  hlLoading,
+                  hlSaving,
+                  onSave: () => void flushPendingHighlights(),
+                  onRemovePending: removePendingHighlight,
+                  onDelete: deleteHighlight,
+                  onScrollTo: scrollToHighlight,
+                }}
+              />
             ) : (
               <button
                 type="button"

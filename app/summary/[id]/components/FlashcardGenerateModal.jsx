@@ -144,7 +144,8 @@ export default function FlashcardGenerateModal({
           >
             {loading ? (
               <>
-                <Spinner size={13} /> <LoadingText active>Generating</LoadingText>
+                <Spinner size={13} />{" "}
+                <LoadingText active>Generating</LoadingText>
               </>
             ) : (
               "Generate flashcards"

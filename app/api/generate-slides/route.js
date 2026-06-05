@@ -7,7 +7,12 @@ import {
 } from "@/lib/twoSlidesGenerate";
 import { logger } from "@/lib/logger";
 import { applyLlmRateLimit } from "@/lib/llmRateLimit";
-import { ALAI_BASE, alaiErrorPayload, alaiFetch, getAlaiApiKeys } from "@/lib/alaiClient";
+import {
+  ALAI_BASE,
+  alaiErrorPayload,
+  alaiFetch,
+  getAlaiApiKeys,
+} from "@/lib/alaiClient";
 
 const parsedMaxPrompt = Number.parseInt(
   process.env.SLIDES_MAX_USER_PROMPT_CHARS || "4000",

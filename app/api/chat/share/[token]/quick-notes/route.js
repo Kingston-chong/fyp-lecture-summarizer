@@ -50,8 +50,7 @@ export async function POST(_req, context) {
   } catch (err) {
     const msg = err?.message || "Failed to generate quick notes";
     const status =
-      msg.includes("student summaries only") ||
-      msg.includes("no content")
+      msg.includes("student summaries only") || msg.includes("no content")
         ? 400
         : 500;
     console.error("share quick-notes POST:", err);

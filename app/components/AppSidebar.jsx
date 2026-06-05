@@ -401,7 +401,8 @@ export default function AppSidebar({
             {prevOpen &&
               (prevLoading ? (
                 <div className="as-loading">
-                  <div className="as-spin" /> <LoadingText active>Loading</LoadingText>
+                  <div className="as-spin" />{" "}
+                  <LoadingText active>Loading</LoadingText>
                 </div>
               ) : prevUploads.length === 0 ? (
                 <div className="as-empty">No uploads yet</div>

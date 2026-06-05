@@ -38,9 +38,14 @@ export async function DELETE(req, context) {
       try {
         await del(row.url);
       } catch (e) {
-        console.warn("Blob delete failed (may already be removed):", e?.message);
+        console.warn(
+          "Blob delete failed (may already be removed):",
+          e?.message,
+        );
       }
-      await prisma.summaryDocument.deleteMany({ where: { documentId: row.id } });
+      await prisma.summaryDocument.deleteMany({
+        where: { documentId: row.id },
+      });
       await prisma.document.delete({ where: { id: row.id } });
     }
 

@@ -38,9 +38,7 @@ export default function SharedChatPage() {
       setLoading(true);
       setError("");
       try {
-        const res = await fetch(
-          `/api/chat/share/${encodeURIComponent(token)}`,
-        );
+        const res = await fetch(`/api/chat/share/${encodeURIComponent(token)}`);
         const data = await res.json().catch(() => ({}));
         if (cancelled) return;
         if (!res.ok) {
@@ -109,7 +107,8 @@ export default function SharedChatPage() {
               </div>
               <p className="chat-share-banner">
                 View-only link — anyone with this URL can read this summary and
-                chat. Sign in to create your own summaries and continue chatting.
+                chat. Sign in to create your own summaries and continue
+                chatting.
               </p>
             </header>
 
@@ -123,7 +122,10 @@ export default function SharedChatPage() {
               <Link href="/register" className="chat-share-btn">
                 Create free account
               </Link>
-              <Link href="/login" className="chat-share-btn chat-share-btn--ghost">
+              <Link
+                href="/login"
+                className="chat-share-btn chat-share-btn--ghost"
+              >
                 Sign in
               </Link>
             </div>

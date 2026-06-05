@@ -6,9 +6,7 @@ import "./LecturerQuizReviewModal.css";
 import { LoadingText } from "@/app/components/LoadingText";
 import QuizAttemptDetailModal from "@/app/summary/[id]/components/QuizAttemptDetailModal";
 import { formatSlideDeckSavedAt } from "@/app/summary/[id]/helpers";
-import {
-  downloadQuizAnswerKeyPdf,
-} from "@/lib/exportQuiz";
+import { downloadQuizAnswerKeyPdf } from "@/lib/exportQuiz";
 import { useQuizAcceptingLiveState } from "@/app/hooks/useQuizAcceptingLiveState";
 import QuizShareQrDialog from "@/app/components/QuizShareQrDialog";
 
@@ -188,7 +186,6 @@ export default function LecturerQuizReviewModal({
     setShareUrl(`${window.location.origin}/quiz/share/${shareToken}`);
   }, [shareToken]);
 
-
   const handleDownloadPdf = useCallback(async () => {
     setPdfLoading(true);
     try {
@@ -342,274 +339,295 @@ export default function LecturerQuizReviewModal({
           aria-labelledby="lqr-title"
           onClick={(e) => e.stopPropagation()}
         >
-        <div className="sl-head">
-          <div>
-            <div className="sl-title" id="lqr-title">
-              <QuizIco /> {quizSet.title || "Class quiz"}
+          <div className="sl-head">
+            <div>
+              <div className="sl-title" id="lqr-title">
+                <QuizIco /> {quizSet.title || "Class quiz"}
+              </div>
+              <div className="lqr-meta">{meta}</div>
             </div>
-            <div className="lqr-meta">{meta}</div>
-          </div>
-          <button
-            type="button"
-            className="sl-close"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <CloseIcon size={14} />
-          </button>
-        </div>
-
-        <div className="lqr-tabs">
-          {[
-            { id: "answerKey", label: "Answer key" },
-            { id: "responses", label: "Responses" },
-            { id: "share", label: "Share" },
-          ].map((t) => (
             <button
-              key={t.id}
               type="button"
-              className={`lqr-tab ${tab === t.id ? "on" : ""}`}
-              onClick={() => setTab(t.id)}
+              className="sl-close"
+              onClick={onClose}
+              aria-label="Close"
             >
-              {t.label}
+              <CloseIcon size={14} />
             </button>
-          ))}
-        </div>
+          </div>
 
-        <div className="sl-body">
-          {tab === "share" ? (
-            <div className="lqr-share-single">
-              <div className="lqr-share-card lqr-share-card--website">
-                <div className="lqr-share-title">Students take in website</div>
-                <p className="lqr-share-desc">
-                  Publish a share link first, then start collecting when you are
-                  ready for students to submit. Stop collecting to close the
-                  window while keeping the link available.
-                </p>
-                <div className="lqr-share-actions lqr-share-actions--center">
-                  <button
-                    type="button"
-                    className="lqr-btn"
-                    disabled={publishLoading || collectionLoading}
-                    onClick={() => void handlePublish()}
-                  >
-                    {publishLoading ? (
-                      <LoadingText active>Updating</LoadingText>
-                    ) : published ? (
-                      "Unpublish"
-                    ) : (
-                      "Publish for students"
-                    )}
-                  </button>
-                  {published && (
-                    <>
-                      <label className="lqr-closes-at">
-                        <span>Close automatically</span>
-                        <input
-                          type="datetime-local"
-                          value={closesAtLocal}
-                          onChange={(e) => setClosesAtLocal(e.target.value)}
+          <div className="lqr-tabs">
+            {[
+              { id: "answerKey", label: "Answer key" },
+              { id: "responses", label: "Responses" },
+              { id: "share", label: "Share" },
+            ].map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className={`lqr-tab ${tab === t.id ? "on" : ""}`}
+                onClick={() => setTab(t.id)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="sl-body">
+            {tab === "share" ? (
+              <div className="lqr-share-single">
+                <div className="lqr-share-card lqr-share-card--website">
+                  <div className="lqr-share-title">
+                    Students take in website
+                  </div>
+                  <p className="lqr-share-desc">
+                    Publish a share link first, then start collecting when you
+                    are ready for students to submit. Stop collecting to close
+                    the window while keeping the link available.
+                  </p>
+                  <div className="lqr-share-actions lqr-share-actions--center">
+                    <button
+                      type="button"
+                      className="lqr-btn"
+                      disabled={publishLoading || collectionLoading}
+                      onClick={() => void handlePublish()}
+                    >
+                      {publishLoading ? (
+                        <LoadingText active>Updating</LoadingText>
+                      ) : published ? (
+                        "Unpublish"
+                      ) : (
+                        "Publish for students"
+                      )}
+                    </button>
+                    {published && (
+                      <>
+                        <label className="lqr-closes-at">
+                          <span>Close automatically</span>
+                          <input
+                            type="datetime-local"
+                            value={closesAtLocal}
+                            onChange={(e) => setClosesAtLocal(e.target.value)}
+                            disabled={collectionLoading || publishLoading}
+                          />
+                        </label>
+                        <span
+                          className={`lqr-status-badge${acceptingLive ? " lqr-status-badge--collecting" : ""}`}
+                        >
+                          {acceptingLive ? "Collecting" : "Not collecting"}
+                        </span>
+                        <button
+                          type="button"
+                          className={
+                            acceptingLive ? "lqr-btn secondary" : "lqr-btn"
+                          }
                           disabled={collectionLoading || publishLoading}
+                          onClick={() => void handleCollectionToggle()}
+                        >
+                          {collectionLoading ? (
+                            <LoadingText active>Updating</LoadingText>
+                          ) : acceptingLive ? (
+                            "Stop collecting"
+                          ) : (
+                            "Start collecting"
+                          )}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  {published && shareUrl && (
+                    <>
+                      <div className="lqr-share-url-wrap">
+                        <input
+                          readOnly
+                          value={shareUrl}
+                          className="lqr-share-input"
                         />
-                      </label>
-                      <span
-                        className={`lqr-status-badge${acceptingLive ? " lqr-status-badge--collecting" : ""}`}
-                      >
-                        {acceptingLive ? "Collecting" : "Not collecting"}
-                      </span>
-                      <button
-                        type="button"
-                        className={
-                          acceptingLive ? "lqr-btn secondary" : "lqr-btn"
-                        }
-                        disabled={collectionLoading || publishLoading}
-                        onClick={() => void handleCollectionToggle()}
-                      >
-                        {collectionLoading ? (
-                          <LoadingText active>Updating</LoadingText>
-                        ) : acceptingLive ? (
-                          "Stop collecting"
-                        ) : (
-                          "Start collecting"
-                        )}
-                      </button>
+                        <button
+                          type="button"
+                          className="lqr-btn secondary"
+                          onClick={() => void handleCopy(shareUrl, "link")}
+                        >
+                          {copied === "link"
+                            ? "Link copied!"
+                            : "Copy share link"}
+                        </button>
+                      </div>
+                      <div className="lqr-share-qr-row">
+                        <button
+                          type="button"
+                          className="lqr-btn"
+                          onClick={() => setQrOpen(true)}
+                        >
+                          Share quiz by QR code
+                        </button>
+                      </div>
                     </>
                   )}
                 </div>
-                {published && shareUrl && (
-                  <>
-                    <div className="lqr-share-url-wrap">
-                      <input
-                        readOnly
-                        value={shareUrl}
-                        className="lqr-share-input"
-                      />
-                      <button
-                        type="button"
-                        className="lqr-btn secondary"
-                        onClick={() => void handleCopy(shareUrl, "link")}
-                      >
-                        {copied === "link" ? "Link copied!" : "Copy share link"}
-                      </button>
-                    </div>
-                    <div className="lqr-share-qr-row">
-                      <button
-                        type="button"
-                        className="lqr-btn"
-                        onClick={() => setQrOpen(true)}
-                      >
-                        Share quiz by QR code
-                      </button>
-                    </div>
-                  </>
-                )}
               </div>
-            </div>
-          ) : tab === "responses" ? (
-            <div className="lqr-share-card" style={{ marginBottom: 0 }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 10,
-                  marginBottom: 10,
-                }}
-              >
-                <div>
-                  <div className="lqr-share-title" style={{ marginBottom: 4 }}>
-                    Student responses
-                  </div>
-                  <div className="lqr-share-desc" style={{ marginBottom: 0 }}>
-                    {attempts.length === 0
-                      ? "No submissions yet."
-                      : `${attempts.length} submission(s) found.`}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="lqr-btn secondary"
-                  disabled={responsesLoading}
-                  onClick={() => void fetchResponses()}
-                >
-                  <LoadingText active={responsesLoading} idle="Refresh">
-                    Loading
-                  </LoadingText>
-                </button>
-              </div>
-
-              {responsesErr ? (
+            ) : tab === "responses" ? (
+              <div className="lqr-share-card" style={{ marginBottom: 0 }}>
                 <div
                   style={{
-                    marginTop: 8,
-                    fontSize: 12,
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    border: "1px solid rgba(239,68,68,0.35)",
-                    background: "rgba(239,68,68,0.10)",
-                    color: "#fecaca",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    marginBottom: 10,
                   }}
                 >
-                  {responsesErr}
+                  <div>
+                    <div
+                      className="lqr-share-title"
+                      style={{ marginBottom: 4 }}
+                    >
+                      Student responses
+                    </div>
+                    <div className="lqr-share-desc" style={{ marginBottom: 0 }}>
+                      {attempts.length === 0
+                        ? "No submissions yet."
+                        : `${attempts.length} submission(s) found.`}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="lqr-btn secondary"
+                    disabled={responsesLoading}
+                    onClick={() => void fetchResponses()}
+                  >
+                    <LoadingText active={responsesLoading} idle="Refresh">
+                      Loading
+                    </LoadingText>
+                  </button>
                 </div>
-              ) : null}
 
-              {responsesLoading && attempts.length === 0 ? (
-                <div style={{ opacity: 0.7, fontSize: 12, padding: "10px 2px" }}>
-                  Loading responses…
-                </div>
-              ) : attempts.length === 0 ? (
-                <div style={{ opacity: 0.65, fontSize: 12, padding: "10px 2px" }}>
-                  When students finish the quiz (while you’re collecting), their
-                  submissions will appear here.
-                </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {attempts.map((a) => {
-                    const label =
-                      a.respondentLabel ||
-                      a.user?.username ||
-                      a.user?.email ||
-                      "Student";
-                    const when = a.createdAt ? formatSlideDeckSavedAt(a.createdAt) : "";
-                    return (
-                      <button
-                        key={a.id}
-                        type="button"
-                        onClick={() => openAttemptDetail(a)}
-                        style={{
-                          width: "100%",
-                          textAlign: "left",
-                          padding: "10px 12px",
-                          borderRadius: 10,
-                          border: "1px solid rgba(255,255,255,.10)",
-                          background: "rgba(255,255,255,.04)",
-                          color: "inherit",
-                          cursor: "pointer",
-                          fontFamily: "inherit",
-                        }}
-                      >
-                        <div
+                {responsesErr ? (
+                  <div
+                    style={{
+                      marginTop: 8,
+                      fontSize: 12,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(239,68,68,0.35)",
+                      background: "rgba(239,68,68,0.10)",
+                      color: "#fecaca",
+                    }}
+                  >
+                    {responsesErr}
+                  </div>
+                ) : null}
+
+                {responsesLoading && attempts.length === 0 ? (
+                  <div
+                    style={{ opacity: 0.7, fontSize: 12, padding: "10px 2px" }}
+                  >
+                    Loading responses…
+                  </div>
+                ) : attempts.length === 0 ? (
+                  <div
+                    style={{ opacity: 0.65, fontSize: 12, padding: "10px 2px" }}
+                  >
+                    When students finish the quiz (while you’re collecting),
+                    their submissions will appear here.
+                  </div>
+                ) : (
+                  <div
+                    style={{ display: "flex", flexDirection: "column", gap: 8 }}
+                  >
+                    {attempts.map((a) => {
+                      const label =
+                        a.respondentLabel ||
+                        a.user?.username ||
+                        a.user?.email ||
+                        "Student";
+                      const when = a.createdAt
+                        ? formatSlideDeckSavedAt(a.createdAt)
+                        : "";
+                      return (
+                        <button
+                          key={a.id}
+                          type="button"
+                          onClick={() => openAttemptDetail(a)}
                           style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            gap: 10,
+                            width: "100%",
+                            textAlign: "left",
+                            padding: "10px 12px",
+                            borderRadius: 10,
+                            border: "1px solid rgba(255,255,255,.10)",
+                            background: "rgba(255,255,255,.04)",
+                            color: "inherit",
+                            cursor: "pointer",
+                            fontFamily: "inherit",
                           }}
                         >
-                          <div style={{ fontWeight: 700, fontSize: 12 }}>
-                            {label}
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              gap: 10,
+                            }}
+                          >
+                            <div style={{ fontWeight: 700, fontSize: 12 }}>
+                              {label}
+                            </div>
+                            <div style={{ fontWeight: 700, fontSize: 12 }}>
+                              {a.score}/{a.totalQuestions}
+                            </div>
                           </div>
-                          <div style={{ fontWeight: 700, fontSize: 12 }}>
-                            {a.score}/{a.totalQuestions}
-                          </div>
-                        </div>
-                        {when ? (
-                          <div style={{ marginTop: 4, fontSize: 11, opacity: 0.6 }}>
-                            {when}
-                          </div>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ) : (
-            <>
-              <div className="lqr-answer-key-toolbar">
-                <p className="lqr-share-desc lqr-answer-key-desc">
-                  Save the full answer key with explanations for your records.
-                </p>
-                <button
-                  type="button"
-                  className="lqr-btn"
-                  disabled={pdfLoading}
-                  onClick={() => void handleDownloadPdf()}
-                >
-                  {pdfLoading ? (
-                    <LoadingText active>Creating PDF</LoadingText>
-                  ) : (
-                    "Download as PDF"
-                  )}
-                </button>
+                          {when ? (
+                            <div
+                              style={{
+                                marginTop: 4,
+                                fontSize: 11,
+                                opacity: 0.6,
+                              }}
+                            >
+                              {when}
+                            </div>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-              {questions.map((q, i) => (
-                <QuestionCard key={q.id ?? i} q={q} idx={i} mode={listMode} />
-              ))}
-            </>
-          )}
-        </div>
+            ) : (
+              <>
+                <div className="lqr-answer-key-toolbar">
+                  <p className="lqr-share-desc lqr-answer-key-desc">
+                    Save the full answer key with explanations for your records.
+                  </p>
+                  <button
+                    type="button"
+                    className="lqr-btn"
+                    disabled={pdfLoading}
+                    onClick={() => void handleDownloadPdf()}
+                  >
+                    {pdfLoading ? (
+                      <LoadingText active>Creating PDF</LoadingText>
+                    ) : (
+                      "Download as PDF"
+                    )}
+                  </button>
+                </div>
+                {questions.map((q, i) => (
+                  <QuestionCard key={q.id ?? i} q={q} idx={i} mode={listMode} />
+                ))}
+              </>
+            )}
+          </div>
 
-        <div className="sl-foot">
-          {onRegenerate && (
-            <button type="button" className="btn-prev" onClick={onRegenerate}>
-              Regenerate
+          <div className="sl-foot">
+            {onRegenerate && (
+              <button type="button" className="btn-prev" onClick={onRegenerate}>
+                Regenerate
+              </button>
+            )}
+            <button type="button" className="btn-create" onClick={onClose}>
+              Close
             </button>
-          )}
-          <button type="button" className="btn-create" onClick={onClose}>
-            Close
-          </button>
-        </div>
+          </div>
         </div>
       </div>
       <QuizAttemptDetailModal

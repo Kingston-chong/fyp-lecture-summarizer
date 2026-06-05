@@ -38,7 +38,10 @@ export default function HistorySummaryMenuPortal({
     if (nextLeft + menuWidth > window.innerWidth - pad) {
       nextLeft = anchor.left - menuWidth - gap + shiftRightPx;
     }
-    nextLeft = Math.max(pad, Math.min(nextLeft, window.innerWidth - menuWidth - pad));
+    nextLeft = Math.max(
+      pad,
+      Math.min(nextLeft, window.innerWidth - menuWidth - pad),
+    );
     setLeft(nextLeft);
 
     let nextTop = anchor.top ?? anchor.bottom;
@@ -49,7 +52,15 @@ export default function HistorySummaryMenuPortal({
       }
     }
     setTop(nextTop);
-  }, [anchor, summary, summarizeForLabel, timeAgoLabel, children, menuWidth, shiftRightPx]);
+  }, [
+    anchor,
+    summary,
+    summarizeForLabel,
+    timeAgoLabel,
+    children,
+    menuWidth,
+    shiftRightPx,
+  ]);
 
   if (!summary || !anchor || typeof document === "undefined") return null;
 

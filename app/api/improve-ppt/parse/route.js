@@ -14,7 +14,9 @@ function extFlags(name) {
 
 function parseOcrFlag(value) {
   if (value === true) return true;
-  const s = String(value ?? "").trim().toLowerCase();
+  const s = String(value ?? "")
+    .trim()
+    .toLowerCase();
   return s === "true" || s === "1" || s === "on";
 }
 
@@ -103,15 +105,12 @@ export async function POST(req) {
       );
     }
 
-    const { slides, ocrApplied, ocrWarning } = await parseBufferToSlidesWithMeta(
-      buf,
-      isPdf,
-      {
+    const { slides, ocrApplied, ocrWarning } =
+      await parseBufferToSlidesWithMeta(buf, isPdf, {
         ocr: enableOcr,
         modelKey,
         modelVariant,
-      },
-    );
+      });
 
     return NextResponse.json({
       slides,

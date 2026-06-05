@@ -37,9 +37,7 @@ export async function POST(req) {
     const encoder = new TextEncoder();
     const sendEvent = (controller, event, payload) => {
       controller.enqueue(
-        encoder.encode(
-          `event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`,
-        ),
+        encoder.encode(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`),
       );
     };
 
@@ -53,8 +51,7 @@ export async function POST(req) {
               effectiveModel: parsed.model,
               effectiveVariant: parsed.modelVariant,
               effectiveYearRange,
-              onStatus: (phase) =>
-                sendEvent(controller, "status", { phase }),
+              onStatus: (phase) => sendEvent(controller, "status", { phase }),
             });
 
           sendEvent(controller, "status", {
@@ -126,9 +123,8 @@ export async function POST(req) {
   } catch (err) {
     console.error("Guest summarize error:", err);
     const message = String(err?.message || err);
-    const status = message.includes("upload") || message.includes("file")
-      ? 400
-      : 500;
+    const status =
+      message.includes("upload") || message.includes("file") ? 400 : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }

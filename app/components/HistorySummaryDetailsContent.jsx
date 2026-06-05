@@ -54,7 +54,9 @@ export default function HistorySummaryDetailsContent({
         )}
       </div>
 
-      {hasAssets && !isPreview ? <div className="hist-details-divider" /> : null}
+      {hasAssets && !isPreview ? (
+        <div className="hist-details-divider" />
+      ) : null}
 
       {!isPreview && files.length > 0 && (
         <section className="hist-details-section">
@@ -91,9 +93,7 @@ export default function HistorySummaryDetailsContent({
                     type="button"
                     className="hist-details-row hist-details-row--deck"
                     title={
-                      providerLabel
-                        ? `${d.title} — ${providerLabel}`
-                        : d.title
+                      providerLabel ? `${d.title} — ${providerLabel}` : d.title
                     }
                     onClick={() => onNavigate(summary.id, "slideDecks")}
                   >

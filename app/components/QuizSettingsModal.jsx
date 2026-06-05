@@ -105,9 +105,7 @@ export default function QuizSettingsModal({
   const [numQuestions, setNumQuestions] = useState(DEFAULTS.numQuestions);
   const [difficulty, setDifficulty] = useState(DEFAULTS.difficulty);
   const [focusAreas, setFocusAreas] = useState(DEFAULTS.focusAreas);
-  const [answerShowMode, setAnswerShowMode] = useState(
-    DEFAULTS.answerShowMode,
-  );
+  const [answerShowMode, setAnswerShowMode] = useState(DEFAULTS.answerShowMode);
   const [quizMode, setQuizMode] = useState(DEFAULTS.quizMode);
   const [timeLimit, setTimeLimit] = useState(DEFAULTS.timeLimit);
 
@@ -198,7 +196,9 @@ export default function QuizSettingsModal({
             />
 
             <div className="quiz-gen-row">
-              <SectionHead style={{ marginBottom: 0 }}>Generation mode</SectionHead>
+              <SectionHead style={{ marginBottom: 0 }}>
+                Generation mode
+              </SectionHead>
               <HintMark title="Strict — only facts from your summary. Creative — may add closely related ideas or examples not spelled out in the summary." />
             </div>
             <SelectMenu

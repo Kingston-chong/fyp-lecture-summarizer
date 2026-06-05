@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CollapseAllIcon, SaveIco, SidebarHideIcon, Spinner } from "@/app/components/icons";
+import {
+  CollapseAllIcon,
+  SaveIco,
+  SidebarHideIcon,
+  Spinner,
+} from "@/app/components/icons";
 import SourcesListPanel from "./SourcesListPanel";
 import SlideDecksPanel from "./SlideDecksPanel";
 import SavedQuizzesPanel from "./SavedQuizzesPanel";

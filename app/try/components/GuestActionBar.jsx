@@ -24,15 +24,14 @@ export default function GuestActionBar({ hasSummary, onRequireAuth }) {
   );
 
   return (
-    <div className="guest-action-bar" role="toolbar" aria-label="Summary actions">
+    <div
+      className="guest-action-bar"
+      role="toolbar"
+      aria-label="Summary actions"
+    >
       {lock("quiz", "Generate quiz", <QuizIco />, "quiz")}
       {lock("flashcards", "Flashcards", <FlashcardsIco />, "flashcard")}
-      {lock(
-        "revision",
-        "Revision sheet",
-        <PdfIco />,
-        "revision",
-      )}
+      {lock("revision", "Revision sheet", <PdfIco />, "revision")}
       {lock("slides", "Generate slides", <SlidesIco />, "slides")}
       <span className="guest-action-hint">
         {hasSummary

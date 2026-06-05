@@ -183,7 +183,10 @@ ${slideBlock}
   );
 }
 
-function normalizeContentTheme(t, { additiveImprove = false, overrideTheme } = {}) {
+function normalizeContentTheme(
+  t,
+  { additiveImprove = false, overrideTheme } = {},
+) {
   const isHex = (v) => /^#[0-9a-f]{6}$/i.test(String(v || "").trim());
 
   if (overrideTheme) {

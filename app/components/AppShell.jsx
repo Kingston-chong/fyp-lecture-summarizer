@@ -260,7 +260,9 @@ export default function AppShell({
               className={`shell-sidebar-wrap ${mobileNavOpen ? "is-open" : ""}${
                 sidebarMobileOnly ? " sidebar-always-drawer" : ""
               }${
-                sidebarResizable && desktopSidebarCollapsed ? " is-collapsed" : ""
+                sidebarResizable && desktopSidebarCollapsed
+                  ? " is-collapsed"
+                  : ""
               }`}
               style={
                 sidebarResizable
@@ -274,9 +276,7 @@ export default function AppShell({
                 isGuest={isGuest}
                 isCollapsed={sidebarResizable && desktopSidebarCollapsed}
                 showSidebarToggle={sidebarResizable}
-                onToggleSidebar={() =>
-                  setDesktopSidebarCollapsed((v) => !v)
-                }
+                onToggleSidebar={() => setDesktopSidebarCollapsed((v) => !v)}
               />
             </div>
           )}

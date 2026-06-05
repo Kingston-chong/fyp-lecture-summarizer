@@ -33,11 +33,11 @@ import { useLeftSidebarResize } from "@/app/hooks/useLeftSidebarResize";
 import DashboardSidebar from "./components/DashboardSidebar";
 import DocumentPreviewModal from "./components/DocumentPreviewModal";
 import TemplatePickerModal from "./components/TemplatePickerModal";
+import AddSourcesModal from "./components/AddSourcesModal";
+import { importWebSourceAsDocument, searchWebSources } from "@/lib/importWebSource";
+import { domainFromSourceUrl } from "@/lib/webSourceUtils";
 import { LoadingText } from "@/app/components/LoadingText";
-import {
-  SUMMARIZE_PHASE,
-  summarizePhaseLabel,
-} from "@/lib/summarizeProgress";
+import { SUMMARIZE_PHASE, summarizePhaseLabel } from "@/lib/summarizeProgress";
 import { uploadDocumentsViaClient } from "@/lib/clientDocumentUpload";
 import {
   mergeSelectedThemeIntoList,
@@ -52,6 +52,12 @@ import PromptSuggestionsMenu from "./components/PromptSuggestionsMenu";
 import { resolvePublishedYearRange } from "@/lib/publishedYearFilter";
 import { setGuestPendingSummarize } from "@/lib/guestPendingSummarize";
 import { GUEST_SUMMARY_ROUTE_ID } from "@/lib/guestMode";
+import { GUEST_MAX_FILES, validateGuestFileSelection } from "@/lib/guestUpload";
+import {
+  formatUploadLimitLabel,
+  MAX_UPLOAD_FILE_BYTES,
+  SERVERLESS_PAYLOAD_MAX_BYTES,
+} from "@/lib/uploadLimits";
 import { SUMMARY_RENAMED_EVENT } from "@/lib/summaryRenameSync";
 
 // ── Main Component ─────────────────────────────────────────
@@ -101,6 +107,7 @@ export default function Dashboard() {
   const [docPreviewIframeLoading, setDocPreviewIframeLoading] = useState(true);
 
   const [error, setError] = useState("");
+  const [filePanelError, setFilePanelError] = useState("");
 
   const {
     data: historyData,
@@ -120,7 +127,9 @@ export default function Dashboard() {
           return {
             ...current,
             summaries: current.summaries.map((h) =>
-              String(h.id) === String(id) ? { ...h, title: title ?? h.title } : h,
+              String(h.id) === String(id)
+                ? { ...h, title: title ?? h.title }
+                : h,
             ),
           };
         },
@@ -204,7 +213,8 @@ export default function Dashboard() {
   const [improveProvider, setImproveProvider] = useState("alai");
 
   const [useExistingDialog, setUseExistingDialog] = useState(null); // { names: string[] } when files already on server
-  const fileInputRef = useRef();
+  const [addSourcesOpen, setAddSourcesOpen] = useState(false);
+  const [linkImporting, setLinkImporting] = useState(false);
   const fileDragDepthRef = useRef(0);
 
   const isGuest = status === "unauthenticated";
@@ -260,24 +270,25 @@ export default function Dashboard() {
     return name.split(".").pop().toUpperCase();
   }
 
-  async function addLocalFiles(newFiles) {
+  async function addLocalFiles(newFiles, { sourceUrl = null } = {}) {
     const arr = Array.from(newFiles).map((f) => ({
       file: f,
       name: f.name,
       type: getExt(f.name),
       size: formatBytes(f.size),
       fromPrev: false,
+      ...(sourceUrl ? { sourceUrl } : {}),
     }));
 
     if (dashMode === "improve") {
       const deck = arr.filter((f) => isImproveSourceType(f.type));
       if (deck.length === 0) {
-        setError("Improve mode only supports .pptx or .pdf files.");
+        setFilePanelError("Improve mode only supports .pptx or .pdf files.");
         setSelectedFiles([]);
         return;
       }
       const picked = deck[deck.length - 1];
-      setError("");
+      setFilePanelError("");
       setUploading(true);
       try {
         const doc = await uploadDocumentsViaClient([picked.file]);
@@ -293,7 +304,7 @@ export default function Dashboard() {
         ]);
         mutateUploads();
       } catch (err) {
-        setError(
+        setFilePanelError(
           err?.message?.includes("FUNCTION_PAYLOAD") ||
             err?.message?.includes("Too Large")
             ? "File is too large to upload through the server. Try again — uploads now go directly to storage."
@@ -303,6 +314,38 @@ export default function Dashboard() {
       } finally {
         setUploading(false);
       }
+      return;
+    }
+
+    if (isGuest) {
+      const merged = [
+        ...selectedFiles.map((f) => ({
+          name: f.name,
+          size: f.file?.size ?? 0,
+        })),
+        ...arr.map((f) => ({ name: f.name, size: f.file?.size ?? 0 })),
+      ];
+      const deduped = [];
+      const seen = new Set();
+      for (const item of merged) {
+        const key = `${item.name}:${item.size}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        deduped.push(item);
+        if (deduped.length > GUEST_MAX_FILES) break;
+      }
+      const check = validateGuestFileSelection(deduped);
+      if (!check.ok) {
+        setFilePanelError(check.error);
+        return;
+      }
+      setFilePanelError("");
+      setSelectedFiles((prev) => {
+        const names = new Set(prev.map((f) => f.name));
+        const added = arr.filter((f) => !names.has(f.name));
+        const next = [...prev, ...added];
+        return next.slice(0, GUEST_MAX_FILES);
+      });
       return;
     }
 
@@ -352,8 +395,98 @@ export default function Dashboard() {
     return () => window.removeEventListener("dragend", onDragEnd);
   }, []);
 
-  function openFilePicker() {
-    fileInputRef.current?.click();
+  function openAddSources() {
+    setAddSourcesOpen(true);
+  }
+
+  async function handleAddWebSource(url) {
+    setLinkImporting(true);
+    setFilePanelError("");
+    try {
+      const result = await importWebSourceAsDocument(url, { isGuest });
+      if (result.kind === "document") {
+        const doc = result.document;
+        if (dashMode === "improve" && !isImproveSourceType(doc.type)) {
+          throw new Error("Improve mode only supports .pptx or .pdf files.");
+        }
+        addPrevFile({
+          id: doc.id,
+          name: doc.name,
+          type: doc.type,
+          size: doc.size,
+          sourceUrl: doc.sourceUrl || url,
+        });
+        mutateUploads();
+        return;
+      }
+      await addLocalFiles([result.file], { sourceUrl: result.sourceUrl || url });
+    } catch (err) {
+      const msg = err?.message || "Could not add website";
+      setFilePanelError(msg);
+      throw err;
+    } finally {
+      setLinkImporting(false);
+    }
+  }
+
+  async function handleWebSearch(query) {
+    return searchWebSources(query);
+  }
+
+  function uploadLimitCopy() {
+    if (dashMode === "improve") {
+      return `One .pptx or .pdf · up to ${formatUploadLimitLabel(MAX_UPLOAD_FILE_BYTES)} per file`;
+    }
+    if (isGuest) {
+      return `Up to ${GUEST_MAX_FILES} files · ${formatUploadLimitLabel(SERVERLESS_PAYLOAD_MAX_BYTES)} total · Sign in for larger uploads`;
+    }
+    return `Up to ${formatUploadLimitLabel(MAX_UPLOAD_FILE_BYTES)} per file · PDF, PPTX, DOCX, TXT, and more`;
+  }
+
+  function renderFileDropPanel({ compact = false } = {}) {
+    const label =
+      dashMode === "improve" ? "Upload .pptx / .pdf" : "Upload documents";
+    return (
+      <div
+        className={`file-drop-panel${compact ? " file-drop-panel--compact" : ""}${dragging ? " dragging" : ""}`}
+        role="button"
+        tabIndex={0}
+        onClick={openAddSources}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            openAddSources();
+          }
+        }}
+      >
+        <p className="file-drop-panel-title">
+          {compact ? "Add more files" : "Drop your files here"}
+        </p>
+        <p className="file-drop-panel-formats">
+          {dashMode === "improve"
+            ? "pptx, pdf"
+            : "pdf, pptx, docx, txt, and more"}
+        </p>
+        <p className="file-drop-panel-limit">{uploadLimitCopy()}</p>
+        <button
+          type="button"
+          className="file-drop-panel-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            openAddSources();
+          }}
+        >
+          <UploadIcon /> {label}
+        </button>
+        {!compact ? (
+          <p className="file-drop-panel-side">
+            {isGuest || dashMode === "improve"
+              ? "Click to upload files or add website sources"
+              : "Click to upload, search the web, or paste a website link"}
+          </p>
+        ) : null}
+      </div>
+    );
   }
 
   function removeFile(name) {
@@ -384,6 +517,7 @@ export default function Dashboard() {
         type: doc.type,
         size: formatBytes(doc.size),
         fromPrev: true,
+        sourceUrl: doc.sourceUrl || null,
       },
     ]);
   }
@@ -537,13 +671,18 @@ export default function Dashboard() {
   }
 
   async function doGuestSummarize() {
-    const rawFiles = selectedFiles
-      .map((f) => f.file)
-      .filter(Boolean);
+    const rawFiles = selectedFiles.map((f) => f.file).filter(Boolean);
     if (!rawFiles.length) {
-      setError("Add at least one file from your device to summarize.");
+      setFilePanelError("Add at least one source (file or website) to summarize.");
       return;
     }
+
+    const sizeCheck = validateGuestFileSelection(rawFiles);
+    if (!sizeCheck.ok) {
+      setFilePanelError(sizeCheck.error);
+      return;
+    }
+    setFilePanelError("");
 
     const yearPayload =
       summarizeFor === "lecturer"
@@ -817,7 +956,11 @@ export default function Dashboard() {
           description: stored?.description,
         };
         setThemeResults(
-          mergeSelectedThemeIntoList(themes, nextId || selectedThemeId, mergeMeta),
+          mergeSelectedThemeIntoList(
+            themes,
+            nextId || selectedThemeId,
+            mergeMeta,
+          ),
         );
         setThemeResultsQuery(q);
         if (themes.length === 0) {
@@ -1069,9 +1212,7 @@ export default function Dashboard() {
         const res = await fetch(`/api/documents/${doc.id}/view-token`);
         const data = await res.json().catch(() => ({}));
         if (res.status === 400 || res.status === 404) {
-          setDocPreviewSetupErr(
-            data.error || "Preview link not available",
-          );
+          setDocPreviewSetupErr(data.error || "Preview link not available");
           setDocPreviewIframeLoading(false);
           return;
         }
@@ -1218,6 +1359,23 @@ export default function Dashboard() {
                 </div>
               )}
 
+              {isGuest && dashMode !== "improve" ? (
+                <div className="upload-limit-banner" role="status">
+                  <span aria-hidden="true" style={{ flexShrink: 0 }}>
+                    ⓘ
+                  </span>
+                  <span>
+                    <strong>Guest upload limit:</strong> {uploadLimitCopy()}
+                  </span>
+                </div>
+              ) : null}
+
+              {filePanelError ? (
+                <div className="file-panel-error" role="alert">
+                  {filePanelError}
+                </div>
+              ) : null}
+
               {selectedFiles.length > 0 ? (
                 <>
                   <div
@@ -1232,7 +1390,13 @@ export default function Dashboard() {
                           </div>
                           <div className="file-size">
                             {f.size}
-                            {f.fromPrev && (
+                            {f.sourceUrl ? (
+                              <span className="file-web-tag">
+                                {" "}
+                                · {domainFromSourceUrl(f.sourceUrl) || "website"}
+                              </span>
+                            ) : null}
+                            {f.fromPrev && !f.sourceUrl && (
                               <span className="file-prev-tag">
                                 {" "}
                                 · prev upload
@@ -1250,64 +1414,17 @@ export default function Dashboard() {
                       </div>
                     ))}
                   </div>
-                  {dashMode !== "improve" && (
-                    <button
-                      type="button"
-                      className={`file-add-more-btn${dragging ? " file-add-more-btn--drag-active" : ""}`}
-                      onClick={openFilePicker}
-                    >
-                      <UploadIcon /> Add more files
-                    </button>
-                  )}
+                  {dashMode !== "improve" ? renderFileDropPanel({ compact: true }) : null}
                 </>
               ) : (
-                <>
-                  <div className="empty-state">
-                    <FileIcon type={dashMode === "improve" ? "PPTX" : "PDF"} />
-                    <span>
-                      {dashMode === "improve"
-                        ? "No presentation selected"
-                        : "No files selected"}
-                    </span>
-                    <span>
-                      {dashMode === "improve"
-                        ? "Upload a file or drag it onto this panel"
-                        : "Upload files, drag here, or pick from the sidebar"}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className={`upload-btn${dragging ? " upload-btn--drag-active" : ""}`}
-                    onClick={openFilePicker}
-                  >
-                    <UploadIcon />{" "}
-                    {dashMode === "improve"
-                      ? "Upload .pptx / .pdf"
-                      : "Upload documents"}
-                  </button>
-                </>
+                renderFileDropPanel()
               )}
 
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple={dashMode !== "improve"}
-                accept={dashMode === "improve" ? IMPROVE_ACCEPT : ACCEPTED}
-                style={{ display: "none" }}
-                onChange={(e) => {
-                  addLocalFiles(e.target.files);
-                  e.target.value = "";
-                }}
-              />
-              <div className="upload-hint">
-                {dashMode === "improve"
-                  ? selectedFiles.length > 0
-                    ? "Remove the file above to choose a different one."
-                    : "(or pick one from Previous Uploads in the sidebar)"
-                  : selectedFiles.length > 0
-                    ? "Or add files from Previous Uploads in the sidebar."
-                    : "Supports PDF, PPTX, DOCX, and more."}
-              </div>
+              {dashMode === "improve" && selectedFiles.length > 0 ? (
+                <div className="upload-hint">
+                  Remove the file above to choose a different one.
+                </div>
+              ) : null}
             </div>
 
             {/* Panel 2 — Prompt / Output */}
@@ -1556,7 +1673,9 @@ export default function Dashboard() {
                       onCustomFromChange={setCustomYearFrom}
                       onCustomToChange={setCustomYearTo}
                       appliedCustom={appliedCustomYearRange}
-                      onApplyCustom={(range) => setAppliedCustomYearRange(range)}
+                      onApplyCustom={(range) =>
+                        setAppliedCustomYearRange(range)
+                      }
                     />
                   ) : null}
 
@@ -1928,6 +2047,23 @@ export default function Dashboard() {
           }}
         />
       )}
+
+      <AddSourcesModal
+        open={addSourcesOpen}
+        onClose={() => setAddSourcesOpen(false)}
+        accept={dashMode === "improve" ? IMPROVE_ACCEPT : ACCEPTED}
+        multiple={dashMode !== "improve"}
+        improveMode={dashMode === "improve"}
+        isGuest={isGuest}
+        uploadLimitText={uploadLimitCopy()}
+        prevUploads={prevUploads}
+        prevLoading={prevLoading}
+        onPickFiles={(files) => addLocalFiles(files)}
+        onImportWebSource={handleAddWebSource}
+        onWebSearch={handleWebSearch}
+        onSelectPrevious={addPrevFile}
+        importing={linkImporting || uploading}
+      />
 
       <TemplatePickerModal
         open={templatePickerOpen}

@@ -112,9 +112,7 @@ export async function POST(req, ctx) {
     const context = normalizeHighlightContext(body?.context);
     const messageIdRaw = body?.messageId;
     const messageId =
-      messageIdRaw == null || messageIdRaw === ""
-        ? null
-        : Number(messageIdRaw);
+      messageIdRaw == null || messageIdRaw === "" ? null : Number(messageIdRaw);
 
     if (context === "chat") {
       if (!Number.isFinite(messageId)) {

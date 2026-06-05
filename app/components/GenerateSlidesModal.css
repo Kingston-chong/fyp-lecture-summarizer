@@ -700,10 +700,17 @@
 .slides-gen-overlay.slides-modal-light .create-prompt-area::placeholder {
   color: rgba(0, 0, 0, 0.4);
 }
-.slides-gen-overlay.slides-modal-light .slides-gen-overlay .sl-modal select.txt-inp {
+.slides-gen-overlay.slides-modal-light
+  .slides-gen-overlay
+  .sl-modal
+  select.txt-inp {
   color-scheme: light;
 }
-.slides-gen-overlay.slides-modal-light .slides-gen-overlay .sl-modal select.txt-inp option {
+.slides-gen-overlay.slides-modal-light
+  .slides-gen-overlay
+  .sl-modal
+  select.txt-inp
+  option {
   background: #fff;
   color: #111827;
 }

@@ -43,7 +43,12 @@ export function formatHistoryMetaParts(h) {
 export function historyMatchesSearch(h, q) {
   if (!q) return true;
   const needle = q.toLowerCase();
-  if (String(h.title || "").toLowerCase().includes(needle)) return true;
+  if (
+    String(h.title || "")
+      .toLowerCase()
+      .includes(needle)
+  )
+    return true;
   if (
     (h.files || []).some((f) =>
       String(f.name || "")
@@ -215,14 +220,10 @@ export default function HistorySummaryExpand({
             className={`${chevronClassName}${pinnedOpen ? " expanded" : ""}`}
             aria-expanded={pinnedOpen}
             aria-label={
-              pinnedOpen
-                ? "Close details"
-                : "Show files, decks, and quizzes"
+              pinnedOpen ? "Close details" : "Show files, decks, and quizzes"
             }
             title={
-              pinnedOpen
-                ? "Close details"
-                : "Show files, decks, and quizzes"
+              pinnedOpen ? "Close details" : "Show files, decks, and quizzes"
             }
             onClick={(e) => {
               e.stopPropagation();

@@ -53,7 +53,11 @@ export default function PublishedYearFilter({
           </span>
         ) : null}
       </div>
-      <div className="pub-year-pills" role="group" aria-label="Publication year">
+      <div
+        className="pub-year-pills"
+        role="group"
+        aria-label="Publication year"
+      >
         {PUBLISHED_YEAR_PRESETS.map((p) => (
           <button
             key={p.id}
@@ -78,7 +82,11 @@ export default function PublishedYearFilter({
               className="pub-year-inp"
               placeholder="From"
               value={customFrom}
-              onChange={(e) => onCustomFromChange(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              onChange={(e) =>
+                onCustomFromChange(
+                  e.target.value.replace(/\D/g, "").slice(0, 4),
+                )
+              }
               aria-label="Publication year from"
             />
             <span className="pub-year-dash" aria-hidden>
@@ -90,7 +98,9 @@ export default function PublishedYearFilter({
               className="pub-year-inp"
               placeholder="To"
               value={customTo}
-              onChange={(e) => onCustomToChange(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              onChange={(e) =>
+                onCustomToChange(e.target.value.replace(/\D/g, "").slice(0, 4))
+              }
               aria-label="Publication year to"
             />
           </div>
@@ -122,17 +132,13 @@ export function publishedYearStateToPayload(
   customTo,
   appliedCustom = { from: null, to: null },
 ) {
-  const fromInput =
-    mode === "custom" ? parseYearInput(customFrom) : null;
+  const fromInput = mode === "custom" ? parseYearInput(customFrom) : null;
   const toInput = mode === "custom" ? parseYearInput(customTo) : null;
   const range = resolvePublishedYearRange({
     mode,
     from:
-      mode === "custom"
-        ? fromInput ?? appliedCustom.from ?? null
-        : undefined,
-    to:
-      mode === "custom" ? toInput ?? appliedCustom.to ?? null : undefined,
+      mode === "custom" ? (fromInput ?? appliedCustom.from ?? null) : undefined,
+    to: mode === "custom" ? (toInput ?? appliedCustom.to ?? null) : undefined,
   });
   return {
     publishedYearMode: mode,

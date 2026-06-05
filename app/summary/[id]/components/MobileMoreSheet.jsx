@@ -18,11 +18,7 @@ function withSheetClose(onClose, fn) {
   };
 }
 
-function buildSectionOpenState({
-  initialSection,
-  showReferences,
-  isLecturer,
-}) {
+function buildSectionOpenState({ initialSection, showReferences, isLecturer }) {
   const ids = ["files"];
   if (showReferences) ids.push("references");
   ids.push("slideDecks", "quizzes");
@@ -122,13 +118,13 @@ export default function MobileMoreSheet({
               onOpenChange={(v) => setSection("files", v)}
               persist={false}
             >
-            <SourcesListPanel
-              summary={summary}
-              extraSources={extraSources}
-              onPreview={onSourcePreview}
-              emptyMessage="No attached sources."
-              listClassName="src-list src-list--section"
-            />
+              <SourcesListPanel
+                summary={summary}
+                extraSources={extraSources}
+                onPreview={onSourcePreview}
+                emptyMessage="No attached sources."
+                listClassName="src-list src-list--section"
+              />
             </CollapsibleSidebarSection>
           </div>
 
@@ -142,7 +138,7 @@ export default function MobileMoreSheet({
                 onOpenChange={(v) => setSection("references", v)}
                 persist={false}
               >
-              <ReferencesPanel {...referencesProps} embedded />
+                <ReferencesPanel {...referencesProps} embedded />
               </CollapsibleSidebarSection>
             </div>
           )}
@@ -155,28 +151,28 @@ export default function MobileMoreSheet({
               open={sectionOpen.slideDecks ?? false}
               onOpenChange={(v) => setSection("slideDecks", v)}
               persist={false}
-            actions={
-              <button
-                type="button"
-                className="sd-refresh-btn"
-                title="Refresh slide decks"
-                disabled={slideDecksProps?.slideDecksLoading}
-                onClick={slideDecksProps?.onRefresh}
-              >
-                {slideDecksProps?.slideDecksLoading ? (
-                  <Spinner size={11} />
-                ) : (
-                  "↻"
-                )}
-              </button>
-            }
-          >
-            <SlideDecksPanel
-              {...slideDecksProps}
-              embedded
-              panelClassName="hl-panel sd-panel hl-panel--embedded"
-              onPreview={withSheetClose(onClose, slideDecksProps?.onPreview)}
-            />
+              actions={
+                <button
+                  type="button"
+                  className="sd-refresh-btn"
+                  title="Refresh slide decks"
+                  disabled={slideDecksProps?.slideDecksLoading}
+                  onClick={slideDecksProps?.onRefresh}
+                >
+                  {slideDecksProps?.slideDecksLoading ? (
+                    <Spinner size={11} />
+                  ) : (
+                    "↻"
+                  )}
+                </button>
+              }
+            >
+              <SlideDecksPanel
+                {...slideDecksProps}
+                embedded
+                panelClassName="hl-panel sd-panel hl-panel--embedded"
+                onPreview={withSheetClose(onClose, slideDecksProps?.onPreview)}
+              />
             </CollapsibleSidebarSection>
           </div>
 
@@ -190,29 +186,29 @@ export default function MobileMoreSheet({
               open={sectionOpen.quizzes ?? false}
               onOpenChange={(v) => setSection("quizzes", v)}
               persist={false}
-            actions={
-              <button
-                type="button"
-                className="sd-refresh-btn"
-                title="Refresh saved quizzes"
-                disabled={quizSetsProps?.quizSetsLoading}
-                onClick={quizSetsProps?.onRefresh}
-              >
-                {quizSetsProps?.quizSetsLoading ? <Spinner size={11} /> : "↻"}
-              </button>
-            }
-          >
-            <SavedQuizzesPanel
-              {...quizSetsProps}
-              embedded
-              panelClassName="hl-panel sd-panel hl-panel--embedded"
-              showHelpText={false}
-              onOpenSet={withSheetClose(onClose, quizSetsProps?.onOpenSet)}
-              onOpenAttempt={withSheetClose(
-                onClose,
-                quizSetsProps?.onOpenAttempt,
-              )}
-            />
+              actions={
+                <button
+                  type="button"
+                  className="sd-refresh-btn"
+                  title="Refresh saved quizzes"
+                  disabled={quizSetsProps?.quizSetsLoading}
+                  onClick={quizSetsProps?.onRefresh}
+                >
+                  {quizSetsProps?.quizSetsLoading ? <Spinner size={11} /> : "↻"}
+                </button>
+              }
+            >
+              <SavedQuizzesPanel
+                {...quizSetsProps}
+                embedded
+                panelClassName="hl-panel sd-panel hl-panel--embedded"
+                showHelpText={false}
+                onOpenSet={withSheetClose(onClose, quizSetsProps?.onOpenSet)}
+                onOpenAttempt={withSheetClose(
+                  onClose,
+                  quizSetsProps?.onOpenAttempt,
+                )}
+              />
             </CollapsibleSidebarSection>
           </div>
 
@@ -225,36 +221,36 @@ export default function MobileMoreSheet({
                 open={sectionOpen.flashcards ?? false}
                 onOpenChange={(v) => setSection("flashcards", v)}
                 persist={false}
-              actions={
-                <button
-                  type="button"
-                  className="sd-refresh-btn"
-                  title="Refresh saved flashcards"
-                  disabled={flashcardSetsProps?.flashcardSetsLoading}
-                  onClick={flashcardSetsProps?.onRefresh}
-                >
-                  {flashcardSetsProps?.flashcardSetsLoading ? (
-                    <Spinner size={11} />
-                  ) : (
-                    "↻"
+                actions={
+                  <button
+                    type="button"
+                    className="sd-refresh-btn"
+                    title="Refresh saved flashcards"
+                    disabled={flashcardSetsProps?.flashcardSetsLoading}
+                    onClick={flashcardSetsProps?.onRefresh}
+                  >
+                    {flashcardSetsProps?.flashcardSetsLoading ? (
+                      <Spinner size={11} />
+                    ) : (
+                      "↻"
+                    )}
+                  </button>
+                }
+              >
+                <FlashcardsPanel
+                  {...flashcardSetsProps}
+                  embedded
+                  panelClassName="hl-panel sd-panel hl-panel--embedded"
+                  showHelpText={false}
+                  onOpenSet={withSheetClose(
+                    onClose,
+                    flashcardSetsProps?.onOpenSet,
                   )}
-                </button>
-              }
-            >
-              <FlashcardsPanel
-                {...flashcardSetsProps}
-                embedded
-                panelClassName="hl-panel sd-panel hl-panel--embedded"
-                showHelpText={false}
-                onOpenSet={withSheetClose(
-                  onClose,
-                  flashcardSetsProps?.onOpenSet,
-                )}
-                onEditSet={withSheetClose(
-                  onClose,
-                  flashcardSetsProps?.onEditSet,
-                )}
-              />
+                  onEditSet={withSheetClose(
+                    onClose,
+                    flashcardSetsProps?.onEditSet,
+                  )}
+                />
               </CollapsibleSidebarSection>
             </div>
           )}
@@ -267,37 +263,37 @@ export default function MobileMoreSheet({
               open={sectionOpen.highlights ?? false}
               onOpenChange={(v) => setSection("highlights", v)}
               persist={false}
-            actions={
-              <button
-                type="button"
-                className="hl-save-btn"
-                title={
-                  highlightsProps?.pendingHighlights?.length
-                    ? `Save ${highlightsProps.pendingHighlights.length} highlight(s)`
-                    : "No unsaved highlights"
-                }
-                disabled={
-                  !highlightsProps?.pendingHighlights?.length ||
-                  highlightsProps?.hlSaving ||
-                  highlightsProps?.hlLoading
-                }
-                onClick={highlightsProps?.onSave}
-                aria-label="Save highlights"
-              >
-                {highlightsProps?.hlSaving ? (
-                  <Spinner size={12} />
-                ) : (
-                  <SaveIco size={14} />
-                )}
-              </button>
-            }
-          >
-            <HighlightsPanel
-              {...highlightsProps}
-              embedded
-              panelClassName="hl-panel hl-panel--embedded"
-              onHighlightClick={onClose}
-            />
+              actions={
+                <button
+                  type="button"
+                  className="hl-save-btn"
+                  title={
+                    highlightsProps?.pendingHighlights?.length
+                      ? `Save ${highlightsProps.pendingHighlights.length} highlight(s)`
+                      : "No unsaved highlights"
+                  }
+                  disabled={
+                    !highlightsProps?.pendingHighlights?.length ||
+                    highlightsProps?.hlSaving ||
+                    highlightsProps?.hlLoading
+                  }
+                  onClick={highlightsProps?.onSave}
+                  aria-label="Save highlights"
+                >
+                  {highlightsProps?.hlSaving ? (
+                    <Spinner size={12} />
+                  ) : (
+                    <SaveIco size={14} />
+                  )}
+                </button>
+              }
+            >
+              <HighlightsPanel
+                {...highlightsProps}
+                embedded
+                panelClassName="hl-panel hl-panel--embedded"
+                onHighlightClick={onClose}
+              />
             </CollapsibleSidebarSection>
           </div>
         </div>
