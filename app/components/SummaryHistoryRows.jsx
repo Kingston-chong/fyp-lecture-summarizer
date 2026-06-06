@@ -166,6 +166,7 @@ export default function SummaryHistoryRows({
               summary={h}
               summarizeForLabel={formatSummarizeForLabel(h.summarizeFor)}
               timeAgoLabel={timeAgo(h.createdAt)}
+              forceClose={historyMenuId === h.id}
               className={itemClass}
               role="button"
               tabIndex={0}

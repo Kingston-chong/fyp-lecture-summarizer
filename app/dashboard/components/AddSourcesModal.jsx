@@ -35,6 +35,8 @@ export default function AddSourcesModal({
   const [searchResults, setSearchResults] = useState([]);
   const [linkUrl, setLinkUrl] = useState("");
   const [linkErr, setLinkErr] = useState("");
+  const [linkSuccess, setLinkSuccess] = useState("");
+  const [addedUrls, setAddedUrls] = useState(() => new Set());
   const [showPrev, setShowPrev] = useState(false);
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef(null);
@@ -49,6 +51,8 @@ export default function AddSourcesModal({
       setSearchResults([]);
       setLinkUrl("");
       setLinkErr("");
+      setLinkSuccess("");
+      setAddedUrls(new Set());
       setShowPrev(false);
       setDragging(false);
       dragDepthRef.current = 0;
@@ -140,12 +144,19 @@ export default function AddSourcesModal({
     }
   }
 
-  async function handleAddSearchResult(result) {
-    if (!result?.url || importing) return;
+  function markUrlAdded(url) {
+    setAddedUrls((prev) => new Set(prev).add(url));
+    setLinkSuccess("Source added. Add more or close when you are done.");
     setLinkErr("");
+  }
+
+  async function handleAddSearchResult(result) {
+    if (!result?.url || importing || addedUrls.has(result.url)) return;
+    setLinkErr("");
+    setLinkSuccess("");
     try {
       await onImportWebSource?.(result.url);
-      onClose?.();
+      markUrlAdded(result.url);
     } catch (err) {
       setLinkErr(err?.message || "Could not add this page");
     }
@@ -154,6 +165,7 @@ export default function AddSourcesModal({
   async function handleImportLink(e) {
     e.preventDefault();
     setLinkErr("");
+    setLinkSuccess("");
     const url = linkUrl.trim();
     if (!url) {
       setLinkErr("Paste a website link to extract its text.");
@@ -161,7 +173,8 @@ export default function AddSourcesModal({
     }
     try {
       await onImportWebSource?.(url);
-      onClose?.();
+      markUrlAdded(url);
+      setLinkUrl("");
     } catch (err) {
       setLinkErr(err?.message || "Could not add website");
     }
@@ -266,11 +279,11 @@ export default function AddSourcesModal({
                     </div>
                     <button
                       type="button"
-                      className="add-sources-search-add"
-                      disabled={importing}
+                      className={`add-sources-search-add${addedUrls.has(r.url) ? " added" : ""}`}
+                      disabled={importing || addedUrls.has(r.url)}
                       onClick={() => void handleAddSearchResult(r)}
                     >
-                      Add
+                      {addedUrls.has(r.url) ? "Added" : "Add"}
                     </button>
                   </div>
                 ))}
@@ -290,6 +303,7 @@ export default function AddSourcesModal({
                 onChange={(e) => {
                   setLinkUrl(e.target.value);
                   if (linkErr) setLinkErr("");
+                  if (linkSuccess) setLinkSuccess("");
                 }}
               />
               <button
@@ -308,6 +322,10 @@ export default function AddSourcesModal({
               <div className="add-sources-link-err" role="alert">
                 {linkErr}
               </div>
+            ) : linkSuccess ? (
+              <p className="add-sources-link-success" role="status">
+                {linkSuccess}
+              </p>
             ) : (
               <p className="add-sources-link-hint">
                 We extract readable text from webpages as summarize sources.

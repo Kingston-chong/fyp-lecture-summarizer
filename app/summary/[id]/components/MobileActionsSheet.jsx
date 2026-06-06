@@ -26,6 +26,7 @@ export default function MobileActionsSheet({
   onSavePdf,
   onGenerateRevisionSheet,
   revisionSheetLoading = false,
+  revisionSheetError = "",
   onGenerateSlides,
   lockedFeatureIds = [],
 }) {
@@ -68,6 +69,7 @@ export default function MobileActionsSheet({
             onClick: onGenerateRevisionSheet,
             disabled: revisionSheetLoading || !hasSummary,
             loading: revisionSheetLoading,
+            keepMenuOpen: true,
           },
         ]
       : []),
@@ -92,7 +94,7 @@ export default function MobileActionsSheet({
 
   function run(action) {
     if (action.disabled && !locked.has(action.id)) return;
-    onClose();
+    if (!action.keepMenuOpen) onClose();
     action.onClick();
   }
 
@@ -121,6 +123,11 @@ export default function MobileActionsSheet({
           </button>
         </div>
         <div className="mob-actions-body">
+          {revisionSheetError ? (
+            <p className="mob-actions-err" role="alert">
+              {revisionSheetError}
+            </p>
+          ) : null}
           {summaryId ? (
             <div className="mob-actions-share">
               <ShareChatButton

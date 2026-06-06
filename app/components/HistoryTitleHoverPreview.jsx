@@ -19,6 +19,7 @@ export default function HistoryTitleHoverPreview({
   summarizeForLabel,
   timeAgoLabel,
   className = "",
+  forceClose = false,
   children,
   ...rest
 }) {
@@ -78,9 +79,20 @@ export default function HistoryTitleHoverPreview({
     }, HISTORY_HOVER_CLOSE_MS);
   }, [clearHoverTimers]);
 
+  const closeHoverNow = useCallback(() => {
+    pointerInZone.current = false;
+    clearHoverTimers();
+    setHoverOpen(false);
+  }, [clearHoverTimers]);
+
   useEffect(() => () => clearHoverTimers(), [clearHoverTimers]);
 
+  useEffect(() => {
+    if (forceClose) closeHoverNow();
+  }, [forceClose, closeHoverNow]);
+
   const onZoneEnter = () => {
+    if (forceClose) return;
     pointerInZone.current = true;
     scheduleHoverOpen();
   };
@@ -88,6 +100,10 @@ export default function HistoryTitleHoverPreview({
   const onZoneLeave = () => {
     pointerInZone.current = false;
     scheduleHoverClose();
+  };
+
+  const onTriggerPointerDown = (e) => {
+    if (e.target.closest("button")) closeHoverNow();
   };
 
   if (!summary) {
@@ -107,6 +123,7 @@ export default function HistoryTitleHoverPreview({
         onMouseLeave={onZoneLeave}
         onFocus={onZoneEnter}
         onBlur={onZoneLeave}
+        onPointerDown={onTriggerPointerDown}
         {...rest}
       >
         {children}

@@ -1808,6 +1808,7 @@ export default function SummaryView() {
       markdown: markdown || "",
     });
     const previewUrl = createRevisionSheetPreviewUrl(html);
+    setMobileActionsOpen(false);
     setRevisionSheetPreview((prev) => {
       if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
       return {
@@ -3330,6 +3331,7 @@ export default function SummaryView() {
           void handleGenerateRevisionSheet({ force: false })
         }
         revisionSheetLoading={revisionSheetLoading}
+        revisionSheetError={revisionSheetError}
         onSavePdf={handlePDF}
         onGenerateSlides={() =>
           requireAuth("slides", () => setSlidesModal(true))
