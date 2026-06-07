@@ -112,12 +112,8 @@ EMAIL_PASS=your_app_password
 BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
 ```
 
-Optional keys used by some features (see codebase / deployment):
-
 ```env
-TAVILY_API_KEY=...          # Web search + webpage extract (dashboard sources, chat)
-WEBPAGE_EXTRACT_MAX_CHARS=80000
-UNSPLASH_ACCESS_KEY=...
+TAVILY_API_KEY=...          # Web search 
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 ```
