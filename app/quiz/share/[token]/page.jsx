@@ -7,20 +7,7 @@ import QuizViewModal from "@/app/components/QuizViewModal";
 import { Spinner } from "@/app/components/icons";
 import { useQuizAcceptingLiveState } from "@/app/hooks/useQuizAcceptingLiveState";
 
-function settingsFromQuizSet(quizSet) {
-  const s =
-    quizSet?.settings && typeof quizSet.settings === "object"
-      ? quizSet.settings
-      : {};
-  return {
-    answerShowMode: s.answerShowMode ?? "Immediately",
-    quizMode: s.quizMode ?? "Practice",
-    timeLimit:
-      typeof s.timeLimit === "number" && !Number.isNaN(s.timeLimit)
-        ? s.timeLimit
-        : 0,
-  };
-}
+import { normalizeQuizSettings } from "@/lib/quizSettings";
 
 export default function SharedQuizPage() {
   const params = useParams();
@@ -47,7 +34,7 @@ export default function SharedQuizPage() {
   );
 
   const settings = useMemo(
-    () => (quizSet ? settingsFromQuizSet(quizSet) : null),
+    () => (quizSet ? normalizeQuizSettings(quizSet.settings) : null),
     [quizSet],
   );
 

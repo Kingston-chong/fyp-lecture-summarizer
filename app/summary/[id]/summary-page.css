@@ -3595,6 +3595,13 @@ html[data-theme="light"] .chat-cite-marker {
   color: #a5b4fc;
   font-weight: 500;
 }
+.mdl-opt--unavailable {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.mdl-opt--unavailable:hover {
+  background: transparent;
+}
 
 .send-btn {
   width: 36px;

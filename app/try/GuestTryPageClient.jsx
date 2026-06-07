@@ -24,6 +24,10 @@ import {
 import { markdownToHtml } from "@/lib/markdown";
 import { summarizePhaseLabel } from "@/lib/summarizeProgress";
 import GuestActionBar from "./components/GuestActionBar";
+import {
+  useEnsureLlmProvider,
+  useLlmProviders,
+} from "@/app/hooks/useLlmProviders";
 import "./try-page.css";
 
 export default function GuestTryPageClient() {
@@ -35,8 +39,9 @@ export default function GuestTryPageClient() {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [dragging, setDragging] = useState(false);
   const [summarizeFor, setSummarizeFor] = useState("student");
-  const [model, setModel] = useState("chatgpt");
-  const [modelVariant, setModelVariant] = useState("gpt-4o");
+  const [model, setModel] = useState("gemini");
+  const [modelVariant, setModelVariant] = useState(getDefaultVariant("gemini"));
+  const llmProviders = useLlmProviders();
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [statusPhase, setStatusPhase] = useState(null);
@@ -59,6 +64,13 @@ export default function GuestTryPageClient() {
       setView("result");
     }
   }, []);
+
+  const setModelAndVariant = useCallback((providerId) => {
+    setModel(providerId);
+    setModelVariant(getDefaultVariant(providerId));
+  }, []);
+
+  useEnsureLlmProvider(model, setModelAndVariant, llmProviders);
 
   const selectedProvider = MODEL_PROVIDERS.find((m) => m.id === model);
   const variants = selectedProvider?.variants ?? [];
@@ -313,11 +325,19 @@ export default function GuestTryPageClient() {
                 }}
                 aria-label="AI provider"
               >
-                {MODEL_PROVIDERS.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}
-                  </option>
-                ))}
+                {MODEL_PROVIDERS.map((p) => {
+                  const unavailable = !llmProviders.isProviderAvailable(p.id);
+                  return (
+                    <option
+                      key={p.id}
+                      value={p.id}
+                      disabled={unavailable}
+                    >
+                      {p.label}
+                      {unavailable ? " (not configured)" : ""}
+                    </option>
+                  );
+                })}
               </select>
               <select
                 className="try-select"

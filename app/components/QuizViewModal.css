@@ -31,9 +31,51 @@
   font-size: 18px;
   color: var(--modal-text);
   line-height: 1.5;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   font-weight: 500;
 }
+
+.qvm-hint-row {
+  margin-bottom: 16px;
+}
+
+.qvm-hint-btn {
+  appearance: none;
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.qvm-hint-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.qvm-hint-reveal {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #fbbf24;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.28);
+}
+
+.qvm-hint-label {
+  font-weight: 700;
+}
+
+html[data-theme="light"] .qvm-hint-reveal {
+  color: #b45309;
+  background: rgba(251, 191, 36, 0.14);
+}
+
 
 .qvm-option-letter {
   width: 24px;

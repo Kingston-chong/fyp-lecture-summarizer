@@ -1,0 +1,111 @@
+.summary-export-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  background: rgba(8, 8, 16, 0.72);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.summary-export-modal {
+  width: min(920px, 100%);
+  max-height: min(92vh, 900px);
+  display: flex;
+  flex-direction: column;
+  background: #1a1a24;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+.summary-export-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.summary-export-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #f4f4f8;
+  margin: 0;
+}
+
+.summary-export-sub {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.summary-export-close {
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.75);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.summary-export-frame-wrap {
+  flex: 1;
+  min-height: 0;
+  background: #fff;
+}
+
+.summary-export-frame {
+  width: 100%;
+  height: min(68vh, 720px);
+  border: none;
+  display: block;
+  background: #fff;
+}
+
+.summary-export-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.summary-export-dl-err {
+  margin-right: auto;
+  font-size: 12px;
+  color: #fca5a5;
+}
+
+html[data-theme="light"] .summary-export-modal {
+  background: #fff;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+html[data-theme="light"] .summary-export-title {
+  color: #18182a;
+}
+
+html[data-theme="light"] .summary-export-sub {
+  color: rgba(0, 0, 0, 0.55);
+}
+
+html[data-theme="light"] .summary-export-close {
+  background: rgba(0, 0, 0, 0.05);
+  color: rgba(0, 0, 0, 0.65);
+}
+
+html[data-theme="light"] .summary-export-foot {
+  border-top-color: rgba(0, 0, 0, 0.08);
+}

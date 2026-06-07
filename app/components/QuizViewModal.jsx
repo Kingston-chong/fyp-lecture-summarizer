@@ -4,6 +4,10 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { ChevRight, CheckIcon, CloseIcon, InfoIcon } from "./icons";
 import "./QuizViewModal.css";
 import { LoadingText } from "@/app/components/LoadingText";
+import {
+  ANSWER_SHOW_AFTER_ALL,
+  revealsAnswerAfterEachQuestion,
+} from "@/lib/quizSettings";
 
 function optionLetterClass(isCorrect, isWrong, isSelected) {
   if (isCorrect) return "qvm-option-letter qvm-option-letter--correct";
@@ -29,6 +33,7 @@ export default function QuizViewModal({
   const [userAnswers, setUserAnswers] = useState({});
   const [showExplanation, setShowExplanation] = useState(false);
   const [questionReveal, setQuestionReveal] = useState({});
+  const [hintShown, setHintShown] = useState({});
   const [submitLoading, setSubmitLoading] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [gradedScore, setGradedScore] = useState(null);
@@ -36,6 +41,11 @@ export default function QuizViewModal({
     () => (settings?.timeLimit ? settings.timeLimit * 60 : null),
     [settings?.timeLimit],
   );
+  const revealAfterEach = useMemo(
+    () => revealsAnswerAfterEachQuestion(settings),
+    [settings],
+  );
+  const showHintsEnabled = settings?.showHints === true;
   const [timeLeft, setTimeLeft] = useState(initialTimeLeft);
 
   const timerRef = useRef(null);
@@ -54,6 +64,7 @@ export default function QuizViewModal({
     setUserAnswers({});
     setShowExplanation(false);
     setQuestionReveal({});
+    setHintShown({});
     setSubmitLoading(false);
     setIsFinished(false);
     setGradedScore(null);
@@ -217,7 +228,7 @@ export default function QuizViewModal({
 
   const handleSubmit = async () => {
     if (!userAnswers[currentIdx] || submitLoading) return;
-    if (settings?.answerShowMode === "Immediately") {
+    if (revealAfterEach) {
       if (isSharedQuiz) {
         setSubmitLoading(true);
         try {
@@ -240,9 +251,25 @@ export default function QuizViewModal({
     }
   };
 
+  const hintFor = useCallback(
+    (idx) => {
+      const text = questions[idx]?.hint;
+      const trimmed = text != null ? String(text).trim() : "";
+      return trimmed || null;
+    },
+    [questions],
+  );
+
+  const currentHint = hintFor(currentIdx);
+
+  const handleShowHint = useCallback(() => {
+    if (!showHintsEnabled || hintShown[currentIdx] || !currentHint) return;
+    setHintShown((prev) => ({ ...prev, [currentIdx]: true }));
+  }, [showHintsEnabled, hintShown, currentIdx, currentHint]);
+
   useEffect(() => {
     if (!isFinished || !isSharedQuiz) return undefined;
-    if (settings?.answerShowMode !== "After submission") return undefined;
+    if (settings?.answerShowMode !== ANSWER_SHOW_AFTER_ALL) return undefined;
     if (finishRevealRef.current) return undefined;
     finishRevealRef.current = true;
 
@@ -396,14 +423,34 @@ export default function QuizViewModal({
               <div className="qvm-q-type">{currentQuestion.type}</div>
               <h2 className="qvm-q-text">{currentQuestion.question}</h2>
 
+              {showHintsEnabled && !showExplanation && currentHint && (
+                <div className="qvm-hint-row">
+                  {!hintShown[currentIdx] ? (
+                    <button
+                      type="button"
+                      className="qvm-hint-btn"
+                      onClick={handleShowHint}
+                    >
+                      Show hint
+                    </button>
+                  ) : (
+                    <p className="qvm-hint-reveal" role="status">
+                      <span className="qvm-hint-label">Hint:</span> {currentHint}
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="options-container">
                 {currentQuestion.type === "MCQ" &&
                   currentQuestion.options?.map((opt, i) => {
                     const isSelected = userAnswers[currentIdx] === opt;
                     const correctAns = correctAnswerFor(currentIdx);
-                    const isCorrect = showExplanation && opt === correctAns;
+                    const showAnswerFeedback =
+                      showExplanation && revealAfterEach;
+                    const isCorrect = showAnswerFeedback && opt === correctAns;
                     const isWrong =
-                      showExplanation && isSelected && opt !== correctAns;
+                      showAnswerFeedback && isSelected && opt !== correctAns;
 
                     return (
                       <div
@@ -428,9 +475,11 @@ export default function QuizViewModal({
                   ["True", "False"].map((opt, i) => {
                     const isSelected = userAnswers[currentIdx] === opt;
                     const correctAns = correctAnswerFor(currentIdx);
-                    const isCorrect = showExplanation && opt === correctAns;
+                    const showAnswerFeedback =
+                      showExplanation && revealAfterEach;
+                    const isCorrect = showAnswerFeedback && opt === correctAns;
                     const isWrong =
-                      showExplanation && isSelected && opt !== correctAns;
+                      showAnswerFeedback && isSelected && opt !== correctAns;
 
                     return (
                       <div
@@ -453,7 +502,7 @@ export default function QuizViewModal({
                       onChange={(e) => handleSelectAnswer(e.target.value)}
                       disabled={showExplanation}
                     />
-                    {showExplanation && (
+                    {showExplanation && revealAfterEach && (
                       <div className="qvm-correct-hint">
                         Correct Answer: {correctAnswerFor(currentIdx)}
                       </div>
@@ -462,7 +511,7 @@ export default function QuizViewModal({
                 )}
               </div>
 
-              {showExplanation && (
+              {showExplanation && revealAfterEach && (
                 <div className="expl-box">
                   <div className="qvm-expl-head">
                     <InfoIcon /> Explanation
@@ -552,7 +601,7 @@ export default function QuizViewModal({
                   }}
                 />
               </div>
-              {showExplanation ? (
+              {showExplanation && revealAfterEach ? (
                 <button className="btn-submit" onClick={handleNext}>
                   {currentIdx === totalQuestions - 1
                     ? "Finish Quiz"

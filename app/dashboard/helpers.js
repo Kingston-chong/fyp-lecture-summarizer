@@ -96,14 +96,7 @@ export function isOfficePreviewName(name) {
 }
 
 /** Plain-text documents shown in a scrollable viewer instead of an iframe. */
-export function isTextPreviewName(name) {
-  const ext =
-    String(name || "")
-      .split(".")
-      .pop()
-      ?.toLowerCase() || "";
-  return ext === "txt" || ext === "md" || ext === "csv";
-}
+export { isTextPreviewName } from "@/lib/documentPreviewClient";
 
 export function getDefaultVariant(providerId) {
   const p = MODEL_PROVIDERS.find((m) => m.id === providerId);

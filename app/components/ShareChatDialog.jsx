@@ -313,51 +313,53 @@ export default function ShareChatDialog({
           </button>
         </div>
 
-        <div className="share-chat-dialog-preview">
-          <SharePreview snapshot={snapshot} loading={previewLoading} />
-        </div>
-
-        {qrOpen ? (
-          <div className="share-chat-dialog-qr" aria-live="polite">
-            <p className="share-chat-dialog-qr-label">
-              Scan to open on your phone
-            </p>
-            <div className="share-chat-dialog-qr-frame">
-              {qrLoading ? (
-                <span className="share-chat-dialog-qr-loading">
-                  Creating QR…
-                </span>
-              ) : qrDataUrl ? (
-                <img
-                  src={qrDataUrl}
-                  alt="QR code for shared conversation link"
-                  width={220}
-                  height={220}
-                />
-              ) : (
-                <span className="share-chat-dialog-qr-loading">
-                  Could not create QR
-                </span>
-              )}
-            </div>
-            <p className="share-chat-dialog-qr-url" title={shareUrl}>
-              {shareUrl}
-            </p>
+        <div className="share-chat-dialog-body">
+          <div className="share-chat-dialog-preview">
+            <SharePreview snapshot={snapshot} loading={previewLoading} />
           </div>
-        ) : null}
 
-        <div className="share-chat-dialog-actions">
-          {social.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              className={`share-chat-dialog-action${item.copied ? " copied" : ""}${item.active ? " active" : ""}`}
-              onClick={item.onClick}
-            >
-              <span className="share-chat-dialog-action-ico">{item.icon}</span>
-              {item.label}
-            </button>
-          ))}
+          {qrOpen ? (
+            <div className="share-chat-dialog-qr" aria-live="polite">
+              <p className="share-chat-dialog-qr-label">
+                Scan to open on your phone
+              </p>
+              <div className="share-chat-dialog-qr-frame">
+                {qrLoading ? (
+                  <span className="share-chat-dialog-qr-loading">
+                    Creating QR…
+                  </span>
+                ) : qrDataUrl ? (
+                  <img
+                    src={qrDataUrl}
+                    alt="QR code for shared conversation link"
+                    width={220}
+                    height={220}
+                  />
+                ) : (
+                  <span className="share-chat-dialog-qr-loading">
+                    Could not create QR
+                  </span>
+                )}
+              </div>
+              <p className="share-chat-dialog-qr-url" title={shareUrl}>
+                {shareUrl}
+              </p>
+            </div>
+          ) : null}
+
+          <div className="share-chat-dialog-actions">
+            {social.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={`share-chat-dialog-action${item.copied ? " copied" : ""}${item.active ? " active" : ""}`}
+                onClick={item.onClick}
+              >
+                <span className="share-chat-dialog-action-ico">{item.icon}</span>
+                {item.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <p className="share-chat-dialog-foot">

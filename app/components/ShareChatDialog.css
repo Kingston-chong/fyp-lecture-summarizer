@@ -50,6 +50,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 16px 16px 12px;
+  flex-shrink: 0;
 }
 
 .share-chat-dialog-title {
@@ -84,6 +85,14 @@
 .share-chat-dialog-close:hover {
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
+}
+
+.share-chat-dialog-body {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .share-chat-dialog-preview {
@@ -213,10 +222,11 @@
   align-items: flex-start;
   flex-wrap: nowrap;
   gap: 10px;
-  padding: 18px 12px 8px;
+  padding: 18px 12px 4px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  flex-shrink: 0;
 }
 
 .share-chat-dialog-actions::-webkit-scrollbar {
@@ -274,11 +284,15 @@
 }
 
 .share-chat-dialog-foot {
-  padding: 8px 16px 16px;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 10px 16px 16px;
   text-align: center;
   font-family: "Sora", sans-serif;
   font-size: 11.5px;
+  line-height: 1.45;
   color: rgba(255, 255, 255, 0.42);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 html[data-theme="light"] .share-chat-dialog {
@@ -330,6 +344,7 @@ html[data-theme="light"]
 
 html[data-theme="light"] .share-chat-dialog-foot {
   color: rgba(15, 23, 42, 0.45);
+  border-top-color: rgba(15, 23, 42, 0.08);
 }
 
 html[data-theme="light"] .share-chat-dialog-qr {

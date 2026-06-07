@@ -5,7 +5,7 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { ChevronDownIcon, EyeIcon, EyeOffIcon } from "../components/icons";
+import { ChevronDownIcon, EyeIcon, EyeOffIcon, GoogleIcon } from "../components/icons";
 import AuthMarketingNav from "../components/AuthMarketingNav";
 import AuthPageChrome from "../components/AuthPageChrome";
 import { LoadingText } from "@/app/components/LoadingText";
@@ -340,7 +340,6 @@ export default function Slide2NotesRegister() {
                 </p>
               )}
 
-              {/* Update the button */}
               <button
                 className="auth-reg-submit"
                 onClick={handleSignUp}
@@ -349,6 +348,22 @@ export default function Slide2NotesRegister() {
                 <LoadingText active={loading} idle="Sign Up">
                   Signing up
                 </LoadingText>
+              </button>
+
+              <div className="auth-reg-or">
+                <div className="auth-reg-or-line" />
+                <span className="auth-reg-or-text">or</span>
+                <div className="auth-reg-or-line" />
+              </div>
+
+              <button
+                type="button"
+                className="auth-reg-google"
+                onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+                disabled={loading}
+              >
+                <GoogleIcon />
+                Continue with Google
               </button>
             </div>
           </div>

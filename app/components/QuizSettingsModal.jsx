@@ -1,6 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import {
+  useEnsureUiModelLabel,
+  useLlmProviders,
+} from "@/app/hooks/useLlmProviders";
 import { QuizIco } from "./icons";
 import { useTheme } from "./ThemeProvider";
 import {
@@ -26,10 +30,11 @@ const COPY = {
     title: "Quiz generation settings",
     intro:
       'All options are optional. Click "Generate Quiz" anytime to create questions from your summary with sensible defaults.',
-    answerSection: "Answer & explanation",
-    answerLabel: "Show correct answer:",
+    hintsSection: "Hints",
+    hintsLabel: "During the quiz:",
+    answerSection: "Answers & explanations",
+    answerLabel: "When to show the correct answer and explanation:",
     presentationSection: "Presentation",
-    quizModeLabel: "Quiz mode",
     timeLabel: "Time limit",
     createBtn: "Generate Quiz",
   },
@@ -37,10 +42,11 @@ const COPY = {
     title: "Quiz builder for your class",
     intro:
       "Build a question set from this lecture summary. You can review the answer key and export or share it with students after generation.",
+    hintsSection: "Hints for students",
+    hintsLabel: "While students answer:",
     answerSection: "Student feedback (in-app quizzes)",
-    answerLabel: "When students take the quiz in this app:",
+    answerLabel: "When students see the correct answer and explanation:",
     presentationSection: "Suggested settings for students",
-    quizModeLabel: "Use case",
     timeLabel: "Suggested time limit for students",
     createBtn: "Generate question set",
   },
@@ -80,8 +86,8 @@ const DEFAULTS = {
   numQuestions: 10,
   difficulty: "Medium",
   focusAreas: ["Important concepts"],
-  answerShowMode: "Immediately",
-  quizMode: "Practice",
+  answerShowMode: "After submission",
+  showHints: false,
   timeLimit: 0,
 };
 
@@ -96,7 +102,16 @@ export default function QuizSettingsModal({
   const isLecturer = mode === "lecturer";
   const copy = COPY[isLecturer ? "lecturer" : "student"];
 
+  const llmProviders = useLlmProviders();
   const [aiModel, setAiModel] = useState(DEFAULTS.aiModel);
+  useEnsureUiModelLabel(aiModel, setAiModel, llmProviders);
+  const aiModelOptions = useMemo(
+    () =>
+      AI_MODEL_OPTIONS.filter((opt) =>
+        llmProviders.isLabelAvailable(opt.value),
+      ),
+    [llmProviders],
+  );
   const [generationMode, setGenerationMode] = useState(DEFAULTS.generationMode);
   const [questionTypes, setQuestionTypes] = useState(DEFAULTS.questionTypes);
   const [questionCountAuto, setQuestionCountAuto] = useState(
@@ -106,7 +121,7 @@ export default function QuizSettingsModal({
   const [difficulty, setDifficulty] = useState(DEFAULTS.difficulty);
   const [focusAreas, setFocusAreas] = useState(DEFAULTS.focusAreas);
   const [answerShowMode, setAnswerShowMode] = useState(DEFAULTS.answerShowMode);
-  const [quizMode, setQuizMode] = useState(DEFAULTS.quizMode);
+  const [showHints, setShowHints] = useState(DEFAULTS.showHints);
   const [timeLimit, setTimeLimit] = useState(DEFAULTS.timeLimit);
 
   const [loading, setLoading] = useState(false);
@@ -133,7 +148,7 @@ export default function QuizSettingsModal({
     setDifficulty(DEFAULTS.difficulty);
     setFocusAreas(DEFAULTS.focusAreas);
     setAnswerShowMode(DEFAULTS.answerShowMode);
-    setQuizMode(DEFAULTS.quizMode);
+    setShowHints(DEFAULTS.showHints);
     setTimeLimit(DEFAULTS.timeLimit);
     setError("");
   };
@@ -154,7 +169,7 @@ export default function QuizSettingsModal({
           focusAreas,
           generationMode,
           answerShowMode,
-          quizMode,
+          showHints,
           timeLimit,
         }),
       });
@@ -192,7 +207,7 @@ export default function QuizSettingsModal({
             <SelectMenu
               value={aiModel}
               onChange={setAiModel}
-              options={AI_MODEL_OPTIONS}
+              options={aiModelOptions}
             />
 
             <div className="quiz-gen-row">
@@ -225,19 +240,52 @@ export default function QuizSettingsModal({
               </label>
             ))}
 
-            <SectionHead>{copy.answerSection}</SectionHead>
-            <FieldLabel>{copy.answerLabel}</FieldLabel>
+            <SectionHead>{copy.hintsSection}</SectionHead>
+            <div className="quiz-gen-row">
+              <FieldLabel>{copy.hintsLabel}</FieldLabel>
+              <HintMark title="Hints give short clues that nudge you toward the answer — they do not reveal the correct option or explanation." />
+            </div>
             <div className="radio-group radio-group--mb">
-              {["Immediately", "After submission"].map((opt) => (
+              {[
+                { value: true, label: "Show hints (clue-style tips on request)" },
+                { value: false, label: "No hints" },
+              ].map(({ value, label }) => (
                 <label
-                  key={opt}
-                  className={`radio-opt ${answerShowMode === opt ? "on" : ""}`}
-                  onClick={() => setAnswerShowMode(opt)}
+                  key={label}
+                  className={`radio-opt ${showHints === value ? "on" : ""}`}
+                  onClick={() => setShowHints(value)}
+                >
+                  <div className={`radio-dot ${showHints === value ? "on" : ""}`} />
+                  {label}
+                </label>
+              ))}
+            </div>
+
+            <SectionHead>{copy.answerSection}</SectionHead>
+            <div className="quiz-gen-row">
+              <FieldLabel>{copy.answerLabel}</FieldLabel>
+              <HintMark title="This controls feedback after you submit an answer — separate from hints." />
+            </div>
+            <div className="radio-group radio-group--mb">
+              {[
+                {
+                  value: "Immediately",
+                  label: "After each question",
+                },
+                {
+                  value: "After submission",
+                  label: "After completing all questions",
+                },
+              ].map(({ value, label }) => (
+                <label
+                  key={value}
+                  className={`radio-opt ${answerShowMode === value ? "on" : ""}`}
+                  onClick={() => setAnswerShowMode(value)}
                 >
                   <div
-                    className={`radio-dot ${answerShowMode === opt ? "on" : ""}`}
+                    className={`radio-dot ${answerShowMode === value ? "on" : ""}`}
                   />
-                  {opt}
+                  {label}
                 </label>
               ))}
             </div>
@@ -327,34 +375,7 @@ export default function QuizSettingsModal({
 
             <SectionHead>{copy.presentationSection}</SectionHead>
             <div className="quiz-presentation-row">
-              {!isLecturer && (
-                <div className="quiz-presentation-col">
-                  <FieldLabel>{copy.quizModeLabel}</FieldLabel>
-                  <div className="quiz-radio-col">
-                    {["Practice (with hints)", "Assessment (no hints)"].map(
-                      (opt) => (
-                        <label
-                          key={opt}
-                          className={`radio-opt ${quizMode === (opt.includes("Practice") ? "Practice" : "Assessment") ? "on" : ""}`}
-                          onClick={() =>
-                            setQuizMode(
-                              opt.includes("Practice")
-                                ? "Practice"
-                                : "Assessment",
-                            )
-                          }
-                        >
-                          <div
-                            className={`radio-dot ${quizMode === (opt.includes("Practice") ? "Practice" : "Assessment") ? "on" : ""}`}
-                          />
-                          {opt}
-                        </label>
-                      ),
-                    )}
-                  </div>
-                </div>
-              )}
-              <div className="quiz-presentation-col">
+              <div className="quiz-presentation-col quiz-presentation-col--full">
                 <FieldLabel>{copy.timeLabel}</FieldLabel>
                 <div className="quiz-radio-col">
                   <label

@@ -239,6 +239,7 @@ model QuizQuestion {
   options     Json?    // For MCQ, Match (Array or Object)
   answer      String   @db.Text
   explanation String?  @db.Text
+  hint        String?  @db.Text
   order       Int      @default(0)
   
   quizSet     QuizSet  @relation(fields: [quizSetId], references: [id], onDelete: Cascade)

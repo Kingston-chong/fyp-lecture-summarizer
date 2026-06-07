@@ -1,5 +1,9 @@
 import { markdownToHtml } from "@/lib/markdown";
 import {
+  downloadHtmlDocumentAsPdf,
+  sanitizePdfFilename,
+} from "@/lib/htmlToPdfDownload";
+import {
   formatRevisionSheetQaMarkdown,
   splitRevisionSheetAtQuickQa,
 } from "@/lib/revisionSheetQa";
@@ -126,103 +130,12 @@ export function createRevisionSheetPreviewUrl(html) {
   return URL.createObjectURL(blob);
 }
 
-function sanitizePdfFilename(title) {
-  const base =
-    String(title || "revision-sheet")
-      .replace(/[^\w\s-]/g, "")
-      .trim()
-      .replace(/\s+/g, "-")
-      .slice(0, 72) || "revision-sheet";
-  return `${base}-revision-sheet.pdf`;
-}
-
-/**
- * Render revision sheet HTML to a PDF file download (no print dialog).
- * @param {string} html full document from buildRevisionSheetHtml
- * @param {string} [title]
- */
+/** @param {string} html @param {string} [title] */
 export async function downloadRevisionSheetPdf(html, title) {
-  if (typeof document === "undefined") return;
-
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, "text/html");
-
-  const mount = document.createElement("div");
-  mount.className = "rs-pdf-capture-root";
-  mount.style.cssText =
-    "position:fixed;left:-12000px;top:0;width:800px;z-index:-1;pointer-events:none;";
-  mount.innerHTML = doc.body?.innerHTML || "";
-
-  const styleEl = document.createElement("style");
-  styleEl.textContent = REVISION_SHEET_STYLES.replace(
-    "@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&display=swap');",
-    "",
-  );
-  mount.prepend(styleEl);
-
-  document.body.appendChild(mount);
-
-  try {
-    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-      import("html2canvas"),
-      import("jspdf"),
-    ]);
-
-    await document.fonts?.ready;
-
-    const canvas = await html2canvas(mount, {
-      scale: 2,
-      backgroundColor: "#ffffff",
-      logging: false,
-      useCORS: true,
-    });
-
-    const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
-    const margin = 10;
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const contentWidth = pageWidth - margin * 2;
-    const pageContentHeight = pageHeight - margin * 2;
-
-    const pxPerMm = canvas.width / contentWidth;
-    const pageHeightPx = Math.floor(pageContentHeight * pxPerMm);
-
-    let offsetY = 0;
-    let pageIndex = 0;
-
-    while (offsetY < canvas.height) {
-      if (pageIndex > 0) pdf.addPage();
-
-      const sliceHeight = Math.min(pageHeightPx, canvas.height - offsetY);
-      const slice = document.createElement("canvas");
-      slice.width = canvas.width;
-      slice.height = sliceHeight;
-      const ctx = slice.getContext("2d");
-      if (!ctx) break;
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, slice.width, slice.height);
-      ctx.drawImage(
-        canvas,
-        0,
-        offsetY,
-        canvas.width,
-        sliceHeight,
-        0,
-        0,
-        canvas.width,
-        sliceHeight,
-      );
-
-      const img = slice.toDataURL("image/jpeg", 0.92);
-      const sliceHeightMm = sliceHeight / pxPerMm;
-      pdf.addImage(img, "JPEG", margin, margin, contentWidth, sliceHeightMm);
-
-      offsetY += sliceHeight;
-      pageIndex += 1;
-    }
-
-    pdf.save(sanitizePdfFilename(title));
-  } finally {
-    mount.remove();
-  }
+  await downloadHtmlDocumentAsPdf({
+    html,
+    filename: sanitizePdfFilename(title, "revision-sheet"),
+    captureRootClass: "rs-pdf-capture-root",
+    inlineStyles: REVISION_SHEET_STYLES,
+  });
 }

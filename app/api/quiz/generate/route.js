@@ -4,6 +4,10 @@ import { getRequestUser } from "@/lib/apiAuth";
 import { runChat, normalizeModelKey } from "@/lib/llmServer";
 import { parseJsonFromLlm } from "@/lib/jsonExtract";
 import { applyLlmRateLimit } from "@/lib/llmRateLimit";
+import {
+  buildQuizHintPromptSection,
+  normalizeQuizQuestionHint,
+} from "@/lib/quizHintPrompt";
 
 const MAX_QUIZ_SOURCE_CHARS = Number.parseInt(
   process.env.QUIZ_MAX_SOURCE_CHARS || "12000",
@@ -30,7 +34,7 @@ export async function POST(req) {
       focusAreas,
       generationMode,
       answerShowMode,
-      quizMode,
+      showHints,
       timeLimit,
     } = body;
 
@@ -58,6 +62,8 @@ export async function POST(req) {
     const questionCountLine = autoQuestionCount
       ? "Number of questions: Auto — pick a reasonable count (for example 8–15) from how much material is in the summary."
       : `Number of questions: ${parsedCount}`;
+    const hintsEnabled = Boolean(showHints);
+    const hintPromptSection = buildQuizHintPromptSection(hintsEnabled);
 
     // Construct the prompt
     const systemPrompt = `You are an expert educational quiz generator. 
@@ -69,6 +75,7 @@ Settings:
 - Question Types: ${questionTypes?.join(", ") || "MCQ"}
 - Focus Areas: ${focusAreas?.join(", ") || "Key concepts"}
 - Generation Mode: ${generationMode || "Strict"} (if "Strict", only use info from the summary. If "Creative", you can add related context).
+- ${hintPromptSection}
 
 Output Format:
 You MUST return a JSON array of question objects. Each object must have:
@@ -77,7 +84,7 @@ You MUST return a JSON array of question objects. Each object must have:
 - options: (array of strings or null) For MCQ, provide exactly 4 options. For Match, provide an array of objects { key: string, value: string }. For others, null.
 - answer: (string) The correct answer text. For MCQ/Match, this should match one of the options/values.
 - explanation: (string) A brief explanation of why the answer is correct.
-
+${hintsEnabled ? "- hint: (string) Clue-style hint as described above.\n" : ""}
 Return ONLY the JSON array. Do not include any other text.`;
 
     const sourceText = String(summary.output || "").slice(
@@ -119,7 +126,7 @@ Generate the quiz now.`;
             generationMode: generationMode || "Strict",
           };
           if (answerShowMode != null) s.answerShowMode = String(answerShowMode);
-          if (quizMode != null) s.quizMode = String(quizMode);
+          if (showHints != null) s.showHints = Boolean(showHints);
           if (timeLimit != null && Number.isFinite(Number(timeLimit)))
             s.timeLimit = Math.max(0, Number(timeLimit));
           return s;
@@ -131,6 +138,7 @@ Generate the quiz now.`;
             options: q.options,
             answer: q.answer,
             explanation: q.explanation,
+            hint: hintsEnabled ? normalizeQuizQuestionHint(q.hint) : null,
             order: idx,
           })),
         },

@@ -58,6 +58,7 @@ import ChatResponseLengthControl from "./components/ChatResponseLengthControl";
 import ChatAttachMenu from "./components/ChatAttachMenu";
 import ShareChatButton from "./components/ShareChatButton";
 import RevisionSheetPreviewModal from "./components/RevisionSheetPreviewModal";
+import SummaryExportPreviewModal from "./components/SummaryExportPreviewModal";
 import {
   buildRevisionSheetHtml,
   createRevisionSheetPreviewUrl,
@@ -83,6 +84,10 @@ import CreateFlashcardDialog from "./components/CreateFlashcardDialog";
 import FlashcardSetEditor from "./components/FlashcardSetEditor";
 import { MODELS, ATTACH_ACCEPT, SUMMARY_BODY_INNER_STYLE } from "./constants";
 import {
+  useEnsureUiModelLabel,
+  useLlmProviders,
+} from "@/app/hooks/useLlmProviders";
+import {
   downscaleImageFileToJpegDataUrl,
   MAX_CHAT_PASTE_IMAGES,
 } from "./lib/chatImages";
@@ -97,7 +102,10 @@ import {
   mapChatModelToApi,
   mergeChatDocumentIds,
 } from "./lib/chatApi";
-import { exportSummaryPdf } from "./lib/exportSummaryPdf";
+import {
+  buildSummaryExportHtml,
+  createSummaryExportPreviewUrl,
+} from "./lib/exportSummaryPdf";
 import {
   dispatchSummaryRenamed,
   SUMMARY_RENAMED_EVENT,
@@ -159,7 +167,9 @@ export default function SummaryView() {
 
   const [messages, setMessages] = useState([]);
   const [inputVal, setInputVal] = useState("");
-  const [chatModel, setChatModel] = useState("ChatGPT");
+  const [chatModel, setChatModel] = useState("Gemini");
+  const llmProviders = useLlmProviders();
+  useEnsureUiModelLabel(chatModel, setChatModel, llmProviders);
   const [chatResponseLength, setChatResponseLength] = useState("medium");
   const [lengthOpen, setLengthOpen] = useState(false);
   const [modelOpen, setModelOpen] = useState(false);
@@ -172,6 +182,7 @@ export default function SummaryView() {
   const [recentDocuments, setRecentDocuments] = useState([]);
   const [recentDocsLoading, setRecentDocsLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [summaryExportPreview, setSummaryExportPreview] = useState(null);
   const [revisionSheetLoading, setRevisionSheetLoading] = useState(false);
   const [revisionSheetPreview, setRevisionSheetPreview] = useState(null);
   const [revisionSheetError, setRevisionSheetError] = useState("");
@@ -1787,12 +1798,30 @@ export default function SummaryView() {
   function handlePDF() {
     if (!summary) return;
     setPdfLoading(true);
-    exportSummaryPdf(
-      summary,
-      messages,
-      summaryBodyRef.current?.innerHTML || "",
-    );
-    setTimeout(() => setPdfLoading(false), 900);
+    try {
+      const html = buildSummaryExportHtml(
+        summary,
+        messages,
+        summaryBodyRef.current?.innerHTML || "",
+      );
+      setSummaryExportPreview((prev) => {
+        if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
+        return {
+          title: summary.title,
+          html,
+          previewUrl: createSummaryExportPreviewUrl(html),
+        };
+      });
+    } finally {
+      setPdfLoading(false);
+    }
+  }
+
+  function closeSummaryExportPreview() {
+    setSummaryExportPreview((prev) => {
+      if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
+      return null;
+    });
   }
 
   function closeRevisionSheetPreview() {
@@ -1894,6 +1923,14 @@ export default function SummaryView() {
       }
     };
   }, [revisionSheetPreview?.previewUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (summaryExportPreview?.previewUrl) {
+        URL.revokeObjectURL(summaryExportPreview.previewUrl);
+      }
+    };
+  }, [summaryExportPreview?.previewUrl]);
 
   async function openSourceDocPreview(doc, e) {
     e?.stopPropagation?.();
@@ -3022,18 +3059,30 @@ export default function SummaryView() {
                                 </button>
                                 {modelOpen && (
                                   <div className="mdl-menu">
-                                    {MODELS.map((m) => (
-                                      <div
-                                        key={m}
-                                        className={`mdl-opt ${chatModel === m ? "on" : ""}`}
-                                        onMouseDown={() => {
-                                          setChatModel(m);
-                                          setModelOpen(false);
-                                        }}
-                                      >
-                                        {m} {chatModel === m && "✓"}
-                                      </div>
-                                    ))}
+                                    {MODELS.map((m) => {
+                                      const unavailable =
+                                        !llmProviders.isLabelAvailable(m);
+                                      return (
+                                        <div
+                                          key={m}
+                                          className={`mdl-opt ${chatModel === m ? "on" : ""} ${unavailable ? "mdl-opt--unavailable" : ""}`}
+                                          title={
+                                            unavailable
+                                              ? "API key not configured on server"
+                                              : undefined
+                                          }
+                                          onMouseDown={() => {
+                                            if (unavailable) return;
+                                            setChatModel(m);
+                                            setModelOpen(false);
+                                          }}
+                                        >
+                                          {m}
+                                          {unavailable ? " (not configured)" : ""}{" "}
+                                          {chatModel === m && !unavailable && "✓"}
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 )}
                               </div>
@@ -3078,18 +3127,30 @@ export default function SummaryView() {
                                 </button>
                                 {modelOpen && (
                                   <div className="mdl-menu">
-                                    {MODELS.map((m) => (
-                                      <div
-                                        key={m}
-                                        className={`mdl-opt ${chatModel === m ? "on" : ""}`}
-                                        onMouseDown={() => {
-                                          setChatModel(m);
-                                          setModelOpen(false);
-                                        }}
-                                      >
-                                        {m} {chatModel === m && "✓"}
-                                      </div>
-                                    ))}
+                                    {MODELS.map((m) => {
+                                      const unavailable =
+                                        !llmProviders.isLabelAvailable(m);
+                                      return (
+                                        <div
+                                          key={m}
+                                          className={`mdl-opt ${chatModel === m ? "on" : ""} ${unavailable ? "mdl-opt--unavailable" : ""}`}
+                                          title={
+                                            unavailable
+                                              ? "API key not configured on server"
+                                              : undefined
+                                          }
+                                          onMouseDown={() => {
+                                            if (unavailable) return;
+                                            setChatModel(m);
+                                            setModelOpen(false);
+                                          }}
+                                        >
+                                          {m}
+                                          {unavailable ? " (not configured)" : ""}{" "}
+                                          {chatModel === m && !unavailable && "✓"}
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 )}
                               </div>
@@ -3348,6 +3409,14 @@ export default function SummaryView() {
         cachedAt={revisionSheetPreview?.cachedAt}
         regenerating={revisionSheetLoading}
         onRegenerate={() => void handleGenerateRevisionSheet({ force: true })}
+      />
+
+      <SummaryExportPreviewModal
+        open={Boolean(summaryExportPreview)}
+        onClose={closeSummaryExportPreview}
+        title={summaryExportPreview?.title}
+        previewUrl={summaryExportPreview?.previewUrl}
+        html={summaryExportPreview?.html}
       />
 
       <MobileMoreSheet

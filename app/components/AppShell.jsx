@@ -13,6 +13,12 @@ import { useLeftSidebarResize } from "@/app/hooks/useLeftSidebarResize";
 import { ArrowLeftIcon, ChevRight, LogoutIcon, MenuIcon } from "./icons";
 import AppHeader from "./AppHeader";
 
+function formatUserRole(role) {
+  if (!role) return "";
+  if (role === "RatherNotSay") return "Rather not say";
+  return role;
+}
+
 function UserAvatar({ name, size = 32 }) {
   const initials = name
     ? name
@@ -112,7 +118,7 @@ export default function AppShell({
   }, [showSidebar, mobileNavOpen]);
 
   const displayName = session?.user?.name ?? session?.user?.username ?? "";
-  const role = session?.user?.role ?? "";
+  const roleLabel = formatUserRole(session?.user?.role ?? "");
   const { sidebarWidth, onSidebarResizeStart } = useLeftSidebarResize(260);
   const sidebarResizable = showSidebar && !sidebarMobileOnly;
 
@@ -146,11 +152,6 @@ export default function AppShell({
             right={
               <>
                 <ThemeToggle />
-                {displayName && !isGuest && (
-                  <span className="shell-greet">
-                    Hi, {displayName.split(" ")[0]}
-                  </span>
-                )}
                 {showBackToDashboard && (
                   <button
                     className="shell-btn"
@@ -190,9 +191,9 @@ export default function AppShell({
                         <UserAvatar name={displayName} />
                         <div className="shell-user-info">
                           <span className="shell-user-name">{displayName}</span>
-                          {role && (
-                            <span className="shell-user-role">{role}</span>
-                          )}
+                          {roleLabel ? (
+                            <span className="shell-user-role">{roleLabel}</span>
+                          ) : null}
                         </div>
                       </div>
                     </button>

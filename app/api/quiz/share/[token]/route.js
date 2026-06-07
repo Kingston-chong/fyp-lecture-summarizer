@@ -11,6 +11,7 @@ function publicQuestion(q) {
     question: q.question,
     type: q.type,
     options: q.options,
+    hint: q.hint?.trim() || null,
     order: q.order,
   };
 }

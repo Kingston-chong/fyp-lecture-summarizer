@@ -1,6 +1,7 @@
 "use client";
 
 import { DocIco } from "@/app/components/icons";
+import { isTextPreviewName } from "@/lib/documentPreviewClient";
 import { mergeSummarySourceFiles } from "../lib/sourceFiles";
 
 export default function SourcesListPanel({
@@ -48,7 +49,11 @@ export default function SourcesListPanel({
               type="button"
               className="src-preview-btn"
               onClick={(ev) => onPreview(f, ev)}
-              title={f.sourceUrl ? "View extracted text" : "Preview file"}
+              title={
+                isTextPreviewName(f.name)
+                  ? "View extracted text"
+                  : "Preview file"
+              }
               aria-label={`Preview ${f.name}`}
             >
               View

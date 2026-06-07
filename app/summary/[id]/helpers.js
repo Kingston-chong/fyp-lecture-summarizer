@@ -34,20 +34,11 @@ export function formatSlideDeckSavedAt(iso) {
   }
 }
 
+import { normalizeQuizSettings } from "@/lib/quizSettings";
+
 // Build QuizViewModal settings from persisted QuizSet.settings.
 export function settingsFromQuizSet(quizSet) {
-  const s =
-    quizSet?.settings && typeof quizSet.settings === "object"
-      ? quizSet.settings
-      : {};
-  return {
-    answerShowMode: s.answerShowMode ?? "Immediately",
-    quizMode: s.quizMode ?? "Practice",
-    timeLimit:
-      typeof s.timeLimit === "number" && !Number.isNaN(s.timeLimit)
-        ? s.timeLimit
-        : 0,
-  };
+  return normalizeQuizSettings(quizSet?.settings);
 }
 
 // Display label for stored summary model e.g. `gemini:gemini-2.0-flash`.

@@ -45,6 +45,11 @@ import { LoadingText } from "@/app/components/LoadingText";
 import { SUMMARIZE_PHASE, summarizePhaseLabel } from "@/lib/summarizeProgress";
 import { uploadDocumentsViaClient } from "@/lib/clientDocumentUpload";
 import {
+  useEnsureLlmProvider,
+  useEnsureUiModelLabel,
+  useLlmProviders,
+} from "@/app/hooks/useLlmProviders";
+import {
   mergeSelectedThemeIntoList,
   pickThemeIdAfterListLoad,
   readStoredThemeChoice,
@@ -84,8 +89,11 @@ export default function Dashboard() {
     to: null,
   });
   const summarizeDefaultApplied = useRef(false);
-  const [model, setModel] = useState("chatgpt"); // provider: chatgpt | deepseek | gemini
-  const [modelVariant, setModelVariant] = useState("gpt-4o"); // exact model id for API
+  const [model, setModel] = useState("gemini"); // provider: chatgpt | deepseek | gemini
+  const [modelVariant, setModelVariant] = useState(
+    getDefaultVariant("gemini"),
+  );
+  const llmProviders = useLlmProviders();
   const [modelOpen, setModelOpen] = useState(false);
   const [variantOpen, setVariantOpen] = useState(false);
   const [modeOpen, setModeOpen] = useState(false);
@@ -787,10 +795,13 @@ export default function Dashboard() {
   const variants = selectedProvider?.variants ?? [];
   const selectedVariant =
     variants.find((v) => v.id === modelVariant) ?? variants[0];
-  const setModelAndVariant = (providerId) => {
+  const setModelAndVariant = useCallback((providerId) => {
     setModel(providerId);
     setModelVariant(getDefaultVariant(providerId));
-  };
+  }, []);
+
+  useEnsureLlmProvider(model, setModelAndVariant, llmProviders);
+  useEnsureUiModelLabel(improveAiModel, setImproveAiModel, llmProviders);
 
   const selectedImproveSource =
     selectedFiles.find((f) => isImproveSourceType(f.type)) || null;
@@ -1451,11 +1462,11 @@ export default function Dashboard() {
                           </div>
                         </div>
                         <span className="file-badge">{f.type}</span>
-                        {(f.id || (f.file && shouldUseTextDocumentPreview(f))) ? (
+                        {f.id || f.file ? (
                           <button
                             type="button"
                             className="file-preview-btn"
-                            title="Preview extracted text"
+                            title="Preview file"
                             onClick={(e) => openSelectedFilePreview(f, e)}
                           >
                             View
@@ -1756,21 +1767,39 @@ export default function Dashboard() {
                       </button>
                       {modelOpen && (
                         <div className="model-menu">
-                          {MODEL_PROVIDERS.map((m) => (
-                            <div
-                              key={m.id}
-                              className={`model-opt ${model === m.id ? "on" : ""}`}
-                              onMouseDown={() => {
-                                setModelAndVariant(m.id);
-                                setModelOpen(false);
-                              }}
-                            >
-                              <div className="model-opt-name">{m.label}</div>
-                              {model === m.id && (
-                                <span className="model-check">✓</span>
-                              )}
-                            </div>
-                          ))}
+                          {MODEL_PROVIDERS.map((m) => {
+                            const unavailable = !llmProviders.isProviderAvailable(
+                              m.id,
+                            );
+                            return (
+                              <div
+                                key={m.id}
+                                className={`model-opt ${model === m.id ? "on" : ""} ${unavailable ? "model-opt--guest-locked" : ""}`}
+                                title={
+                                  unavailable
+                                    ? "API key not configured on server"
+                                    : undefined
+                                }
+                                onMouseDown={() => {
+                                  if (unavailable) return;
+                                  setModelAndVariant(m.id);
+                                  setModelOpen(false);
+                                }}
+                              >
+                                <div>
+                                  <div className="model-opt-name">{m.label}</div>
+                                  {unavailable && (
+                                    <div className="model-opt-guest-hint">
+                                      Not configured
+                                    </div>
+                                  )}
+                                </div>
+                                {model === m.id && !unavailable && (
+                                  <span className="model-check">✓</span>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -2036,21 +2065,38 @@ export default function Dashboard() {
                         </button>
                         {improveModelOpen && (
                           <div className="model-menu">
-                            {["ChatGPT", "DeepSeek", "Gemini"].map((opt) => (
-                              <div
-                                key={opt}
-                                className={`model-opt ${improveAiModel === opt ? "on" : ""}`}
-                                onMouseDown={() => {
-                                  setImproveAiModel(opt);
-                                  setImproveModelOpen(false);
-                                }}
-                              >
-                                <div className="model-opt-name">{opt}</div>
-                                {improveAiModel === opt && (
-                                  <span className="model-check">✓</span>
-                                )}
-                              </div>
-                            ))}
+                            {["ChatGPT", "DeepSeek", "Gemini"].map((opt) => {
+                              const unavailable =
+                                !llmProviders.isLabelAvailable(opt);
+                              return (
+                                <div
+                                  key={opt}
+                                  className={`model-opt ${improveAiModel === opt ? "on" : ""} ${unavailable ? "model-opt--guest-locked" : ""}`}
+                                  title={
+                                    unavailable
+                                      ? "API key not configured on server"
+                                      : undefined
+                                  }
+                                  onMouseDown={() => {
+                                    if (unavailable) return;
+                                    setImproveAiModel(opt);
+                                    setImproveModelOpen(false);
+                                  }}
+                                >
+                                  <div>
+                                    <div className="model-opt-name">{opt}</div>
+                                    {unavailable && (
+                                      <div className="model-opt-guest-hint">
+                                        Not configured
+                                      </div>
+                                    )}
+                                  </div>
+                                  {improveAiModel === opt && !unavailable && (
+                                    <span className="model-check">✓</span>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                       </div>

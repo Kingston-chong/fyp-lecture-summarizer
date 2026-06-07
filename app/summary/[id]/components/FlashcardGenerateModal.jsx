@@ -1,6 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import {
+  useEnsureUiModelLabel,
+  useLlmProviders,
+} from "@/app/hooks/useLlmProviders";
 import { CloseIcon, Spinner } from "@/app/components/icons";
 import CustomSelect from "@/app/components/CustomSelect";
 import "@/app/components/CustomSelect.css";
@@ -26,7 +30,16 @@ export default function FlashcardGenerateModal({
   onClose,
   onGenerated,
 }) {
+  const llmProviders = useLlmProviders();
   const [aiModel, setAiModel] = useState("Gemini");
+  useEnsureUiModelLabel(aiModel, setAiModel, llmProviders);
+  const aiModelOptions = useMemo(
+    () =>
+      ["ChatGPT", "DeepSeek", "Gemini"].filter((label) =>
+        llmProviders.isLabelAvailable(label),
+      ),
+    [llmProviders],
+  );
   const [cardPreset, setCardPreset] = useState("Auto");
   const [focusAreas, setFocusAreas] = useState(["Key concepts"]);
   const [loading, setLoading] = useState(false);
@@ -87,7 +100,7 @@ export default function FlashcardGenerateModal({
           <CustomSelect
             value={aiModel}
             onChange={setAiModel}
-            options={["ChatGPT", "DeepSeek", "Gemini"]}
+            options={aiModelOptions}
             width={140}
           />
 

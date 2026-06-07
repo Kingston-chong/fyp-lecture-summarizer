@@ -26,7 +26,7 @@ export default function DocumentPreviewModal({
 
   const isTextPreview =
     textContent != null ||
-    (Boolean(doc.sourceUrl || isTextPreviewName(doc.name)) && !docPreviewSrc);
+    (isTextPreviewName(doc.name) && !docPreviewSrc);
   const busy =
     docPreviewTokenLoading ||
     (isTextPreview
