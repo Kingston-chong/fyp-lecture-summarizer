@@ -93,7 +93,7 @@ Create a `.env.local` file in the project root (do not commit secrets). Example:
 
 ```env
 # Database
-DATABASE_URL="mysql://username:password@localhost:3306/lecture_summarizer"
+DATABASE_URL="mysql://username:password@localhost:3306/db_name"
 
 # AI (use what you enable in your deployment)
 GEMINI_API_KEY=your_gemini_key
@@ -102,12 +102,7 @@ DEEPSEEK_API_KEY=your_deepseek_key_optional
 
 # Slide generation
 ALAI_API_KEY=your_alai_api_key
-# Optional: backup keys if primary is out of credits or rate-limited
-# ALAI_API_KEY_FALLBACK=backup_key_1,backup_key_2
-
-# Auth
-NEXTAUTH_SECRET=your_nextauth_secret
-NEXTAUTH_URL=http://localhost:3000
+TWOSLIDES_API_KEY=your_2slides_key
 
 # Email (password reset, etc.)
 EMAIL_USER=your_email@gmail.com
@@ -123,7 +118,6 @@ Optional keys used by some features (see codebase / deployment):
 TAVILY_API_KEY=...          # Web search + webpage extract (dashboard sources, chat)
 WEBPAGE_EXTRACT_MAX_CHARS=80000
 UNSPLASH_ACCESS_KEY=...
-TWOSLIDES_API_KEY=...
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 ```
