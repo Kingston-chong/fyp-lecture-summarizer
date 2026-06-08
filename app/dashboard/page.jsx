@@ -223,7 +223,6 @@ export default function Dashboard() {
   const [improveGenLoading, setImproveGenLoading] = useState(false);
   const [improveErr, setImproveErr] = useState("");
   const [improveAiModel, setImproveAiModel] = useState("Gemini");
-  const [enableOcr, setEnableOcr] = useState(false);
   const [improveModelOpen, setImproveModelOpen] = useState(false);
   /** Final PPTX renderer: Alai (default) or 2slides Fast PPT */
   const [improveProvider, setImproveProvider] = useState("alai");
@@ -817,9 +816,7 @@ export default function Dashboard() {
   const improveFileBusyLabel = uploading
     ? "Uploading presentation…"
     : parseLoading
-      ? enableOcr
-        ? "Deep scan — reading slides…"
-        : "Reading slides…"
+      ? "Reading slides…"
       : "";
   const selectedImproveSourceKey = selectedImproveSource
     ? selectedImproveSource.fromPrev
@@ -877,7 +874,6 @@ export default function Dashboard() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               documentId: selectedImproveSource.id,
-              ocr: enableOcr,
               model: improveAiModel,
             }),
           });
@@ -910,7 +906,6 @@ export default function Dashboard() {
     dashMode,
     selectedImproveSourceKey,
     selectedImproveSource,
-    enableOcr,
     improveAiModel,
   ]);
 
@@ -1466,9 +1461,7 @@ export default function Dashboard() {
                       const busyLabel = fileUploading
                         ? "Uploading…"
                         : fileParsing
-                          ? enableOcr
-                            ? "Deep scan — reading slides…"
-                            : "Reading slides…"
+                          ? "Reading slides…"
                           : "";
                       return (
                         <div
@@ -1564,31 +1557,6 @@ export default function Dashboard() {
                       Describe design/content improvements for the lecture
                       slides
                     </div>
-                  </div>
-
-                  <div>
-                    <label
-                      className="improve-ocr-toggle"
-                      style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: 8,
-                        cursor: "pointer",
-                        fontSize: 13,
-                        marginBottom: 12,
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={enableOcr}
-                        onChange={(e) => setEnableOcr(e.target.checked)}
-                        style={{ marginTop: 3 }}
-                      />
-                      <span>
-                        <strong>Deep scan images (OCR)</strong> — slower; reads
-                        text inside slide images (use ChatGPT or Gemini)
-                      </span>
-                    </label>
                   </div>
 
                   <div>

@@ -10,7 +10,6 @@ import {
   fetchRelatedPapers,
 } from "@/lib/academicSearch";
 import {
-  clampInvalidCitations,
   finalizeLecturerReferences,
   persistSummaryReferences,
 } from "@/lib/referenceUtils";
@@ -470,7 +469,8 @@ async function prepareSummarizeContext({
   let referenceCatalog = null;
   let referenceCatalogMeta = {
     uploadCount: documents.length,
-    maxMarker: documents.length,
+    uploadNames: documents.map((d) => String(d?.name || "").trim()).filter(Boolean),
+    maxMarker: 0,
   };
 
   if (isLecturer) {
@@ -489,6 +489,7 @@ async function prepareSummarizeContext({
       referenceCatalog = built.catalog;
       referenceCatalogMeta = {
         uploadCount: built.uploadCount,
+        uploadNames: built.uploadNames,
         maxMarker: built.maxMarker,
       };
     } catch (e) {
@@ -497,6 +498,7 @@ async function prepareSummarizeContext({
       referenceCatalog = built.catalog;
       referenceCatalogMeta = {
         uploadCount: built.uploadCount,
+        uploadNames: built.uploadNames,
         maxMarker: built.maxMarker,
       };
     }
@@ -514,15 +516,18 @@ function buildSummarizeSystemPrompt({
   referenceCatalogMeta,
   outputLength,
 }) {
+  const externalSourceCount = referenceCatalogMeta.maxMarker ?? 0;
   const lecturerCitationBlock = isLecturer
-    ? `\n\n${getLecturerSummaryCitationRules(referenceCatalogMeta.uploadCount)}`
+    ? `\n\n${getLecturerSummaryCitationRules(externalSourceCount)}`
     : "";
+  const uploadListBlock =
+    isLecturer && referenceCatalogMeta.uploadNames?.length
+      ? `\n\nUploaded lecture files (primary source — do not cite with [n]):\n${referenceCatalogMeta.uploadNames.map((name) => `- ${name}`).join("\n")}`
+      : "";
   const sourceListBlock =
     isLecturer && referenceCatalog?.length
-      ? `\n\nNumbered sources (use ONLY these numbers for [n] citations):\n${referenceCatalog
+      ? `\n\nExternal sources for [n] citations (papers and imported web pages only):\n${referenceCatalog
           .map((r) => {
-            if (r.kind === "upload")
-              return `[${r.marker}] (uploaded) ${r.title}`;
             if (r.kind === "web") {
               const parts = [`[${r.marker}] (web) ${r.title}`];
               if (r.url) parts.push(`URL: ${r.url}`);
@@ -535,14 +540,16 @@ function buildSummarizeSystemPrompt({
             return parts.join(" ");
           })
           .join("\n")}`
-      : "";
+      : isLecturer
+        ? "\n\nNo related external papers were found for this lecture. Do not use [n] citation markers."
+        : "";
 
   const lengthBlock = summarizeLengthInstruction(outputLength, isLecturer);
 
   return `You are a document summarization assistant.
 Audience mode: ${normalizedRole}.
 ${roleProfile.summaryInstructions.map((line) => `- ${line}`).join("\n")}
-- ${lengthBlock}${lecturerCitationBlock}${sourceListBlock}
+- ${lengthBlock}${lecturerCitationBlock}${uploadListBlock}${sourceListBlock}
 ${effectivePrompt ? `\nAdditional instructions: ${effectivePrompt}` : ""}
 Format your response in clean markdown with clear sections.`;
 }
@@ -742,12 +749,11 @@ export async function POST(req) {
 
     const makeFinalizers = (referenceCatalog, referenceCatalogMeta) => {
       const finalizeLecturerOutput = async (raw, summaryIdForRefs) => {
-        let out = String(raw || "").trim();
-        if (referenceCatalogMeta.maxMarker > 0) {
-          out = clampInvalidCitations(out, referenceCatalogMeta.maxMarker);
-        }
-        const { markdown, citedCatalog, anchorMap } =
-          finalizeLecturerReferences(out, referenceCatalog);
+        const { markdown, citedCatalog, anchorMap } = finalizeLecturerReferences(
+          String(raw || "").trim(),
+          referenceCatalog,
+        );
+        const out = markdown;
         if (summaryIdForRefs) {
           if (citedCatalog.length > 0) {
             await persistSummaryReferences(
@@ -767,8 +773,10 @@ export async function POST(req) {
 
       const finalizeOutput = (raw) => {
         if (!isLecturer) return String(raw || "").trim();
-        let out = clampInvalidCitations(raw, referenceCatalogMeta.maxMarker);
-        return finalizeLecturerReferences(out, referenceCatalog).markdown;
+        return finalizeLecturerReferences(
+          String(raw || "").trim(),
+          referenceCatalog,
+        ).markdown;
       };
 
       return { finalizeLecturerOutput, finalizeOutput };

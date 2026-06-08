@@ -26,6 +26,7 @@ import {
   buildMarkerAnchorMap,
   extractCitationMarkers,
   filterReferencesToCitedInBody,
+  stripCitationMarkersNotInSet,
 } from "@/lib/referenceUtils";
 import CitationPreviewPopover from "./components/CitationPreviewPopover";
 import { buildChatSuggestions } from "@/lib/chatSuggestionsFromSummary";
@@ -1040,9 +1041,16 @@ export default function SummaryView() {
       return;
     }
 
-    const { body: bodyMd, referencesMarkdown } = splitMarkdownBeforeReferences(
+    let { body: bodyMd, referencesMarkdown } = splitMarkdownBeforeReferences(
       summary.output,
     );
+    if (summary.summarizeFor === "lecturer") {
+      const allowedMarkers = visibleLecturerReferences.map((r) => r.marker);
+      bodyMd = stripCitationMarkersNotInSet(bodyMd, allowedMarkers);
+      if (allowedMarkers.length === 0) {
+        referencesMarkdown = "";
+      }
+    }
     const found = [];
     const re = /^(#{1,3})\s+(.+)$/gm;
     let match;
@@ -1069,7 +1077,7 @@ export default function SummaryView() {
       );
     });
 
-    if (summary.summarizeFor === "lecturer") {
+    if (summary.summarizeFor === "lecturer" && visibleLecturerReferences.length) {
       const citedMarkers = extractCitationMarkers(bodyMd);
       const maxMarker =
         citedMarkers.length > 0 ? Math.max(...citedMarkers) : 99;

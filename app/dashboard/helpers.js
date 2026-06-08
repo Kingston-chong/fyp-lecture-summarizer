@@ -64,7 +64,7 @@ export const DASH_PROMPT_SUGGESTIONS = {
     "Highlight common mistakes/misconceptions and clarify them.",
   ],
   summarizeLecturer: [
-    "Use inline citation markers [n] for substantive claims and end with a ## References section.",
+    "Cite related external papers with [n] markers when found; do not number uploaded lecture files.",
     "Expand with lecturer-level depth: methods, assumptions, limitations, and implications.",
     "Keep slide bullets tight; put elaboration and citations in speaker notes where helpful.",
     "Flag thin or unsupported claims in the source materials instead of inventing detail.",
