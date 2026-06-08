@@ -31,7 +31,7 @@ export default function FlashcardGenerateModal({
   onGenerated,
 }) {
   const llmProviders = useLlmProviders();
-  const [aiModel, setAiModel] = useState("Gemini");
+  const [aiModel, setAiModel] = useState("ChatGPT");
   useEnsureUiModelLabel(aiModel, setAiModel, llmProviders);
   const aiModelOptions = useMemo(
     () =>

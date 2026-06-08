@@ -23,8 +23,8 @@ export function useLlmProviders() {
 
   const providers = data?.providers ?? null;
   const labels = data?.labels ?? null;
-  const defaultProvider = data?.defaultProvider ?? "gemini";
-  const defaultLabel = data?.defaultLabel ?? "Gemini";
+  const defaultProvider = data?.defaultProvider ?? "chatgpt";
+  const defaultLabel = data?.defaultLabel ?? "ChatGPT";
 
   const isProviderAvailable = useMemo(() => {
     return (id) => {

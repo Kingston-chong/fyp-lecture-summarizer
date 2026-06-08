@@ -39,8 +39,8 @@ export default function GuestTryPageClient() {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [dragging, setDragging] = useState(false);
   const [summarizeFor, setSummarizeFor] = useState("student");
-  const [model, setModel] = useState("gemini");
-  const [modelVariant, setModelVariant] = useState(getDefaultVariant("gemini"));
+  const [model, setModel] = useState("chatgpt");
+  const [modelVariant, setModelVariant] = useState(getDefaultVariant("chatgpt"));
   const llmProviders = useLlmProviders();
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);

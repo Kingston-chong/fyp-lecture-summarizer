@@ -79,7 +79,7 @@ const FOCUS_AREAS = [
 ];
 
 const DEFAULTS = {
-  aiModel: "Gemini",
+  aiModel: "ChatGPT",
   generationMode: "Strict",
   questionTypes: ["MCQ"],
   questionCountAuto: false,

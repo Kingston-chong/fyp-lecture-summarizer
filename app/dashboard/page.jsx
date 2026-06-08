@@ -91,9 +91,9 @@ export default function Dashboard() {
     to: null,
   });
   const summarizeDefaultApplied = useRef(false);
-  const [model, setModel] = useState("gemini"); // provider: chatgpt | deepseek | gemini
+  const [model, setModel] = useState("chatgpt"); // provider: chatgpt | deepseek | gemini
   const [modelVariant, setModelVariant] = useState(
-    getDefaultVariant("gemini"),
+    getDefaultVariant("chatgpt"),
   );
   const llmProviders = useLlmProviders();
   const [modelOpen, setModelOpen] = useState(false);
@@ -222,7 +222,7 @@ export default function Dashboard() {
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const [improveGenLoading, setImproveGenLoading] = useState(false);
   const [improveErr, setImproveErr] = useState("");
-  const [improveAiModel, setImproveAiModel] = useState("Gemini");
+  const [improveAiModel, setImproveAiModel] = useState("ChatGPT");
   const [improveModelOpen, setImproveModelOpen] = useState(false);
   /** Final PPTX renderer: Alai (default) or 2slides Fast PPT */
   const [improveProvider, setImproveProvider] = useState("alai");

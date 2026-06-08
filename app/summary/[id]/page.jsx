@@ -168,7 +168,7 @@ export default function SummaryView() {
 
   const [messages, setMessages] = useState([]);
   const [inputVal, setInputVal] = useState("");
-  const [chatModel, setChatModel] = useState("Gemini");
+  const [chatModel, setChatModel] = useState("ChatGPT");
   const llmProviders = useLlmProviders();
   useEnsureUiModelLabel(chatModel, setChatModel, llmProviders);
   const [chatResponseLength, setChatResponseLength] = useState("medium");
