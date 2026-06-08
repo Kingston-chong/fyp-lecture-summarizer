@@ -1735,7 +1735,7 @@ export default function Dashboard() {
                       {
                         id: "lecturer",
                         title: "Lecturer",
-                        sub: "Detailed & comprehensive",
+                        sub: "Detailed summary + related journal references",
                       },
                       {
                         id: "student",
@@ -1757,6 +1757,14 @@ export default function Dashboard() {
                         </div>
                       </div>
                     ))}
+                    {summarizeFor === "lecturer" ? (
+                      <p className="pub-year-hint summarize-lecturer-ref-hint">
+                        Lecturer mode automatically searches academic databases
+                        for relevant articles and references while your summary
+                        is generated. Matching papers appear in the References
+                        panel on the summary page.
+                      </p>
+                    ) : null}
                   </div>
 
                   <div className="pub-year-filter">

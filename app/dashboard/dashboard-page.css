@@ -1832,6 +1832,11 @@
   margin-bottom: 6px;
 }
 
+.summarize-lecturer-ref-hint {
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+
 /* Publication year filter (lecturer summarize) */
 .pub-year-filter {
   margin-top: 4px;
