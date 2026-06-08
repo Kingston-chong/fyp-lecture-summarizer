@@ -27,6 +27,7 @@ import {
   generatePptxWithTwoSlides,
   improvedSlidesToTwoSlidesUserInput,
 } from "@/lib/twoSlidesGenerate";
+import { getTwoSlidesApiKeys } from "@/lib/twoSlidesClient";
 import { themeFromTemplateSpec } from "@/lib/themeSelection";
 
 // ── FIX: Raise the serverless function timeout so Tavily + LLM can finish.
@@ -512,7 +513,7 @@ Rules:
           { status: 400 },
         );
       }
-      if (!process.env.TWOSLIDES_API_KEY) {
+      if (!getTwoSlidesApiKeys().length) {
         return NextResponse.json(
           { error: "TWOSLIDES_API_KEY is not configured on the server." },
           { status: 500 },

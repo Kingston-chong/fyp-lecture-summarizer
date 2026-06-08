@@ -4,6 +4,11 @@ import { runChat } from "@/lib/llmServer";
 import { parseJsonFromLlm } from "@/lib/jsonExtract";
 import { uiModelToKey } from "@/lib/improvePptModel";
 import { normalizeTemplateSpec } from "@/lib/pptxTemplateSpec";
+import {
+  TWOSLIDES_BASE,
+  getTwoSlidesApiKeys,
+  twoSlidesFetch,
+} from "@/lib/twoSlidesClient";
 
 /**
  * GET /api/improve-ppt/theme-search?q=modern+dark+tech&model=Gemini
@@ -18,10 +23,8 @@ import { normalizeTemplateSpec } from "@/lib/pptxTemplateSpec";
  * 3. Returns both the raw theme list AND the extracted spec so the generate
  *    route can use it to drive AI generator.
  *
- * ENV required: TWOSLIDES_API_KEY
+ * ENV required: TWOSLIDES_API_KEY (optional fallbacks: TWOSLIDES_API_KEY_FALLBACK, _2…_5)
  */
-
-const TWOSLIDES_BASE = "https://2slides.com";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -30,7 +33,7 @@ const TWOSLIDES_BASE = "https://2slides.com";
  * Returns array of { id, name, description, tags, themeURL, previewImageUrl }
  */
 async function searchTwoSlidesThemes(query, limit = 6) {
-  if (!process.env.TWOSLIDES_API_KEY) {
+  if (!getTwoSlidesApiKeys().length) {
     throw new Error("TWOSLIDES_API_KEY is not configured on the server.");
   }
 
@@ -38,22 +41,13 @@ async function searchTwoSlidesThemes(query, limit = 6) {
   url.searchParams.set("query", query);
   url.searchParams.set("limit", String(limit));
 
-  const res = await fetch(url.toString(), {
-    headers: {
-      Authorization: `Bearer ${process.env.TWOSLIDES_API_KEY}`,
-    },
-    // 10-second timeout — this is a fast read endpoint
+  const { res, data } = await twoSlidesFetch(url.toString(), {
     signal: AbortSignal.timeout(10_000),
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(
-      `2slides theme search failed (${res.status}): ${text.slice(0, 200)}`,
-    );
+    throw new Error(`2slides theme search failed (${res.status})`);
   }
-
-  const data = await res.json();
   // API returns { success: true, data: { total, themes: [...] } }
   const themes = Array.isArray(data?.data?.themes) ? data.data.themes : [];
 
@@ -81,10 +75,8 @@ async function fetchPreviewAsBase64(themeId, previewUrl) {
   try {
     const fallbackUrl = `${TWOSLIDES_BASE}/api/v1/themes/${encodeURIComponent(String(themeId || ""))}/preview`;
     const targetUrl = previewUrl || fallbackUrl;
-    const res = await fetch(targetUrl, {
-      headers: process.env.TWOSLIDES_API_KEY
-        ? { Authorization: `Bearer ${process.env.TWOSLIDES_API_KEY}` }
-        : undefined,
+    if (!getTwoSlidesApiKeys().length) return null;
+    const { res } = await twoSlidesFetch(targetUrl, {
       signal: AbortSignal.timeout(8_000),
     });
     if (!res.ok) return null;
@@ -353,7 +345,7 @@ export async function GET(req) {
       );
     }
 
-    if (!process.env.TWOSLIDES_API_KEY) {
+    if (!getTwoSlidesApiKeys().length) {
       return NextResponse.json(
         { error: "TWOSLIDES_API_KEY is not configured on the server." },
         { status: 503 },

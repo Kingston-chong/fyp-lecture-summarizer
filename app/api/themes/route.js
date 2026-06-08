@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { getRequestUser } from "@/lib/apiAuth";
 import { ALAI_BASE, alaiFetch, getAlaiApiKeys } from "@/lib/alaiClient";
+import {
+  TWOSLIDES_BASE,
+  getTwoSlidesApiKeys,
+  twoSlidesFetch,
+} from "@/lib/twoSlidesClient";
 
 export async function GET(req) {
   try {
@@ -41,7 +46,7 @@ export async function GET(req) {
     }
 
     if (provider === "2slides") {
-      if (!process.env.TWOSLIDES_API_KEY) {
+      if (!getTwoSlidesApiKeys().length) {
         return NextResponse.json({
           themes: [],
           hint: "TWOSLIDES_API_KEY is not configured.",
@@ -58,19 +63,13 @@ export async function GET(req) {
           ? Math.min(limitRaw, 100)
           : 20;
 
-      const searchUrl = new URL("https://2slides.com/api/v1/themes/search");
+      const searchUrl = new URL(`${TWOSLIDES_BASE}/api/v1/themes/search`);
       searchUrl.searchParams.set("query", query || "business");
       searchUrl.searchParams.set("limit", String(limit));
 
-      const res = await fetch(searchUrl.toString(), {
-        headers: {
-          Authorization: `Bearer ${process.env.TWOSLIDES_API_KEY}`,
-        },
-        cache: "no-store",
+      const { res, data } = await twoSlidesFetch(searchUrl.toString(), {
         signal: AbortSignal.timeout(15_000),
       });
-
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         return NextResponse.json(
           {

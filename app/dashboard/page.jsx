@@ -69,6 +69,7 @@ import {
   SERVERLESS_PAYLOAD_MAX_BYTES,
 } from "@/lib/uploadLimits";
 import { SUMMARY_RENAMED_EVENT } from "@/lib/summaryRenameSync";
+import { SUMMARIZE_OUTPUT_LENGTHS } from "@/lib/summarizeOutputLength";
 
 // ── Main Component ─────────────────────────────────────────
 export default function Dashboard() {
@@ -81,6 +82,7 @@ export default function Dashboard() {
   const [selectedFiles, setSelectedFiles] = useState([]); // {name, type, size, id?, file?, fromPrev?}
   const [prompt, setPrompt] = useState("");
   const [summarizeFor, setSummarizeFor] = useState("lecturer");
+  const [outputLength, setOutputLength] = useState("medium");
   const [publishedYearMode, setPublishedYearMode] = useState("all");
   const [customYearFrom, setCustomYearFrom] = useState("");
   const [customYearTo, setCustomYearTo] = useState("");
@@ -303,6 +305,7 @@ export default function Dashboard() {
       }
       const picked = deck[deck.length - 1];
       setFilePanelError("");
+      setSelectedFiles([{ ...picked, uploading: true }]);
       setUploading(true);
       try {
         const doc = await uploadDocumentsViaClient([picked.file]);
@@ -662,6 +665,7 @@ export default function Dashboard() {
           model,
           modelVariant,
           summarizeFor,
+          outputLength,
           prompt,
           initOnly: true,
           ...yearPayload,
@@ -731,6 +735,7 @@ export default function Dashboard() {
       model,
       modelVariant,
       summarizeFor,
+      outputLength,
       prompt,
       ...yearPayload,
     });
@@ -805,6 +810,17 @@ export default function Dashboard() {
 
   const selectedImproveSource =
     selectedFiles.find((f) => isImproveSourceType(f.type)) || null;
+  const improveFileBusy =
+    dashMode === "improve" &&
+    Boolean(selectedImproveSource) &&
+    (uploading || parseLoading);
+  const improveFileBusyLabel = uploading
+    ? "Uploading presentation…"
+    : parseLoading
+      ? enableOcr
+        ? "Deep scan — reading slides…"
+        : "Reading slides…"
+      : "";
   const selectedImproveSourceKey = selectedImproveSource
     ? selectedImproveSource.fromPrev
       ? `prev:${selectedImproveSource.id ?? selectedImproveSource.name}`
@@ -1438,48 +1454,83 @@ export default function Dashboard() {
                   <div
                     className={`file-list${dashMode === "improve" ? " improve-single" : ""}`}
                   >
-                    {selectedFiles.map((f) => (
-                      <div className="file-item" key={f.name}>
-                        <FileIcon type={f.type} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div className="file-name" title={f.name}>
-                            {f.name}
-                          </div>
-                          <div className="file-size">
-                            {f.size}
-                            {f.sourceUrl ? (
-                              <span className="file-web-tag">
-                                {" "}
-                                · {domainFromSourceUrl(f.sourceUrl) || "website"}
-                              </span>
-                            ) : null}
-                            {f.fromPrev && !f.sourceUrl && (
-                              <span className="file-prev-tag">
-                                {" "}
-                                · prev upload
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <span className="file-badge">{f.type}</span>
-                        {f.id || f.file ? (
-                          <button
-                            type="button"
-                            className="file-preview-btn"
-                            title="Preview file"
-                            onClick={(e) => openSelectedFilePreview(f, e)}
-                          >
-                            View
-                          </button>
-                        ) : null}
-                        <button
-                          className="file-remove"
-                          onClick={() => removeFile(f.name)}
+                    {selectedFiles.map((f) => {
+                      const fileUploading =
+                        dashMode === "improve" && Boolean(f.uploading);
+                      const fileParsing =
+                        dashMode === "improve" &&
+                        !fileUploading &&
+                        parseLoading &&
+                        selectedImproveSource?.name === f.name;
+                      const fileBusy = fileUploading || fileParsing;
+                      const busyLabel = fileUploading
+                        ? "Uploading…"
+                        : fileParsing
+                          ? enableOcr
+                            ? "Deep scan — reading slides…"
+                            : "Reading slides…"
+                          : "";
+                      return (
+                        <div
+                          className={`file-item${fileBusy ? " file-item--busy" : ""}`}
+                          key={f.name}
+                          aria-busy={fileBusy || undefined}
                         >
-                          <CloseIcon />
-                        </button>
-                      </div>
-                    ))}
+                          <FileIcon type={f.type} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="file-name" title={f.name}>
+                              {f.name}
+                            </div>
+                            <div className="file-size">
+                              {f.size}
+                              {f.sourceUrl ? (
+                                <span className="file-web-tag">
+                                  {" "}
+                                  ·{" "}
+                                  {domainFromSourceUrl(f.sourceUrl) || "website"}
+                                </span>
+                              ) : null}
+                              {f.fromPrev && !f.sourceUrl && !fileBusy && (
+                                <span className="file-prev-tag">
+                                  {" "}
+                                  · prev upload
+                                </span>
+                              )}
+                            </div>
+                            {fileBusy ? (
+                              <div className="file-item-status" role="status">
+                                <span className="improve-mini-spin" />
+                                {busyLabel}
+                              </div>
+                            ) : null}
+                          </div>
+                          <span className="file-badge">{f.type}</span>
+                          {f.id || f.file ? (
+                            <button
+                              type="button"
+                              className="file-preview-btn"
+                              title="Preview file"
+                              disabled={fileBusy}
+                              onClick={(e) => openSelectedFilePreview(f, e)}
+                            >
+                              View
+                            </button>
+                          ) : null}
+                          <button
+                            className="file-remove"
+                            disabled={fileBusy}
+                            title={
+                              fileBusy
+                                ? "Wait until upload and slide read finish"
+                                : "Remove file"
+                            }
+                            onClick={() => removeFile(f.name)}
+                          >
+                            <CloseIcon />
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                   {dashMode !== "improve" ? renderFileDropPanel({ compact: true }) : null}
                 </>
@@ -1487,7 +1538,16 @@ export default function Dashboard() {
                 renderFileDropPanel()
               )}
 
-              {dashMode === "improve" && selectedFiles.length > 0 ? (
+              {dashMode === "improve" && improveFileBusy ? (
+                <div className="improve-file-panel-status" role="status">
+                  <span className="improve-mini-spin" />
+                  {improveFileBusyLabel}
+                </div>
+              ) : null}
+
+              {dashMode === "improve" &&
+              selectedFiles.length > 0 &&
+              !improveFileBusy ? (
                 <div className="upload-hint">
                   Remove the file above to choose a different one.
                 </div>
@@ -1731,6 +1791,30 @@ export default function Dashboard() {
                     ))}
                   </div>
 
+                  <div className="pub-year-filter">
+                    <div className="pub-year-label">Output length</div>
+                    <p className="pub-year-hint">
+                      {
+                        SUMMARIZE_OUTPUT_LENGTHS.find(
+                          (o) => o.id === outputLength,
+                        )?.hint
+                      }
+                    </p>
+                    <div className="pub-year-pills" role="group" aria-label="Output length">
+                      {SUMMARIZE_OUTPUT_LENGTHS.map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          className={`pub-year-pill${outputLength === opt.id ? " on" : ""}`}
+                          aria-pressed={outputLength === opt.id}
+                          onClick={() => setOutputLength(opt.id)}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {summarizeFor === "lecturer" ? (
                     <PublishedYearFilter
                       mode={publishedYearMode}
@@ -1922,6 +2006,13 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     <div className="improve-controls">
+                      {improveFileBusy ? (
+                        <div className="improve-file-status" role="status">
+                          <span className="improve-mini-spin" />
+                          <span>{improveFileBusyLabel}</span>
+                        </div>
+                      ) : null}
+
                       <div>
                         <div className="radio-label">Detail level</div>
                         {[
@@ -2111,6 +2202,7 @@ export default function Dashboard() {
                           onClick={handleImproveGenerate}
                           disabled={
                             improveGenLoading ||
+                            uploading ||
                             parseLoading ||
                             !parsedSlides?.length ||
                             !improveInstructions.trim() ||

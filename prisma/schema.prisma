@@ -76,6 +76,7 @@ model Summary {
   title       String   // auto-generated from first doc name
   model       String   // chatgpt / deepseek / gemini
   summarizeFor String  // lecturer / student
+  outputLength String  @default("medium") @db.VarChar(16) // short | medium | detailed
   prompt      String?  // additional prompt
   publishedYearFrom Int? // lecturer reference search (inclusive)
   publishedYearTo   Int? // lecturer reference search (inclusive)

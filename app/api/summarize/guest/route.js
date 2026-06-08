@@ -12,6 +12,7 @@ import {
   normalizeSummarizeRole,
   prepareSummarizeContextFromBuffers,
 } from "@/lib/summarizeEngine";
+import { resolveSummarizeOutputLength } from "@/lib/summarizeOutputLength";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -28,6 +29,7 @@ export async function POST(req) {
     const normalizedRole = normalizeSummarizeRole(parsed.summarizeFor);
     const roleProfile = getRoleProfile(normalizedRole);
     const isLecturer = normalizedRole === "lecturer";
+    const lengthOption = resolveSummarizeOutputLength(parsed.outputLength);
     const effectiveYearRange = resolvePublishedYearRange({
       mode: parsed.publishedYearMode,
       publishedYearFrom: parsed.publishedYearFrom,
@@ -65,6 +67,7 @@ export async function POST(req) {
             isLecturer,
             referenceCatalog,
             referenceCatalogMeta,
+            outputLength: lengthOption.id,
           });
 
           sendEvent(controller, "meta", {
@@ -82,6 +85,7 @@ export async function POST(req) {
             parsed.modelVariant,
             systemPrompt,
             combinedText,
+            { maxTokens: lengthOption.maxTokens },
           )) {
             output += chunk;
             sendEvent(controller, "chunk", { text: chunk });

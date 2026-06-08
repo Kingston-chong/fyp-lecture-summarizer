@@ -2,6 +2,7 @@ import { getRequestUser } from "@/lib/apiAuth";
 import { extractPptxUrlFromAlaiGenerationJson } from "@/lib/alaiSlidePptx";
 import { pollTwoSlidesGeneration } from "@/lib/twoSlidesGenerate";
 import { alaiFetch, getAlaiApiKeys } from "@/lib/alaiClient";
+import { getTwoSlidesApiKeys } from "@/lib/twoSlidesClient";
 import { apiHandler } from "@/lib/apiHandler";
 
 /** @param {string} url */
@@ -70,7 +71,7 @@ export const GET = apiHandler(async function GET(req, context) {
   const titleParam = url.searchParams.get("title") || "presentation";
 
   if (provider === "2slides") {
-    if (!process.env.TWOSLIDES_API_KEY) {
+    if (!getTwoSlidesApiKeys().length) {
       return new Response(
         JSON.stringify({ error: "TWOSLIDES_API_KEY is not configured." }),
         {

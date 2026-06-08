@@ -871,6 +871,46 @@
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 8px;
 }
+.file-item--busy {
+  border-color: rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.07);
+}
+.file-item-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-family: "Sora", sans-serif;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: rgba(199, 210, 254, 0.9);
+}
+.improve-file-panel-status,
+.improve-file-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border-radius: 8px;
+  border: 1px solid rgba(99, 102, 241, 0.28);
+  background: rgba(99, 102, 241, 0.09);
+  font-family: "Sora", sans-serif;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(199, 210, 254, 0.95);
+}
+.improve-file-panel-status {
+  margin-top: 8px;
+}
+.improve-file-status {
+  margin-bottom: 4px;
+}
+.file-preview-btn:disabled,
+.file-remove:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 .file-name {
   font-family: "Sora", sans-serif;
   font-size: 12px;
@@ -3500,6 +3540,17 @@ html[data-theme="light"] .drop-zone-link {
 html[data-theme="light"] .file-item {
   background: rgba(0, 0, 0, 0.015);
   border: 1px solid rgba(0, 0, 0, 0.06);
+}
+html[data-theme="light"] .file-item--busy {
+  border-color: rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.06);
+}
+html[data-theme="light"] .file-item-status,
+html[data-theme="light"] .improve-file-panel-status,
+html[data-theme="light"] .improve-file-status {
+  border-color: rgba(99, 102, 241, 0.22);
+  background: rgba(99, 102, 241, 0.07);
+  color: #4338ca;
 }
 html[data-theme="light"] .file-name {
   color: #111827;

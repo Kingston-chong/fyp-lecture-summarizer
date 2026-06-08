@@ -22,6 +22,10 @@ import {
 import { applyLlmRateLimit } from "@/lib/llmRateLimit";
 import { resolvePublishedYearRange } from "@/lib/publishedYearFilter";
 import { SUMMARIZE_PHASE } from "@/lib/summarizeProgress";
+import {
+  resolveSummarizeOutputLength,
+  summarizeLengthInstruction,
+} from "@/lib/summarizeOutputLength";
 
 const MAX_MODEL_INPUT_CHARS = Number.parseInt(
   process.env.SUMMARY_MAX_INPUT_CHARS || "12000",
@@ -102,7 +106,7 @@ function isOpenRouterModelNotFound(err) {
   return msg.includes("404") || msg.toLowerCase().includes("not found");
 }
 
-async function callOpenRouter(model, modelVariant, fullPrompt) {
+async function callOpenRouter(model, modelVariant, fullPrompt, maxTokens = 2000) {
   if (!openrouterClient) throw new Error("OPENROUTER_API_KEY is not set");
 
   const primary = openRouterModelSlug(model, modelVariant);
@@ -131,7 +135,7 @@ async function callOpenRouter(model, modelVariant, fullPrompt) {
       const res = await openrouterClient.chat.completions.create({
         model: slug,
         messages: [{ role: "user", content: fullPrompt }],
-        max_tokens: 2000,
+        max_tokens: maxTokens,
       });
       const text = res.choices[0]?.message?.content;
       if (text != null) return text;
@@ -153,7 +157,7 @@ async function callOpenRouter(model, modelVariant, fullPrompt) {
   );
 }
 
-async function* callOpenRouterStream(model, modelVariant, fullPrompt) {
+async function* callOpenRouterStream(model, modelVariant, fullPrompt, maxTokens = 2000) {
   if (!openrouterClient) throw new Error("OPENROUTER_API_KEY is not set");
 
   const primary = openRouterModelSlug(model, modelVariant);
@@ -182,7 +186,7 @@ async function* callOpenRouterStream(model, modelVariant, fullPrompt) {
       const stream = await openrouterClient.chat.completions.create({
         model: slug,
         messages: [{ role: "user", content: fullPrompt }],
-        max_tokens: 2000,
+        max_tokens: maxTokens,
         stream: true,
       });
       let emitted = false;
@@ -242,12 +246,18 @@ function createLimiter(concurrency) {
 // - Gemini: tries Flash models first (free tier at aistudio.google.com). Override with GEMINI_MODEL in .env.
 // - If OPENROUTER_API_KEY is set, all providers use OpenRouter (OpenAI-compatible API) instead of direct keys.
 
-async function callAI(model, modelVariant, systemPrompt, documentText) {
+async function callAI(
+  model,
+  modelVariant,
+  systemPrompt,
+  documentText,
+  { maxTokens = 2000 } = {},
+) {
   const clipped = (documentText || "").slice(0, MAX_MODEL_INPUT_CHARS);
   const fullPrompt = `${systemPrompt}\n\n---\n\nDocument Content:\n${clipped}`;
 
   if (openrouterClient) {
-    return callOpenRouter(model, modelVariant, fullPrompt);
+    return callOpenRouter(model, modelVariant, fullPrompt, maxTokens);
   }
 
   if (model === "chatgpt") {
@@ -256,7 +266,7 @@ async function callAI(model, modelVariant, systemPrompt, documentText) {
     const res = await openaiClient.chat.completions.create({
       model: openaiModel,
       messages: [{ role: "user", content: fullPrompt }],
-      max_tokens: 2000,
+      max_tokens: maxTokens,
     });
     return res.choices[0].message.content;
   }
@@ -267,7 +277,7 @@ async function callAI(model, modelVariant, systemPrompt, documentText) {
     const res = await deepseekClient.chat.completions.create({
       model: deepseekModel,
       messages: [{ role: "user", content: fullPrompt }],
-      max_tokens: 2000,
+      max_tokens: maxTokens,
     });
     return res.choices[0].message.content;
   }
@@ -298,6 +308,7 @@ async function callAI(model, modelVariant, systemPrompt, documentText) {
       try {
         const geminiModel = geminiClient.getGenerativeModel({
           model: modelName,
+          generationConfig: { maxOutputTokens: maxTokens },
         });
         const res = await geminiModel.generateContent(fullPrompt);
         return res.response.text();
@@ -319,12 +330,18 @@ async function callAI(model, modelVariant, systemPrompt, documentText) {
   throw new Error("Unknown model: " + model);
 }
 
-async function* callAIStream(model, modelVariant, systemPrompt, documentText) {
+async function* callAIStream(
+  model,
+  modelVariant,
+  systemPrompt,
+  documentText,
+  { maxTokens = 2000 } = {},
+) {
   const clipped = (documentText || "").slice(0, MAX_MODEL_INPUT_CHARS);
   const fullPrompt = `${systemPrompt}\n\n---\n\nDocument Content:\n${clipped}`;
 
   if (openrouterClient) {
-    yield* callOpenRouterStream(model, modelVariant, fullPrompt);
+    yield* callOpenRouterStream(model, modelVariant, fullPrompt, maxTokens);
     return;
   }
 
@@ -334,7 +351,7 @@ async function* callAIStream(model, modelVariant, systemPrompt, documentText) {
     const stream = await openaiClient.chat.completions.create({
       model: openaiModel,
       messages: [{ role: "user", content: fullPrompt }],
-      max_tokens: 2000,
+      max_tokens: maxTokens,
       stream: true,
     });
     for await (const chunk of stream) {
@@ -350,7 +367,7 @@ async function* callAIStream(model, modelVariant, systemPrompt, documentText) {
     const stream = await deepseekClient.chat.completions.create({
       model: deepseekModel,
       messages: [{ role: "user", content: fullPrompt }],
-      max_tokens: 2000,
+      max_tokens: maxTokens,
       stream: true,
     });
     for await (const chunk of stream) {
@@ -385,6 +402,7 @@ async function* callAIStream(model, modelVariant, systemPrompt, documentText) {
       try {
         const geminiModel = geminiClient.getGenerativeModel({
           model: modelName,
+          generationConfig: { maxOutputTokens: maxTokens },
         });
         const stream = await geminiModel.generateContentStream(fullPrompt);
         for await (const chunk of stream.stream) {
@@ -494,6 +512,7 @@ function buildSummarizeSystemPrompt({
   isLecturer,
   referenceCatalog,
   referenceCatalogMeta,
+  outputLength,
 }) {
   const lecturerCitationBlock = isLecturer
     ? `\n\n${getLecturerSummaryCitationRules(referenceCatalogMeta.uploadCount)}`
@@ -518,9 +537,12 @@ function buildSummarizeSystemPrompt({
           .join("\n")}`
       : "";
 
+  const lengthBlock = summarizeLengthInstruction(outputLength, isLecturer);
+
   return `You are a document summarization assistant.
 Audience mode: ${normalizedRole}.
-${roleProfile.summaryInstructions.map((line) => `- ${line}`).join("\n")}${lecturerCitationBlock}${sourceListBlock}
+${roleProfile.summaryInstructions.map((line) => `- ${line}`).join("\n")}
+- ${lengthBlock}${lecturerCitationBlock}${sourceListBlock}
 ${effectivePrompt ? `\nAdditional instructions: ${effectivePrompt}` : ""}
 Format your response in clean markdown with clear sections.`;
 }
@@ -543,6 +565,7 @@ export async function POST(req) {
       model,
       modelVariant,
       summarizeFor,
+      outputLength,
       prompt,
       stream: streamOutput = false,
       initOnly = false,
@@ -662,6 +685,7 @@ export async function POST(req) {
           title,
           model: modelForDb,
           summarizeFor: normalizedRole,
+          outputLength: resolveSummarizeOutputLength(outputLength).id,
           prompt: prompt || null,
           ...yearData,
           output: "",
@@ -684,6 +708,10 @@ export async function POST(req) {
       typeof existingSummary?.prompt === "string"
         ? existingSummary.prompt
         : prompt || "";
+
+    const lengthOption = resolveSummarizeOutputLength(
+      existingSummary?.outputLength ?? outputLength,
+    );
 
     /** provider key like "chatgpt" / "deepseek" / "gemini" */
     let effectiveModel = model;
@@ -780,6 +808,7 @@ export async function POST(req) {
               isLecturer,
               referenceCatalog,
               referenceCatalogMeta,
+              outputLength: lengthOption.id,
             });
 
             const { finalizeLecturerOutput, finalizeOutput } = makeFinalizers(
@@ -797,6 +826,7 @@ export async function POST(req) {
               effectiveVariant,
               systemPrompt,
               combinedText,
+              { maxTokens: lengthOption.maxTokens },
             )) {
               output += chunk;
               sendEvent(controller, "chunk", { text: chunk });
@@ -829,6 +859,7 @@ export async function POST(req) {
                   title,
                   model: modelForDb,
                   summarizeFor: normalizedRole,
+                  outputLength: lengthOption.id,
                   prompt: effectivePrompt || null,
                   output: "",
                   documents: {
@@ -850,7 +881,7 @@ export async function POST(req) {
 
             await prisma.summary.updateMany({
               where: { id: summaryIdForRefs, userId: user.id },
-              data: { output: finalOutput },
+              data: { output: finalOutput, outputLength: lengthOption.id },
             });
             sendEvent(controller, "done", {
               summaryId: summaryIdForRefs,
@@ -892,6 +923,7 @@ export async function POST(req) {
       isLecturer,
       referenceCatalog,
       referenceCatalogMeta,
+      outputLength: lengthOption.id,
     });
 
     const { finalizeLecturerOutput, finalizeOutput } = makeFinalizers(
@@ -904,6 +936,7 @@ export async function POST(req) {
       effectiveVariant,
       systemPrompt,
       combinedText,
+      { maxTokens: lengthOption.maxTokens },
     );
 
     if (existingSummary) {
@@ -930,6 +963,7 @@ export async function POST(req) {
         title,
         model: modelForDb,
         summarizeFor: normalizedRole,
+        outputLength: lengthOption.id,
         prompt: effectivePrompt || null,
         output: "",
         documents: {
@@ -945,7 +979,7 @@ export async function POST(req) {
 
     await prisma.summary.updateMany({
       where: { id: summary.id, userId: user.id },
-      data: { output },
+      data: { output, outputLength: lengthOption.id },
     });
 
     return NextResponse.json({ success: true, summaryId: summary.id });
