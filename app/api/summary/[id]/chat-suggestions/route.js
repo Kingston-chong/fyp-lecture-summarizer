@@ -100,7 +100,7 @@ export async function POST(req, ctx) {
 
     const { provider, variant } = parseSummaryModel(summary.model);
     const model = provider || "chatgpt";
-    const context = markdown.slice(0, 12000);
+    const context = markdown.slice(0, 8000);
     const title = String(summary.title || "Untitled");
 
     const audienceLine =
@@ -123,21 +123,33 @@ export async function POST(req, ctx) {
                     Summary content:
                     ${context}`;
 
-    const reply = await runChat(model, variant, prompt, [
-      {
-        role: "user",
-        content: "Generate high-quality follow-up question suggestions now.",
-      },
-    ]);
+    let aiSuggestions = [];
+    try {
+      const reply = await runChat(
+        model,
+        variant,
+        prompt,
+        [
+          {
+            role: "user",
+            content:
+              "Generate high-quality follow-up question suggestions now.",
+          },
+        ],
+        { maxTokens: 512 },
+      );
+      aiSuggestions = safeParseSuggestions(reply, max);
+    } catch (llmErr) {
+      console.warn(
+        "chat suggestions LLM failed, using heading fallback:",
+        llmErr?.message || llmErr,
+      );
+    }
 
-    const aiSuggestions = safeParseSuggestions(reply, max);
     const suggestions = aiSuggestions.length ? aiSuggestions : fallback;
     return NextResponse.json({ suggestions });
   } catch (err) {
     console.error("chat suggestions error:", err);
-    return NextResponse.json(
-      { error: "Failed to generate suggestions" },
-      { status: 500 },
-    );
+    return NextResponse.json({ suggestions: [] }, { status: 200 });
   }
 }
