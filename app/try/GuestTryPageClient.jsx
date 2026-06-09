@@ -23,6 +23,7 @@ import {
 } from "@/lib/guestSessionStorage";
 import { markdownToHtml } from "@/lib/markdown";
 import { summarizePhaseLabel } from "@/lib/summarizeProgress";
+import ReferenceSearchProgress from "@/app/components/ReferenceSearchProgress";
 import GuestActionBar from "./components/GuestActionBar";
 import {
   useEnsureLlmProvider,
@@ -45,6 +46,7 @@ export default function GuestTryPageClient() {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [statusPhase, setStatusPhase] = useState(null);
+  const [statusDetail, setStatusDetail] = useState(null);
   const [error, setError] = useState("");
 
   const [title, setTitle] = useState("");
@@ -142,7 +144,10 @@ export default function GuestTryPageClient() {
       }
 
       await consumeSummarizeSse(res.body, {
-        onStatus: (phase) => setStatusPhase(phase),
+        onStatus: (payload) => {
+          setStatusPhase(payload?.phase ?? null);
+          setStatusDetail(payload);
+        },
         onMeta: (meta) => {
           if (meta?.title) streamTitle = meta.title;
         },
@@ -152,6 +157,12 @@ export default function GuestTryPageClient() {
         },
         onDone: (payload) => {
           if (payload?.output) accumulated = payload.output;
+        },
+        onError: (message) => {
+          setError(message);
+          setLoading(false);
+          setStatusPhase(null);
+          setStatusDetail(null);
         },
       });
 
@@ -369,7 +380,12 @@ export default function GuestTryPageClient() {
                 {loading ? "Summarizing…" : "Generate summary"}
               </button>
               {loading && statusPhase ? (
-                <p className="try-status">{summarizePhaseLabel(statusPhase)}</p>
+                <div className="try-status-block">
+                  <ReferenceSearchProgress status={statusDetail} compact />
+                  <p className="try-status">
+                    {summarizePhaseLabel(statusPhase)}
+                  </p>
+                </div>
               ) : null}
               {error ? <p className="try-error">{error}</p> : null}
             </aside>
@@ -405,9 +421,12 @@ export default function GuestTryPageClient() {
             />
 
             {loading ? (
-              <p className="try-status">
-                {summarizePhaseLabel(statusPhase) || "Generating summary…"}
-              </p>
+              <div className="try-status-block">
+                <ReferenceSearchProgress status={statusDetail} />
+                <p className="try-status">
+                  {summarizePhaseLabel(statusPhase) || "Generating summary…"}
+                </p>
+              </div>
             ) : null}
             {error ? <p className="try-error">{error}</p> : null}
 

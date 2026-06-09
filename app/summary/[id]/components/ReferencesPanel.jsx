@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { TrashIcon, Spinner } from "@/app/components/icons";
 import { LoadingText } from "@/app/components/LoadingText";
 import { summarizePhaseLabel } from "@/lib/summarizeProgress";
+import ReferenceSearchProgress from "@/app/components/ReferenceSearchProgress";
 import CustomSelect from "@/app/components/CustomSelect";
 import "@/app/components/CustomSelect.css";
 import { citationLetterForIndex } from "@/lib/referenceUtils";
@@ -966,6 +967,7 @@ export default function ReferencesPanel({
   references,
   loading,
   loadingPhase = null,
+  loadingStatus = null,
   activeMarker,
   onSelectReference,
   onMarkerHover,
@@ -1044,6 +1046,7 @@ export default function ReferencesPanel({
         {/* ── Body ── */}
         {loading ? (
           <div className="rp-state">
+            <ReferenceSearchProgress status={loadingStatus} compact />
             <div className="rp-spinner" />
             <span>
               <LoadingText active>

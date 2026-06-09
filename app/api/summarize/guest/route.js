@@ -6,7 +6,8 @@ import { resolvePublishedYearRange } from "@/lib/publishedYearFilter";
 import { SUMMARIZE_PHASE } from "@/lib/summarizeProgress";
 import {
   buildSummarizeSystemPrompt,
-  callAIStream,
+  callAIStreamWithFallback,
+  providerDisplayLabel,
   finalizeSummarizeOutput,
   getRoleProfile,
   normalizeSummarizeRole,
@@ -53,7 +54,7 @@ export async function POST(req) {
               effectiveModel: parsed.model,
               effectiveVariant: parsed.modelVariant,
               effectiveYearRange,
-              onStatus: (phase) => sendEvent(controller, "status", { phase }),
+              onStatus: (payload) => sendEvent(controller, "status", payload),
             });
 
           sendEvent(controller, "status", {
@@ -80,12 +81,23 @@ export async function POST(req) {
           });
 
           let output = "";
-          for await (const chunk of callAIStream(
+          for await (const chunk of callAIStreamWithFallback(
             parsed.model,
             parsed.modelVariant,
             systemPrompt,
             combinedText,
-            { maxTokens: lengthOption.maxTokens },
+            {
+              maxTokens: lengthOption.maxTokens,
+              onProviderSwitch: ({ from, to }) => {
+                sendEvent(controller, "status", {
+                  phase: SUMMARIZE_PHASE.WRITING_SUMMARY,
+                  step: "model_fallback",
+                  fromProvider: from,
+                  toProvider: to,
+                  message: `${providerDisplayLabel(from)} limit reached — switching to ${providerDisplayLabel(to)}…`,
+                });
+              },
+            },
           )) {
             output += chunk;
             sendEvent(controller, "chunk", { text: chunk });

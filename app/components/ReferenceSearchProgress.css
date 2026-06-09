@@ -1,0 +1,78 @@
+.ref-search-progress {
+  margin: 12px 0 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(129, 140, 248, 0.25);
+  background: rgba(99, 102, 241, 0.08);
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.ref-search-progress--compact {
+  margin: 8px 0;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+.ref-search-progress-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.ref-search-progress-head strong {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.ref-search-progress-spin {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(165, 180, 252, 0.35);
+  border-top-color: #a5b4fc;
+  border-radius: 50%;
+  animation: ref-search-spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+
+.ref-search-progress-list {
+  margin: 0;
+  padding: 0 0 0 4px;
+  list-style: none;
+}
+
+.ref-search-progress-list li {
+  position: relative;
+  padding-left: 12px;
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.ref-search-progress-list li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: #a5b4fc;
+}
+
+@keyframes ref-search-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+html[data-theme="light"] .ref-search-progress {
+  border-color: rgba(99, 102, 241, 0.22);
+  background: rgba(99, 102, 241, 0.06);
+  color: rgba(15, 23, 42, 0.78);
+}
+
+html[data-theme="light"] .ref-search-progress-head strong {
+  color: rgba(15, 23, 42, 0.92);
+}
+
+html[data-theme="light"] .ref-search-progress-list li {
+  color: rgba(51, 65, 85, 0.88);
+}

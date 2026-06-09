@@ -114,6 +114,7 @@ import {
 import { LoadingText } from "@/app/components/LoadingText";
 import { canPublishSummaryShare } from "@/lib/chatShareSnapshot";
 import { SUMMARIZE_PHASE, summarizePhaseLabel } from "@/lib/summarizeProgress";
+import ReferenceSearchProgress from "@/app/components/ReferenceSearchProgress";
 import { isGuestSummaryRouteId } from "@/lib/guestMode";
 import { useGuestSummaryBootstrap } from "./hooks/useGuestSummaryBootstrap";
 import { useRequireAuth } from "@/app/hooks/useRequireAuth";
@@ -161,6 +162,7 @@ export default function SummaryView() {
   const [summaryError, setSummaryError] = useState("");
   const [summarizing, setSummarizing] = useState(false);
   const [summarizePhase, setSummarizePhase] = useState(null);
+  const [summarizeStatus, setSummarizeStatus] = useState(null);
   const [summarizeError, setSummarizeError] = useState("");
   /** Latest summary for autostart stream — avoids effect deps on `summary` (each SSE chunk re-ran the effect and cancelled the stream). */
   const latestSummaryForAutostartRef = useRef(null);
@@ -463,6 +465,7 @@ export default function SummaryView() {
     setSummaryError,
     setSummarizing,
     setSummarizePhase,
+    setSummarizeStatus,
     setSummarizeError,
   });
 
@@ -735,6 +738,7 @@ export default function SummaryView() {
       setSummarizeError("");
       setSummarizing(true);
       setSummarizePhase(SUMMARIZE_PHASE.EXTRACTING);
+      setSummarizeStatus({ phase: SUMMARIZE_PHASE.EXTRACTING });
       try {
         const res = await fetch("/api/summarize", {
           method: "POST",
@@ -744,6 +748,11 @@ export default function SummaryView() {
             stream: true,
           }),
         });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data?.error || `Failed to start stream (${res.status})`);
+        }
 
         const contentType = res.headers.get("content-type") || "";
         if (!contentType.includes("text/event-stream") || !res.body) {
@@ -777,8 +786,10 @@ export default function SummaryView() {
 
           if (event === "status" && payload?.phase) {
             setSummarizePhase(payload.phase);
+            setSummarizeStatus(payload);
           } else if (event === "chunk" && payload?.text) {
             setSummarizePhase(SUMMARIZE_PHASE.WRITING_SUMMARY);
+            setSummarizeStatus({ phase: SUMMARIZE_PHASE.WRITING_SUMMARY });
             setSummary((prev) => {
               if (!prev) return prev;
               return {
@@ -790,6 +801,12 @@ export default function SummaryView() {
             gotDone = true;
           } else if (event === "error") {
             streamError = payload?.error || "Summarization failed";
+            if (!cancelled) {
+              setSummarizeError(streamError);
+              setSummarizing(false);
+              setSummarizePhase(null);
+              setSummarizeStatus(null);
+            }
           }
         };
 
@@ -809,6 +826,14 @@ export default function SummaryView() {
 
         if (!cancelled && buffer.trim()) applySseBlock(buffer.trim());
         if (!cancelled && streamError) throw new Error(streamError);
+        if (!cancelled && !gotDone) {
+          const partial = latestSummaryForAutostartRef.current?.output?.trim();
+          if (!partial) {
+            throw new Error(
+              "Summarization stopped before completion. The AI may have hit a rate limit — try again or pick another model.",
+            );
+          }
+        }
 
         // Refresh summary once done (ensures DB output is in sync)
         if (!cancelled) {
@@ -837,6 +862,7 @@ export default function SummaryView() {
         // leaving the UI stuck on "Generating summary…".
         setSummarizing(false);
         setSummarizePhase(null);
+        setSummarizeStatus(null);
       }
     }
 
@@ -2474,7 +2500,18 @@ export default function SummaryView() {
                     </div>
                   ) : (
                     <>
+                      {summarizeError ? (
+                        <div
+                          className="sum-summarize-error"
+                          role="alert"
+                          aria-live="assertive"
+                        >
+                          <strong>Summarization failed</strong>
+                          <p>{summarizeError}</p>
+                        </div>
+                      ) : null}
                       {summarizing &&
+                        !summarizeError &&
                         !(
                           typeof summary?.output === "string" &&
                           summary.output.trim().length > 0
@@ -2484,6 +2521,7 @@ export default function SummaryView() {
                             role="status"
                             aria-live="polite"
                           >
+                            <ReferenceSearchProgress status={summarizeStatus} />
                             <LoadingText active>
                               {summarizePhaseLabel(
                                 summarizePhase ||
@@ -2513,6 +2551,7 @@ export default function SummaryView() {
                       </div>
                       {!(
                         summarizing &&
+                        !summarizeError &&
                         !(
                           typeof summary?.output === "string" &&
                           summary.output.trim().length > 0
@@ -3230,6 +3269,7 @@ export default function SummaryView() {
                         references: visibleLecturerReferences,
                         loading: referencesLoading || summarizing,
                         loadingPhase: summarizing ? summarizePhase : null,
+                        loadingStatus: summarizing ? summarizeStatus : null,
                         activeMarker: activeCitationMarker,
                         onSelectReference: handleSelectReference,
                         onMarkerHover: setActiveCitationMarker,
@@ -3440,6 +3480,7 @@ export default function SummaryView() {
                 references: visibleLecturerReferences,
                 loading: referencesLoading || summarizing,
                 loadingPhase: summarizing ? summarizePhase : null,
+                loadingStatus: summarizing ? summarizeStatus : null,
                 activeMarker: activeCitationMarker,
                 onSelectReference: handleSelectReference,
                 onMarkerHover: setActiveCitationMarker,

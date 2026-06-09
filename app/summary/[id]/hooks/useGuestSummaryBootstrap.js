@@ -18,6 +18,7 @@ export function useGuestSummaryBootstrap({
   setSummaryError,
   setSummarizing,
   setSummarizePhase,
+  setSummarizeStatus,
   setSummarizeError,
 }) {
   const isGuestMode = isGuestSummaryRouteId(summaryId);
@@ -115,12 +116,16 @@ export function useGuestSummaryBootstrap({
       try {
         await runGuestSummarizeStream(pending.files, {
           ...pending.options,
-          onStatus: (phase) => {
-            if (!cancelled) setSummarizePhase(phase);
+          onStatus: (payload) => {
+            if (!cancelled) {
+              setSummarizePhase(payload?.phase ?? null);
+              setSummarizeStatus(payload);
+            }
           },
           onChunk: (text) => {
             if (cancelled) return;
             setSummarizePhase(SUMMARIZE_PHASE.WRITING_SUMMARY);
+            setSummarizeStatus({ phase: SUMMARIZE_PHASE.WRITING_SUMMARY });
             setSummary((prev) => {
               if (!prev) return prev;
               return {
@@ -128,6 +133,14 @@ export function useGuestSummaryBootstrap({
                 output: String(prev.output || "") + text,
               };
             });
+          },
+          onError: (message) => {
+            if (!cancelled) {
+              setSummarizeError(message);
+              setSummarizing(false);
+              setSummarizePhase(null);
+              setSummarizeStatus(null);
+            }
           },
         });
 
@@ -139,10 +152,9 @@ export function useGuestSummaryBootstrap({
           setSummarizeError(e?.message ?? "Summarization failed");
         }
       } finally {
-        if (!cancelled) {
-          setSummarizing(false);
-          setSummarizePhase(null);
-        }
+        setSummarizing(false);
+        setSummarizePhase(null);
+        setSummarizeStatus(null);
       }
     }
 
